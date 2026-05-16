@@ -1,0 +1,44 @@
+# Core API
+fastapi==0.115.5
+uvicorn[standard]==0.32.1
+python-multipart==0.0.20
+
+# Settings & validation
+pydantic==2.10.3
+pydantic-settings==2.7.0
+
+# Database
+psycopg[binary]==3.2.3
+pgvector==0.3.6
+
+# AI Providers (abstracted via llm_router)
+anthropic==0.40.0
+openai==1.58.1
+
+# LLM orchestration
+langchain==0.3.13
+langchain-anthropic==0.3.3
+langchain-openai==0.3.0
+langchain-community==0.3.13
+
+# PII masking
+presidio-analyzer==2.2.355
+presidio-anonymizer==2.2.355
+spacy==3.8.3
+
+# Document extraction
+pymupdf==1.25.1
+pytesseract==0.3.13
+openpyxl==3.1.5
+python-docx==1.1.2
+
+# HTTP client (for calling Go API)
+httpx==0.28.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.2
+pytest-cov==6.0.0
+
+# Dev
+python-dotenv==1.0.1

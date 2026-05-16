@@ -1,0 +1,1830 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — Timeline Workspace Feature Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-base:       #0f172a;
+      --bg-surface:    #1e293b;
+      --bg-elevated:   #263148;
+      --bg-overlay:    #1a2744;
+      --border:        #334155;
+      --border-subtle: #1e293b;
+      --text-primary:  #f1f5f9;
+      --text-secondary:#94a3b8;
+      --text-muted:    #64748b;
+      --accent-blue:   #3b82f6;
+      --accent-violet: #8b5cf6;
+      --accent-green:  #22c55e;
+      --accent-amber:  #f59e0b;
+      --accent-red:    #ef4444;
+      --accent-cyan:   #06b6d4;
+      --accent-pink:   #ec4899;
+      --source-system: #64748b;
+      --source-user:   #3b82f6;
+      --source-ai:     #8b5cf6;
+      --tag-bg:        #1e3a5f;
+      --tag-text:      #93c5fd;
+      --code-bg:       #0d1b2e;
+      --code-border:   #1e3a5f;
+      --pill-green-bg: #14532d;
+      --pill-green-text:#86efac;
+      --pill-red-bg:   #450a0a;
+      --pill-red-text: #fca5a5;
+      --pill-amber-bg: #451a03;
+      --pill-amber-text:#fcd34d;
+      --pill-violet-bg:#2e1065;
+      --pill-violet-text:#c4b5fd;
+      --pill-blue-bg:  #1e3a5f;
+      --pill-blue-text:#93c5fd;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-base);
+      color: var(--text-primary);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ─── TOP NAV ─────────────────────────────────────── */
+    .top-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--text-primary);
+      text-decoration: none;
+    }
+    .nav-brand .owl-icon {
+      width: 30px; height: 30px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .nav-links { display: flex; align-items: center; gap: 1.5rem; }
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .nav-links a:hover { color: var(--text-primary); }
+    .back-link {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--accent-blue) !important;
+      font-weight: 500 !important;
+    }
+    .back-link:hover { color: #60a5fa !important; }
+
+    /* ─── HERO ────────────────────────────────────────── */
+    .hero {
+      background: linear-gradient(135deg, #0f172a 0%, #1a1040 50%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 4rem 2rem 3rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139,92,246,0.12) 0%, transparent 70%);
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--pill-violet-bg);
+      color: var(--pill-violet-text);
+      border: 1px solid rgba(139,92,246,0.3);
+      padding: 4px 14px;
+      border-radius: 9999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 1.2rem;
+      position: relative;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3rem);
+      font-weight: 800;
+      line-height: 1.2;
+      background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+    .hero h1 span {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-sub {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 620px;
+      margin: 0 auto 2rem;
+      position: relative;
+    }
+    .hero-meta {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2rem;
+      flex-wrap: wrap;
+      position: relative;
+    }
+    .hero-meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .hero-meta-item .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+    }
+
+    /* ─── LAYOUT ──────────────────────────────────────── */
+    .page-layout {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: calc(100vh - 56px);
+    }
+
+    /* ─── SIDEBAR ─────────────────────────────────────── */
+    .sidebar {
+      position: sticky;
+      top: 56px;
+      height: calc(100vh - 56px);
+      overflow-y: auto;
+      border-right: 1px solid var(--border);
+      padding: 1.5rem 1rem;
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .sidebar-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+      padding-left: 0.5rem;
+    }
+    .sidebar-nav { list-style: none; display: flex; flex-direction: column; gap: 2px; }
+    .sidebar-nav a {
+      display: block;
+      padding: 7px 10px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.82rem;
+      font-weight: 500;
+      transition: all 0.15s;
+      border-left: 2px solid transparent;
+    }
+    .sidebar-nav a:hover {
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border-left-color: var(--accent-blue);
+    }
+    .sidebar-nav a.active {
+      background: rgba(59,130,246,0.1);
+      color: var(--accent-blue);
+      border-left-color: var(--accent-blue);
+    }
+    .sidebar-section { margin-bottom: 1.5rem; }
+
+    /* ─── MAIN CONTENT ────────────────────────────────── */
+    .main-content {
+      padding: 2.5rem 3rem;
+      max-width: 1000px;
+    }
+
+    /* ─── SECTIONS ────────────────────────────────────── */
+    .spec-section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 76px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 1.5rem;
+    }
+    .section-number {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.8rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+    .section-divider {
+      height: 1px;
+      background: linear-gradient(90deg, var(--border) 0%, transparent 80%);
+      margin-bottom: 1.5rem;
+    }
+
+    /* ─── CARDS ───────────────────────────────────────── */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-sm {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 0.5rem;
+    }
+    .card-desc {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .highlight-card {
+      background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08));
+      border: 1px solid rgba(139,92,246,0.25);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .highlight-card p {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+      line-height: 1.75;
+    }
+
+    /* ─── EVENT TYPE GRID ─────────────────────────────── */
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+    .event-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      transition: border-color 0.2s;
+    }
+    .event-card:hover { border-color: var(--accent-blue); }
+    .event-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .event-info { flex: 1; min-width: 0; }
+    .event-type-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      margin-bottom: 3px;
+    }
+    .event-desc {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+    .event-source-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      margin-top: 6px;
+      display: inline-block;
+      letter-spacing: 0.03em;
+    }
+    .source-system { background: rgba(100,116,139,0.2); color: #94a3b8; }
+    .source-user   { background: rgba(59,130,246,0.15); color: #93c5fd; }
+    .source-ai     { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+
+    /* ─── CODE BLOCKS ─────────────────────────────────── */
+    .code-block-wrap {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+    .code-block-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: rgba(30,58,95,0.5);
+      border-bottom: 1px solid var(--code-border);
+    }
+    .code-lang {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--accent-cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+    .code-file {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-muted);
+    }
+    pre {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.7;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      color: var(--text-primary);
+      scrollbar-width: thin;
+      scrollbar-color: var(--border) transparent;
+    }
+    .kw  { color: #c4b5fd; }
+    .kw2 { color: #60a5fa; }
+    .str { color: #86efac; }
+    .cmt { color: #475569; font-style: italic; }
+    .fn  { color: #f9a8d4; }
+    .num { color: #fcd34d; }
+    .typ { color: #67e8f9; }
+
+    /* ─── API ENDPOINT CARDS ──────────────────────────── */
+    .endpoint-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 0.75rem;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 5px;
+      letter-spacing: 0.04em;
+    }
+    .method-get    { background: rgba(34,197,94,0.15);  color: #86efac; }
+    .method-post   { background: rgba(59,130,246,0.15); color: #93c5fd; }
+    .method-put    { background: rgba(245,158,11,0.15); color: #fcd34d; }
+    .method-delete { background: rgba(239,68,68,0.15);  color: #fca5a5; }
+    .method-sse    { background: rgba(139,92,246,0.15); color: #c4b5fd; }
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+    .endpoint-body { padding: 1rem 1.25rem; }
+    .endpoint-desc {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+    }
+    .param-table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .param-table th {
+      text-align: left;
+      padding: 5px 10px;
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-bottom: 1px solid var(--border);
+    }
+    .param-table td {
+      padding: 6px 10px;
+      color: var(--text-secondary);
+      border-bottom: 1px solid rgba(51,65,85,0.4);
+      vertical-align: top;
+    }
+    .param-table td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--accent-cyan);
+      font-size: 0.78rem;
+    }
+
+    /* ─── FLOW DIAGRAM ────────────────────────────────── */
+    .flow-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 1.5rem 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 0;
+      position: relative;
+    }
+    .flow-step-left {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 40px;
+      flex-shrink: 0;
+    }
+    .flow-circle {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+    .flow-line {
+      width: 2px;
+      flex: 1;
+      min-height: 24px;
+      background: linear-gradient(180deg, var(--border), transparent);
+    }
+    .flow-content {
+      flex: 1;
+      padding: 4px 0 24px 16px;
+    }
+    .flow-title {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 3px;
+    }
+    .flow-desc {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+
+    /* ─── MODULE TREE ─────────────────────────────────── */
+    .module-tree {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      line-height: 1.9;
+      margin-bottom: 1.5rem;
+    }
+    .tree-dir { color: #60a5fa; }
+    .tree-file { color: #94a3b8; }
+    .tree-comment { color: #475569; }
+
+    /* ─── COMPONENT CARDS ─────────────────────────────── */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 0.75rem;
+    }
+    .component-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+    }
+    .component-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--accent-violet);
+      margin-bottom: 0.4rem;
+    }
+    .component-desc {
+      font-size: 0.82rem;
+      color: var(--text-secondary);
+      line-height: 1.55;
+    }
+    .component-detail {
+      margin-top: 0.6rem;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ─── PILLS / TAGS ────────────────────────────────── */
+    .pill {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      margin: 2px;
+    }
+    .pill-green  { background: var(--pill-green-bg);  color: var(--pill-green-text); }
+    .pill-red    { background: var(--pill-red-bg);    color: var(--pill-red-text); }
+    .pill-amber  { background: var(--pill-amber-bg);  color: var(--pill-amber-text); }
+    .pill-violet { background: var(--pill-violet-bg); color: var(--pill-violet-text); }
+    .pill-blue   { background: var(--pill-blue-bg);   color: var(--pill-blue-text); }
+    .pill-gray   { background: rgba(100,116,139,0.15); color: #94a3b8; }
+
+    /* ─── INFO BOXES ──────────────────────────────────── */
+    .info-box {
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      gap: 12px;
+    }
+    .info-box-icon { font-size: 1.1rem; flex-shrink: 0; line-height: 1.6; }
+    .info-box-content { flex: 1; }
+    .info-box-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 3px; }
+    .info-box-text  { font-size: 0.82rem; line-height: 1.6; }
+    .box-blue   { background: rgba(59,130,246,0.08);  border: 1px solid rgba(59,130,246,0.2);  }
+    .box-blue .info-box-title { color: #93c5fd; }
+    .box-blue .info-box-text  { color: #7dd3fc; }
+    .box-violet { background: rgba(139,92,246,0.08); border: 1px solid rgba(139,92,246,0.2); }
+    .box-violet .info-box-title { color: #c4b5fd; }
+    .box-violet .info-box-text  { color: #a5b4fc; }
+    .box-amber  { background: rgba(245,158,11,0.08);  border: 1px solid rgba(245,158,11,0.2);  }
+    .box-amber .info-box-title { color: #fcd34d; }
+    .box-amber .info-box-text  { color: #fde68a; }
+    .box-green  { background: rgba(34,197,94,0.08);   border: 1px solid rgba(34,197,94,0.2);   }
+    .box-green .info-box-title { color: #86efac; }
+    .box-green .info-box-text  { color: #bbf7d0; }
+
+    /* ─── TIMELINE VISUAL ─────────────────────────────── */
+    .timeline-visual {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .tl-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 1rem;
+    }
+    .tl-event {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 10px 0;
+      border-bottom: 1px solid rgba(51,65,85,0.4);
+    }
+    .tl-event:last-child { border-bottom: none; }
+    .tl-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      margin-top: 5px;
+      flex-shrink: 0;
+    }
+    .tl-event-content { flex: 1; }
+    .tl-event-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+    .tl-event-meta {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* ─── SSE DIAGRAM ─────────────────────────────────── */
+    .sse-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--code-border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+    .sse-row {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-bottom: 12px;
+    }
+    .sse-node {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+    .sse-arrow {
+      flex: 1;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent-blue), var(--accent-violet));
+      position: relative;
+      margin: 0 8px;
+    }
+    .sse-arrow::after {
+      content: '▶';
+      position: absolute;
+      right: -6px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 10px;
+      color: var(--accent-violet);
+    }
+    .sse-label {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    /* ─── PERF TABLE ──────────────────────────────────── */
+    .perf-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; }
+    .perf-table th {
+      background: var(--bg-elevated);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+      letter-spacing: 0.04em;
+    }
+    .perf-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.83rem;
+      color: var(--text-secondary);
+    }
+    .perf-table tr:last-child td { border-bottom: none; }
+    .perf-table tr:hover td { background: rgba(30,41,59,0.4); }
+    .perf-table .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--accent-cyan); }
+
+    /* ─── BULLET LIST ─────────────────────────────────── */
+    .spec-list { list-style: none; padding: 0; margin: 0; }
+    .spec-list li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 6px 0;
+      font-size: 0.88rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .spec-list li::before {
+      content: '›';
+      color: var(--accent-blue);
+      font-size: 1.1rem;
+      font-weight: 700;
+      line-height: 1.4;
+      flex-shrink: 0;
+    }
+
+    /* ─── FOOTER ──────────────────────────────────────── */
+    .page-footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      background: var(--bg-surface);
+    }
+    .page-footer a { color: var(--accent-blue); text-decoration: none; }
+
+    /* ─── RESPONSIVE ──────────────────────────────────── */
+    @media (max-width: 900px) {
+      .page-layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main-content { padding: 1.5rem 1.25rem; }
+    }
+    @media (max-width: 600px) {
+      .event-grid { grid-template-columns: 1fr; }
+      .component-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- TOP NAV -->
+<nav class="top-nav">
+  <a href="INDEX.html" class="nav-brand">
+    <div class="owl-icon">🦉</div>
+    OpsOwl AI
+  </a>
+  <div class="nav-links">
+    <a href="INDEX.html" class="back-link">← Back to Index</a>
+    <a href="04_AI_COPILOT.html">AI Copilot →</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">Feature Spec · Doc 03</div>
+  <h1>Timeline <span>Workspace</span></h1>
+  <p class="hero-sub">The core differentiator of OpsOwl AI — a unified, chronological view of every event across an investigation case, powering audit-grade accountability.</p>
+  <div class="hero-meta">
+    <span class="hero-meta-item"><span class="dot" style="background:#22c55e"></span> Implemented in: Go 1.26 + Next.js 16</span>
+    <span class="hero-meta-item"><span class="dot" style="background:#8b5cf6"></span> Real-time: SSE</span>
+    <span class="hero-meta-item"><span class="dot" style="background:#f59e0b"></span> Storage: PostgreSQL 18.4 + pgvector</span>
+    <span class="hero-meta-item"><span class="dot" style="background:#3b82f6"></span> Priority: P0 — Core</span>
+  </div>
+</div>
+
+<!-- PAGE LAYOUT -->
+<div class="page-layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Sections</div>
+      <ul class="sidebar-nav">
+        <li><a href="#overview">1. Feature Overview</a></li>
+        <li><a href="#event-types">2. Event Types</a></li>
+        <li><a href="#schema">3. Database Schema</a></li>
+        <li><a href="#event-sourcing">4. Event Sourcing</a></li>
+        <li><a href="#api">5. API Endpoints</a></li>
+        <li><a href="#sse">6. Real-time via SSE</a></li>
+        <li><a href="#go-module">7. Go Module Structure</a></li>
+        <li><a href="#frontend">8. Frontend Components</a></li>
+        <li><a href="#ux">9. UX Design Details</a></li>
+        <li><a href="#performance">10. Performance</a></li>
+        <li><a href="#testing">11. Test Strategy</a></li>
+        <li><a href="#differentiator">12. Why This Wins</a></li>
+      </ul>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Quick Ref</div>
+      <ul class="sidebar-nav">
+        <li><a href="#schema">DDL Schema</a></li>
+        <li><a href="#api">API Reference</a></li>
+        <li><a href="#go-module">Go Package Tree</a></li>
+      </ul>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-content">
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 1. FEATURE OVERVIEW                             -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="overview">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(59,130,246,0.15);color:#93c5fd;">01</div>
+        <h2 class="section-title">Feature Overview</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="highlight-card">
+        <p>Investigation is fundamentally an exercise in <strong style="color:#f1f5f9;">understanding chronology.</strong> Who did what, when, and why — in the correct order. Most enterprise tools scatter this information: case notes live in one tab, documents in another, task history in a third, and audit logs are buried in an admin panel nobody opens. OpsOwl AI inverts this completely.</p>
+        <br />
+        <p>The <strong style="color:#8b5cf6;">Timeline Workspace</strong> is a single, unified, chronological stream of every event that has ever occurred on a case. Case status changes, documents uploaded, AI analyses run, notes written, tasks completed, logins by team members, SLA warnings fired — every atom of case activity is an event in this stream. Investigators work <em>from</em> the timeline. The timeline is the case.</p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:0.75rem;margin-bottom:1.5rem;">
+        <div class="card-sm">
+          <div class="card-title" style="color:#22c55e;">Unified</div>
+          <div class="card-desc">Every system, every user, every AI action in one stream. No tab-switching.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#3b82f6;">Immutable</div>
+          <div class="card-desc">Events are never deleted or modified. Append-only for audit integrity.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#8b5cf6;">Real-time</div>
+          <div class="card-desc">New events pushed via SSE the moment they occur. No page refresh needed.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#f59e0b;">Back-datable</div>
+          <div class="card-desc">Events carry real-world timestamps (occurred_at), not just system-log timestamps.</div>
+        </div>
+      </div>
+
+      <!-- Timeline Visual Mock -->
+      <div class="timeline-visual">
+        <div class="tl-label">Example Case Timeline — Newest First</div>
+        <div class="tl-event">
+          <div class="tl-dot" style="background:#8b5cf6;box-shadow:0 0 6px #8b5cf6;"></div>
+          <div class="tl-event-content">
+            <div class="tl-event-title">🤖 AI Summary Generated — "High-risk counterparty identified across 3 documents"</div>
+            <div class="tl-event-meta">AI Service · 2 minutes ago · <span style="color:#c4b5fd;">Confidence: 0.91</span></div>
+          </div>
+        </div>
+        <div class="tl-event">
+          <div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6;"></div>
+          <div class="tl-event-content">
+            <div class="tl-event-title">📄 Document uploaded — "Bank Statement Q3 2025.pdf"</div>
+            <div class="tl-event-meta">Priya Nair · 8 minutes ago</div>
+          </div>
+        </div>
+        <div class="tl-event">
+          <div class="tl-dot" style="background:#f59e0b;box-shadow:0 0 6px #f59e0b;"></div>
+          <div class="tl-event-content">
+            <div class="tl-event-title">⚠️ SLA Warning — Case approaching 48-hour response deadline</div>
+            <div class="tl-event-meta">System · 22 minutes ago</div>
+          </div>
+        </div>
+        <div class="tl-event">
+          <div class="tl-dot" style="background:#3b82f6;box-shadow:0 0 6px #3b82f6;"></div>
+          <div class="tl-event-content">
+            <div class="tl-event-title">✅ Task completed — "Verify KYC documents against CERSAI registry"</div>
+            <div class="tl-event-meta">Arjun Sharma · 1 hour ago</div>
+          </div>
+        </div>
+        <div class="tl-event">
+          <div class="tl-dot" style="background:#64748b;"></div>
+          <div class="tl-event-content">
+            <div class="tl-event-title">🔄 Case status changed — Pending Review → Under Investigation</div>
+            <div class="tl-event-meta">System · 2 hours ago</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 2. EVENT TYPES                                  -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="event-types">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(34,197,94,0.15);color:#86efac;">02</div>
+        <h2 class="section-title">Event Types</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">All 18 event types are typed as a PostgreSQL ENUM on the <code style="color:#67e8f9;font-family:'JetBrains Mono',monospace;font-size:0.82rem;">timeline_events.event_type</code> column. Every module in the Go monolith must emit at minimum one event type that falls under its domain.</p>
+
+      <!-- Case Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">Case Lifecycle</p>
+      <div class="event-grid" style="margin-bottom:1.5rem;">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">📁</div>
+          <div class="event-info">
+            <div class="event-type-label">case_created</div>
+            <div class="event-desc">New case opened. Payload includes case_number, case_type, initial_assignee.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">🔄</div>
+          <div class="event-info">
+            <div class="event-type-label">case_status_changed</div>
+            <div class="event-desc">Status transition. Payload: from_status, to_status, reason.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">👤</div>
+          <div class="event-info">
+            <div class="event-type-label">case_assigned</div>
+            <div class="event-desc">Analyst assignment changed. Payload: previous_assignee, new_assignee, team.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">🏷️</div>
+          <div class="event-info">
+            <div class="event-type-label">case_tagged</div>
+            <div class="event-desc">Tag added or removed. Payload: tag_name, action (add|remove).</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Document Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">Documents</p>
+      <div class="event-grid" style="margin-bottom:1.5rem;">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">📤</div>
+          <div class="event-info">
+            <div class="event-type-label">document_uploaded</div>
+            <div class="event-desc">File uploaded. Payload: document_id, filename, file_type, size_bytes, uploader_id.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">⚙️</div>
+          <div class="event-info">
+            <div class="event-type-label">document_processed</div>
+            <div class="event-desc">OCR/text extraction complete. Payload: pages_extracted, processing_ms, status.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(139,92,246,0.15);">🤖</div>
+          <div class="event-info">
+            <div class="event-type-label">document_ai_analyzed</div>
+            <div class="event-desc">AI analysis complete. Payload: ai_log_id, model, confidence, entities_found[].</div>
+            <div class="event-source-badge source-ai">AI</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">Notes &amp; Comments</p>
+      <div class="event-grid" style="margin-bottom:1.5rem;">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">📝</div>
+          <div class="event-info">
+            <div class="event-type-label">note_added</div>
+            <div class="event-desc">Investigation note created. Payload: note_id, note_type, word_count, is_ai_generated.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">✏️</div>
+          <div class="event-info">
+            <div class="event-type-label">note_edited</div>
+            <div class="event-desc">Note content updated. Payload: note_id, previous_version_hash, editor_id.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">💬</div>
+          <div class="event-info">
+            <div class="event-type-label">comment_added</div>
+            <div class="event-desc">Inline comment on document or note. Payload: comment_id, parent_type, parent_id.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Task Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">Tasks</p>
+      <div class="event-grid" style="margin-bottom:1.5rem;">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(59,130,246,0.15);">➕</div>
+          <div class="event-info">
+            <div class="event-type-label">task_created</div>
+            <div class="event-desc">New task created for case. Payload: task_id, title, assignee_id, due_at.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(34,197,94,0.15);">✅</div>
+          <div class="event-info">
+            <div class="event-type-label">task_completed</div>
+            <div class="event-desc">Task marked done. Payload: task_id, completed_by, completion_note.</div>
+            <div class="event-source-badge source-user">USER</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(239,68,68,0.15);">🔴</div>
+          <div class="event-info">
+            <div class="event-type-label">task_overdue</div>
+            <div class="event-desc">Task passed due date. Emitted by scheduled job. Payload: task_id, overdue_by_hours.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">AI Actions</p>
+      <div class="event-grid" style="margin-bottom:1.5rem;">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(139,92,246,0.15);">🔍</div>
+          <div class="event-info">
+            <div class="event-type-label">ai_query</div>
+            <div class="event-desc">User asked AI a question. Payload: ai_log_id, query_preview (50 chars), model.</div>
+            <div class="event-source-badge source-ai">AI</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(139,92,246,0.15);">📋</div>
+          <div class="event-info">
+            <div class="event-type-label">ai_summary_generated</div>
+            <div class="event-desc">AI case summary produced. Payload: ai_log_id, doc_count, token_count, confidence.</div>
+            <div class="event-source-badge source-ai">AI</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(139,92,246,0.15);">💡</div>
+          <div class="event-info">
+            <div class="event-type-label">ai_action_suggested</div>
+            <div class="event-desc">AI recommended next step. Payload: ai_log_id, suggestion_type, human_approved.</div>
+            <div class="event-source-badge source-ai">AI</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Audit & SLA Events -->
+      <p style="color:var(--text-muted);font-size:0.75rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:0.75rem;">Audit &amp; SLA</p>
+      <div class="event-grid">
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">🔐</div>
+          <div class="event-info">
+            <div class="event-type-label">user_login</div>
+            <div class="event-desc">User authenticated and accessed the case. Payload: ip_address, user_agent (hashed), session_id.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">📊</div>
+          <div class="event-info">
+            <div class="event-type-label">user_action</div>
+            <div class="event-desc">Significant audit-trail action (e.g. export, share). Payload: action_type, resource_type, resource_id.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(245,158,11,0.15);">⚠️</div>
+          <div class="event-info">
+            <div class="event-type-label">sla_warning</div>
+            <div class="event-desc">SLA threshold approaching. Payload: sla_policy_id, threshold_pct, hours_remaining.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(239,68,68,0.15);">🚨</div>
+          <div class="event-info">
+            <div class="event-type-label">sla_breached</div>
+            <div class="event-desc">SLA violated. Payload: sla_policy_id, breach_type, escalation_triggered.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+        <div class="event-card">
+          <div class="event-icon" style="background:rgba(100,116,139,0.15);">🔔</div>
+          <div class="event-info">
+            <div class="event-type-label">notification_sent</div>
+            <div class="event-desc">Notification dispatched. Payload: channel (email|sms|in-app), recipient_id, template_id.</div>
+            <div class="event-source-badge source-system">SYSTEM</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 3. DATABASE SCHEMA                              -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="schema">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(245,158,11,0.15);color:#fcd34d;">03</div>
+        <h2 class="section-title">Database Schema</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="info-box box-amber" style="margin-bottom:1.5rem;">
+        <div class="info-box-icon">⚡</div>
+        <div class="info-box-content">
+          <div class="info-box-title">Key Design Insight: occurred_at vs created_at</div>
+          <div class="info-box-text"><strong>occurred_at</strong> is the real-world timestamp of when the event actually happened — e.g., a document was signed on Dec 5 but uploaded into the system on Dec 8. <strong>created_at</strong> is when the database row was inserted. The timeline sorts by <code style="font-family:'JetBrains Mono',monospace;">occurred_at</code> DESC. This distinction is fundamental to investigation accuracy — regulators and audit trails care about the real-world chronology, not the logging chronology.</div>
+        </div>
+      </div>
+
+      <div class="code-block-wrap">
+        <div class="code-block-header">
+          <span class="code-lang">SQL · PostgreSQL 18.4</span>
+          <span class="code-file">migrations/005_timeline_events.sql</span>
+        </div>
+        <pre><span class="cmt">-- Event type enum: append-only, never remove values</span>
+<span class="kw">CREATE TYPE</span> <span class="typ">timeline_event_type</span> <span class="kw">AS ENUM</span> (
+  <span class="str">'case_created'</span>, <span class="str">'case_status_changed'</span>, <span class="str">'case_assigned'</span>, <span class="str">'case_tagged'</span>,
+  <span class="str">'document_uploaded'</span>, <span class="str">'document_processed'</span>, <span class="str">'document_ai_analyzed'</span>,
+  <span class="str">'note_added'</span>, <span class="str">'note_edited'</span>, <span class="str">'comment_added'</span>,
+  <span class="str">'task_created'</span>, <span class="str">'task_completed'</span>, <span class="str">'task_overdue'</span>,
+  <span class="str">'ai_query'</span>, <span class="str">'ai_summary_generated'</span>, <span class="str">'ai_action_suggested'</span>,
+  <span class="str">'user_login'</span>, <span class="str">'user_action'</span>,
+  <span class="str">'sla_warning'</span>, <span class="str">'sla_breached'</span>,
+  <span class="str">'notification_sent'</span>
+);
+
+<span class="kw">CREATE TYPE</span> <span class="typ">timeline_event_source</span> <span class="kw">AS ENUM</span> (
+  <span class="str">'system'</span>, <span class="str">'user'</span>, <span class="str">'ai'</span>
+);
+
+<span class="cmt">-- Core timeline events table</span>
+<span class="kw">CREATE TABLE</span> <span class="typ">timeline_events</span> (
+  <span class="cmt">-- Standard OpsOwl fields</span>
+  id            <span class="typ">UUID</span>                       <span class="kw">PRIMARY KEY</span> <span class="kw">DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  created_at    <span class="typ">TIMESTAMPTZ</span>                <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">now</span>(),
+  updated_at    <span class="typ">TIMESTAMPTZ</span>                <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="fn">now</span>(),
+  deleted_at    <span class="typ">TIMESTAMPTZ</span>,               <span class="cmt">-- soft delete; NULL = active</span>
+
+  <span class="cmt">-- Domain fields</span>
+  case_id       <span class="typ">UUID</span>                       <span class="kw">NOT NULL</span>
+                <span class="kw">REFERENCES</span> cases(id)       <span class="kw">ON DELETE CASCADE</span>,
+  event_type    <span class="typ">timeline_event_type</span>        <span class="kw">NOT NULL</span>,
+  source        <span class="typ">timeline_event_source</span>      <span class="kw">NOT NULL</span>,
+  actor_id      <span class="typ">UUID</span>                               <span class="cmt">-- NULL for pure system events</span>
+                <span class="kw">REFERENCES</span> users(id)       <span class="kw">ON DELETE SET NULL</span>,
+
+  <span class="cmt">-- The key insight: real-world time vs. insertion time</span>
+  occurred_at   <span class="typ">TIMESTAMPTZ</span>                <span class="kw">NOT NULL</span>,   <span class="cmt">-- Real-world event time (sortable)</span>
+                                                          <span class="cmt">-- Events can be back-dated (e.g.</span>
+                                                          <span class="cmt">-- doc signed 3 days ago, uploaded now)</span>
+
+  <span class="cmt">-- Flexible payload — schema varies by event_type</span>
+  payload       <span class="typ">JSONB</span>                      <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="str">'{}'</span>,
+
+  <span class="cmt">-- Optional structured metadata (search, filtering)</span>
+  metadata      <span class="typ">JSONB</span>                      <span class="kw">NOT NULL</span> <span class="kw">DEFAULT</span> <span class="str">'{}'</span>
+  <span class="cmt">-- e.g. {"tags": ["fraud", "kyc"], "is_system_generated": true}</span>
+);
+
+<span class="cmt">-- ── Indexes ──────────────────────────────────────────────</span>
+
+<span class="cmt">-- Primary query pattern: all events for a case, sorted newest first</span>
+<span class="kw">CREATE INDEX</span> idx_timeline_case_occurred
+  <span class="kw">ON</span> timeline_events (case_id, occurred_at <span class="kw">DESC</span>)
+  <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+
+<span class="cmt">-- Filter by event type within a case</span>
+<span class="kw">CREATE INDEX</span> idx_timeline_case_event_type
+  <span class="kw">ON</span> timeline_events (case_id, event_type)
+  <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+
+<span class="cmt">-- Filter by source (system / user / ai)</span>
+<span class="kw">CREATE INDEX</span> idx_timeline_source
+  <span class="kw">ON</span> timeline_events (case_id, source)
+  <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+
+<span class="cmt">-- Actor lookup (who did what across all cases)</span>
+<span class="kw">CREATE INDEX</span> idx_timeline_actor
+  <span class="kw">ON</span> timeline_events (actor_id, occurred_at <span class="kw">DESC</span>)
+  <span class="kw">WHERE</span> actor_id <span class="kw">IS NOT NULL</span> <span class="kw">AND</span> deleted_at <span class="kw">IS NULL</span>;
+
+<span class="cmt">-- JSONB GIN index for payload search</span>
+<span class="kw">CREATE INDEX</span> idx_timeline_payload_gin
+  <span class="kw">ON</span> timeline_events <span class="kw">USING</span> gin (payload);
+
+<span class="cmt">-- Auto-update updated_at</span>
+<span class="kw">CREATE TRIGGER</span> <span class="fn">trg_timeline_events_updated_at</span>
+  <span class="kw">BEFORE UPDATE ON</span> timeline_events
+  <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> <span class="fn">set_updated_at</span>();</pre>
+      </div>
+
+      <div class="info-box box-blue">
+        <div class="info-box-icon">🔒</div>
+        <div class="info-box-content">
+          <div class="info-box-title">Immutability Rule</div>
+          <div class="info-box-text">Timeline events are never hard-deleted or modified after creation. The <code style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;">deleted_at</code> soft-delete exists only for data-retention policy compliance (e.g., GDPR erasure) and is only ever set by the platform admin role. The application layer has no DELETE permission on this table. A Row-Level Security policy enforces this at the DB layer.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 4. EVENT SOURCING                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="event-sourcing">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(34,197,94,0.15);color:#86efac;">04</div>
+        <h2 class="section-title">Event Sourcing</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <p style="color:var(--text-secondary);font-size:0.9rem;margin-bottom:1.25rem;">OpsOwl AI uses a <strong style="color:#f1f5f9;">lightweight event sourcing pattern</strong> — not full CQRS/event-store purity, but a pragmatic hybrid where every meaningful state mutation also produces an immutable timeline event. The event store becomes the source of truth for audit and reconstruction.</p>
+
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <div class="flow-step-left">
+            <div class="flow-circle" style="background:rgba(59,130,246,0.15);color:#93c5fd;border:2px solid rgba(59,130,246,0.3);">1</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-title">Business Operation Executes</div>
+            <div class="flow-desc">e.g., <code style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">cases.UpdateStatus(ctx, caseID, newStatus)</code> — the domain service runs its validation and DB mutation inside a transaction.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-left">
+            <div class="flow-circle" style="background:rgba(139,92,246,0.15);color:#c4b5fd;border:2px solid rgba(139,92,246,0.3);">2</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-title">Event Emitted — Same Transaction</div>
+            <div class="flow-desc">The service calls <code style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;">timeline.Emit(ctx, tx, TimelineEvent{...})</code>. The event INSERT happens in the same DB transaction — guaranteed atomicity. If the business mutation fails, no event is written.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-left">
+            <div class="flow-circle" style="background:rgba(34,197,94,0.15);color:#86efac;border:2px solid rgba(34,197,94,0.3);">3</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-title">Transaction Commits</div>
+            <div class="flow-desc">Both the state change and the timeline event are committed atomically. The event store is always consistent with application state.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-left">
+            <div class="flow-circle" style="background:rgba(245,158,11,0.15);color:#fcd34d;border:2px solid rgba(245,158,11,0.3);">4</div>
+            <div class="flow-line"></div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-title">Post-Commit: SSE Dispatch</div>
+            <div class="flow-desc">After commit, the event dispatcher publishes to a Go channel. The SSE hub receives this and fans out to all connected clients watching that case's stream.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-step-left">
+            <div class="flow-circle" style="background:rgba(6,182,212,0.15);color:#67e8f9;border:2px solid rgba(6,182,212,0.3);">5</div>
+          </div>
+          <div class="flow-content">
+            <div class="flow-title">Client Receives Real-time Update</div>
+            <div class="flow-desc">Browser receives the SSE event, React inserts it at the top of the virtualized timeline list with a "New" indicator — no reload required.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box box-violet">
+        <div class="info-box-icon">🧩</div>
+        <div class="info-box-content">
+          <div class="info-box-title">Audit Reconstruction</div>
+          <div class="info-box-text">Because every state change produces an immutable event, the full case history can be reconstructed purely from the timeline_events table. This is the basis for the "Case Audit Report" export feature — no need to join across 12 tables. The regulator gets a clean, timestamped, sourced narrative.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 5. API ENDPOINTS                                -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="api">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(6,182,212,0.15);color:#67e8f9;">05</div>
+        <h2 class="section-title">API Endpoints</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <p style="color:var(--text-secondary);font-size:0.88rem;margin-bottom:1.25rem;">All responses use the standard OpsOwl envelope: <code style="font-family:'JetBrains Mono',monospace;font-size:0.8rem;color:#67e8f9;">{"data": ..., "meta": {...}, "error": null}</code>. Pagination is cursor-based. All IDs are UUID v4. All timestamps are ISO 8601 UTC.</p>
+
+      <!-- GET timeline -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/timeline</span>
+          <span class="pill pill-green" style="margin-left:auto;">Paginated</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">Fetch timeline events for a case. Newest first (occurred_at DESC). Supports cursor-based pagination and multi-filter.</div>
+          <table class="param-table">
+            <tr><th>Param</th><th>Type</th><th>Description</th></tr>
+            <tr><td>cursor</td><td>string</td><td>Opaque cursor from previous response meta.next_cursor</td></tr>
+            <tr><td>limit</td><td>int</td><td>Page size, 1–100, default 50</td></tr>
+            <tr><td>event_type[]</td><td>enum[]</td><td>Filter to specific event types (multi-select)</td></tr>
+            <tr><td>source</td><td>enum</td><td>system | user | ai</td></tr>
+            <tr><td>actor_id</td><td>UUID</td><td>Filter by actor (user who performed action)</td></tr>
+            <tr><td>from</td><td>ISO 8601</td><td>occurred_at &gt;= from</td></tr>
+            <tr><td>to</td><td>ISO 8601</td><td>occurred_at &lt;= to</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="code-block-wrap" style="margin-bottom:1.25rem;">
+        <div class="code-block-header">
+          <span class="code-lang">JSON · Response Shape</span>
+        </div>
+        <pre>{
+  <span class="str">"data"</span>: [
+    {
+      <span class="str">"id"</span>: <span class="str">"550e8400-e29b-41d4-a716-446655440000"</span>,
+      <span class="str">"case_id"</span>: <span class="str">"7c9e6679-7425-40de-944b-e07fc1f90ae7"</span>,
+      <span class="str">"event_type"</span>: <span class="str">"document_uploaded"</span>,
+      <span class="str">"source"</span>: <span class="str">"user"</span>,
+      <span class="str">"actor"</span>: {
+        <span class="str">"id"</span>: <span class="str">"..."</span>,
+        <span class="str">"name"</span>: <span class="str">"Priya Nair"</span>,
+        <span class="str">"avatar_url"</span>: <span class="str">"..."</span>
+      },
+      <span class="str">"occurred_at"</span>: <span class="str">"2025-12-08T09:14:22Z"</span>,
+      <span class="str">"created_at"</span>:  <span class="str">"2025-12-08T09:14:25Z"</span>,
+      <span class="str">"payload"</span>: {
+        <span class="str">"document_id"</span>: <span class="str">"..."</span>,
+        <span class="str">"filename"</span>: <span class="str">"Bank Statement Q3 2025.pdf"</span>,
+        <span class="str">"file_type"</span>: <span class="str">"application/pdf"</span>,
+        <span class="str">"size_bytes"</span>: <span class="num">2048576</span>
+      }
+    }
+  ],
+  <span class="str">"meta"</span>: {
+    <span class="str">"total_count"</span>: <span class="num">247</span>,
+    <span class="str">"returned"</span>: <span class="num">50</span>,
+    <span class="str">"next_cursor"</span>: <span class="str">"eyJvY2N1cnJlZCI6IjIwMjUtMTItMDhUMDk6MDQ6MjJaIiwiaWQiOiIuLi4ifQ=="</span>,
+    <span class="str">"has_more"</span>: <span class="kw">true</span>
+  },
+  <span class="str">"error"</span>: <span class="kw">null</span>
+}</pre>
+      </div>
+
+      <!-- POST manual event -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-post">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/timeline/events</span>
+          <span class="pill pill-blue" style="margin-left:auto;">Manual Event</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">Analyst adds a manual event to the timeline (e.g., "Spoke with customer by phone"). Allowed only for source=user events. <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">occurred_at</code> is required and can be back-dated.</div>
+          <table class="param-table">
+            <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+            <tr><td>event_type</td><td>enum</td><td>Must be a user-emittable event type</td></tr>
+            <tr><td>occurred_at</td><td>ISO 8601</td><td>Real-world timestamp. Can be in the past.</td></tr>
+            <tr><td>payload</td><td>object</td><td>Event-type-specific payload</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- GET export -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/timeline/export</span>
+          <span class="pill pill-amber" style="margin-left:auto;">PDF Export</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">Export complete timeline as a PDF. Async — returns a River job ID. Poll <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">GET /api/v1/jobs/:job_id</code> for status. Download URL in job result.</div>
+        </div>
+      </div>
+
+      <!-- SSE stream -->
+      <div class="endpoint-card" style="border-color:rgba(139,92,246,0.35);">
+        <div class="endpoint-header" style="background:rgba(139,92,246,0.08);">
+          <span class="method-badge method-sse">SSE</span>
+          <span class="endpoint-path">/api/v1/cases/:id/timeline/stream</span>
+          <span class="pill pill-violet" style="margin-left:auto;">Real-time</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">Server-Sent Events stream. Client connects once; server pushes new timeline events as they occur. Events arrive as JSON payloads matching the GET response shape. Includes heartbeat pings every 30s.</div>
+          <div class="code-block-wrap" style="margin-top:0.75rem;margin-bottom:0;">
+            <div class="code-block-header">
+              <span class="code-lang">SSE Event Format</span>
+            </div>
+            <pre><span class="cmt">// SSE wire format — each new timeline event</span>
+event: timeline_event
+data: {"id":"...","event_type":"document_uploaded","source":"user",...}
+
+<span class="cmt">// Heartbeat — every 30 seconds</span>
+event: ping
+data: {"ts":"2025-12-08T09:20:00Z"}
+
+<span class="cmt">// Server signals to reconnect (e.g. after deploy)</span>
+event: reconnect
+data: {"after_ms":2000}</pre>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 6. REAL-TIME VIA SSE                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="sse">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(139,92,246,0.15);color:#c4b5fd;">06</div>
+        <h2 class="section-title">Real-time Updates via SSE</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="sse-diagram">
+        <p style="color:var(--text-muted);font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:1rem;">Event Flow Architecture</p>
+        <div class="sse-row">
+          <div class="sse-node" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.3);color:#93c5fd;">Go Domain Service</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node">timeline.Emit(ctx, tx, event)</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#86efac;">DB INSERT (same tx)</div>
+        </div>
+        <div style="text-align:center;color:var(--text-muted);font-size:1.2rem;margin:4px 0;">↓</div>
+        <div class="sse-row">
+          <div class="sse-node">Post-commit Hook</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.3);color:#fcd34d;">Go channel publish</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3);color:#c4b5fd;">SSE Hub</div>
+        </div>
+        <div style="text-align:center;color:var(--text-muted);font-size:1.2rem;margin:4px 0;">↓</div>
+        <div class="sse-row">
+          <div class="sse-node" style="background:rgba(139,92,246,0.1);border-color:rgba(139,92,246,0.3);color:#c4b5fd;">SSE Hub</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node">Fan-out to N clients</div>
+          <div class="sse-arrow"></div>
+          <div class="sse-node" style="background:rgba(34,197,94,0.1);border-color:rgba(34,197,94,0.3);color:#86efac;">Browser EventSource</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
+        <div class="card-sm">
+          <div class="card-title" style="color:#93c5fd;">Client Connection</div>
+          <div class="card-desc">Browser opens <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">EventSource</code> with JWT in Authorization header via <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">?token=</code> query param (SSE cannot set custom headers). Server validates RS256 JWT and registers client in hub keyed by case_id.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#fcd34d;">Reconnect Handling</div>
+          <div class="card-desc">Browser <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">EventSource</code> auto-reconnects. Client sends <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">Last-Event-ID</code> header. Server replays missed events from <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">timeline_events</code> where <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">id > last_seen_id</code> before resuming live stream.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#86efac;">Heartbeat</div>
+          <div class="card-desc">Server sends a <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">ping</code> event every 30 seconds. If client misses 3 consecutive pings, it closes and reopens the connection. This keeps NAT/proxy connections alive.</div>
+        </div>
+        <div class="card-sm">
+          <div class="card-title" style="color:#c4b5fd;">Hub Cleanup</div>
+          <div class="card-desc">Hub tracks all connections per case in a <code style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;">sync.Map[caseID → []chan Event]</code>. When a client disconnects (context done), it is removed from the map. Zero active clients = zero goroutines.</div>
+        </div>
+      </div>
+
+      <div class="code-block-wrap">
+        <div class="code-block-header">
+          <span class="code-lang">Go</span>
+          <span class="code-file">internal/timeline/hub.go (sketch)</span>
+        </div>
+        <pre><span class="kw">type</span> <span class="typ">Hub</span> <span class="kw">struct</span> {
+  clients <span class="typ">sync.Map</span> <span class="cmt">// caseID → []*Client</span>
+}
+
+<span class="kw">func</span> (<span class="typ">h *Hub</span>) <span class="fn">Subscribe</span>(caseID <span class="typ">string</span>) (<span class="kw">*</span><span class="typ">Client</span>, <span class="kw">func</span>()) {
+  ch := <span class="fn">make</span>(<span class="kw">chan</span> <span class="typ">Event</span>, <span class="num">64</span>)
+  client := <span class="kw">&</span><span class="typ">Client</span>{CaseID: caseID, Ch: ch}
+  <span class="cmt">// Register and return unsubscribe func</span>
+  h.<span class="fn">register</span>(client)
+  <span class="kw">return</span> client, <span class="kw">func</span>() { h.<span class="fn">deregister</span>(client) }
+}
+
+<span class="kw">func</span> (<span class="typ">h *Hub</span>) <span class="fn">Publish</span>(caseID <span class="typ">string</span>, evt <span class="typ">Event</span>) {
+  <span class="kw">if</span> clients, ok := h.clients.<span class="fn">Load</span>(caseID); ok {
+    <span class="kw">for</span> _, c := <span class="kw">range</span> clients.([]*<span class="typ">Client</span>) {
+      <span class="kw">select</span> {
+      <span class="kw">case</span> c.Ch <- evt: <span class="cmt">// non-blocking send</span>
+      <span class="kw">default</span>: <span class="cmt">// client buffer full → skip (client will replay on reconnect)</span>
+      }
+    }
+  }
+}</pre>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 7. GO MODULE STRUCTURE                          -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="go-module">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(6,182,212,0.15);color:#67e8f9;">07</div>
+        <h2 class="section-title">Go Module Structure</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="module-tree">
+<span class="tree-dir">internal/</span>
+<span class="tree-dir">└── timeline/</span>                          <span class="tree-comment">← Timeline domain package</span>
+    <span class="tree-file">├── event.go</span>                         <span class="tree-comment">← Event struct + EventType/Source enums</span>
+    <span class="tree-file">├── emitter.go</span>                       <span class="tree-comment">← Emitter interface + DB implementation</span>
+    <span class="tree-file">├── hub.go</span>                           <span class="tree-comment">← SSE hub, Subscribe/Publish, goroutine management</span>
+    <span class="tree-file">├── dispatcher.go</span>                    <span class="tree-comment">← Post-commit event dispatcher (calls hub.Publish)</span>
+    <span class="tree-file">├── handler.go</span>                       <span class="tree-comment">← HTTP handlers: GET list, POST manual, GET export, SSE</span>
+    <span class="tree-file">├── service.go</span>                       <span class="tree-comment">← Business logic, cursor pagination, replay logic</span>
+    <span class="tree-file">├── query.sql</span>                        <span class="tree-comment">← sqlc-managed queries</span>
+    <span class="tree-file">├── query.sql.go</span>                     <span class="tree-comment">← sqlc-generated DB access layer</span>
+    <span class="tree-file">└── timeline_test.go</span>                 <span class="tree-comment">← Unit + integration tests</span>
+
+<span class="tree-comment">
+Other modules emit events via the Emitter interface:
+</span>
+<span class="tree-dir">internal/</span>
+<span class="tree-dir">├── cases/service.go</span>                 <span class="tree-comment">← emitter.Emit(ctx, tx, timeline.Event{Type: CaseStatusChanged, ...})</span>
+<span class="tree-dir">├── documents/service.go</span>             <span class="tree-comment">← emitter.Emit(ctx, tx, timeline.Event{Type: DocumentUploaded, ...})</span>
+<span class="tree-dir">├── tasks/service.go</span>                 <span class="tree-comment">← emitter.Emit(ctx, tx, timeline.Event{Type: TaskCompleted, ...})</span>
+<span class="tree-dir">└── ai/service.go</span>                    <span class="tree-comment">← emitter.Emit(ctx, tx, timeline.Event{Type: AiQueryRun, ...})</span></div>
+
+      <div class="code-block-wrap">
+        <div class="code-block-header">
+          <span class="code-lang">Go · Interface</span>
+          <span class="code-file">internal/timeline/emitter.go</span>
+        </div>
+        <pre><span class="cmt">// Emitter is the interface every module uses to emit timeline events.</span>
+<span class="cmt">// Accepts a *sql.Tx so the event INSERT is part of the caller's transaction.</span>
+<span class="kw">type</span> <span class="typ">Emitter</span> <span class="kw">interface</span> {
+  <span class="fn">Emit</span>(ctx <span class="typ">context.Context</span>, tx <span class="typ">*sql.Tx</span>, event <span class="typ">Event</span>) <span class="typ">error</span>
+}
+
+<span class="kw">type</span> <span class="typ">Event</span> <span class="kw">struct</span> {
+  CaseID     <span class="typ">uuid.UUID</span>
+  EventType  <span class="typ">EventType</span>
+  Source     <span class="typ">Source</span>
+  ActorID    <span class="typ">*uuid.UUID</span>     <span class="cmt">// nil for system events</span>
+  OccurredAt <span class="typ">time.Time</span>     <span class="cmt">// real-world time, required</span>
+  Payload    <span class="typ">map[string]any</span> <span class="cmt">// serialized to JSONB</span>
+  Metadata   <span class="typ">map[string]any</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 8. FRONTEND COMPONENTS                          -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="frontend">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(236,72,153,0.15);color:#f9a8d4;">08</div>
+        <h2 class="section-title">Frontend Components</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="component-name">&lt;TimelineFeed /&gt;</div>
+          <div class="component-desc">Root feed component. Uses TanStack Virtual for virtualized rendering of thousands of events without DOM bloat.</div>
+          <div class="component-detail">TanStack Query infinite query with cursor-based pagination. Prepends new SSE events at top. Intersection observer triggers next page load.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;TimelineEventCard /&gt;</div>
+          <div class="component-desc">Renders a single event. Variant determined by event_type — each type has distinct icon, color accent, and payload rendering logic.</div>
+          <div class="component-detail">Expandable via click to show full payload JSON (collapsible). Hovering shows copy-to-clipboard for event ID.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;TimelineFiltersPanel /&gt;</div>
+          <div class="component-desc">Slide-in filter drawer. Multi-select event types, source toggle (system/user/ai), actor picker, date range picker.</div>
+          <div class="component-detail">Filter state in Zustand. Applied filters shown as removable chips above timeline. "Reset filters" button.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;RealtimeIndicator /&gt;</div>
+          <div class="component-desc">Sticky banner at top: "3 new events — click to refresh." Appears when SSE pushes events while user is scrolled down.</div>
+          <div class="component-detail">Counts buffered events not yet rendered. Click scrolls to top and flushes buffer into feed.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;DateGroupHeader /&gt;</div>
+          <div class="component-desc">Sticky group headers: Today, Yesterday, This Week, This Month, and specific month/year for older events.</div>
+          <div class="component-detail">Computed from occurred_at. Rendered as sticky list separators inside the virtualized list.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;JumpToDate /&gt;</div>
+          <div class="component-desc">Date picker that scrolls the virtualized list to the nearest event on or before the selected date.</div>
+          <div class="component-detail">Binary search on loaded events. If date is outside loaded range, triggers a fresh API fetch with date-anchored cursor.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">&lt;TimelineExportButton /&gt;</div>
+          <div class="component-desc">Triggers async PDF export, shows progress spinner, downloads file via signed URL on completion.</div>
+          <div class="component-detail">Polls job status via SSE stream. Toasts on success/failure.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">useTimelineSSE()</div>
+          <div class="component-desc">Custom React hook managing EventSource lifecycle. Handles reconnect, Last-Event-ID tracking, heartbeat timeout detection.</div>
+          <div class="component-detail">Returns connection status: 'connecting' | 'connected' | 'reconnecting' | 'error'. Connection status shown in UI.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 9. UX DESIGN DETAILS                            -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="ux">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(245,158,11,0.15);color:#fcd34d;">09</div>
+        <h2 class="section-title">UX Design Details</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1.5rem;">
+        <div class="card">
+          <div class="card-title">Source Color System</div>
+          <div style="margin-top:0.75rem;display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:12px;height:12px;border-radius:50%;background:#64748b;flex-shrink:0;"></div>
+              <span style="font-size:0.83rem;color:var(--text-secondary);"><strong style="color:#94a3b8;">Gray</strong> — System events (automated, no human actor)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:12px;height:12px;border-radius:50%;background:#3b82f6;flex-shrink:0;"></div>
+              <span style="font-size:0.83rem;color:var(--text-secondary);"><strong style="color:#93c5fd;">Blue</strong> — User events (analyst/reviewer actions)</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+              <div style="width:12px;height:12px;border-radius:50%;background:#8b5cf6;flex-shrink:0;"></div>
+              <span style="font-size:0.83rem;color:var(--text-secondary);"><strong style="color:#c4b5fd;">Violet</strong> — AI events (LLM actions, AI analysis)</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">Sort &amp; Grouping</div>
+          <div class="card-desc" style="margin-top:0.5rem;">
+            <ul class="spec-list">
+              <li>Newest events always at top (occurred_at DESC)</li>
+              <li>Date group headers are sticky as user scrolls</li>
+              <li>Manual back-dated events show "↩ Added retroactively" label</li>
+              <li>AI events rendered with distinct left border accent (violet)</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Event Card Expansion</div>
+        <div class="card-desc">
+          <ul class="spec-list" style="margin-top:0.5rem;">
+            <li>Default: compact view — icon + event title + actor + relative time ("2 hours ago")</li>
+            <li>Hover: shows absolute occurred_at timestamp in tooltip</li>
+            <li>Click: expands to show full payload (formatted JSON, not raw), payload-specific rich rendering</li>
+            <li>AI events: show confidence score badge, model name, "View AI Response" deep-link</li>
+            <li>Document events: show file thumbnail preview in expanded view</li>
+            <li>SLA events: show SLA policy name, hours remaining/overdue with color gradient</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Back-dated Event Indicator</div>
+        <div class="card-desc">When occurred_at differs from created_at by more than 1 hour, the event card shows a small "↩" icon with tooltip: "Event occurred on [occurred_at] but was recorded on [created_at]." This transparency is critical for audit defensibility.</div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 10. PERFORMANCE                                 -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="performance">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(34,197,94,0.15);color:#86efac;">10</div>
+        <h2 class="section-title">Performance</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div style="overflow:auto;border-radius:10px;border:1px solid var(--border);margin-bottom:1.5rem;">
+        <table class="perf-table">
+          <thead>
+            <tr><th>Concern</th><th>Target</th><th>Approach</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Timeline load (first page)</td>
+              <td><span class="mono">&lt; 200ms P95</span></td>
+              <td>Composite index on (case_id, occurred_at DESC). 50-event page. No COUNT(*) on first load.</td>
+            </tr>
+            <tr>
+              <td>Large case (10,000+ events)</td>
+              <td><span class="mono">Smooth scroll</span></td>
+              <td>TanStack Virtual — only 20–30 DOM nodes rendered regardless of total event count.</td>
+            </tr>
+            <tr>
+              <td>SSE fan-out (100 clients, 1 case)</td>
+              <td><span class="mono">&lt; 5ms dispatch</span></td>
+              <td>Go channel fan-out in hub.Publish. Buffered channel (64) prevents slow clients blocking fast path.</td>
+            </tr>
+            <tr>
+              <td>SSE connections per instance</td>
+              <td><span class="mono">500 concurrent</span></td>
+              <td>Each SSE connection is a goroutine + channel. Go's goroutine scheduler handles this well.</td>
+            </tr>
+            <tr>
+              <td>Cursor pagination</td>
+              <td><span class="mono">Stable ordering</span></td>
+              <td>Cursor encodes (occurred_at, id) — breaks ties by UUID when timestamps collide (bulk imports).</td>
+            </tr>
+            <tr>
+              <td>PDF export (1000+ events)</td>
+              <td><span class="mono">Async, &lt; 30s</span></td>
+              <td>River background job. Chrome headless rendering. Download via pre-signed S3 URL.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box box-green">
+        <div class="info-box-icon">📌</div>
+        <div class="info-box-content">
+          <div class="info-box-title">Pagination Cursor Format</div>
+          <div class="info-box-text">The opaque cursor is base64(JSON): <code style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;">{"occurred_at": "2025-12-08T09:14:22Z", "id": "550e8400..."}</code>. The SQL WHERE clause becomes: <code style="font-family:'JetBrains Mono',monospace;font-size:0.82rem;">WHERE (occurred_at, id) &lt; ($1, $2) AND case_id = $3 AND deleted_at IS NULL ORDER BY occurred_at DESC, id DESC LIMIT $4</code>. This leverages the composite index and produces deterministic, stable pages.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 11. TEST STRATEGY                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="testing">
+      <div class="section-header">
+        <div class="section-number" style="background:rgba(59,130,246,0.15);color:#93c5fd;">11</div>
+        <h2 class="section-title">Test Strategy</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+        <div class="card">
+          <div class="card-title" style="color:#86efac;">Unit Tests</div>
+          <ul class="spec-list" style="margin-top:0.5rem;">
+            <li>Event ordering: insert 50 events with scrambled occurred_at, verify GET returns them sorted newest-first</li>
+            <li>Cursor stability: page 2 cursor must not re-return events from page 1</li>
+            <li>Tie-breaking: two events with identical occurred_at ordered by UUID</li>
+            <li>Emitter mock: verify other modules (cases, tasks) call Emit with correct EventType and payload</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#c4b5fd;">SSE Integration Tests</div>
+          <ul class="spec-list" style="margin-top:0.5rem;">
+            <li>Connect SSE client, emit event via domain service, assert event arrives on stream within 500ms</li>
+            <li>Disconnect and reconnect with Last-Event-ID, assert missed events are replayed in order</li>
+            <li>Heartbeat: assert ping event arrives within 35s window</li>
+            <li>Hub cleanup: after all clients disconnect, verify no goroutines remain (goleak)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#fcd34d;">Atomicity Tests</div>
+          <ul class="spec-list" style="margin-top:0.5rem;">
+            <li>Simulate DB error mid-transaction: assert no timeline event was written when business op fails</li>
+            <li>Simulate Emit error: assert business op also rolls back (atomicity guarantee)</li>
+          </ul>
+        </div>
+        <div class="card">
+          <div class="card-title" style="color:#f9a8d4;">Frontend Tests</div>
+          <ul class="spec-list" style="margin-top:0.5rem;">
+            <li>Vitest: EventCard renders correct variant for each of 18 event types</li>
+            <li>Playwright: load timeline with 500 events, assert virtualized list renders &lt; 40 DOM nodes</li>
+            <li>Playwright: SSE mock, assert RealtimeIndicator shows "2 new events"</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════ -->
+    <!-- 12. WHY THIS WINS                               -->
+    <!-- ═══════════════════════════════════════════════ -->
+    <section class="spec-section" id="differentiator">
+      <div class="section-header">
+        <div class="section-number" style="background:linear-gradient(135deg,rgba(59,130,246,0.2),rgba(139,92,246,0.2));color:#c4b5fd;">12</div>
+        <h2 class="section-title">Why This Wins</h2>
+      </div>
+      <div class="section-divider"></div>
+
+      <div class="highlight-card" style="border-color:rgba(139,92,246,0.4);background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(139,92,246,0.1));">
+        <p>Every enterprise investigation tool on the market — Salesforce Cases, Freshdesk, Jira, even specialized compliance tools like NICE Actimize — commits the same sin: they treat case data as a collection of records across tabs. Documents here, notes there, tasks over there, audit log buried in settings. Investigators must mentally assemble the chronology themselves, which is exactly the wrong thing to ask a human to do when they are under regulatory pressure, time constraints, and cognitive load.</p>
+        <br />
+        <p>The <strong style="color:#c4b5fd;">Timeline Workspace</strong> eliminates this entirely. Every atom of case activity — regardless of its type or origin, whether it was a document the system processed automatically at 3am or a phone call the analyst manually logged as having happened last Tuesday — appears in one ordered, readable, filterable stream. The investigator does not need to reconstruct the story. <strong style="color:#f1f5f9;">The story is already assembled.</strong></p>
+        <br />
+        <p>This is not just a UX improvement. It is a <strong style="color:#86efac;">regulatory advantage</strong>. When a compliance officer needs to show a regulator exactly what happened and when, they pull up one screen. The timeline is the case file. The audit report is a one-click export of the same view. No data munging. No "let me check the audit log separately." This is the insight that transforms OpsOwl AI from a case management tool into a <strong style="color:#fcd34d;">true investigation platform.</strong></p>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.75rem;">
+        <div class="card-sm" style="text-align:center;border-color:rgba(34,197,94,0.3);">
+          <div style="font-size:1.75rem;font-weight:800;color:#22c55e;">1 screen</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);">for complete case history</div>
+        </div>
+        <div class="card-sm" style="text-align:center;border-color:rgba(59,130,246,0.3);">
+          <div style="font-size:1.75rem;font-weight:800;color:#3b82f6;">&lt; 1s</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);">to see latest case activity</div>
+        </div>
+        <div class="card-sm" style="text-align:center;border-color:rgba(139,92,246,0.3);">
+          <div style="font-size:1.75rem;font-weight:800;color:#8b5cf6;">0 clicks</div>
+          <div style="font-size:0.8rem;color:var(--text-muted);">to access audit-grade case log</div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- FOOTER -->
+<footer class="page-footer">
+  <p>OpsOwl AI — Feature Specification · Doc 03 of 12 · Timeline Workspace</p>
+  <p style="margin-top:6px;"><a href="INDEX.html">← Back to Index</a> &nbsp;·&nbsp; <a href="04_AI_COPILOT.html">Next: AI Copilot →</a></p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>04 · AI Copilot — OpsOwl AI Docs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #273549; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --cyan: #06b6d4; --violet: #7c3aed;
+    --violet-light: #a78bfa; --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; }
+  aside { width: 260px; min-width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .logo a { text-decoration: none; }
+  .logo-owl { font-size: 20px; font-weight: 700; color: var(--cyan); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .back-link { display: block; font-size: 12px; color: var(--violet-light); margin-top: 8px; text-decoration: none; }
+  .back-link:hover { color: var(--cyan); }
+  nav a { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+  nav a:hover, nav a.active { color: var(--cyan); border-left-color: var(--cyan); background: rgba(6,182,212,0.05); }
+  nav .nav-section { padding: 14px 20px 6px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  main { flex: 1; padding: 48px 56px; max-width: 1000px; }
+  h1 { font-size: 32px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+  .feature-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); border-radius: 20px; padding: 4px 14px; font-size: 13px; color: var(--violet-light); margin-bottom: 24px; }
+  .subtitle { color: var(--muted); font-size: 16px; line-height: 1.6; margin-bottom: 40px; max-width: 700px; }
+  h2 { font-size: 22px; font-weight: 600; color: var(--text); margin: 40px 0 16px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--cyan); margin: 24px 0 12px; }
+  p { color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-violet { background: rgba(124,58,237,0.2); color: var(--violet-light); border: 1px solid rgba(124,58,237,0.4); }
+  .badge-cyan { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  .badge-blue { background: rgba(59,130,246,0.15); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5f3fc; line-height: 1.6; }
+  .inline-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(6,182,212,0.1); color: var(--cyan); padding: 2px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th { background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; font-size: 13px; color: var(--muted); border-bottom: 1px solid rgba(51,65,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .ep-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .method { padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+  .get { background: rgba(16,185,129,0.2); color: var(--green); }
+  .post { background: rgba(59,130,246,0.2); color: var(--blue); }
+  .put { background: rgba(245,158,11,0.2); color: var(--amber); }
+  .delete { background: rgba(239,68,68,0.2); color: var(--red); }
+  .ep-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); }
+  .ep-desc { font-size: 13px; color: var(--muted); }
+  .flow-box { display: flex; align-items: center; gap: 0; flex-wrap: wrap; margin: 16px 0; }
+  .flow-step { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; font-size: 12px; color: var(--text); white-space: nowrap; }
+  .flow-arrow { color: var(--muted); font-size: 18px; padding: 0 8px; }
+  .rule-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
+  .rule-num { font-size: 11px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px; }
+  .rule-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .rule-impl { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .ai-card-preview { background: var(--surface2); border: 1px solid var(--border); border-left: 4px solid var(--violet); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .ai-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+  .ai-badge { background: rgba(124,58,237,0.25); color: var(--violet-light); border: 1px solid rgba(124,58,237,0.4); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .pending-badge { background: rgba(245,158,11,0.2); color: var(--amber); border: 1px solid rgba(245,158,11,0.4); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; }
+  .conf-bar { height: 6px; background: var(--border); border-radius: 3px; margin: 8px 0; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 3px; }
+  .callout { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.25); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+  .callout-warn { background: rgba(245,158,11,0.08); border-color: rgba(245,158,11,0.3); }
+  .callout-title { font-size: 13px; font-weight: 600; color: var(--cyan); margin-bottom: 6px; }
+  .callout-warn .callout-title { color: var(--amber); }
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+
+<aside>
+  <div class="logo">
+    <a href="INDEX.html">
+      <div class="logo-owl">🦉 OpsOwl AI</div>
+      <div class="logo-sub">Feature Documentation</div>
+    </a>
+    <a href="INDEX.html" class="back-link">← Back to Index</a>
+  </div>
+  <nav>
+    <div class="nav-section">Architecture</div>
+    <a href="00_HLD.html">00 · System HLD</a>
+    <div class="nav-section">Features</div>
+    <a href="01_AUTH_RBAC.html">01 · Auth & RBAC</a>
+    <a href="02_CASE_MANAGEMENT.html">02 · Case Management</a>
+    <a href="03_TIMELINE_WORKSPACE.html">03 · Timeline Workspace</a>
+    <a href="04_AI_COPILOT.html" class="active">04 · AI Copilot</a>
+    <a href="05_DOCUMENT_INTELLIGENCE.html">05 · Document Intelligence</a>
+    <a href="06_NOTES_COLLABORATION.html">06 · Notes & Collaboration</a>
+    <a href="07_TASK_MANAGEMENT.html">07 · Task Management</a>
+    <a href="08_DASHBOARD.html">08 · Dashboard</a>
+    <a href="09_NOTIFICATIONS.html">09 · Notifications</a>
+    <a href="10_AUDIT_LOGGING.html">10 · Audit Logging</a>
+    <a href="11_SEARCH.html">11 · Search</a>
+    <a href="12_AI_LOGGING.html">12 · AI Logging</a>
+    <div class="nav-section">Sections</div>
+    <a href="#overview">Overview</a>
+    <a href="#capabilities">Capabilities</a>
+    <a href="#architecture">AI Architecture</a>
+    <a href="#schema">Database Schema</a>
+    <a href="#api">API Endpoints</a>
+    <a href="#antihallucination">Anti-Hallucination</a>
+    <a href="#review-gate">Human Review Gate</a>
+    <a href="#pii">PII Masking</a>
+    <a href="#modules">Module Structure</a>
+    <a href="#frontend">Frontend Components</a>
+    <a href="#cost">Cost Controls</a>
+    <a href="#tests">Test Strategy</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="feature-badge"><span class="badge badge-violet">Feature 04</span> MVP · AI Service (Python)</div>
+  <h1>AI Copilot</h1>
+  <p class="subtitle">AI that assists investigators without replacing them. Summarize cases, answer questions on documents, generate notes, and extract action items — every response cites its source and shows a confidence score. Never guesses when context is insufficient.</p>
+
+  <h2 id="overview">Feature Overview</h2>
+  <p>The AI Copilot is OpsOwl AI's intelligence layer. It surfaces insights that would take an analyst hours to find manually — across hundreds of documents, events, and notes in a case. Critically, every AI output goes through a human review gate before it becomes official. AI assists; humans decide.</p>
+  <div class="callout">
+    <div class="callout-title">Core Principle</div>
+    AI outputs are always marked "PENDING REVIEW" until a human approves. No AI content silently enters the case record. This is non-negotiable for regulated BFSI clients.
+  </div>
+
+  <h2 id="capabilities">AI Capabilities</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">📄 Case Summarization</div>
+      <div class="card-desc">Multi-document summarization across all case documents, notes, and timeline events. Produces a structured summary with key facts, entities, and timeline. Async operation — results streamed back via SSE.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">❓ Document Q&A (RAG)</div>
+      <div class="card-desc">Ask natural language questions about uploaded documents. Uses pgvector similarity search to retrieve relevant chunks, augments the prompt, and returns an answer with exact citations (doc name, page, excerpt).</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📝 Note Generation</div>
+      <div class="card-desc">AI drafts investigation notes from case context. Analyst reviews, edits, and saves. Saved notes show "AI Assisted" badge. Draft is never auto-saved — human action required.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">✅ Action Item Extraction</div>
+      <div class="card-desc">Analyzes documents and notes to extract actionable items. Returns a list of suggested tasks. Analyst accepts, modifies, or rejects each suggestion individually before tasks are created.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔍 Pattern Detection</div>
+      <div class="card-desc">Identifies similar past cases, anomalous patterns, and risk signals. Every detected pattern includes citation of which events/documents triggered the flag. Never raises a flag without a source.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🗺️ Next Step Suggestions</div>
+      <div class="card-desc">Based on case type, current status, and team activity, suggests next investigative actions. Grounded in case data — not generic playbooks.</div>
+    </div>
+  </div>
+
+  <h2 id="architecture">AI Architecture (Python Service)</h2>
+
+  <h3>LLM Router</h3>
+  <p>Routes requests by task type and cost tier. Fallback chain prevents single-provider outages from breaking the product.</p>
+  <div class="flow-box">
+    <div class="flow-step">Task Request</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Task Type Classifier</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Claude Opus 4 (primary)</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Claude Sonnet (fallback)</div><div class="flow-arrow">→</div>
+    <div class="flow-step">GPT-4o (fallback)</div>
+  </div>
+
+  <h3>Prompt Registry</h3>
+  <p>All prompts stored in the <span class="inline-code">ai_prompts</span> table — versioned, A/B testable, no code deploy needed to update prompts. Go API sends <span class="inline-code">{prompt_slug, version, variables}</span>; Python renders Jinja2 template and calls LLM.</p>
+
+  <h3>RAG Pipeline</h3>
+  <div class="flow-box">
+    <div class="flow-step">User Question</div><div class="flow-arrow">→</div>
+    <div class="flow-step">PII Masking</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Embed Query</div><div class="flow-arrow">→</div>
+    <div class="flow-step">pgvector top-k search</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Augment Prompt</div><div class="flow-arrow">→</div>
+    <div class="flow-step">LLM Router</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Response + Citations</div>
+  </div>
+
+  <h3>AI Action Ledger</h3>
+  <p>Every prompt + response + model + token count + confidence + human_approved stored in <span class="inline-code">ai_logs</span>. Immutable. Used for compliance, debugging, cost tracking, and audit trails.</p>
+
+  <h2 id="schema">Database Schema</h2>
+  <pre><code>-- AI interaction log (immutable — no UPDATE/DELETE)
+CREATE TABLE ai_logs (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id               UUID NOT NULL REFERENCES cases(id),
+  triggered_by          UUID NOT NULL REFERENCES users(id),
+  action_type           VARCHAR NOT NULL CHECK (action_type IN (
+                          'summarize','ask','generate_note','extract_actions','pattern_detect'
+                        )),
+  prompt_text           TEXT NOT NULL,                    -- after PII masking
+  response_text         TEXT NOT NULL,
+  model_used            VARCHAR NOT NULL,                 -- e.g. 'claude-opus-4'
+  provider              VARCHAR NOT NULL,                 -- 'anthropic' | 'openai'
+  tokens_input          INT NOT NULL,
+  tokens_output         INT NOT NULL,
+  latency_ms            INT NOT NULL,
+  confidence_score      NUMERIC(3,2) CHECK (confidence_score BETWEEN 0 AND 1),
+  citations             JSONB NOT NULL DEFAULT '[]',
+  human_review_status   VARCHAR NOT NULL DEFAULT 'pending'
+                          CHECK (human_review_status IN ('pending','approved','rejected','edited')),
+  reviewed_by           UUID REFERENCES users(id),
+  reviewed_at           TIMESTAMPTZ,
+  human_edited_response TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_ai_logs_case ON ai_logs(case_id, created_at DESC);
+CREATE INDEX idx_ai_logs_review ON ai_logs(human_review_status, created_at);
+CREATE INDEX idx_ai_logs_user ON ai_logs(triggered_by, created_at DESC);
+
+-- Versioned prompt registry
+CREATE TABLE ai_prompts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            VARCHAR NOT NULL,
+  slug            VARCHAR NOT NULL,
+  version         INT NOT NULL,
+  template        TEXT NOT NULL,           -- Jinja2 template
+  task_type       VARCHAR NOT NULL,
+  variables       JSONB NOT NULL,          -- expected template vars
+  is_active       BOOL NOT NULL DEFAULT true,
+  ab_test_weight  NUMERIC(3,2) DEFAULT 1.0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE(slug, version)
+);
+
+-- Document chunks for RAG
+CREATE TABLE document_chunks (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  document_id   UUID NOT NULL REFERENCES documents(id),
+  case_id       UUID NOT NULL REFERENCES cases(id),
+  chunk_index   INT NOT NULL,
+  content       TEXT NOT NULL,
+  embedding     vector(1536),             -- OpenAI text-embedding-3-small
+  page_number   INT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_chunks_case ON document_chunks(case_id);
+CREATE INDEX idx_chunks_embedding ON document_chunks USING ivfflat (embedding vector_cosine_ops)
+  WITH (lists = 100);</code></pre>
+
+  <h2 id="api">API Endpoints</h2>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/cases/:id/ai/summarize</span></div>
+    <div class="ep-desc">Async case summarization. Enqueues River job, returns job_id immediately. Poll or stream results.</div>
+    <table><tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>Response</td><td>object</td><td><span class="inline-code">{data: {job_id: "uuid", status: "queued"}}</span></td></tr></table>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/cases/:id/ai/ask</span></div>
+    <div class="ep-desc">RAG-based document Q&A. Returns answer with citations array.</div>
+    <table><tr><th>Body Field</th><th>Type</th><th>Notes</th></tr>
+    <tr><td>question</td><td>string</td><td>Natural language question, max 500 chars</td></tr>
+    <tr><td>Response</td><td>object</td><td><span class="inline-code">{data: {answer, confidence_score, citations: [{doc_name, page, excerpt, similarity}], log_id}}</span></td></tr></table>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/cases/:id/ai/generate-note</span></div>
+    <div class="ep-desc">AI drafts a case note. Returns draft — never auto-saves. Human must explicitly save.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/cases/:id/ai/extract-actions</span></div>
+    <div class="ep-desc">Extracts suggested tasks from case documents and notes.</div>
+    <table><tr><th>Body Field</th><th>Type</th></tr>
+    <tr><td>source_type</td><td>'documents' | 'notes' | 'all'</td></tr>
+    <tr><td>Response</td><td><span class="inline-code">{data: {suggestions: [{title, description, priority, source_citation}], log_id}}</span></td></tr></table>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/jobs/:job_id</span></div>
+    <div class="ep-desc">Poll async job status. Returns status: queued | processing | completed | failed.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/jobs/:job_id/stream</span></div>
+    <div class="ep-desc">SSE stream — pushes AI response tokens as they generate. Client shows typing indicator.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/ai/logs/:id/approve</span></div>
+    <div class="ep-desc">Human approves AI output. Sets status=approved, records reviewer + timestamp.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/ai/logs/:id/reject</span></div>
+    <div class="ep-desc">Human rejects AI output. Body: <span class="inline-code">{reason: string}</span>. Output discarded from case record.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method put">PUT</span><span class="ep-path">/api/v1/ai/logs/:id/edit</span></div>
+    <div class="ep-desc">Human edits AI output. Body: <span class="inline-code">{edited_response: string}</span>. Status set to 'edited' (a form of approved).</div>
+  </div>
+
+  <h2 id="antihallucination">8 Anti-Hallucination Rules</h2>
+
+  <div class="rule-card">
+    <div class="rule-num">RULE 1</div>
+    <div class="rule-title">Every response cites its source</div>
+    <div class="rule-impl">Python RAG service retrieves top-k chunks and includes <span class="inline-code">[{doc_id, doc_name, page, excerpt, similarity_score}]</span> in the response JSON. Stored in <span class="inline-code">citations JSONB</span>. Frontend renders citation cards — cannot render AI response without them.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 2</div>
+    <div class="rule-title">Confidence score on every output</div>
+    <div class="rule-impl">Computed from cosine similarity of top-k chunks (RAG) or context richness score (summarization). Stored as <span class="inline-code">confidence_score NUMERIC(3,2)</span>. Shown as colored bar: ≥0.8 green, 0.5–0.79 amber, &lt;0.5 red with mandatory review warning.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 3</div>
+    <div class="rule-title">"I don't have enough context" when context is insufficient</div>
+    <div class="rule-impl">System prompt includes: "If you cannot answer from the provided context, respond with exactly: INSUFFICIENT_CONTEXT". Python response parser detects this sentinel → returns structured error to frontend → UI shows "Not enough documents in this case to answer that question."</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 4</div>
+    <div class="rule-title">Human review gate before any AI output becomes official</div>
+    <div class="rule-impl">All responses default <span class="inline-code">human_review_status='pending'</span>. Case record only shows approved/edited entries. API enforces this — case summary endpoint filters out pending AI outputs for external display.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 5</div>
+    <div class="rule-title">AI content always visually distinct</div>
+    <div class="rule-impl"><span class="inline-code">AICard</span> React component always renders with: violet left border, "AI Generated" badge, confidence bar, citations panel, review status badge. Component cannot be rendered without these props — TypeScript enforces it.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 6</div>
+    <div class="rule-title">Prompt injection prevention</div>
+    <div class="rule-impl">Python service sanitizes all user input: strip HTML tags, escape special characters, detect adversarial patterns ("ignore previous instructions", "you are now", "disregard") — reject with 400 error if detected. Sanitized input logged for audit.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 7</div>
+    <div class="rule-title">PII masking before every LLM call</div>
+    <div class="rule-impl">Presidio Analyzer detects entities (PAN, Aadhaar, phone, email, account numbers). Replaced with tokens: <span class="inline-code">[PAN_1]</span>, <span class="inline-code">[PHONE_1]</span>. LLM never sees raw PII. <span class="inline-code">ai_logs.prompt_text</span> stores masked version only.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 8</div>
+    <div class="rule-title">Every prompt + response stored in ai_logs</div>
+    <div class="rule-impl">Python AI service calls <span class="inline-code">POST /internal/ai/log</span> after every LLM call. If logging fails, the response is discarded and an error returned to the user. Logging is not optional.</div>
+  </div>
+
+  <h2 id="review-gate">Human Review Gate</h2>
+  <p>The flow from AI generation to official case record:</p>
+  <div class="flow-box" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+    <div style="display: flex; align-items: center; gap: 12px;">
+      <div class="flow-step" style="background: rgba(124,58,237,0.2); border-color: rgba(124,58,237,0.4);">AI generates response</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Stored: status=<span style="color: var(--amber)">pending</span></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Shown with amber "PENDING REVIEW" banner</div>
+    </div>
+    <div style="display: flex; align-items: center; gap: 16px; margin-left: 20px;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <div class="flow-step" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3);">✓ Approve → status=<span style="color: var(--green)">approved</span></div>
+        <div class="flow-step" style="background: rgba(59,130,246,0.1); border-color: rgba(59,130,246,0.3);">✏ Edit → human modifies → status=<span style="color: var(--blue)">edited</span></div>
+        <div class="flow-step" style="background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.3);">✗ Reject → reason required → status=<span style="color: var(--red)">rejected</span>, discarded</div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top: 16px;">All review actions emit an event to <span class="inline-code">audit_logs</span>. Approved/edited responses show "VERIFIED" badge (green). Rejected responses visible in AI history with rejection reason.</p>
+
+  <div class="ai-card-preview">
+    <div class="ai-card-header">
+      <span class="ai-badge">AI Generated</span>
+      <span class="pending-badge">Pending Review</span>
+      <span style="font-size: 12px; color: var(--muted); margin-left: auto;">claude-opus-4 · 1.8s · 623 tokens</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text); margin-bottom: 12px;">Based on the uploaded bank statements and KYC documents, the primary risk factors are: (1) three cash deposits exceeding ₹2L within 10 days, (2) no corresponding income proof for the stated occupation...</p>
+    <div class="conf-bar"><div class="conf-fill" style="width: 82%; background: var(--green);"></div></div>
+    <div style="font-size: 11px; color: var(--muted); margin-bottom: 12px;">Confidence: 82% · High · Sources: Statement_Mar2026.pdf (p.3), KYC_Form.pdf (p.1)</div>
+    <div style="display: flex; gap: 8px;">
+      <button style="background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.4); padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;">✓ Approve</button>
+      <button style="background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;">✏ Edit</button>
+      <button style="background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.3); padding: 6px 14px; border-radius: 6px; font-size: 12px; cursor: pointer;">✗ Reject</button>
+    </div>
+  </div>
+
+  <h2 id="pii">PII Masking Pipeline</h2>
+  <div class="flow-box">
+    <div class="flow-step">User Input</div><div class="flow-arrow">→</div>
+    <div class="flow-step">Presidio Analyzer<br/><small style="color:var(--muted)">detect entities</small></div><div class="flow-arrow">→</div>
+    <div class="flow-step">Token Replacement<br/><small style="color:var(--muted)">[PAN_1], [PHONE_1]</small></div><div class="flow-arrow">→</div>
+    <div class="flow-step">LLM Call<br/><small style="color:var(--muted)">masked only</small></div><div class="flow-arrow">→</div>
+    <div class="flow-step">Response<br/><small style="color:var(--muted)">no original PII</small></div>
+  </div>
+  <p>Detected entities: PAN card, Aadhaar, phone numbers, email addresses, bank account numbers, IFSC codes. The mapping table (token → original) is stored in memory for the request duration only — never persisted. <span class="inline-code">ai_logs.prompt_text</span> always stores the masked version.</p>
+
+  <h2 id="modules">Module Structure</h2>
+  <pre><code>apps/api/internal/ai/
+├── handler.go          # HTTP handlers for all AI endpoints
+├── service.go          # Business logic, calls Python AI service
+├── job_handler.go      # River job: async summarization
+└── review_handler.go   # approve / reject / edit endpoints
+
+apps/ai-service/app/
+├── routers/
+│   ├── copilot.py      # FastAPI router for all copilot endpoints
+│   └── internal.py     # Internal log endpoint (Go calls this)
+├── services/
+│   ├── llm_router.py   # Provider selection, fallback chain
+│   ├── rag.py          # RAG pipeline: embed + search + augment
+│   ├── pii_masker.py   # Presidio integration
+│   ├── prompt_registry.py  # Fetch + render prompts from DB
+│   └── response_parser.py  # Parse INSUFFICIENT_CONTEXT, citations
+└── models/
+    └── schemas.py      # Pydantic request/response models</code></pre>
+
+  <h2 id="frontend">Frontend Components</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">AI Copilot Panel</div>
+      <div class="card-desc">Slide-out drawer from case detail. Contains all capability buttons, chat history, pending reviews. Opens via keyboard shortcut Cmd+Shift+A.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Chat Interface</div>
+      <div class="card-desc">Chronological Q&A history for the case. Each exchange shows question, answer, confidence bar, and expandable citation panel.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ConfidenceBar</div>
+      <div class="card-desc">Reusable component. Props: score (0-1). Renders colored bar + percentage. Green ≥0.8, amber 0.5–0.79, red &lt;0.5 with "Please review carefully" warning.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Streaming Response</div>
+      <div class="card-desc">SSE token stream renders with typing cursor indicator. Finalizes when stream closes. Falls back to polling if SSE unavailable.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Review Modal</div>
+      <div class="card-desc">Full-screen modal with Approve / Edit / Reject actions. Edit mode uses Tiptap for rich-text modification of AI response.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Token Usage Display</div>
+      <div class="card-desc">Per-request token count + cost estimate. Daily budget indicator shows % remaining. Shown in copilot panel footer.</div>
+    </div>
+  </div>
+
+  <h2 id="cost">Cost Controls</h2>
+  <table>
+    <tr><th>Limit</th><th>Default</th><th>Configurable</th></tr>
+    <tr><td>Tokens per user per day</td><td>50,000</td><td>Yes (admin)</td></tr>
+    <tr><td>Tokens per case</td><td>200,000</td><td>Yes (admin)</td></tr>
+    <tr><td>AI requests per case per hour</td><td>20</td><td>Yes</td></tr>
+    <tr><td>Budget alert threshold</td><td>80%</td><td>Yes</td></tr>
+    <tr><td>Rate limit: AI endpoints</td><td>10 req/min per user</td><td>No (security)</td></tr>
+  </table>
+  <p>River job runs daily to aggregate token costs per user and per case. Alerts sent when approaching 80% budget. Admin dashboard shows cost breakdown by user, case, model, and action type.</p>
+
+  <h2 id="tests">Test Strategy</h2>
+  <table>
+    <tr><th>Test Case</th><th>Layer</th><th>Type</th></tr>
+    <tr><td>INSUFFICIENT_CONTEXT sentinel detection</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>PII masking — PAN, Aadhaar, phone, email</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>Prompt injection detection patterns</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>RAG retrieval returns citations array</td><td>Python service</td><td>Integration</td></tr>
+    <tr><td>Human review state machine transitions</td><td>Go service</td><td>Unit (table-driven)</td></tr>
+    <tr><td>approve/reject emits audit_log entry</td><td>Go service</td><td>Integration</td></tr>
+    <tr><td>Budget enforcement — 429 when exceeded</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>ai_logs immutability (no UPDATE)</td><td>DB layer</td><td>Integration</td></tr>
+    <tr><td>Mock LLM response — full pipeline test</td><td>Python service</td><td>Integration</td></tr>
+  </table>
+
+  <footer>
+    <p>OpsOwl AI — Internal Documentation · Feature 04: AI Copilot · May 2026</p>
+    <p style="margin-top: 6px;"><a href="INDEX.html" style="color: var(--cyan); text-decoration: none;">← Back to Documentation Index</a></p>
+  </footer>
+</main>
+</body>
+</html>

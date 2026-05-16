@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>12 · AI Logging & Explainability — OpsOwl AI Docs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #273549; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --cyan: #06b6d4; --violet: #7c3aed;
+    --violet-light: #a78bfa; --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; }
+  aside { width: 260px; min-width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .logo a { text-decoration: none; }
+  .logo-owl { font-size: 20px; font-weight: 700; color: var(--cyan); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .back-link { display: block; font-size: 12px; color: var(--violet-light); margin-top: 8px; text-decoration: none; }
+  .back-link:hover { color: var(--cyan); }
+  nav a { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+  nav a:hover, nav a.active { color: var(--cyan); border-left-color: var(--cyan); background: rgba(6,182,212,0.05); }
+  nav .nav-section { padding: 14px 20px 6px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  main { flex: 1; padding: 48px 56px; max-width: 1000px; }
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .feature-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); border-radius: 20px; padding: 4px 14px; font-size: 13px; color: var(--violet-light); margin-bottom: 24px; }
+  .subtitle { color: var(--muted); font-size: 16px; line-height: 1.6; margin-bottom: 40px; max-width: 720px; }
+  h2 { font-size: 22px; font-weight: 600; color: var(--text); margin: 40px 0 16px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--cyan); margin: 24px 0 12px; }
+  p { color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5f3fc; line-height: 1.6; }
+  .inline-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(6,182,212,0.1); color: var(--cyan); padding: 2px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th { background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; font-size: 13px; color: var(--muted); border-bottom: 1px solid rgba(51,65,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .ep-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .method { padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+  .get { background: rgba(16,185,129,0.2); color: var(--green); }
+  .post { background: rgba(59,130,246,0.2); color: var(--blue); }
+  .put { background: rgba(245,158,11,0.2); color: var(--amber); }
+  .ep-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); }
+  .ep-desc { font-size: 13px; color: var(--muted); }
+  .rule-card { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--violet); border-radius: 8px; padding: 16px 20px; margin-bottom: 12px; }
+  .rule-num { font-size: 11px; font-weight: 700; color: var(--violet-light); margin-bottom: 4px; }
+  .rule-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .rule-impl { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .callout { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.25); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+  .callout-title { font-size: 13px; font-weight: 600; color: var(--cyan); margin-bottom: 6px; }
+  .callout-critical { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.3); }
+  .callout-critical .callout-title { color: var(--red); }
+  .ai-sample { background: var(--surface2); border: 1px solid var(--border); border-left: 4px solid var(--violet); border-radius: 8px; padding: 16px; margin: 16px 0; }
+  .conf-bar { height: 8px; background: var(--border); border-radius: 4px; margin: 8px 0; overflow: hidden; }
+  .conf-fill { height: 100%; border-radius: 4px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-violet { background: rgba(124,58,237,0.2); color: var(--violet-light); border: 1px solid rgba(124,58,237,0.4); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.4); }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-red { background: rgba(239,68,68,0.15); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<aside>
+  <div class="logo">
+    <a href="INDEX.html">
+      <div class="logo-owl">🦉 OpsOwl AI</div>
+      <div class="logo-sub">Feature Documentation</div>
+    </a>
+    <a href="INDEX.html" class="back-link">← Back to Index</a>
+  </div>
+  <nav>
+    <div class="nav-section">Architecture</div>
+    <a href="00_HLD.html">00 · System HLD</a>
+    <div class="nav-section">Features</div>
+    <a href="01_AUTH_RBAC.html">01 · Auth & RBAC</a>
+    <a href="02_CASE_MANAGEMENT.html">02 · Case Management</a>
+    <a href="03_TIMELINE_WORKSPACE.html">03 · Timeline Workspace</a>
+    <a href="04_AI_COPILOT.html">04 · AI Copilot</a>
+    <a href="05_DOCUMENT_INTELLIGENCE.html">05 · Document Intelligence</a>
+    <a href="06_NOTES_COLLABORATION.html">06 · Notes & Collaboration</a>
+    <a href="07_TASK_MANAGEMENT.html">07 · Task Management</a>
+    <a href="08_DASHBOARD.html">08 · Dashboard</a>
+    <a href="09_NOTIFICATIONS.html">09 · Notifications</a>
+    <a href="10_AUDIT_LOGGING.html">10 · Audit Logging</a>
+    <a href="11_SEARCH.html">11 · Search</a>
+    <a href="12_AI_LOGGING.html" class="active">12 · AI Logging</a>
+    <div class="nav-section">Sections</div>
+    <a href="#overview">Overview</a>
+    <a href="#logged">What Gets Logged</a>
+    <a href="#schema">Database Schema</a>
+    <a href="#confidence">Confidence Scoring</a>
+    <a href="#review-gate">Human Review Gate</a>
+    <a href="#visual">Visual Design Rules</a>
+    <a href="#api">API Endpoints</a>
+    <a href="#prompt-registry">Prompt Registry</a>
+    <a href="#cost">Cost Tracking</a>
+    <a href="#antihallucination">Anti-Hallucination</a>
+    <a href="#pending-queue">Pending Review Queue</a>
+    <a href="#compliance">Compliance Narrative</a>
+    <a href="#modules">Module Structure</a>
+    <a href="#frontend">Frontend Components</a>
+    <a href="#tests">Test Strategy</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="feature-badge"><span class="badge badge-violet">Feature 12</span> MVP · Trust Infrastructure</div>
+  <h1>AI Logging &amp; Explainability</h1>
+  <p class="subtitle">Every AI action in OpsOwl AI is logged, explainable, and auditable. Regulated clients (fintechs, NBFCs) must prove to regulators that AI decisions were reviewed by humans. This is not a nice-to-have — it is the feature that makes OpsOwl AI sellable to BFSI enterprises.</p>
+
+  <div class="callout callout-critical">
+    <div class="callout-title">Critical — Non-Negotiable</div>
+    Without AI logging and explainability, no fintech, NBFC, or lending company will deploy OpsOwl AI in a regulated environment. RBI AI governance guidelines explicitly require human oversight, audit trails, and explainability for AI used in financial operations.
+  </div>
+
+  <h2 id="overview">Feature Overview</h2>
+  <p>AI Logging captures the complete lifecycle of every AI interaction: what was asked, what context was used, what the model responded, how confident it was, which sources it cited, and what a human decided to do with the output. This data serves three purposes:</p>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">🏛️ Regulatory Compliance</div>
+      <div class="card-desc">Prove to RBI/SEBI auditors that every AI decision was reviewed by a human, with full trail of who approved what and when.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🔍 Explainability</div>
+      <div class="card-desc">Investigators can see exactly why the AI said what it said — which documents, which excerpts, with what confidence level.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">📊 Continuous Improvement</div>
+      <div class="card-desc">Track approval rates, rejection reasons, and confidence accuracy to improve prompts and model selection over time.</div>
+    </div>
+  </div>
+
+  <h2 id="logged">What Gets Logged</h2>
+  <p>For every AI interaction, the following is captured and stored permanently:</p>
+  <table>
+    <tr><th>Field</th><th>What it captures</th><th>Why it matters</th></tr>
+    <tr><td><span class="inline-code">triggered_by</span></td><td>Which user triggered the AI action</td><td>Accountability — who is using AI and how</td></tr>
+    <tr><td><span class="inline-code">case_id</span></td><td>Which case it was for</td><td>Links AI usage to case audit trail</td></tr>
+    <tr><td><span class="inline-code">action_type</span></td><td>summarize / ask / generate_note / extract_actions / pattern_detect</td><td>Usage pattern analytics</td></tr>
+    <tr><td><span class="inline-code">prompt_text</span></td><td>Exact prompt sent to LLM (PII-masked)</td><td>Reproduce any AI interaction for audit</td></tr>
+    <tr><td><span class="inline-code">response_text</span></td><td>Full LLM response received</td><td>Evidence of what AI said</td></tr>
+    <tr><td><span class="inline-code">model_used</span></td><td>e.g. claude-opus-4, gpt-4o</td><td>Model performance comparison</td></tr>
+    <tr><td><span class="inline-code">provider</span></td><td>anthropic / openai</td><td>Provider cost tracking</td></tr>
+    <tr><td><span class="inline-code">tokens_input / tokens_output</span></td><td>Token counts</td><td>Cost accounting</td></tr>
+    <tr><td><span class="inline-code">latency_ms</span></td><td>End-to-end response time</td><td>Performance monitoring</td></tr>
+    <tr><td><span class="inline-code">confidence_score</span></td><td>0.0–1.0 computed confidence</td><td>Alert analyst when AI is uncertain</td></tr>
+    <tr><td><span class="inline-code">citations</span></td><td>Source documents, pages, excerpts used</td><td>Explainability — show evidence for claims</td></tr>
+    <tr><td><span class="inline-code">human_review_status</span></td><td>pending / approved / rejected / edited</td><td>Compliance — human oversight evidence</td></tr>
+    <tr><td><span class="inline-code">reviewed_by / reviewed_at</span></td><td>Who reviewed and when</td><td>Chain of custody for AI decisions</td></tr>
+    <tr><td><span class="inline-code">human_edited_response</span></td><td>If analyst modified AI output</td><td>Track human corrections to AI</td></tr>
+  </table>
+
+  <h2 id="schema">Database Schema</h2>
+  <pre><code>CREATE TABLE ai_logs (
+  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  case_id               UUID NOT NULL REFERENCES cases(id),
+  triggered_by          UUID NOT NULL REFERENCES users(id),
+  action_type           VARCHAR NOT NULL CHECK (action_type IN (
+                          'summarize','ask','generate_note','extract_actions','pattern_detect'
+                        )),
+  -- Prompt stored AFTER PII masking — never log raw PII
+  prompt_text           TEXT NOT NULL,
+  response_text         TEXT NOT NULL,
+  model_used            VARCHAR NOT NULL,
+  provider              VARCHAR NOT NULL,
+  tokens_input          INT NOT NULL,
+  tokens_output         INT NOT NULL,
+  latency_ms            INT NOT NULL,
+  confidence_score      NUMERIC(3,2) CHECK (confidence_score BETWEEN 0 AND 1),
+  -- citations: [{doc_id, doc_name, page, excerpt, similarity_score}]
+  citations             JSONB NOT NULL DEFAULT '[]',
+  human_review_status   VARCHAR NOT NULL DEFAULT 'pending'
+                          CHECK (human_review_status IN (
+                            'pending','approved','rejected','edited'
+                          )),
+  reviewed_by           UUID REFERENCES users(id),
+  reviewed_at           TIMESTAMPTZ,
+  human_edited_response TEXT,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  -- NO deleted_at — AI logs are immutable
+);
+
+CREATE INDEX idx_ai_logs_case        ON ai_logs(case_id, created_at DESC);
+CREATE INDEX idx_ai_logs_review      ON ai_logs(human_review_status, created_at);
+CREATE INDEX idx_ai_logs_user        ON ai_logs(triggered_by, created_at DESC);
+CREATE INDEX idx_ai_logs_action      ON ai_logs(action_type, created_at DESC);
+
+-- Versioned prompt registry
+CREATE TABLE ai_prompts (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name            VARCHAR NOT NULL,
+  slug            VARCHAR NOT NULL,
+  version         INT NOT NULL,
+  template        TEXT NOT NULL,        -- Jinja2 template
+  task_type       VARCHAR NOT NULL,
+  variables       JSONB NOT NULL,       -- list of expected variable names
+  is_active       BOOL NOT NULL DEFAULT true,
+  ab_test_weight  NUMERIC(3,2) DEFAULT 1.0,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (slug, version)
+);</code></pre>
+
+  <h2 id="confidence">Confidence Score Calculation</h2>
+  <p>Confidence is computed differently per action type and stored as a 0.0–1.0 value:</p>
+  <table>
+    <tr><th>Action Type</th><th>Calculation Method</th></tr>
+    <tr><td>ask (RAG Q&A)</td><td>Average cosine similarity of top-k pgvector chunks. High similarity = AI had strong context to draw from.</td></tr>
+    <tr><td>summarize</td><td>Source coverage ratio: (available context tokens / ideal context tokens) × chunk relevance score average.</td></tr>
+    <tr><td>generate_note</td><td>Heuristic: number of case documents + events + notes available. More context = higher confidence.</td></tr>
+    <tr><td>extract_actions</td><td>Same heuristic as generate_note, weighted by document processing completeness.</td></tr>
+    <tr><td>pattern_detect</td><td>Similarity score to matched past cases in pgvector store.</td></tr>
+  </table>
+
+  <h3>Confidence Thresholds</h3>
+  <div class="grid-3">
+    <div class="card" style="border-left: 3px solid var(--green);">
+      <div style="font-size: 24px; font-weight: 700; color: var(--green);">≥ 0.80</div>
+      <div class="card-title">High Confidence</div>
+      <div class="card-desc">Green bar. Analyst may approve quickly. Still requires review.</div>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--amber);">
+      <div style="font-size: 24px; font-weight: 700; color: var(--amber);">0.50–0.79</div>
+      <div class="card-title">Medium Confidence</div>
+      <div class="card-desc">Amber bar. "Review recommended" label. Read citations carefully before approving.</div>
+    </div>
+    <div class="card" style="border-left: 3px solid var(--red);">
+      <div style="font-size: 24px; font-weight: 700; color: var(--red);">&lt; 0.50</div>
+      <div class="card-title">Low Confidence</div>
+      <div class="card-desc">Red bar. "Please verify carefully" warning. Edit before approving is strongly recommended.</div>
+    </div>
+  </div>
+
+  <h2 id="review-gate">Human Review Gate</h2>
+  <p>The complete state machine for every AI output:</p>
+  <pre><code>                         ┌─────────────────────┐
+  AI generates response  │   status: pending    │  ← Default on creation
+                         │   amber "PENDING"     │
+                         │   badge in UI         │
+                         └──────────┬──────────┘
+                                    │
+               ┌────────────────────┼──────────────────────┐
+               ▼                    ▼                       ▼
+    ┌──────────────────┐  ┌─────────────────────┐  ┌──────────────────┐
+    │  status: approved│  │   status: edited    │  │ status: rejected │
+    │  green "VERIFIED"│  │   blue "AI Assisted"│  │  red "REJECTED"  │
+    │  badge in UI     │  │  human_edited_text  │  │  reason stored   │
+    └──────────────────┘  └─────────────────────┘  └──────────────────┘
+    All transitions emit to audit_logs with reviewer + timestamp</code></pre>
+
+  <p>Once approved or edited, the AI output is included in the official case record. Rejected outputs are visible only in AI history (with rejection reason) and never appear in case summaries or reports.</p>
+
+  <h2 id="visual">Visual Design Rules for AI Content</h2>
+  <p>AI content is ALWAYS visually distinct from human-authored content. TypeScript enforces this — the <span class="inline-code">AICard</span> component cannot render without all required props.</p>
+
+  <div class="ai-sample">
+    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px; flex-wrap: wrap;">
+      <span class="badge badge-violet">AI Generated</span>
+      <span class="badge badge-amber">Pending Review</span>
+      <span style="font-size: 11px; color: var(--muted); margin-left: auto;">claude-opus-4 · anthropic · 1.8s · 623 tokens</span>
+    </div>
+    <p style="font-size: 13px; color: var(--text); margin-bottom: 12px;">Based on the uploaded bank statements and KYC documents, the primary risk factors are: (1) three cash deposits exceeding ₹2L within 10 days, (2) no corresponding income proof for the stated occupation, (3) flagged address matches a previously closed case from March 2025...</p>
+    <div style="font-size: 12px; color: var(--muted); margin-bottom: 4px;">Confidence</div>
+    <div class="conf-bar"><div class="conf-fill" style="width: 82%; background: var(--green);"></div></div>
+    <div style="font-size: 11px; color: var(--green); margin-bottom: 12px;">82% — High Confidence</div>
+    <div style="background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.3); border-radius: 6px; padding: 10px; margin-bottom: 12px;">
+      <div style="font-size: 11px; font-weight: 600; color: var(--violet-light); margin-bottom: 6px;">Sources (3)</div>
+      <div style="font-size: 12px; color: var(--muted);">📄 Statement_Mar2026.pdf · Page 3 · "cash deposit of ₹2,50,000..."</div>
+      <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">📄 KYC_Form.pdf · Page 1 · "occupation: self-employed"</div>
+      <div style="font-size: 12px; color: var(--muted); margin-top: 4px;">🗂️ Case OWL-2025-00892 · "closed, address match"</div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button style="background: rgba(16,185,129,0.2); color: var(--green); border: 1px solid rgba(16,185,129,0.4); padding: 6px 14px; border-radius: 6px; font-size: 12px;">✓ Approve</button>
+      <button style="background: rgba(59,130,246,0.1); color: var(--blue); border: 1px solid rgba(59,130,246,0.3); padding: 6px 14px; border-radius: 6px; font-size: 12px;">✏ Edit</button>
+      <button style="background: rgba(239,68,68,0.1); color: var(--red); border: 1px solid rgba(239,68,68,0.3); padding: 6px 14px; border-radius: 6px; font-size: 12px;">✗ Reject</button>
+    </div>
+  </div>
+
+  <h2 id="api">API Endpoints</h2>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/logs</span></div>
+    <div class="ep-desc">All AI logs. Manager/Admin only. Filter: case_id, action_type, human_review_status, triggered_by, date_from, date_to. Cursor paginated.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/cases/:id/ai/logs</span></div>
+    <div class="ep-desc">Case-scoped AI history. All roles with case access. Shows full interaction history with review status.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/logs/:id</span></div>
+    <div class="ep-desc">Single log detail: full prompt text, full response, all citations, review history. Admin/Manager only (full prompt visible).</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/ai/logs/:id/approve</span></div>
+    <div class="ep-desc">Approve AI output. Sets status=approved, records reviewed_by + reviewed_at. Emits audit event.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/ai/logs/:id/reject</span></div>
+    <div class="ep-desc">Reject AI output. Body: <span class="inline-code">{reason: string}</span>. Output excluded from case record. Emits audit event.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method put">PUT</span><span class="ep-path">/api/v1/ai/logs/:id/edit</span></div>
+    <div class="ep-desc">Human edits AI output. Body: <span class="inline-code">{edited_response: string}</span>. Stored in human_edited_response, status=edited. Emits audit event.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/logs/pending-review</span></div>
+    <div class="ep-desc">All pending AI outputs across all cases. Sorted oldest-first (FIFO). Used for the Review Queue page.</div>
+  </div>
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/ai/stats</span></div>
+    <div class="ep-desc">Aggregate stats: total queries, avg confidence, approval rate, rejection rate, token usage, cost estimate. Manager/Admin only.</div>
+  </div>
+
+  <h2 id="prompt-registry">Prompt Registry System</h2>
+  <p>Prompts are stored in the <span class="inline-code">ai_prompts</span> database table — versioned, not hardcoded in Python. This enables prompt improvements without code deployments.</p>
+  <pre><code>-- Example: Go API calls Python AI service
+POST /internal/ai/generate
+{
+  "prompt_slug": "case_summarize",
+  "version": 3,           // pin version or use "latest"
+  "variables": {
+    "case_title": "Loan Default Investigation",
+    "doc_count": 5,
+    "event_count": 23,
+    "note_count": 4,
+    "context_documents": "..."
+  }
+}
+
+-- Python renders Jinja2 template from DB:
+prompt = prompt_registry.render("case_summarize", version=3, variables=vars)
+
+-- A/B testing: ab_test_weight controls traffic split
+-- version 3: weight=0.7 (70% of traffic)
+-- version 4: weight=0.3 (30% of traffic — testing new prompt)</code></pre>
+
+  <h2 id="cost">Cost Tracking &amp; Budget Controls</h2>
+  <table>
+    <tr><th>Budget</th><th>Default</th><th>Configurable</th><th>Enforcement</th></tr>
+    <tr><td>Tokens per user per day</td><td>50,000</td><td>Yes (admin)</td><td>429 Too Many Requests when exceeded</td></tr>
+    <tr><td>Tokens per case total</td><td>200,000</td><td>Yes (admin)</td><td>Warning at 80%, block at 100%</td></tr>
+    <tr><td>AI requests per user per minute</td><td>10</td><td>No (security)</td><td>429 with Retry-After header</td></tr>
+    <tr><td>Budget alert threshold</td><td>80%</td><td>Yes</td><td>Notification to user + admin</td></tr>
+  </table>
+  <p>River job runs daily to aggregate token costs per user and per case from <span class="inline-code">ai_logs</span>. Cost computed per provider pricing. Admin AI stats endpoint shows cost breakdown by user, case, model, and action type.</p>
+
+  <h2 id="antihallucination">Anti-Hallucination: Technical Implementation</h2>
+
+  <div class="rule-card">
+    <div class="rule-num">RULE 1</div>
+    <div class="rule-title">Every response cites its source</div>
+    <div class="rule-impl">Python RAG service includes top-k chunks in citations array: <span class="inline-code">[{doc_id, doc_name, page, excerpt, similarity_score}]</span>. Stored in <span class="inline-code">citations JSONB</span>. Frontend AICard component requires citations prop — TypeScript compile error if omitted.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 2</div>
+    <div class="rule-title">Confidence score on every output</div>
+    <div class="rule-impl">Computed from similarity scores (RAG) or context richness (summarization). Stored as <span class="inline-code">NUMERIC(3,2)</span>. ConfidenceBar component shows colored indicator on every AI card — cannot be suppressed.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 3</div>
+    <div class="rule-title">"Insufficient context" — never guess</div>
+    <div class="rule-impl">System prompt includes sentinel instruction. Python response_parser.py detects <span class="inline-code">INSUFFICIENT_CONTEXT</span> → returns <span class="inline-code">{error: "insufficient_context", message: "Not enough documents in this case to answer that question."}</span>. Frontend shows this message verbatim — no fallback guess.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 4</div>
+    <div class="rule-title">Human review gate</div>
+    <div class="rule-impl">All responses default <span class="inline-code">status='pending'</span>. Case record APIs filter out pending AI outputs. No AI content appears in case summaries or reports until <span class="inline-code">status IN ('approved','edited')</span>. Enforced at DB query level — not just UI.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 5</div>
+    <div class="rule-title">Visual distinction — always</div>
+    <div class="rule-impl"><span class="inline-code">AICard</span> React component enforces required props via TypeScript: badge, confidence_score, citations, review_status. Build fails if any AI response is rendered without these markers.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 6</div>
+    <div class="rule-title">Prompt injection prevention</div>
+    <div class="rule-impl">Python <span class="inline-code">pii_masker.py</span> sanitizes input: strip HTML tags, escape special chars, detect adversarial patterns ("ignore previous instructions", "you are now a", "disregard your"). Returns 400 if detected. Sanitized input stored in audit log.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 7</div>
+    <div class="rule-title">PII masking before every LLM call</div>
+    <div class="rule-impl">Presidio Analyzer detects: PAN, Aadhaar, phone, email, bank account, IFSC codes. Tokens replace originals: <span class="inline-code">[PAN_1]</span>, <span class="inline-code">[PHONE_1]</span>. LLM never sees raw PII. <span class="inline-code">ai_logs.prompt_text</span> stores only the masked version. Token map held in memory for request duration — never persisted.</div>
+  </div>
+  <div class="rule-card">
+    <div class="rule-num">RULE 8</div>
+    <div class="rule-title">Full logging of every interaction</div>
+    <div class="rule-impl">Python AI service calls <span class="inline-code">POST /internal/ai/log</span> synchronously after every LLM response. If logging fails → the LLM response is discarded, error returned to user. "If it isn't logged, it didn't happen."</div>
+  </div>
+
+  <h2 id="pending-queue">Pending Review Queue</h2>
+  <p>A dedicated page listing all AI outputs awaiting human review across all cases. Purpose: prevent AI outputs from sitting in "pending" state indefinitely.</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Sort Order</div>
+      <div class="card-desc">Oldest first (FIFO). Items pending &gt;4 hours show an amber "Overdue Review" indicator. SLA configurable by admin.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Filters</div>
+      <div class="card-desc">Filter by: action_type, confidence_score range, case_id, triggered_by. Quick filters: "Low confidence only", "My cases only".</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Bulk Approve</div>
+      <div class="card-desc">Select multiple items → "Bulk Approve". Intended for high-confidence, low-stakes outputs. Each approval still logged individually in audit_logs.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Review SLA Alert</div>
+      <div class="card-desc">River job checks every 30 min for items pending &gt;4 hours → sends notification to analyst and manager. Prevents stale AI outputs.</div>
+    </div>
+  </div>
+
+  <h2 id="compliance">Compliance Narrative</h2>
+  <div class="callout">
+    <div class="callout-title">How OpsOwl AI satisfies regulatory AI governance requirements</div>
+    <p style="margin-top: 8px;"><strong style="color: var(--text);">RBI AI Governance Framework:</strong> Requires human oversight for AI decisions in financial services. OpsOwl AI's human review gate ensures no AI output becomes part of a case record without explicit human approval — with a full trail of who approved what, when, and why they may have edited it.</p>
+    <p style="margin-top: 12px;"><strong style="color: var(--text);">Explainability Requirement:</strong> Confidence scores and source citations allow investigators to explain any AI-assisted decision to an auditor: "The AI flagged this case at 87% confidence, citing these three specific document excerpts, and Analyst Priya S. approved it on May 15, 2026 at 14:32 IST."</p>
+    <p style="margin-top: 12px;"><strong style="color: var(--text);">PII Protection:</strong> Presidio masking before every LLM call ensures customer PII (Aadhaar, PAN, account numbers) is never transmitted to external AI providers. This satisfies data localisation concerns for on-prem deployments.</p>
+    <p style="margin-top: 12px;"><strong style="color: var(--text);">Sales Advantage:</strong> When a compliance officer asks "Can you show me every AI decision made on this case?" — OpsOwl AI's answer is yes, with a complete timeline, confidence levels, source citations, and human approvals. This is a direct competitive differentiator versus generic AI tools.</p>
+  </div>
+
+  <h2 id="modules">Module Structure</h2>
+  <pre><code>apps/api/internal/ai/
+├── handler.go          # GET /ai/logs, /ai/stats, /ai/logs/pending-review
+├── review_handler.go   # POST approve/reject, PUT edit
+└── stats_handler.go    # Aggregate cost + usage stats
+
+apps/api/internal/ai/internal_log/
+└── handler.go          # POST /internal/ai/log — called only by Python service
+                        # NOT exposed on public router
+
+apps/ai-service/app/
+├── services/
+│   ├── prompt_registry.py  # Fetch + Jinja2 render from ai_prompts table
+│   ├── pii_masker.py       # Presidio integration
+│   └── response_parser.py  # INSUFFICIENT_CONTEXT detection, citation parsing
+└── utils/
+    └── logger.py           # POST to /internal/ai/log after every LLM call</code></pre>
+
+  <h2 id="frontend">Frontend Components</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">AICard (core component)</div>
+      <div class="card-desc">Required props: action_type, response_text, confidence_score, citations[], review_status, model_used, latency_ms, tokens. Always renders with violet border, badge, confidence bar, citation panel, and action buttons.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ConfidenceBar</div>
+      <div class="card-desc">Reusable. Props: score (0–1). Green ≥0.8, amber 0.5–0.79, red &lt;0.5. Shows percentage text + colored bar. Used across all AI output displays.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">CitationPanel</div>
+      <div class="card-desc">Collapsible accordion. Shows source document name, page number, excerpt, similarity score. Click citation → opens document at that page.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ReviewModal</div>
+      <div class="card-desc">Full-screen modal: Approve / Edit (Tiptap editor) / Reject (reason required). Keyboard: Enter=Approve, Escape=Close.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">PendingReviewQueue page</div>
+      <div class="card-desc">Virtualized list of pending items. Filter bar. Bulk approve button. Overdue indicators. Accessible at /ai/review-queue.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">AIStats Dashboard</div>
+      <div class="card-desc">Admin page: total queries, approval rate (%), avg confidence, cost by model. CSS-only charts. Date range filter.</div>
+    </div>
+  </div>
+
+  <h2 id="tests">Test Strategy</h2>
+  <table>
+    <tr><th>Test Case</th><th>Layer</th><th>Type</th></tr>
+    <tr><td>INSUFFICIENT_CONTEXT sentinel → structured error response</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>PII masking — PAN, Aadhaar, phone, email, IFSC</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>Prompt injection detection — adversarial phrases</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>Citations array present on every RAG response</td><td>Python service</td><td>Integration</td></tr>
+    <tr><td>Logging failure → LLM response discarded (400 to user)</td><td>Python service</td><td>Integration</td></tr>
+    <tr><td>Human review state machine: pending → approved</td><td>Go service</td><td>Unit (table-driven)</td></tr>
+    <tr><td>Human review state machine: pending → rejected</td><td>Go service</td><td>Unit</td></tr>
+    <tr><td>Human review state machine: pending → edited</td><td>Go service</td><td>Unit</td></tr>
+    <tr><td>Approve emits audit_log entry with reviewer + timestamp</td><td>Go service</td><td>Integration</td></tr>
+    <tr><td>ai_logs has no UPDATE/DELETE in service layer</td><td>Go service</td><td>Unit</td></tr>
+    <tr><td>Budget enforcement: 429 when daily token limit exceeded</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>Pending queue sorted oldest-first</td><td>Go service</td><td>Unit</td></tr>
+    <tr><td>Confidence score within 0.0–1.0 range</td><td>Python service</td><td>Unit</td></tr>
+    <tr><td>Bulk approve logs each item individually in audit</td><td>Go service</td><td>Integration</td></tr>
+  </table>
+
+  <footer>
+    <p>OpsOwl AI — Internal Documentation · Feature 12: AI Logging &amp; Explainability · May 2026</p>
+    <p style="margin-top: 6px;"><a href="INDEX.html" style="color: var(--cyan); text-decoration: none;">← Back to Documentation Index</a></p>
+  </footer>
+</main>
+</body>
+</html>

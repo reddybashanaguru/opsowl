@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>07 · Task Management — OpsOwl AI Feature Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-2:   #243044;
+      --surface-3:   #2d3d55;
+      --border:      #334155;
+      --border-2:    #3f5068;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-faint:  #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0891b2;
+      --cyan-bg:     rgba(34,211,238,0.08);
+      --violet:      #a78bfa;
+      --violet-dim:  #7c3aed;
+      --violet-bg:   rgba(167,139,250,0.08);
+      --emerald:     #34d399;
+      --emerald-bg:  rgba(52,211,153,0.08);
+      --amber:       #fbbf24;
+      --amber-bg:    rgba(251,191,36,0.08);
+      --rose:        #fb7185;
+      --rose-bg:     rgba(251,113,133,0.08);
+      --orange:      #fb923c;
+      --orange-bg:   rgba(251,146,60,0.08);
+      --font-mono:   'JetBrains Mono', monospace;
+      --radius:      10px;
+      --radius-sm:   6px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Layout ── */
+    .page-wrap {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 28px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .sidebar-logo {
+      padding: 0 24px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .sidebar-logo .product-name {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(135deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .sidebar-logo .doc-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-faint);
+      margin-top: 2px;
+    }
+    .sidebar-back {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 24px;
+      margin-bottom: 8px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      border-radius: 0;
+      transition: color 0.15s;
+    }
+    .sidebar-back:hover { color: var(--cyan); }
+    .sidebar-back svg { flex-shrink: 0; }
+
+    .nav-section-label {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      color: var(--text-faint);
+      padding: 16px 24px 6px;
+      font-weight: 600;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 24px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 400;
+      border-left: 2px solid transparent;
+      transition: all 0.15s;
+    }
+    .nav-item:hover { color: var(--text); background: var(--surface-2); }
+    .nav-item.active { color: var(--cyan); border-left-color: var(--cyan); background: var(--cyan-bg); font-weight: 500; }
+    .nav-item .nav-num { color: var(--text-faint); font-size: 11px; font-family: var(--font-mono); }
+
+    /* ── Main Content ── */
+    .main {
+      padding: 48px 56px;
+      max-width: 920px;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      margin-bottom: 56px;
+    }
+    .breadcrumb {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-faint);
+      margin-bottom: 16px;
+    }
+    .breadcrumb span { color: var(--text-muted); }
+    .feature-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--cyan-bg);
+      border: 1px solid rgba(34,211,238,0.25);
+      color: var(--cyan);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.2px;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 14px;
+    }
+    h1 {
+      font-size: 38px;
+      font-weight: 700;
+      letter-spacing: -1.5px;
+      line-height: 1.15;
+      background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+    }
+    .page-subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      max-width: 640px;
+    }
+    .meta-row {
+      display: flex;
+      gap: 24px;
+      margin-top: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      color: var(--text-faint);
+    }
+    .meta-item strong { color: var(--text-muted); }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 56px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      background: var(--cyan-bg);
+      border: 1px solid rgba(34,211,238,0.25);
+      color: var(--cyan);
+      font-size: 13px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      flex-shrink: 0;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: var(--text);
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+      margin-top: 24px;
+    }
+    h3:first-child { margin-top: 0; }
+
+    p { color: var(--text-muted); margin-bottom: 12px; line-height: 1.7; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card:last-child { margin-bottom: 0; }
+
+    .card-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    /* ── State / Priority Pills ── */
+    .pill-group { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+    }
+    .pill-dot { width: 6px; height: 6px; border-radius: 50%; }
+    .pill-todo    { background: var(--surface-3); color: var(--text-muted); border: 1px solid var(--border-2); }
+    .pill-inprog  { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+    .pill-done    { background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(52,211,153,0.3); }
+    .pill-cancel  { background: rgba(100,116,139,0.15); color: var(--text-faint); border: 1px solid var(--border); }
+    .pill-critical { background: rgba(251,113,133,0.12); color: var(--rose); border: 1px solid rgba(251,113,133,0.3); }
+    .pill-high    { background: var(--orange-bg); color: var(--orange); border: 1px solid rgba(251,146,60,0.3); }
+    .pill-medium  { background: var(--amber-bg); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+    .pill-low     { background: var(--cyan-bg); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+    .pill-ai      { background: var(--violet-bg); color: var(--violet); border: 1px solid rgba(167,139,250,0.3); }
+
+    /* ── Lifecycle Flow ── */
+    .lifecycle-flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      overflow-x: auto;
+      margin-bottom: 16px;
+    }
+    .flow-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      min-width: 90px;
+    }
+    .flow-state-box {
+      padding: 8px 16px;
+      border-radius: var(--radius-sm);
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--font-mono);
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+    .flow-state-label { font-size: 10px; color: var(--text-faint); text-transform: uppercase; letter-spacing: 1px; }
+    .flow-arrow { color: var(--border-2); font-size: 18px; padding: 0 8px; align-self: flex-start; margin-top: 10px; }
+    .flow-branch {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-self: flex-start;
+      margin-top: 0;
+    }
+    .flow-or { font-size: 10px; color: var(--text-faint); text-align: center; font-weight: 500; }
+
+    /* ── Code Block ── */
+    .code-wrap {
+      position: relative;
+      margin-bottom: 16px;
+    }
+    .code-label {
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-faint);
+      font-family: var(--font-mono);
+    }
+    pre {
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.75;
+      color: #cbd5e1;
+    }
+    .kw  { color: #818cf8; }
+    .kw2 { color: #7dd3fc; }
+    .ty  { color: #34d399; }
+    .str { color: #fbbf24; }
+    .cm  { color: #475569; font-style: italic; }
+    .fn  { color: #f472b6; }
+    .num { color: #fb923c; }
+    .op  { color: #94a3b8; }
+    .at  { color: #a78bfa; }
+
+    /* ── API Endpoint Table ── */
+    .endpoint-list { display: flex; flex-direction: column; gap: 10px; }
+    .endpoint-item {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto;
+      align-items: center;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 12px 16px;
+      transition: border-color 0.15s;
+    }
+    .endpoint-item:hover { border-color: var(--border-2); }
+    .http-method {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      min-width: 52px;
+      text-align: center;
+    }
+    .method-get    { background: rgba(52,211,153,0.12); color: var(--emerald); }
+    .method-post   { background: rgba(34,211,238,0.12); color: var(--cyan); }
+    .method-put    { background: rgba(251,191,36,0.12); color: var(--amber); }
+    .method-patch  { background: rgba(251,146,60,0.12); color: var(--orange); }
+    .method-delete { background: rgba(251,113,133,0.12); color: var(--rose); }
+    .endpoint-path {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+    }
+    .endpoint-desc { font-size: 13px; color: var(--text-muted); }
+    .endpoint-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    /* ── Component Grid ── */
+    .component-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .component-card {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+    }
+    .component-card .comp-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .component-card .comp-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+    .comp-icon {
+      width: 20px;
+      height: 20px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    /* ── River Job Box ── */
+    .river-job {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--violet);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      margin-bottom: 16px;
+    }
+    .river-job-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--violet);
+      font-family: var(--font-mono);
+      margin-bottom: 8px;
+    }
+    .river-job-desc { font-size: 13px; color: var(--text-muted); line-height: 1.6; }
+
+    /* ── Info / Warning Callouts ── */
+    .callout {
+      border-radius: var(--radius-sm);
+      padding: 16px 20px;
+      margin-bottom: 16px;
+      border-left: 3px solid;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .callout-cyan { background: var(--cyan-bg); border-color: var(--cyan); color: var(--text-muted); }
+    .callout-violet { background: var(--violet-bg); border-color: var(--violet); color: var(--text-muted); }
+    .callout-amber { background: var(--amber-bg); border-color: var(--amber); color: var(--text-muted); }
+    .callout-emerald { background: var(--emerald-bg); border-color: var(--emerald); color: var(--text-muted); }
+    .callout strong { font-weight: 600; }
+    .callout-cyan strong { color: var(--cyan); }
+    .callout-violet strong { color: var(--violet); }
+    .callout-amber strong { color: var(--amber); }
+    .callout-emerald strong { color: var(--emerald); }
+
+    /* ── File Tree ── */
+    .file-tree {
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 2;
+    }
+    .tree-dir { color: var(--cyan); font-weight: 600; }
+    .tree-file { color: var(--text-muted); }
+    .tree-comment { color: var(--text-faint); }
+    .tree-indent-1 { padding-left: 20px; }
+    .tree-indent-2 { padding-left: 40px; }
+    .tree-indent-3 { padding-left: 60px; }
+
+    /* ── Test Strategy ── */
+    .test-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .test-item:last-child { border-bottom: none; }
+    .test-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 10px;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .test-unit     { background: var(--cyan-bg); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+    .test-integ    { background: var(--violet-bg); color: var(--violet); border: 1px solid rgba(167,139,250,0.3); }
+    .test-e2e      { background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(52,211,153,0.3); }
+    .test-label    { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+    .test-label strong { color: var(--text); font-weight: 600; }
+
+    /* ── AI Card ── */
+    .ai-card {
+      background: var(--surface);
+      border: 1px solid rgba(167,139,250,0.3);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+      position: relative;
+      overflow: hidden;
+    }
+    .ai-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--violet), var(--cyan));
+    }
+    .ai-suggested-mockup {
+      background: var(--surface-2);
+      border: 1px solid rgba(167,139,250,0.25);
+      border-radius: var(--radius-sm);
+      padding: 14px 16px;
+      margin-top: 12px;
+    }
+    .ai-suggested-mockup .tag { display: inline-flex; align-items: center; gap: 4px; background: var(--violet-bg); color: var(--violet); font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 10px; margin-bottom: 8px; }
+    .ai-suggested-mockup .task-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+    .ai-suggested-mockup .task-desc { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .ai-actions { display: flex; gap: 8px; }
+    .btn-accept { background: var(--emerald-bg); color: var(--emerald); border: 1px solid rgba(52,211,153,0.4); padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-edit   { background: var(--cyan-bg); color: var(--cyan); border: 1px solid rgba(34,211,238,0.4); padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+    .btn-reject { background: var(--rose-bg); color: var(--rose); border: 1px solid rgba(251,113,133,0.4); padding: 5px 14px; border-radius: 6px; font-size: 12px; font-weight: 600; cursor: pointer; }
+
+    /* ── View Toggle ── */
+    .view-toggle {
+      display: inline-flex;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .view-opt {
+      padding: 7px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .view-opt.active { background: var(--cyan-bg); color: var(--cyan); }
+
+    /* ── Kanban Mockup ── */
+    .kanban-board {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    .kanban-col {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 14px;
+    }
+    .kanban-col-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .kanban-col-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+    .kanban-count {
+      font-size: 11px;
+      font-weight: 700;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: var(--surface-3);
+      color: var(--text-faint);
+    }
+    .kanban-task {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+    .kanban-task:last-child { margin-bottom: 0; }
+    .kanban-task-title { color: var(--text); font-weight: 500; margin-bottom: 6px; }
+    .kanban-task-meta { display: flex; gap: 6px; align-items: center; color: var(--text-faint); font-size: 11px; }
+    .overdue-badge { background: var(--rose-bg); color: var(--rose); border: 1px solid rgba(251,113,133,0.3); font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+
+    /* ── Divider ── */
+    hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-faint); }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .page-wrap { grid-template-columns: 1fr; }
+      .sidebar { position: static; height: auto; }
+      .main { padding: 28px 20px; }
+      .card-grid, .card-grid-3, .component-grid, .kanban-board { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- ── Sidebar ── -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="product-name">OpsOwl AI</div>
+      <div class="doc-label">Feature Specification</div>
+    </div>
+
+    <a href="INDEX.html" class="sidebar-back">
+      <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+      </svg>
+      Back to Index
+    </a>
+
+    <div class="nav-section-label">This Document</div>
+    <a href="#overview" class="nav-item active">
+      <span class="nav-num">01</span> Feature Overview
+    </a>
+    <a href="#lifecycle" class="nav-item">
+      <span class="nav-num">02</span> Task Lifecycle
+    </a>
+    <a href="#schema" class="nav-item">
+      <span class="nav-num">03</span> Database Schema
+    </a>
+    <a href="#sla" class="nav-item">
+      <span class="nav-num">04</span> SLA &amp; Due Date Tracking
+    </a>
+    <a href="#api" class="nav-item">
+      <span class="nav-num">05</span> API Endpoints
+    </a>
+    <a href="#ai" class="nav-item">
+      <span class="nav-num">06</span> AI Integration
+    </a>
+    <a href="#module" class="nav-item">
+      <span class="nav-num">07</span> Go Module Structure
+    </a>
+    <a href="#frontend" class="nav-item">
+      <span class="nav-num">08</span> Frontend Components
+    </a>
+    <a href="#views" class="nav-item">
+      <span class="nav-num">09</span> Kanban vs List View
+    </a>
+    <a href="#tests" class="nav-item">
+      <span class="nav-num">10</span> Test Strategy
+    </a>
+
+    <div class="nav-section-label" style="margin-top:auto;">Other Specs</div>
+    <a href="08_DASHBOARD.html" class="nav-item">
+      <span class="nav-num">08</span> Dashboard
+    </a>
+  </nav>
+
+  <!-- ── Main ── -->
+  <main class="main">
+
+    <!-- Page Header -->
+    <header class="page-header" id="overview">
+      <div class="breadcrumb">
+        OpsOwl AI <span>›</span> Feature Specs <span>›</span> 07 · Task Management
+      </div>
+      <div class="feature-badge">
+        <svg width="10" height="10" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+        </svg>
+        Feature 07
+      </div>
+      <h1>Task Management</h1>
+      <p class="page-subtitle">
+        The actionable layer of every investigation. Tasks keep fintech ops teams accountable — who does what, by when, in which case. From document verification to compliance escalations, nothing falls through the cracks.
+      </p>
+      <div class="meta-row">
+        <div class="meta-item"><strong>Module:</strong> internal/tasks</div>
+        <div class="meta-item"><strong>DB Tables:</strong> tasks, task_comments</div>
+        <div class="meta-item"><strong>Stack:</strong> Go + River + Next.js</div>
+        <div class="meta-item"><strong>Phase:</strong> MVP</div>
+      </div>
+    </header>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 1: Feature Overview -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section">
+      <div class="section-header">
+        <div class="section-num">01</div>
+        <h2>Feature Overview</h2>
+      </div>
+
+      <p>
+        Every case in OpsOwl generates a stream of work: verify KYC documents, call the customer, check bank statements, escalate to the compliance officer, review the AI-generated fraud summary. Without a structured task layer, this work is tracked in chat messages, mental notes, or external spreadsheets — all of which break down at scale.
+      </p>
+      <p>
+        Task Management is the <strong style="color:var(--text)">accountability engine</strong> of OpsOwl. Every task is linked to a case. Tasks have owners, deadlines, priorities, and a clear lifecycle. The River-backed background job ensures overdue tasks surface immediately — no polling required from the frontend.
+      </p>
+
+      <div class="card-grid-3">
+        <div class="card" style="border-color:rgba(34,211,238,0.25);text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--cyan);font-family:var(--font-mono)">100%</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Tasks linked to a case</div>
+        </div>
+        <div class="card" style="border-color:rgba(167,139,250,0.25);text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--violet);font-family:var(--font-mono)">5 min</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Overdue detection cadence</div>
+        </div>
+        <div class="card" style="border-color:rgba(52,211,153,0.25);text-align:center;">
+          <div style="font-size:32px;font-weight:800;color:var(--emerald);font-family:var(--font-mono)">2</div>
+          <div style="font-size:12px;color:var(--text-muted);margin-top:4px">Due-date reminder windows</div>
+        </div>
+      </div>
+
+      <div class="callout callout-cyan">
+        <strong>Design Principle:</strong> Tasks are always subordinate to Cases. A task cannot exist without a parent case. Timeline event linking is optional metadata — it adds context but does not gate task creation.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 2: Task Lifecycle -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="lifecycle">
+      <div class="section-header">
+        <div class="section-num">02</div>
+        <h2>Task Lifecycle</h2>
+      </div>
+
+      <h3>State Machine</h3>
+      <div class="lifecycle-flow">
+        <div class="flow-state">
+          <div class="flow-state-box pill-todo">todo</div>
+          <div class="flow-state-label">Initial</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-state">
+          <div class="flow-state-box pill-inprog">in_progress</div>
+          <div class="flow-state-label">Active</div>
+        </div>
+        <div class="flow-arrow">→</div>
+        <div class="flow-branch">
+          <div class="flow-state">
+            <div class="flow-state-box pill-done">done</div>
+            <div class="flow-state-label">Completed</div>
+          </div>
+          <div class="flow-or">or</div>
+          <div class="flow-state">
+            <div class="flow-state-box pill-cancel">cancelled</div>
+            <div class="flow-state-label">Discarded</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3 style="margin-top:0">Valid Transitions</h3>
+          <table style="width:100%;font-size:13px;border-collapse:collapse;">
+            <thead>
+              <tr>
+                <th style="text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--border)">From</th>
+                <th style="text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--border)">To</th>
+                <th style="text-align:left;color:var(--text-faint);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:1px;padding:6px 0;border-bottom:1px solid var(--border)">Who</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td style="padding:8px 0;color:var(--text-muted);border-bottom:1px solid var(--border)">todo</td><td style="padding:8px 0;color:var(--amber)">in_progress</td><td style="padding:8px 0;color:var(--text-faint)">Assignee</td></tr>
+              <tr><td style="padding:8px 0;color:var(--text-muted);border-bottom:1px solid var(--border)">in_progress</td><td style="padding:8px 0;color:var(--emerald)">done</td><td style="padding:8px 0;color:var(--text-faint)">Assignee</td></tr>
+              <tr><td style="padding:8px 0;color:var(--text-muted);border-bottom:1px solid var(--border)">in_progress</td><td style="padding:8px 0;color:var(--text-faint)">cancelled</td><td style="padding:8px 0;color:var(--text-faint)">Any member</td></tr>
+              <tr><td style="padding:8px 0;color:var(--text-muted)">todo</td><td style="padding:8px 0;color:var(--text-faint)">cancelled</td><td style="padding:8px 0;color:var(--text-faint)">Any member</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0">Priority Levels</h3>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="pill pill-critical"><span class="pill-dot" style="background:var(--rose)"></span>Critical</span>
+              <span style="font-size:12px;color:var(--text-faint)">Immediate action, SLA clock starts</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="pill pill-high"><span class="pill-dot" style="background:var(--orange)"></span>High</span>
+              <span style="font-size:12px;color:var(--text-faint)">Same-day resolution expected</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="pill pill-medium"><span class="pill-dot" style="background:var(--amber)"></span>Medium</span>
+              <span style="font-size:12px;color:var(--text-faint)">Standard 48-hr resolution</span>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;">
+              <span class="pill pill-low"><span class="pill-dot" style="background:var(--cyan)"></span>Low</span>
+              <span style="font-size:12px;color:var(--text-faint)">Best-effort, no hard deadline</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout callout-amber">
+        <strong>Linkage Rule:</strong> <code style="font-family:var(--font-mono);font-size:12px">case_id</code> is required (NOT NULL). <code style="font-family:var(--font-mono);font-size:12px">timeline_event_id</code> is optional — used when a task is spawned directly from a specific event (e.g., "Flag from AI rule #47"). Deleting a timeline event does NOT cascade-delete tasks; only soft-deletes the event reference.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 3: Database Schema -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <div class="section-num">03</div>
+        <h2>Database Schema</h2>
+      </div>
+
+      <p>Two tables: <code style="font-family:var(--font-mono);font-size:13px">tasks</code> (core task record) and <code style="font-family:var(--font-mono);font-size:13px">task_comments</code> (threaded discussion on each task). Both follow the standard OpsOwl conventions: UUID v4 primary keys, TIMESTAMPTZ timestamps, and soft deletes via <code style="font-family:var(--font-mono);font-size:13px">deleted_at</code>.</p>
+
+      <div class="code-wrap">
+        <div class="code-label">PostgreSQL 18.4 DDL</div>
+        <pre><span class="cm">-- ─────────────────────────────────────────────
+-- Enums
+-- ─────────────────────────────────────────────</span>
+<span class="kw">CREATE TYPE</span> <span class="ty">task_status</span> <span class="kw">AS ENUM</span> (
+    <span class="str">'todo'</span>,
+    <span class="str">'in_progress'</span>,
+    <span class="str">'done'</span>,
+    <span class="str">'cancelled'</span>
+);
+
+<span class="kw">CREATE TYPE</span> <span class="ty">task_priority</span> <span class="kw">AS ENUM</span> (
+    <span class="str">'critical'</span>,
+    <span class="str">'high'</span>,
+    <span class="str">'medium'</span>,
+    <span class="str">'low'</span>
+);
+
+<span class="cm">-- ─────────────────────────────────────────────
+-- tasks
+-- ─────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">tasks</span> (
+    <span class="at">id</span>                <span class="kw2">UUID</span>            <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="at">case_id</span>           <span class="kw2">UUID</span>            <span class="kw">NOT NULL REFERENCES</span> <span class="ty">cases</span>(<span class="at">id</span>) <span class="kw">ON DELETE RESTRICT</span>,
+    <span class="at">created_by</span>        <span class="kw2">UUID</span>            <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(<span class="at">id</span>),
+    <span class="at">assigned_to</span>       <span class="kw2">UUID</span>                     <span class="kw">REFERENCES</span> <span class="ty">users</span>(<span class="at">id</span>),  <span class="cm">-- nullable</span>
+    <span class="at">timeline_event_id</span> <span class="kw2">UUID</span>                     <span class="kw">REFERENCES</span> <span class="ty">timeline_events</span>(<span class="at">id</span>) <span class="kw">ON DELETE SET NULL</span>,
+    <span class="at">title</span>             <span class="kw2">TEXT</span>            <span class="kw">NOT NULL CHECK</span> (<span class="fn">char_length</span>(<span class="at">title</span>) <span class="op">&lt;=</span> <span class="num">255</span>),
+    <span class="at">description</span>       <span class="kw2">TEXT</span>,
+    <span class="at">status</span>            <span class="ty">task_status</span>     <span class="kw">NOT NULL DEFAULT</span> <span class="str">'todo'</span>,
+    <span class="at">priority</span>          <span class="ty">task_priority</span>   <span class="kw">NOT NULL DEFAULT</span> <span class="str">'medium'</span>,
+    <span class="at">due_date</span>          <span class="kw2">TIMESTAMPTZ</span>,
+    <span class="at">completed_at</span>      <span class="kw2">TIMESTAMPTZ</span>,
+    <span class="at">is_overdue</span>        <span class="kw2">BOOLEAN</span>         <span class="kw">NOT NULL DEFAULT FALSE</span>,  <span class="cm">-- set by River job</span>
+    <span class="at">is_ai_suggested</span>   <span class="kw2">BOOLEAN</span>         <span class="kw">NOT NULL DEFAULT FALSE</span>,
+    <span class="at">created_at</span>        <span class="kw2">TIMESTAMPTZ</span>     <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">updated_at</span>        <span class="kw2">TIMESTAMPTZ</span>     <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">deleted_at</span>        <span class="kw2">TIMESTAMPTZ</span>                               <span class="cm">-- soft delete</span>
+);
+
+<span class="cm">-- Indexes</span>
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_case_id</span>      <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">case_id</span>)                         <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_assigned_to</span>   <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">assigned_to</span>)                    <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_status</span>        <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">status</span>)                          <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_due_date</span>      <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">due_date</span>)                        <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL AND</span> <span class="at">status</span> <span class="op">!=</span> <span class="str">'done'</span>;
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_is_overdue</span>    <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">is_overdue</span>)                      <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL AND</span> <span class="at">is_overdue</span> <span class="op">=</span> <span class="kw">TRUE</span>;
+<span class="kw">CREATE INDEX</span> <span class="at">idx_tasks_case_status</span>   <span class="kw">ON</span> <span class="ty">tasks</span>(<span class="at">case_id</span>, <span class="at">status</span>, <span class="at">priority</span>)     <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL</span>;
+
+<span class="cm">-- Auto-update updated_at</span>
+<span class="kw">CREATE TRIGGER</span> <span class="fn">tasks_updated_at</span>
+    <span class="kw">BEFORE UPDATE ON</span> <span class="ty">tasks</span>
+    <span class="kw">FOR EACH ROW EXECUTE PROCEDURE</span> <span class="fn">trigger_set_timestamp</span>();
+
+<span class="cm">-- ─────────────────────────────────────────────
+-- task_comments
+-- ─────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">task_comments</span> (
+    <span class="at">id</span>          <span class="kw2">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="at">task_id</span>     <span class="kw2">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">tasks</span>(<span class="at">id</span>) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="at">author_id</span>   <span class="kw2">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(<span class="at">id</span>),
+    <span class="at">content</span>     <span class="kw2">TEXT</span>        <span class="kw">NOT NULL CHECK</span> (<span class="fn">char_length</span>(<span class="at">content</span>) <span class="op">&lt;=</span> <span class="num">4096</span>),
+    <span class="at">created_at</span>  <span class="kw2">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">updated_at</span>  <span class="kw2">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">deleted_at</span>  <span class="kw2">TIMESTAMPTZ</span>
+);
+
+<span class="kw">CREATE INDEX</span> <span class="at">idx_task_comments_task_id</span> <span class="kw">ON</span> <span class="ty">task_comments</span>(<span class="at">task_id</span>) <span class="kw">WHERE</span> <span class="at">deleted_at</span> <span class="kw">IS NULL</span>;
+
+<span class="kw">CREATE TRIGGER</span> <span class="fn">task_comments_updated_at</span>
+    <span class="kw">BEFORE UPDATE ON</span> <span class="ty">task_comments</span>
+    <span class="kw">FOR EACH ROW EXECUTE PROCEDURE</span> <span class="fn">trigger_set_timestamp</span>();</pre>
+      </div>
+
+      <div class="callout callout-violet">
+        <strong>is_overdue flag:</strong> Stored as a boolean column rather than a computed expression. The River background job sets it to <code style="font-family:var(--font-mono);font-size:12px">TRUE</code> when <code style="font-family:var(--font-mono);font-size:12px">due_date &lt; NOW()</code> and task is not done/cancelled. This avoids re-computing the predicate on every query and allows indexed lookups on the overdue state.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 4: SLA / Due Date Tracking -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="sla">
+      <div class="section-header">
+        <div class="section-num">04</div>
+        <h2>SLA / Due Date Tracking</h2>
+      </div>
+
+      <p>
+        Due-date enforcement is handled by a River background job that runs on a fixed 5-minute schedule. There is no database trigger — the River job is the single source of overdue truth, keeping the DB schema clean and making the logic testable in isolation.
+      </p>
+
+      <div class="river-job">
+        <div class="river-job-title">River Job: OverdueTaskScanJob</div>
+        <div class="river-job-desc">
+          <strong style="color:var(--text)">Schedule:</strong> Every 5 minutes (River cron expression: <code style="font-family:var(--font-mono);font-size:12px">*/5 * * * *</code>)<br/>
+          <strong style="color:var(--text)">Query:</strong> <code style="font-family:var(--font-mono);font-size:12px">UPDATE tasks SET is_overdue = TRUE WHERE due_date &lt; NOW() AND status NOT IN ('done','cancelled') AND is_overdue = FALSE</code><br/>
+          <strong style="color:var(--text)">On Update:</strong> For each row updated, enqueue a <code style="font-family:var(--font-mono);font-size:12px">TaskOverdueNotificationJob</code> targeting the assignee and case owner.<br/>
+          <strong style="color:var(--text)">Idempotent:</strong> The <code style="font-family:var(--font-mono);font-size:12px">is_overdue = FALSE</code> predicate ensures already-flagged tasks are not re-notified.
+        </div>
+      </div>
+
+      <div class="river-job">
+        <div class="river-job-title">River Job: DueDateReminderJob</div>
+        <div class="river-job-desc">
+          <strong style="color:var(--text)">Schedule:</strong> Every 15 minutes (checks upcoming due dates)<br/>
+          <strong style="color:var(--text)">24-Hour Reminder:</strong> <code style="font-family:var(--font-mono);font-size:12px">due_date BETWEEN NOW() + INTERVAL '23h 45m' AND NOW() + INTERVAL '24h 15m'</code><br/>
+          <strong style="color:var(--text)">1-Hour Reminder:</strong> <code style="font-family:var(--font-mono);font-size:12px">due_date BETWEEN NOW() + INTERVAL '45m' AND NOW() + INTERVAL '1h 15m'</code><br/>
+          <strong style="color:var(--text)">Dedup:</strong> A <code style="font-family:var(--font-mono);font-size:12px">task_reminder_sent</code> JSONB column or a separate <code style="font-family:var(--font-mono);font-size:12px">task_reminders</code> log table tracks which windows have already fired.
+        </div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--amber)">Overdue Resolution</h3>
+          <p style="font-size:13px">When a task transitions to <code style="font-family:var(--font-mono);font-size:12px">done</code> or <code style="font-family:var(--font-mono);font-size:12px">cancelled</code>, the API handler sets <code style="font-family:var(--font-mono);font-size:12px">is_overdue = FALSE</code> immediately — no need to wait for the River job. This ensures real-time accuracy in the task list UI.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;color:var(--cyan)">Notification Channel</h3>
+          <p style="font-size:13px">Phase 1: in-app notifications (notification bell). SSE stream pushes the event. Phase 2: add email/Slack hooks via the notification module. River job payload carries enough data to route to any future channel without schema changes.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 5: API Endpoints -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <div class="section-num">05</div>
+        <h2>API Endpoints</h2>
+      </div>
+
+      <p>All endpoints follow the OpsOwl REST convention: <code style="font-family:var(--font-mono);font-size:13px">/api/v1/</code> prefix, response envelope <code style="font-family:var(--font-mono);font-size:13px">{data, meta, error}</code>, cursor-based pagination for list endpoints, ISO 8601 UTC timestamps.</p>
+
+      <div class="endpoint-list">
+
+        <div class="endpoint-item">
+          <span class="http-method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/tasks</span>
+          <span class="endpoint-desc">Create a task under a case. Body: title, description?, priority, due_date?, assigned_to?. Returns the created task.</span>
+          <span class="endpoint-tag" style="background:var(--cyan-bg);color:var(--cyan)">Auth</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/tasks</span>
+          <span class="endpoint-desc">List tasks for a case. Query: <code style="font-family:var(--font-mono);font-size:12px">status</code>, <code style="font-family:var(--font-mono);font-size:12px">priority</code>, <code style="font-family:var(--font-mono);font-size:12px">assigned_to</code>, <code style="font-family:var(--font-mono);font-size:12px">overdue=true</code>, cursor pagination.</span>
+          <span class="endpoint-tag" style="background:var(--emerald-bg);color:var(--emerald)">Public</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/tasks</span>
+          <span class="endpoint-desc">"My Tasks" — cross-case tasks assigned to the authenticated user. Filter: status, overdue. Sorted by due_date ASC, priority DESC.</span>
+          <span class="endpoint-tag" style="background:var(--cyan-bg);color:var(--cyan)">Auth</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/tasks/:id</span>
+          <span class="endpoint-desc">Fetch a single task with full detail: case reference, assignee info, comment count, AI suggestion metadata.</span>
+          <span class="endpoint-tag" style="background:var(--emerald-bg);color:var(--emerald)">Public</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-put">PUT</span>
+          <span class="endpoint-path">/api/v1/tasks/:id</span>
+          <span class="endpoint-desc">Update task fields (title, description, priority, due_date, assigned_to, status). Validates state machine transitions server-side.</span>
+          <span class="endpoint-tag" style="background:var(--cyan-bg);color:var(--cyan)">Auth</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/tasks/:id/complete</span>
+          <span class="endpoint-desc">Shorthand complete action. Sets status=done, completed_at=NOW(), is_overdue=FALSE. Returns updated task. Idempotent.</span>
+          <span class="endpoint-tag" style="background:var(--cyan-bg);color:var(--cyan)">Auth</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-delete">DELETE</span>
+          <span class="endpoint-path">/api/v1/tasks/:id</span>
+          <span class="endpoint-desc">Soft delete — sets deleted_at. Returns 204 No Content. Only case owner or task creator can delete.</span>
+          <span class="endpoint-tag" style="background:var(--rose-bg);color:var(--rose)">Owner</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/tasks/:id/comments</span>
+          <span class="endpoint-desc">Add a comment to a task. Body: content (max 4096 chars). Returns created comment with author profile.</span>
+          <span class="endpoint-tag" style="background:var(--cyan-bg);color:var(--cyan)">Auth</span>
+        </div>
+
+        <div class="endpoint-item">
+          <span class="http-method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/tasks/:id/comments</span>
+          <span class="endpoint-desc">List comments for a task, newest-first, cursor paginated. Includes author display name and avatar URL.</span>
+          <span class="endpoint-tag" style="background:var(--emerald-bg);color:var(--emerald)">Public</span>
+        </div>
+
+      </div>
+
+      <h3 style="margin-top:24px">Response Envelope Example</h3>
+      <div class="code-wrap">
+        <div class="code-label">JSON</div>
+        <pre>{
+  <span class="str">"data"</span>: {
+    <span class="str">"id"</span>: <span class="str">"01931b4e-4f1a-7c2d-b9e0-2e3f1a4c5d6e"</span>,
+    <span class="str">"case_id"</span>: <span class="str">"01931b4e-0001-0001-0001-000000000001"</span>,
+    <span class="str">"title"</span>: <span class="str">"Verify PAN card against NSDL"</span>,
+    <span class="str">"status"</span>: <span class="str">"in_progress"</span>,
+    <span class="str">"priority"</span>: <span class="str">"high"</span>,
+    <span class="str">"due_date"</span>: <span class="str">"2026-05-17T09:00:00Z"</span>,
+    <span class="str">"is_overdue"</span>: <span class="kw">false</span>,
+    <span class="str">"is_ai_suggested"</span>: <span class="kw">false</span>,
+    <span class="str">"assigned_to"</span>: { <span class="str">"id"</span>: <span class="str">"..."</span>, <span class="str">"display_name"</span>: <span class="str">"Priya Menon"</span> },
+    <span class="str">"created_at"</span>: <span class="str">"2026-05-16T06:30:00Z"</span>,
+    <span class="str">"updated_at"</span>: <span class="str">"2026-05-16T07:15:00Z"</span>
+  },
+  <span class="str">"meta"</span>: {},
+  <span class="str">"error"</span>: <span class="kw">null</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 6: AI Integration -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="ai">
+      <div class="section-header">
+        <div class="section-num">06</div>
+        <h2>AI Integration</h2>
+      </div>
+
+      <p>
+        OpsOwl's AI Copilot can suggest tasks by analyzing case documents, timeline events, and past investigation patterns. Suggested tasks are non-binding — the analyst always has full control over accept, modify, or reject before any task is persisted.
+      </p>
+
+      <div class="ai-card">
+        <h3 style="margin-top:0;color:var(--violet)">AI Copilot Task Extraction Flow</h3>
+        <p style="font-size:13px">The Copilot calls the Python AI service's <code style="font-family:var(--font-mono);font-size:12px">POST /ai/v1/cases/:id/extract-actions</code> endpoint. The AI service returns a list of suggested task objects with title, description, priority, and reasoning. The Go handler stores them with <code style="font-family:var(--font-mono);font-size:12px">is_ai_suggested=TRUE</code> and a <code style="font-family:var(--font-mono);font-size:12px">status='todo'</code>. They are surfaced to the analyst in a special "AI Suggested" section of the task list — separate from the confirmed task backlog.</p>
+
+        <div class="ai-suggested-mockup">
+          <div class="tag">
+            <svg width="10" height="10" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+            AI Suggested
+          </div>
+          <div class="task-title">Cross-check Aadhaar address with loan application address</div>
+          <div class="task-desc">AI detected a mismatch between the Aadhaar address (Mumbai) and the loan application address (Pune). Recommend manual verification with the customer before disbursement.</div>
+          <div class="ai-actions">
+            <button class="btn-accept">✓ Accept</button>
+            <button class="btn-edit">Edit &amp; Accept</button>
+            <button class="btn-reject">✗ Reject</button>
+          </div>
+        </div>
+
+        <p style="font-size:13px;margin-top:14px;margin-bottom:0">
+          <strong style="color:var(--violet)">Accept:</strong> Sets <code style="font-family:var(--font-mono);font-size:12px">is_ai_suggested=TRUE</code> flag permanently for audit, task is promoted to the main task list.<br/>
+          <strong style="color:var(--amber)">Edit &amp; Accept:</strong> Opens task form pre-filled with AI suggestion — analyst modifies before saving.<br/>
+          <strong style="color:var(--rose)">Reject:</strong> Soft-deletes the suggested task. Rejection reason is logged for AI feedback loop.
+        </p>
+      </div>
+
+      <div class="callout callout-violet">
+        <strong>Audit Trail:</strong> All AI-suggested tasks retain <code style="font-family:var(--font-mono);font-size:12px">is_ai_suggested=TRUE</code> even after analyst edits. This is immutable once set — it powers compliance reporting on how often AI recommendations were acted upon vs. rejected.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 7: Go Module Structure -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="module">
+      <div class="section-header">
+        <div class="section-num">07</div>
+        <h2>Go Module Structure</h2>
+      </div>
+
+      <div class="file-tree">
+        <div><span class="tree-dir">internal/tasks/</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">handler/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_handler.go</span>       <span class="tree-comment">  # HTTP handlers (Chi router)</span></div>
+        <div class="tree-indent-2"><span class="tree-file">comments_handler.go</span>    <span class="tree-comment">  # Comment CRUD endpoints</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_handler_test.go</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">service/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_service.go</span>       <span class="tree-comment">  # Business logic, state machine validation</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_service_test.go</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">repository/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_repo.go</span>          <span class="tree-comment">  # sqlc-generated query wrappers</span></div>
+        <div class="tree-indent-2"><span class="tree-file">tasks_repo_test.go</span>     <span class="tree-comment">  # Integration tests against testcontainers PG</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">jobs/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">overdue_scan_job.go</span>    <span class="tree-comment">  # River job: marks overdue tasks every 5 min</span></div>
+        <div class="tree-indent-2"><span class="tree-file">reminder_job.go</span>        <span class="tree-comment">  # River job: 24h and 1h due-date reminders</span></div>
+        <div class="tree-indent-2"><span class="tree-file">overdue_scan_job_test.go</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">model/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">task.go</span>                <span class="tree-comment">  # Domain structs, enums, state machine consts</span></div>
+        <div class="tree-indent-1"><span class="tree-dir">sql/</span></div>
+        <div class="tree-indent-2"><span class="tree-file">queries.sql</span>            <span class="tree-comment">  # sqlc source queries</span></div>
+        <div class="tree-indent-2"><span class="tree-file">schema.sql</span>             <span class="tree-comment">  # DDL for tasks, task_comments</span></div>
+        <div class="tree-indent-1"><span class="tree-file">module.go</span>              <span class="tree-comment">  # Module registration (routes, jobs)</span></div>
+      </div>
+
+      <h3>Key Design Points</h3>
+      <div class="card-grid">
+        <div class="card">
+          <h3 style="margin-top:0;font-size:13px;color:var(--cyan)">State Machine in Service Layer</h3>
+          <p style="font-size:13px">Transition validation lives in <code style="font-family:var(--font-mono);font-size:12px">tasks_service.go</code>, not in the handler or DB trigger. This makes it unit-testable with a mock repo and keeps the DB schema transition-agnostic.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;font-size:13px;color:var(--violet)">River Job Registration</h3>
+          <p style="font-size:13px">Both River jobs are registered in <code style="font-family:var(--font-mono);font-size:12px">module.go</code> via the app's central River client. Schedules are defined as constants — easy to change without hunting through code.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 8: Frontend Components -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <div class="section-num">08</div>
+        <h2>Frontend Components</h2>
+      </div>
+
+      <p>Built with Next.js 16 App Router, TypeScript strict, Tailwind v4, shadcn/ui primitives, TanStack Query v5 for server state, and Zustand for local UI state (view preference, selected task, panel open/closed).</p>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--cyan-bg);color:var(--cyan)">≡</div>
+            TaskList
+          </div>
+          <div class="comp-desc">Grouped by status columns. Accepts filter props. Uses TanStack Query with staleTime=30s. Renders TaskCard per item. Virtualized for 200+ tasks.</div>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--violet-bg);color:var(--violet)">⊡</div>
+            TaskDetailPanel
+          </div>
+          <div class="comp-desc">Slide-out sheet (shadcn Sheet). Shows full task detail, comments thread, edit controls, complete button, and activity history.</div>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--amber-bg);color:var(--amber)">✎</div>
+            TaskForm
+          </div>
+          <div class="comp-desc">Create/edit form. React Hook Form + Zod validation. Fields: title, description, priority select, due date picker, assignee search. Supports pre-fill from AI suggestion.</div>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--emerald-bg);color:var(--emerald)">☑</div>
+            MyTasksView
+          </div>
+          <div class="comp-desc">Cross-case personal task list. Calls <code style="font-family:var(--font-mono);font-size:11px">GET /api/v1/tasks</code>. Sorted by urgency. Grouped: Overdue → Due Today → This Week → Later.</div>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--rose-bg);color:var(--rose)">⏱</div>
+            OverdueBadge
+          </div>
+          <div class="comp-desc">Red pill badge with countdown string ("2h 15m overdue"). Updates client-side every minute via useEffect interval. Shown on TaskCard and TaskDetailPanel.</div>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">
+            <div class="comp-icon" style="background:var(--violet-bg);color:var(--violet)">✦</div>
+            AISuggestedTaskCard
+          </div>
+          <div class="comp-desc">Distinct card style with violet border. Shows AI reasoning excerpt. Accept / Edit &amp; Accept / Reject buttons. Calls task mutation + AI feedback endpoint on reject.</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:24px">State Management</h3>
+      <div class="code-wrap">
+        <div class="code-label">Zustand Store</div>
+        <pre><span class="cm">// stores/task-ui-store.ts</span>
+<span class="kw">interface</span> <span class="ty">TaskUIState</span> {
+  viewMode:          <span class="str">'list'</span> <span class="op">|</span> <span class="str">'kanban'</span>
+  selectedTaskId:    <span class="kw2">string</span> <span class="op">|</span> <span class="kw">null</span>
+  isPanelOpen:       <span class="kw2">boolean</span>
+  filters: {
+    status:          <span class="ty">TaskStatus</span>[]
+    priority:        <span class="ty">TaskPriority</span>[]
+    assignedTo:      <span class="kw2">string</span> <span class="op">|</span> <span class="kw">null</span>
+    overdueOnly:     <span class="kw2">boolean</span>
+  }
+  setViewMode:       (<span class="at">mode</span>: <span class="str">'list'</span> <span class="op">|</span> <span class="str">'kanban'</span>) <span class="op">=&gt;</span> <span class="kw2">void</span>
+  setSelectedTask:   (<span class="at">id</span>: <span class="kw2">string</span> <span class="op">|</span> <span class="kw">null</span>) <span class="op">=&gt;</span> <span class="kw2">void</span>
+  setFilters:        (<span class="at">f</span>: <span class="ty">Partial</span>&lt;<span class="ty">TaskFilters</span>&gt;) <span class="op">=&gt;</span> <span class="kw2">void</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 9: Kanban vs List View -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="views">
+      <div class="section-header">
+        <div class="section-num">09</div>
+        <h2>Kanban vs List View</h2>
+      </div>
+
+      <p>Both views are available and user preference is persisted in <code style="font-family:var(--font-mono);font-size:13px">localStorage</code> under the key <code style="font-family:var(--font-mono);font-size:13px">opsowl:task_view_mode</code>. The Zustand store is initialized from localStorage on mount.</p>
+
+      <div class="view-toggle">
+        <div class="view-opt">≡ List</div>
+        <div class="view-opt active">⊞ Kanban</div>
+      </div>
+
+      <div class="kanban-board">
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Todo</span>
+            <span class="kanban-count">4</span>
+          </div>
+          <div class="kanban-task">
+            <div class="kanban-task-title">Verify GST registration</div>
+            <div class="kanban-task-meta"><span class="pill-high" style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--orange-bg);color:var(--orange);font-weight:700">High</span> Unassigned</div>
+          </div>
+          <div class="kanban-task">
+            <div class="kanban-task-title">Pull CIBIL report</div>
+            <div class="kanban-task-meta"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--amber-bg);color:var(--amber);font-weight:700">Med</span> Arjun K.</div>
+          </div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">In Progress</span>
+            <span class="kanban-count" style="background:rgba(251,191,36,0.15);color:var(--amber)">2</span>
+          </div>
+          <div class="kanban-task">
+            <div class="kanban-task-title">Customer KYC call</div>
+            <div class="kanban-task-meta"><span class="overdue-badge">2h overdue</span> Priya M.</div>
+          </div>
+          <div class="kanban-task">
+            <div class="kanban-task-title">Review bank statement PDF</div>
+            <div class="kanban-task-meta"><span style="font-size:10px;padding:1px 6px;border-radius:10px;background:var(--rose-bg);color:var(--rose);font-weight:700">Critical</span> Me</div>
+          </div>
+        </div>
+        <div class="kanban-col">
+          <div class="kanban-col-header">
+            <span class="kanban-col-title">Done</span>
+            <span class="kanban-count" style="background:var(--emerald-bg);color:var(--emerald)">7</span>
+          </div>
+          <div class="kanban-task" style="opacity:0.6">
+            <div class="kanban-task-title" style="text-decoration:line-through">Submit case to legal</div>
+            <div class="kanban-task-meta">✓ Completed</div>
+          </div>
+          <div class="kanban-task" style="opacity:0.6">
+            <div class="kanban-task-title" style="text-decoration:line-through">Verify Aadhaar details</div>
+            <div class="kanban-task-meta">✓ Completed</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-grid" style="margin-top:16px">
+        <div class="card">
+          <h3 style="margin-top:0;font-size:13px;color:var(--cyan)">List View</h3>
+          <p style="font-size:13px">Dense table layout. Sortable by due_date, priority, status. Ideal for "My Tasks" view and overdue scanning. Shows all metadata inline. Default for "My Tasks" page.</p>
+        </div>
+        <div class="card">
+          <h3 style="margin-top:0;font-size:13px;color:var(--violet)">Kanban View</h3>
+          <p style="font-size:13px">Three columns: Todo / In Progress / Done. Drag-to-reorder within a column (basic sort order stored as integer field). Default for Case Task tab. Satisfying for status progression.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-amber">
+        <strong>MVP Scope:</strong> Drag-to-reorder is included as a basic feature using a simple <code style="font-family:var(--font-mono);font-size:12px">sort_order</code> integer column. Cross-column drag (status change via drag) is Phase 2 — requires careful optimistic UI handling. For MVP, status change is done via the dropdown in the card menu.
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────── -->
+    <!-- Section 10: Test Strategy -->
+    <!-- ─────────────────────────────────────────── -->
+    <section class="section" id="tests">
+      <div class="section-header">
+        <div class="section-num">10</div>
+        <h2>Test Strategy</h2>
+      </div>
+
+      <div>
+        <div class="test-item">
+          <span class="test-badge test-unit">Unit</span>
+          <span class="test-label"><strong>State Machine Validation</strong> — Unit tests for every valid and invalid state transition in <code style="font-family:var(--font-mono);font-size:12px">tasks_service.go</code>. E.g., assert error when transitioning from <code style="font-family:var(--font-mono);font-size:12px">done → in_progress</code>.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-unit">Unit</span>
+          <span class="test-label"><strong>OverdueTaskScanJob</strong> — Unit test with mocked clock and mock repo. Assert that tasks where <code style="font-family:var(--font-mono);font-size:12px">due_date &lt; now</code> are flagged and notifications enqueued. Assert idempotency (already-flagged tasks not re-notified).</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-unit">Unit</span>
+          <span class="test-label"><strong>DueDateReminderJob</strong> — Test that both reminder windows (24h, 1h) trigger correctly and do not double-fire in the same window.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-integ">Integ</span>
+          <span class="test-label"><strong>Task Assignment Flow</strong> — Integration test using testcontainers-go Postgres. Create case → create task → assign to user → verify DB state. Confirm assigned_to FK enforced.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-integ">Integ</span>
+          <span class="test-label"><strong>Overdue Detection End-to-End</strong> — Insert task with past due_date, run River job manually, assert <code style="font-family:var(--font-mono);font-size:12px">is_overdue=TRUE</code> in DB and notification record created.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-integ">Integ</span>
+          <span class="test-label"><strong>Task Complete API</strong> — POST to <code style="font-family:var(--font-mono);font-size:12px">/complete</code> on an overdue task: assert <code style="font-family:var(--font-mono);font-size:12px">status=done</code>, <code style="font-family:var(--font-mono);font-size:12px">is_overdue=FALSE</code>, <code style="font-family:var(--font-mono);font-size:12px">completed_at</code> set. Assert idempotency on second call.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-integ">Integ</span>
+          <span class="test-label"><strong>AI Suggestion Audit</strong> — Accept an AI-suggested task, then edit it. Assert <code style="font-family:var(--font-mono);font-size:12px">is_ai_suggested</code> remains TRUE after all edits — immutability guaranteed.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-e2e">E2E</span>
+          <span class="test-label"><strong>My Tasks Cross-Case View</strong> — Playwright test: create two cases with tasks assigned to the test user. Open "My Tasks" view, assert both tasks appear. Complete one, assert list updates without page reload.</span>
+        </div>
+        <div class="test-item">
+          <span class="test-badge test-e2e">E2E</span>
+          <span class="test-label"><strong>Kanban Drag-to-Reorder</strong> — Playwright drag simulation: reorder tasks within Todo column. Assert new sort_order persisted after page refresh.</span>
+        </div>
+      </div>
+
+      <div class="callout callout-emerald" style="margin-top:24px">
+        <strong>Coverage Target:</strong> Service layer ≥ 90% unit test coverage. Repository layer ≥ 80% integration test coverage (using testcontainers-go). E2E tests cover the 3 critical user flows: create task, complete task, view My Tasks.
+      </div>
+    </section>
+
+    <hr/>
+    <div style="text-align:center;padding:16px 0 8px;color:var(--text-faint);font-size:12px;">
+      OpsOwl AI — Feature Spec 07 · Task Management &nbsp;·&nbsp;
+      <a href="08_DASHBOARD.html" style="color:var(--cyan);text-decoration:none;">Next: Dashboard →</a>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Highlight active nav item on scroll
+  const sections = document.querySelectorAll('section[id], header[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(n => n.classList.remove('active'));
+        const active = document.querySelector(`.nav-item[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3, rootMargin: '-80px 0px -60% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

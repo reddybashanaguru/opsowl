@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — Authentication & RBAC Specification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base:      #0f172a;
+      --bg-surface:   #1e293b;
+      --bg-elevated:  #263347;
+      --bg-card:      #1a2538;
+      --border:       #334155;
+      --border-subtle:#1e3a5f;
+      --text-primary: #e2e8f0;
+      --text-secondary:#94a3b8;
+      --text-muted:   #64748b;
+      --cyan:         #22d3ee;
+      --cyan-dim:     #0891b2;
+      --cyan-bg:      rgba(34,211,238,.08);
+      --violet:       #a78bfa;
+      --violet-dim:   #7c3aed;
+      --violet-bg:    rgba(167,139,250,.08);
+      --green:        #34d399;
+      --amber:        #fbbf24;
+      --red:          #f87171;
+      --orange:       #fb923c;
+      --blue:         #60a5fa;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      display: flex;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────── */
+    nav#sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 0;
+    }
+    .nav-brand {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .nav-brand .owl { font-size: 22px; font-weight: 700; color: var(--cyan); letter-spacing: -.5px; }
+    .nav-brand .sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .nav-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin: 0 20px 16px;
+      color: var(--text-secondary); font-size: 12px;
+      text-decoration: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      transition: all .2s;
+    }
+    .nav-back:hover { color: var(--cyan); border-color: var(--cyan-dim); background: var(--cyan-bg); }
+    .nav-section-label {
+      font-size: 10px; font-weight: 600; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 1.2px;
+      padding: 8px 20px 4px;
+    }
+    nav#sidebar a.nav-item {
+      display: block; padding: 7px 20px;
+      color: var(--text-secondary); text-decoration: none; font-size: 13px;
+      border-left: 2px solid transparent;
+      transition: all .15s;
+    }
+    nav#sidebar a.nav-item:hover { color: var(--text-primary); background: var(--bg-elevated); border-left-color: var(--cyan-dim); }
+    nav#sidebar a.nav-item.active { color: var(--cyan); background: var(--cyan-bg); border-left-color: var(--cyan); }
+
+    /* ── Main Content ─────────────────────────────────── */
+    main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0;
+    }
+    .page-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1a2538 50%, #0f2044 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 56px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-header::before {
+      content: '';
+      position: absolute; top: 0; right: 0; bottom: 0;
+      width: 40%;
+      background: radial-gradient(ellipse at 80% 50%, rgba(34,211,238,.06) 0%, transparent 70%);
+    }
+    .page-header::after {
+      content: '';
+      position: absolute; top: -60px; right: 100px;
+      width: 200px; height: 200px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(167,139,250,.07) 0%, transparent 70%);
+    }
+    .breadcrumb { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .breadcrumb span { color: var(--cyan); }
+    .page-title { font-size: 32px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+    .page-title .accent { color: var(--cyan); }
+    .page-subtitle { color: var(--text-secondary); font-size: 15px; max-width: 580px; }
+    .feature-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--cyan-bg); border: 1px solid var(--cyan-dim);
+      color: var(--cyan); font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px; margin-top: 16px;
+      text-transform: uppercase; letter-spacing: .8px;
+    }
+
+    .content-body { padding: 48px 56px; max-width: 960px; }
+
+    /* ── Sections ─────────────────────────────────────── */
+    .section { margin-bottom: 56px; }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-number {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .section-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .section-title .tag {
+      font-size: 11px; font-weight: 500; color: var(--text-muted);
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;
+    }
+
+    p { color: var(--text-secondary); margin-bottom: 14px; line-height: 1.75; }
+    p strong { color: var(--text-primary); }
+
+    /* ── Cards ────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-title { font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .info-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+    }
+    .info-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4px; }
+    .info-card .value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .info-card .value.cyan { color: var(--cyan); }
+    .info-card .value.violet { color: var(--violet); }
+
+    /* ── Permissions Matrix ───────────────────────────── */
+    .matrix-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .matrix-table th {
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
+      font-weight: 600; font-size: 11px;
+      text-transform: uppercase; letter-spacing: .8px;
+      padding: 10px 14px; text-align: left;
+      border: 1px solid var(--border);
+    }
+    .matrix-table th.role-col { color: var(--cyan); }
+    .matrix-table td {
+      padding: 9px 14px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      vertical-align: middle;
+    }
+    .matrix-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+    .matrix-table tr:hover td { background: var(--bg-elevated); }
+    .role-badge {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 11.5px; font-weight: 600;
+      padding: 3px 10px; border-radius: 6px;
+    }
+    .role-super_admin { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .role-admin { background: rgba(251,191,36,.12); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+    .role-manager { background: rgba(167,139,250,.12); color: var(--violet); border: 1px solid rgba(167,139,250,.3); }
+    .role-analyst { background: rgba(34,211,238,.12); color: var(--cyan); border: 1px solid rgba(34,211,238,.3); }
+    .role-viewer { background: rgba(100,116,139,.12); color: var(--text-muted); border: 1px solid rgba(100,116,139,.3); }
+    .perm-yes { color: var(--green); font-weight: 600; }
+    .perm-no  { color: var(--text-muted); }
+    .perm-own { color: var(--amber); font-size: 11px; font-style: italic; }
+    .perm-ro  { color: var(--blue); font-size: 11px; }
+
+    /* ── Code Blocks ──────────────────────────────────── */
+    pre {
+      background: #0a0f1a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin-bottom: 16px;
+      position: relative;
+    }
+    pre .lang-label {
+      position: absolute; top: 8px; right: 12px;
+      font-size: 10px; color: var(--text-muted);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .kw  { color: var(--violet); }
+    .ty  { color: var(--cyan); }
+    .st  { color: var(--green); }
+    .cm  { color: var(--text-muted); font-style: italic; }
+    .nm  { color: var(--amber); }
+    .pn  { color: var(--text-secondary); }
+
+    /* ── API Endpoint Cards ───────────────────────────── */
+    .endpoint-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 16px;
+    }
+    .endpoint-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px;
+      background: var(--bg-elevated);
+      border-bottom: 1px solid var(--border);
+    }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 700;
+      padding: 3px 9px; border-radius: 5px; letter-spacing: .5px;
+    }
+    .method-GET    { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+    .method-POST   { background: rgba(96,165,250,.15); color: var(--blue); border: 1px solid rgba(96,165,250,.3); }
+    .method-PUT    { background: rgba(251,191,36,.15); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+    .method-DELETE { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-primary); }
+    .endpoint-auth { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+    .endpoint-auth .auth-tag {
+      background: var(--cyan-bg); border: 1px solid var(--cyan-dim);
+      color: var(--cyan); padding: 2px 8px; border-radius: 4px;
+    }
+    .endpoint-body { padding: 16px 20px; }
+    .endpoint-body .ep-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; margin-top: 12px; }
+    .endpoint-body pre { margin-bottom: 0; font-size: 12px; }
+
+    /* ── Auth Flow Diagram ────────────────────────────── */
+    .flow-diagram {
+      display: flex; align-items: flex-start; gap: 0;
+      padding: 32px; overflow-x: auto;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      flex-wrap: nowrap;
+    }
+    .flow-step {
+      display: flex; flex-direction: column; align-items: center;
+      min-width: 110px; text-align: center;
+      position: relative;
+    }
+    .flow-box {
+      background: var(--bg-elevated);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 11.5px; font-weight: 500;
+      color: var(--text-primary);
+      min-width: 100px; text-align: center;
+      line-height: 1.4;
+    }
+    .flow-box.start  { border-color: var(--cyan); background: var(--cyan-bg); color: var(--cyan); font-weight: 700; }
+    .flow-box.action { border-color: var(--violet-dim); background: var(--violet-bg); }
+    .flow-box.db     { border-color: var(--amber); background: rgba(251,191,36,.07); color: var(--amber); }
+    .flow-box.token  { border-color: var(--green); background: rgba(52,211,153,.07); color: var(--green); }
+    .flow-box.error  { border-color: var(--red); background: rgba(248,113,113,.07); color: var(--red); }
+    .flow-box.end    { border-color: var(--cyan); background: var(--cyan-bg); color: var(--cyan); }
+    .flow-label { font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+    .flow-arrow {
+      display: flex; align-items: center; padding-top: 18px;
+      color: var(--text-muted); font-size: 18px; padding-left: 2px; padding-right: 2px;
+    }
+    .flow-line {
+      width: 40px; height: 2px; background: var(--border);
+      position: relative;
+    }
+    .flow-line::after {
+      content: '›'; position: absolute; right: -8px; top: -9px;
+      font-size: 16px; color: var(--text-muted);
+    }
+    .flow-row { display: flex; align-items: flex-start; gap: 0; flex-wrap: wrap; }
+
+    /* ── Package Tree ─────────────────────────────────── */
+    .pkg-tree {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: #0a0f1a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      line-height: 1.9;
+    }
+    .pkg-dir  { color: var(--cyan); font-weight: 600; }
+    .pkg-file { color: var(--text-secondary); }
+    .pkg-comment { color: var(--text-muted); font-style: italic; }
+    .pkg-indent { color: var(--border); }
+
+    /* ── Middleware Blocks ────────────────────────────── */
+    .mw-pipeline {
+      display: flex; flex-direction: column; gap: 8px;
+      margin: 16px 0;
+    }
+    .mw-step {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .mw-icon {
+      width: 36px; height: 36px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .mw-icon.cyan   { background: var(--cyan-bg);   color: var(--cyan); }
+    .mw-icon.violet { background: var(--violet-bg);  color: var(--violet); }
+    .mw-icon.amber  { background: rgba(251,191,36,.1); color: var(--amber); }
+    .mw-title { font-weight: 600; color: var(--text-primary); font-size: 13px; }
+    .mw-desc  { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+    .mw-connector {
+      text-align: center; color: var(--text-muted); font-size: 18px; line-height: 1;
+    }
+
+    /* ── Security Table ───────────────────────────────── */
+    .sec-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .sec-table th {
+      background: var(--bg-elevated); color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      padding: 10px 16px; text-align: left; border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    .sec-table td { padding: 12px 16px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+    .sec-table td:first-child { color: var(--text-primary); font-weight: 500; white-space: nowrap; }
+    .sec-table td strong { color: var(--cyan); }
+    .sec-table tr:nth-child(even) td { background: rgba(255,255,255,.015); }
+
+    /* ── Frontend Components ──────────────────────────── */
+    .component-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .component-card {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .component-card .comp-name { font-size: 13px; font-weight: 600; color: var(--violet); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+    .component-card .comp-path { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+    .component-card ul { list-style: none; }
+    .component-card ul li { font-size: 12px; color: var(--text-secondary); padding: 2px 0; padding-left: 12px; position: relative; }
+    .component-card ul li::before { content: '·'; position: absolute; left: 0; color: var(--cyan); }
+
+    /* ── Test Cases ───────────────────────────────────── */
+    .test-list { list-style: none; }
+    .test-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px; color: var(--text-secondary);
+    }
+    .test-list li:last-child { border-bottom: none; }
+    .test-list li .test-icon { color: var(--green); flex-shrink: 0; margin-top: 2px; }
+    .test-list li strong { color: var(--text-primary); }
+
+    /* ── Audit Events ─────────────────────────────────── */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .audit-table th {
+      background: var(--bg-elevated); color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      padding: 9px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600;
+    }
+    .audit-table td { padding: 9px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+    .audit-table td:first-child { font-family: 'JetBrains Mono', monospace; color: var(--cyan); font-size: 12px; }
+    .audit-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+
+    /* ── Misc ─────────────────────────────────────────── */
+    .callout {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 16px;
+    }
+    .callout.violet { border-left-color: var(--violet); }
+    .callout.amber  { border-left-color: var(--amber); }
+    .callout-icon { font-size: 16px; flex-shrink: 0; }
+    .callout-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .callout-text strong { color: var(--text-primary); }
+
+    ul.bulleted { list-style: none; margin: 8px 0 14px; }
+    ul.bulleted li { padding: 3px 0 3px 16px; position: relative; font-size: 13px; color: var(--text-secondary); }
+    ul.bulleted li::before { content: '→'; position: absolute; left: 0; color: var(--cyan-dim); font-size: 11px; top: 4px; }
+
+    .tag-pill {
+      display: inline-block;
+      font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-secondary); margin: 2px;
+    }
+    .tag-pill.cyan   { background: var(--cyan-bg);  border-color: var(--cyan-dim); color: var(--cyan); }
+    .tag-pill.violet { background: var(--violet-bg); border-color: var(--violet-dim); color: var(--violet); }
+    .tag-pill.green  { background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.3); color: var(--green); }
+    .tag-pill.amber  { background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.3); color: var(--amber); }
+
+    .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav id="sidebar">
+  <div class="nav-brand">
+    <div class="owl">OpsOwl AI</div>
+    <div class="sub">Feature Specifications</div>
+  </div>
+  <a href="INDEX.html" class="nav-back">← Back to Index</a>
+
+  <div class="nav-section-label">This Document</div>
+  <a href="#overview"    class="nav-item active">1. Feature Overview</a>
+  <a href="#roles"       class="nav-item">2. Roles & Permissions</a>
+  <a href="#schema"      class="nav-item">3. Database Schema</a>
+  <a href="#api"         class="nav-item">4. API Endpoints</a>
+  <a href="#flow"        class="nav-item">5. Auth Flow Diagram</a>
+  <a href="#gomodule"    class="nav-item">6. Go Module Structure</a>
+  <a href="#middleware"  class="nav-item">7. Middleware Design</a>
+  <a href="#security"    class="nav-item">8. Security Decisions</a>
+  <a href="#frontend"    class="nav-item">9. Frontend Components</a>
+  <a href="#testing"     class="nav-item">10. Test Strategy</a>
+  <a href="#audit"       class="nav-item">11. Audit Events</a>
+
+  <div class="nav-section-label" style="margin-top:16px;">Other Specs</div>
+  <a href="02_CASE_MANAGEMENT.html" class="nav-item">Case Management →</a>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main>
+  <div class="page-header">
+    <div class="breadcrumb">OpsOwl AI / Feature Specs / <span>Authentication & RBAC</span></div>
+    <h1 class="page-title">Authentication &amp; <span class="accent">Role-Based Access Control</span></h1>
+    <p class="page-subtitle">Secure, auditable identity management for enterprise fintech operations teams — JWT RS256, refresh token rotation, and granular role-based permissions.</p>
+    <div class="feature-badge">⬡ Module 01 · Auth &amp; RBAC</div>
+  </div>
+
+  <div class="content-body">
+
+    <!-- ── 1. Feature Overview ── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div class="section-title">Feature Overview <span class="tag">Core Trust Layer</span></div>
+      </div>
+
+      <p>The Authentication &amp; RBAC module is the <strong>security foundation</strong> of OpsOwl AI. Every request entering the system must carry a cryptographically verified identity, and every action must be authorized against a well-defined permission set. In regulated fintech and lending-ops environments, a breach of access control is not just a technical failure — it is a compliance incident.</p>
+
+      <p>This module governs: <strong>who can log in</strong>, <strong>what they can see and do</strong>, <strong>how long their session lasts</strong>, and <strong>what gets written to the audit trail</strong>. It provides the identity context consumed by every other OpsOwl AI module downstream.</p>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="label">Authentication Method</div>
+          <div class="value cyan">JWT RS256 (asymmetric)</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Access Token Lifetime</div>
+          <div class="value">1 hour (3600s)</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Refresh Token Strategy</div>
+          <div class="value violet">Rotation + hash storage</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Password Hashing</div>
+          <div class="value">bcrypt, cost 12</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Rate Limiting</div>
+          <div class="value">100 req/min per user</div>
+        </div>
+        <div class="info-card">
+          <div class="label">RBAC Enforcement</div>
+          <div class="value">Middleware layer (Go Chi)</div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:20px;">
+        <div class="callout-icon">🔐</div>
+        <div class="callout-text"><strong>Enterprise Trust Requirement:</strong> Fintech and NBFC customers operate under RBI, SEBI, and internal compliance mandates. Authentication failures, privilege escalation, and missing audit trails are direct audit findings. Every design decision here prioritizes auditability and least-privilege access.</div>
+      </div>
+    </section>
+
+    <!-- ── 2. Roles & Permissions ── -->
+    <section class="section" id="roles">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-title">Roles &amp; Permissions Matrix</div>
+      </div>
+
+      <p>Five roles form a hierarchical permission structure. Roles are stored as a PostgreSQL <strong>ENUM</strong> on the <code>users</code> table. A user has exactly one role. Field-level permissions are enforced in the API response serialization layer — certain fields (e.g., <code>password_hash</code>, PII fields marked sensitive) are stripped based on caller role.</p>
+
+      <div class="card" style="overflow-x:auto;">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="role-col">Role</th>
+              <th>CRUD Cases</th>
+              <th>Assign Tasks</th>
+              <th>Manage Users</th>
+              <th>View Audit Logs</th>
+              <th>Access AI</th>
+              <th>System Config</th>
+              <th>Delete Records</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="role-badge role-super_admin">super_admin</span></td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+            </tr>
+            <tr>
+              <td><span class="role-badge role-admin">admin</span></td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Org scope</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-ro">Read only</td>
+              <td class="perm-yes">Soft delete</td>
+            </tr>
+            <tr>
+              <td><span class="role-badge role-manager">manager</span></td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-ro">View only</td>
+              <td class="perm-yes">Org scope</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-no">No</td>
+              <td class="perm-no">No</td>
+            </tr>
+            <tr>
+              <td><span class="role-badge role-analyst">analyst</span></td>
+              <td class="perm-own">Own + assigned</td>
+              <td class="perm-own">Own cases</td>
+              <td class="perm-no">No</td>
+              <td class="perm-own">Own actions</td>
+              <td class="perm-yes">Full</td>
+              <td class="perm-no">No</td>
+              <td class="perm-no">No</td>
+            </tr>
+            <tr>
+              <td><span class="role-badge role-viewer">viewer</span></td>
+              <td class="perm-ro">Read only</td>
+              <td class="perm-no">No</td>
+              <td class="perm-no">No</td>
+              <td class="perm-no">No</td>
+              <td class="perm-ro">View results</td>
+              <td class="perm-no">No</td>
+              <td class="perm-no">No</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="callout violet" style="margin-top:8px;">
+        <div class="callout-icon">⚡</div>
+        <div class="callout-text"><strong>Field-Level Permissions:</strong> Sensitive fields (e.g., <code>password_hash</code>, <code>ssn_last4</code>, internal notes marked <code>confidential</code>) are excluded from API responses unless the caller holds <code>admin</code> or <code>super_admin</code>. Enforced in sqlc query result mappers before serialization. No field reaches a lower-privilege user by accident.</div>
+      </div>
+    </section>
+
+    <!-- ── 3. Database Schema ── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-title">Database Schema <span class="tag">PostgreSQL 18.4</span></div>
+      </div>
+
+      <p>All tables follow the <strong>OpsOwl DB rules</strong>: UUID v4 primary keys, <code>TIMESTAMPTZ</code> for all datetime fields, soft deletes via <code>deleted_at</code>, and indexes on every FK and column used in WHERE/ORDER BY clauses. No raw SQL — all queries generated via sqlc.</p>
+
+      <pre><code><span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- AUTH SCHEMA — OpsOwl AI
+-- PostgreSQL 18.4 | All times UTC | Soft deletes via deleted_at
+-- ─────────────────────────────────────────────────────────────────</span>
+
+<span class="kw">CREATE TYPE</span> <span class="ty">user_role</span> <span class="kw">AS ENUM</span> (
+  <span class="st">'super_admin'</span>, <span class="st">'admin'</span>, <span class="st">'manager'</span>, <span class="st">'analyst'</span>, <span class="st">'viewer'</span>
+);
+
+<span class="cm">-- users ──────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">users</span> (
+  <span class="nm">id</span>              <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">email</span>           <span class="ty">TEXT</span>        <span class="kw">NOT NULL UNIQUE</span>,
+  <span class="nm">password_hash</span>   <span class="ty">TEXT</span>        <span class="kw">NOT NULL</span>,               <span class="cm">-- bcrypt cost 12</span>
+  <span class="nm">full_name</span>       <span class="ty">TEXT</span>        <span class="kw">NOT NULL</span>,
+  <span class="nm">role</span>            <span class="ty">user_role</span>   <span class="kw">NOT NULL DEFAULT</span> <span class="st">'analyst'</span>,
+  <span class="nm">is_active</span>       <span class="ty">BOOLEAN</span>     <span class="kw">NOT NULL DEFAULT</span> <span class="kw">TRUE</span>,
+  <span class="nm">last_login_at</span>   <span class="ty">TIMESTAMPTZ</span>,
+  <span class="nm">created_at</span>      <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">updated_at</span>      <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">deleted_at</span>      <span class="ty">TIMESTAMPTZ</span>                          <span class="cm">-- soft delete</span>
+);
+
+<span class="kw">CREATE INDEX</span> idx_users_email        <span class="kw">ON</span> <span class="ty">users</span> (email)        <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_users_role         <span class="kw">ON</span> <span class="ty">users</span> (role)         <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_users_is_active    <span class="kw">ON</span> <span class="ty">users</span> (is_active)    <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_users_created_at   <span class="kw">ON</span> <span class="ty">users</span> (created_at);
+
+<span class="cm">-- refresh_tokens ────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">refresh_tokens</span> (
+  <span class="nm">id</span>          <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">user_id</span>     <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  <span class="nm">token_hash</span>  <span class="ty">TEXT</span>        <span class="kw">NOT NULL UNIQUE</span>,              <span class="cm">-- SHA-256 of raw token</span>
+  <span class="nm">expires_at</span>  <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL</span>,
+  <span class="nm">revoked_at</span>  <span class="ty">TIMESTAMPTZ</span>,                              <span class="cm">-- NULL = active</span>
+  <span class="nm">created_at</span>  <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>
+);
+
+<span class="kw">CREATE INDEX</span> idx_rt_user_id    <span class="kw">ON</span> <span class="ty">refresh_tokens</span> (user_id);
+<span class="kw">CREATE INDEX</span> idx_rt_expires_at <span class="kw">ON</span> <span class="ty">refresh_tokens</span> (expires_at);
+<span class="kw">CREATE INDEX</span> idx_rt_hash       <span class="kw">ON</span> <span class="ty">refresh_tokens</span> (token_hash) <span class="kw">WHERE</span> revoked_at <span class="kw">IS NULL</span>;
+
+<span class="cm">-- sessions ───────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">sessions</span> (
+  <span class="nm">id</span>              <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">user_id</span>         <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  <span class="nm">ip_address</span>      <span class="ty">INET</span>        <span class="kw">NOT NULL</span>,
+  <span class="nm">user_agent</span>      <span class="ty">TEXT</span>        <span class="kw">NOT NULL</span>,
+  <span class="nm">created_at</span>      <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">last_active_at</span>  <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>
+);
+
+<span class="kw">CREATE INDEX</span> idx_sessions_user_id       <span class="kw">ON</span> <span class="ty">sessions</span> (user_id);
+<span class="kw">CREATE INDEX</span> idx_sessions_last_active   <span class="kw">ON</span> <span class="ty">sessions</span> (last_active_at);</code></pre>
+
+      <div class="callout amber">
+        <div class="callout-icon">⚠</div>
+        <div class="callout-text"><strong>Token Hash Storage:</strong> Raw refresh tokens are <strong>never persisted</strong>. Only a SHA-256 hash of the token is stored in <code>refresh_tokens.token_hash</code>. The raw token is returned to the client once and never re-derivable from the DB — preventing insider token theft.</div>
+      </div>
+    </section>
+
+    <!-- ── 4. API Endpoints ── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div class="section-title">API Endpoints <span class="tag">REST · /api/v1/</span></div>
+      </div>
+      <p>All responses use the standard envelope: <code>{"data": {…}, "meta": {…}, "error": null}</code>. Error responses carry <code>{"data": null, "error": {"code": "ERR_CODE", "message": "…", "details": {…}}}</code>.</p>
+
+      <!-- Login -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/auth/login</span>
+          <span class="endpoint-auth">Public</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{
+  <span class="st">"email"</span>:    <span class="st">"analyst@acme.in"</span>,
+  <span class="st">"password"</span>: <span class="st">"S3cur3P@ss"</span>
+}</code></pre>
+          <div class="ep-label">Response 200</div>
+          <pre><code>{
+  <span class="st">"data"</span>: {
+    <span class="st">"access_token"</span>:  <span class="st">"eyJhbGci..."</span>,  <span class="cm">// JWT RS256, 1hr</span>
+    <span class="st">"refresh_token"</span>: <span class="st">"rt_..."</span>,       <span class="cm">// opaque, 30d, sent as HttpOnly cookie too</span>
+    <span class="st">"token_type"</span>:    <span class="st">"Bearer"</span>,
+    <span class="st">"expires_in"</span>:    <span class="nm">3600</span>,
+    <span class="st">"user"</span>: {
+      <span class="st">"id"</span>:        <span class="st">"uuid-v4"</span>,
+      <span class="st">"email"</span>:     <span class="st">"analyst@acme.in"</span>,
+      <span class="st">"full_name"</span>: <span class="st">"Priya Sharma"</span>,
+      <span class="st">"role"</span>:      <span class="st">"analyst"</span>
+    }
+  },
+  <span class="st">"meta"</span>: { <span class="st">"request_id"</span>: <span class="st">"uuid"</span> },
+  <span class="st">"error"</span>: <span class="kw">null</span>
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- Refresh -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/auth/refresh</span>
+          <span class="endpoint-auth">Refresh token (cookie or body)</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"refresh_token"</span>: <span class="st">"rt_..."</span> }  <span class="cm">// or read from HttpOnly cookie</span></code></pre>
+          <div class="ep-label">Response 200 — rotates both tokens</div>
+          <pre><code>{ <span class="st">"data"</span>: { <span class="st">"access_token"</span>: <span class="st">"eyJ..."</span>, <span class="st">"refresh_token"</span>: <span class="st">"rt_new..."</span>, <span class="st">"expires_in"</span>: <span class="nm">3600</span> } }</code></pre>
+        </div>
+      </div>
+
+      <!-- Logout -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/auth/logout</span>
+          <span class="endpoint-auth"><span class="auth-tag">JWT Required</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"refresh_token"</span>: <span class="st">"rt_..."</span> }  <span class="cm">// sets revoked_at in DB</span></code></pre>
+          <div class="ep-label">Response 204</div>
+          <pre><code><span class="cm">// No body — refresh token revoked, HttpOnly cookie cleared</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Me -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-GET">GET</span>
+          <span class="endpoint-path">/api/v1/auth/me</span>
+          <span class="endpoint-auth"><span class="auth-tag">JWT Required</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200</div>
+          <pre><code>{ <span class="st">"data"</span>: { <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"email"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"..."</span>, <span class="st">"role"</span>: <span class="st">"analyst"</span>, <span class="st">"last_login_at"</span>: <span class="st">"2026-05-16T09:00:00Z"</span> } }</code></pre>
+        </div>
+      </div>
+
+      <!-- Password -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-PUT">PUT</span>
+          <span class="endpoint-path">/api/v1/auth/password</span>
+          <span class="endpoint-auth"><span class="auth-tag">JWT Required</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"current_password"</span>: <span class="st">"..."</span>, <span class="st">"new_password"</span>: <span class="st">"..."</span> }
+<span class="cm">// Validates current_password via bcrypt, re-hashes new, revokes all refresh tokens</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Create User -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/users</span>
+          <span class="endpoint-auth"><span class="auth-tag">admin / super_admin</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"email"</span>: <span class="st">"new@acme.in"</span>, <span class="st">"full_name"</span>: <span class="st">"Rohan Mehta"</span>, <span class="st">"role"</span>: <span class="st">"analyst"</span>, <span class="st">"password"</span>: <span class="st">"TempP@ss!"</span> }</code></pre>
+          <div class="ep-label">Response 201</div>
+          <pre><code>{ <span class="st">"data"</span>: { <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"email"</span>: <span class="st">"..."</span>, <span class="st">"role"</span>: <span class="st">"analyst"</span>, <span class="st">"created_at"</span>: <span class="st">"..."</span> } }</code></pre>
+        </div>
+      </div>
+
+      <!-- List Users -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-GET">GET</span>
+          <span class="endpoint-path">/api/v1/users?role=analyst&cursor=uuid&limit=20</span>
+          <span class="endpoint-auth"><span class="auth-tag">manager+</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200 — cursor paginated</div>
+          <pre><code>{
+  <span class="st">"data"</span>: [ { <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"email"</span>: <span class="st">"..."</span>, <span class="st">"role"</span>: <span class="st">"..."</span>, <span class="st">"is_active"</span>: <span class="kw">true</span> }, <span class="cm">/* … */</span> ],
+  <span class="st">"meta"</span>: { <span class="st">"next_cursor"</span>: <span class="st">"uuid"</span>, <span class="st">"has_more"</span>: <span class="kw">true</span>, <span class="st">"total_count"</span>: <span class="nm">87</span> }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- Update User -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-PUT">PUT</span>
+          <span class="endpoint-path">/api/v1/users/:id</span>
+          <span class="endpoint-auth"><span class="auth-tag">admin+ or self</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body (partial update)</div>
+          <pre><code>{ <span class="st">"full_name"</span>: <span class="st">"Updated Name"</span>, <span class="st">"role"</span>: <span class="st">"manager"</span>, <span class="st">"is_active"</span>: <span class="kw">false</span> }
+<span class="cm">// role change restricted to admin+; self can only update full_name</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Delete User -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-DELETE">DELETE</span>
+          <span class="endpoint-path">/api/v1/users/:id</span>
+          <span class="endpoint-auth"><span class="auth-tag">admin / super_admin</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200</div>
+          <pre><code>{ <span class="st">"data"</span>: { <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"deleted_at"</span>: <span class="st">"2026-05-16T10:00:00Z"</span> } }
+<span class="cm">// Soft delete only — sets deleted_at, revokes all active refresh tokens for user</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 5. Auth Flow Diagram ── -->
+    <section class="section" id="flow">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div class="section-title">Auth Flow Diagram</div>
+      </div>
+
+      <p><strong>Login Flow</strong> — from credential submission to issued tokens:</p>
+
+      <div class="flow-diagram" style="margin-bottom:24px;">
+        <div class="flow-step">
+          <div class="flow-box start">Client<br>POST /login</div>
+          <div class="flow-label">Email + password</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box action">Load user<br>by email</div>
+          <div class="flow-label">DB lookup</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box action">bcrypt.Compare<br>password</div>
+          <div class="flow-label">Cost 12</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box token">Issue JWT<br>(RS256, 1hr)</div>
+          <div class="flow-label">Access token</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box db">SHA-256 hash<br>→ refresh_tokens</div>
+          <div class="flow-label">Stored hash</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box end">Return tokens<br>to client</div>
+          <div class="flow-label">+ HttpOnly cookie</div>
+        </div>
+      </div>
+
+      <p style="margin-top:8px;"><strong>Refresh &amp; Logout Flow:</strong></p>
+
+      <div class="flow-diagram" style="margin-bottom:24px;">
+        <div class="flow-step">
+          <div class="flow-box start">POST /refresh<br>rt_old</div>
+          <div class="flow-label">Expiring token</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box db">SHA-256(rt_old)<br>→ DB lookup</div>
+          <div class="flow-label">Verify + unrevoked</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box action">Revoke old RT<br>set revoked_at</div>
+          <div class="flow-label">Atomic transaction</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box token">New JWT +<br>New RT issued</div>
+          <div class="flow-label">Full rotation</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box end">Return both<br>to client</div>
+        </div>
+      </div>
+
+      <div class="flow-diagram">
+        <div class="flow-step">
+          <div class="flow-box start">POST /logout<br>rt_token</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box db">Set revoked_at<br>on refresh token</div>
+          <div class="flow-label">DB update</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box action">Clear HttpOnly<br>cookie (Set-Cookie)</div>
+        </div>
+        <div class="flow-arrow"><div class="flow-line"></div></div>
+        <div class="flow-step">
+          <div class="flow-box end">204 No Content<br>Session ended</div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:16px;">
+        <div class="callout-icon">🛡</div>
+        <div class="callout-text"><strong>Token Reuse Detection:</strong> If a revoked refresh token is presented (RT with <code>revoked_at IS NOT NULL</code>), the system treats this as a <strong>token theft signal</strong> — all refresh tokens for the user are immediately revoked, forcing re-authentication across all sessions.</div>
+      </div>
+    </section>
+
+    <!-- ── 6. Go Module Structure ── -->
+    <section class="section" id="gomodule">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <div class="section-title">Go Module Structure <span class="tag">Go 1.26</span></div>
+      </div>
+
+      <div class="pkg-tree">
+<span class="pkg-dir">internal/</span>
+<span class="pkg-indent">├── </span><span class="pkg-dir">auth/</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">handler.go</span>         <span class="pkg-comment">// Chi HTTP handlers: Login, Refresh, Logout, Me, ChangePassword</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">service.go</span>         <span class="pkg-comment">// Business logic: ValidateCredentials, IssueTokenPair, RevokeToken</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">repository.go</span>      <span class="pkg-comment">// sqlc query wrappers: GetUserByEmail, CreateRefreshToken, RevokeRT</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">jwt.go</span>             <span class="pkg-comment">// RS256 sign/verify, claims struct, key loading from env</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">password.go</span>        <span class="pkg-comment">// bcrypt.GenerateFromPassword, bcrypt.CompareHashAndPassword</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">token_hash.go</span>      <span class="pkg-comment">// SHA-256 hash of raw refresh token</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">dto.go</span>             <span class="pkg-comment">// LoginRequest, LoginResponse, RefreshRequest structs</span>
+<span class="pkg-indent">│   └── </span><span class="pkg-file">auth_test.go</span>       <span class="pkg-comment">// table-driven tests, testcontainers Postgres</span>
+<span class="pkg-indent">│</span>
+<span class="pkg-indent">├── </span><span class="pkg-dir">users/</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">handler.go</span>         <span class="pkg-comment">// CRUD handlers: CreateUser, ListUsers, GetUser, UpdateUser, DeleteUser</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">service.go</span>         <span class="pkg-comment">// Business logic, role validation, self-update guard</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">repository.go</span>      <span class="pkg-comment">// sqlc wrappers, cursor pagination queries</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">dto.go</span>             <span class="pkg-comment">// CreateUserRequest, UpdateUserRequest, UserResponse</span>
+<span class="pkg-indent">│   └── </span><span class="pkg-file">users_test.go</span>
+<span class="pkg-indent">│</span>
+<span class="pkg-indent">├── </span><span class="pkg-dir">middleware/</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">auth.go</span>            <span class="pkg-comment">// JWTValidate middleware: parse Bearer token, inject claims to ctx</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">rbac.go</span>            <span class="pkg-comment">// RequireRole(roles...) middleware factory</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">audit.go</span>           <span class="pkg-comment">// AuditIntercept: log method+path+user+result to audit_logs</span>
+<span class="pkg-indent">│   └── </span><span class="pkg-file">rate_limit.go</span>      <span class="pkg-comment">// Token bucket per user_id, 100 req/min</span>
+<span class="pkg-indent">│</span>
+<span class="pkg-indent">└── </span><span class="pkg-dir">db/sqlc/</span>
+<span class="pkg-indent">    ├── </span><span class="pkg-file">auth.sql.go</span>        <span class="pkg-comment">// Generated: CreateRefreshToken, GetRefreshToken, RevokeRefreshToken</span>
+<span class="pkg-indent">    └── </span><span class="pkg-file">users.sql.go</span>       <span class="pkg-comment">// Generated: CreateUser, GetUserByEmail, ListUsers, UpdateUser, SoftDeleteUser</span>
+      </div>
+    </section>
+
+    <!-- ── 7. Middleware Design ── -->
+    <section class="section" id="middleware">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <div class="section-title">Middleware Design</div>
+      </div>
+
+      <p>All protected routes pass through a three-layer middleware chain in Chi router. Middlewares are composable and testable in isolation.</p>
+
+      <div class="mw-pipeline">
+        <div class="mw-step">
+          <div class="mw-icon cyan">🔑</div>
+          <div>
+            <div class="mw-title">JWTValidate Middleware</div>
+            <div class="mw-desc">Extracts <code>Authorization: Bearer &lt;token&gt;</code> header. Verifies RS256 signature using public key. Checks <code>exp</code>, <code>iss</code>, <code>aud</code> claims. On success, injects <code>Claims{UserID, Role, Email}</code> into <code>context.Context</code>. Returns 401 on any failure — no user identity reaches downstream handlers without a valid JWT.</div>
+          </div>
+        </div>
+        <div class="mw-connector">↓</div>
+        <div class="mw-step">
+          <div class="mw-icon violet">🛡</div>
+          <div>
+            <div class="mw-title">RBAC Middleware — RequireRole(roles ...UserRole)</div>
+            <div class="mw-desc">Factory function wrapping any handler. Reads <code>Claims</code> from context. Checks if <code>claims.Role</code> is in the allowed set. Returns 403 if insufficient. Also enforces ownership checks for <code>analyst</code> role — e.g., analyst can only access cases assigned to them. Field-level stripping happens in the response serializer, not here.</div>
+          </div>
+        </div>
+        <div class="mw-connector">↓</div>
+        <div class="mw-step">
+          <div class="mw-icon amber">📋</div>
+          <div>
+            <div class="mw-title">AuditIntercept Middleware</div>
+            <div class="mw-desc">Wraps <code>http.ResponseWriter</code> to capture status code. After handler returns, writes an audit event: <code>user_id</code>, <code>action</code> (derived from method+path), <code>resource_type</code>, <code>resource_id</code>, <code>ip_address</code>, <code>status_code</code>, <code>timestamp</code>. Uses non-blocking channel write to audit worker to avoid adding latency to hot paths.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:4px;">
+        <div class="callout-icon">⚙</div>
+        <div class="callout-text"><strong>Rate Limit Middleware</strong> sits at the outermost layer (before JWT validation) and uses an in-process token bucket keyed by IP for unauthenticated routes, and by <code>user_id</code> for authenticated routes. Limit: 100 req/min. Returns <code>429 Too Many Requests</code> with <code>Retry-After</code> header.</div>
+      </div>
+    </section>
+
+    <!-- ── 8. Security Decisions ── -->
+    <section class="section" id="security">
+      <div class="section-header">
+        <div class="section-number">8</div>
+        <div class="section-title">Security Decisions</div>
+      </div>
+
+      <table class="sec-table">
+        <thead>
+          <tr>
+            <th>Decision</th>
+            <th>Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>RS256 over HS256</td>
+            <td>Asymmetric signing allows the AI service and future microservices to <strong>verify tokens without holding the signing key</strong>. Only the Go auth service holds the private key. Public key is distributed via JWKS endpoint. A compromised consumer service cannot forge tokens.</td>
+          </tr>
+          <tr>
+            <td>bcrypt cost 12</td>
+            <td>Cost 12 takes ~250ms on modern hardware — fast enough for login UX but computationally expensive for bulk brute-force. Below 10 is considered weak; above 14 adds unacceptable login latency. 12 is the industry-standard sweet spot for 2026 hardware.</td>
+          </tr>
+          <tr>
+            <td>Refresh token rotation</td>
+            <td>Every use of a refresh token issues a <strong>new pair</strong> (access + refresh) and revokes the old. If an attacker steals a refresh token, the legitimate user's next request will detect a double-use and trigger <strong>family revocation</strong> — all tokens for that user are invalidated.</td>
+          </tr>
+          <tr>
+            <td>Hash-only token storage</td>
+            <td>Storing SHA-256(token) means a DB breach exposes <strong>no usable tokens</strong>. Brute-forcing 256-bit hashes is computationally infeasible. No rainbow table attack is possible since the token contains sufficient entropy (128 bits random).</td>
+          </tr>
+          <tr>
+            <td>HttpOnly cookie + body</td>
+            <td>Refresh token returned both in response body (for native/mobile clients) and as an <code>HttpOnly; Secure; SameSite=Strict</code> cookie (for browser clients). XSS cannot steal the HttpOnly cookie. The body return is omitted for browser-originated requests (detected via <code>X-Requested-With</code>).</td>
+          </tr>
+          <tr>
+            <td>Short access token lifetime (1hr)</td>
+            <td>Reduces the window of stolen JWT exploitation. JWTs cannot be individually revoked without DB lookups — short lifetime limits blast radius. Critical actions (delete user, role change) additionally verify the user's session recency.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── 9. Frontend Components ── -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <div class="section-number">9</div>
+        <div class="section-title">Frontend Components <span class="tag">Next.js 16 · TypeScript · shadcn/ui</span></div>
+      </div>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="comp-name">LoginPage</div>
+          <div class="comp-path">app/(auth)/login/page.tsx</div>
+          <ul>
+            <li>shadcn/ui Form with react-hook-form + zod validation</li>
+            <li>Email regex + password min-length client validation</li>
+            <li>useMutation (TanStack Query) → POST /auth/login</li>
+            <li>Stores access token in memory (Zustand), refresh in cookie</li>
+            <li>Rate-limit error state (429 → countdown display)</li>
+            <li>Redirect to /dashboard on success</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">useAuth hook</div>
+          <div class="comp-path">lib/hooks/useAuth.ts</div>
+          <ul>
+            <li>Reads auth state from Zustand store</li>
+            <li>Exposes: user, isAuthenticated, logout(), hasRole()</li>
+            <li>Auto-refresh: sets up interval at 55min to call /auth/refresh</li>
+            <li>On 401 from any API call → triggers refresh flow via axios interceptor</li>
+            <li>On refresh failure → clears state, redirect to /login</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">authStore</div>
+          <div class="comp-path">lib/stores/auth.store.ts</div>
+          <ul>
+            <li>Zustand store: { user, accessToken, setAuth, clearAuth }</li>
+            <li>Access token stored in memory only (no localStorage — XSS safe)</li>
+            <li>Persists user metadata to sessionStorage for page-reload resilience</li>
+            <li>Provides selector: selectUserRole for RBAC gate</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">ProtectedRoute</div>
+          <div class="comp-path">components/auth/ProtectedRoute.tsx</div>
+          <ul>
+            <li>Wraps layout — checks isAuthenticated from authStore</li>
+            <li>Redirects to /login with returnUrl param if unauthenticated</li>
+            <li>Shows loading skeleton during auth hydration</li>
+            <li>Used in app/(dashboard)/layout.tsx</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">RBACGate</div>
+          <div class="comp-path">components/auth/RBACGate.tsx</div>
+          <ul>
+            <li>Props: allowedRoles, fallback (optional)</li>
+            <li>Reads role from authStore</li>
+            <li>Renders children if role matches; renders fallback or null otherwise</li>
+            <li>Used to conditionally render delete buttons, admin nav items, etc.</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">UserManagementPage</div>
+          <div class="comp-path">app/(dashboard)/users/page.tsx</div>
+          <ul>
+            <li>DataTable (TanStack Table) with server-side pagination (cursor)</li>
+            <li>Wrapped in RBACGate allowedRoles={['admin','super_admin']}</li>
+            <li>Create User dialog (shadcn Dialog + form)</li>
+            <li>Inline role change dropdown with optimistic update</li>
+            <li>Deactivate / soft-delete action with confirmation modal</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 10. Test Strategy ── -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <div class="section-title">Test Strategy <span class="tag">&gt;90% Coverage Target</span></div>
+      </div>
+
+      <div class="callout violet">
+        <div class="callout-icon">🧪</div>
+        <div class="callout-text"><strong>Approach:</strong> Table-driven Go tests with <code>testcontainers-go</code> for real PostgreSQL. No mocked DB — integration tests run against an ephemeral pg container. HTTP handler tests use <code>httptest.NewRecorder</code>. Coverage checked with <code>go test -coverprofile</code> in CI. Target: &gt;90% line coverage on auth and users packages.</div>
+      </div>
+
+      <div class="card">
+        <ul class="test-list">
+          <li><span class="test-icon">✓</span><div><strong>Login: valid credentials</strong> → 200, access token verifiable with public key, refresh token hash stored in DB</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Login: wrong password</strong> → 401, no token issued, failed_login audit event written</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Login: unknown email</strong> → 401 (same response as wrong password — no user enumeration)</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Login: deactivated user</strong> → 403 account_disabled error code</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Refresh: valid RT</strong> → new JWT + new RT, old RT revoked_at set</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Refresh: expired RT</strong> → 401 token_expired</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Refresh: revoked RT (reuse attack)</strong> → 401, all user RTs revoked (family revocation)</div></li>
+          <li><span class="test-icon">✓</span><div><strong>JWT: tampered signature</strong> → 401 invalid_token</div></li>
+          <li><span class="test-icon">✓</span><div><strong>RBAC: analyst accessing admin-only route</strong> → 403 insufficient_role</div></li>
+          <li><span class="test-icon">✓</span><div><strong>RBAC: viewer attempting case mutation</strong> → 403</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Password change: wrong current_password</strong> → 400 incorrect_password</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Password change: success</strong> → all existing refresh tokens revoked</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Soft delete user</strong> → deleted_at set, user cannot login, all RTs revoked</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Rate limit</strong> → 101st request in 60s window returns 429 with Retry-After</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Audit events</strong> → login, logout, password_change events present in audit_logs table post-action</div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── 11. Audit Events ── -->
+    <section class="section" id="audit">
+      <div class="section-header">
+        <div class="section-number">11</div>
+        <div class="section-title">Audit Events</div>
+      </div>
+
+      <p>All auth events are written to the <code>audit_logs</code> table (defined in the Audit module). The auth middleware writes these asynchronously via a buffered channel worker to keep hot-path latency unaffected.</p>
+
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Event Code</th>
+            <th>Trigger</th>
+            <th>Key Fields Logged</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>auth.login.success</td>
+            <td>Successful login</td>
+            <td>user_id, ip_address, user_agent, session_id</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>auth.login.failed</td>
+            <td>Wrong password or unknown email</td>
+            <td>email (attempted), ip_address, attempt_count</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>auth.login.account_disabled</td>
+            <td>Login attempt on deactivated account</td>
+            <td>user_id, ip_address</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>auth.logout</td>
+            <td>Explicit logout</td>
+            <td>user_id, session_id, ip_address</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>auth.token.refresh</td>
+            <td>Successful token refresh</td>
+            <td>user_id, old_rt_id, new_rt_id</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>auth.token.reuse_detected</td>
+            <td>Revoked refresh token presented</td>
+            <td>user_id, ip_address, rt_hash</td>
+            <td><span class="tag-pill" style="background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4);color:var(--red);">critical</span></td>
+          </tr>
+          <tr>
+            <td>auth.password.changed</td>
+            <td>Successful password change</td>
+            <td>user_id, ip_address, tokens_revoked_count</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>user.created</td>
+            <td>Admin creates new user</td>
+            <td>actor_user_id, new_user_id, role, email</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>user.role_changed</td>
+            <td>Admin changes user role</td>
+            <td>actor_user_id, target_user_id, old_role, new_role</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>user.deactivated</td>
+            <td>Admin soft-deletes user</td>
+            <td>actor_user_id, target_user_id</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>auth.rate_limit.hit</td>
+            <td>User exceeds 100 req/min</td>
+            <td>user_id or ip_address, endpoint, request_count</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </div><!-- /content-body -->
+</main>
+
+<script>
+  // Highlight active nav item on scroll
+  const sections = document.querySelectorAll('section.section');
+  const navItems = document.querySelectorAll('nav#sidebar a.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(a => a.classList.remove('active'));
+        const match = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+        if (match) match.classList.add('active');
+      }
+    });
+  }, { threshold: 0.3 });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

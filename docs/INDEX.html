@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — Documentation Hub</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base:       #0f172a;
+      --bg-surface:    #1e293b;
+      --bg-elevated:   #263347;
+      --border:        #334155;
+      --border-light:  #475569;
+      --text-primary:  #f1f5f9;
+      --text-secondary:#94a3b8;
+      --text-muted:    #64748b;
+      --cyan:          #06b6d4;
+      --cyan-dim:      #0e7490;
+      --violet:        #8b5cf6;
+      --violet-dim:    #5b21b6;
+      --emerald:       #10b981;
+      --amber:         #f59e0b;
+      --rose:          #f43f5e;
+      --sky:           #38bdf8;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Global Nav Bar ── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 48px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .topbar-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+    .topbar-owl {
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+    }
+    .topbar-wordmark {
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.4px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+    .topbar-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .topbar-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--emerald);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .topbar-status .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    /* ── Hero ── */
+    .hero {
+      position: relative;
+      overflow: hidden;
+      padding: 96px 48px 80px;
+      text-align: center;
+    }
+
+    /* Subtle radial grid background */
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(6,182,212,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(6,182,212,0.04) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+
+    /* Glow orbs */
+    .hero-glow-1 {
+      position: absolute;
+      top: -120px; left: 50%;
+      transform: translateX(-50%);
+      width: 700px; height: 400px;
+      background: radial-gradient(ellipse, rgba(139,92,246,0.18) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero-glow-2 {
+      position: absolute;
+      bottom: -80px; right: -100px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 65%);
+      pointer-events: none;
+    }
+
+    .hero-content { position: relative; z-index: 1; max-width: 760px; margin: 0 auto; }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      background: rgba(6,182,212,0.08);
+      border: 1px solid rgba(6,182,212,0.2);
+      padding: 6px 16px;
+      border-radius: 20px;
+      margin-bottom: 28px;
+    }
+
+    /* OpsOwl Wordmark / Logo */
+    .hero-logo {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .hero-logo-icon {
+      width: 64px; height: 64px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--cyan-dim) 0%, var(--violet-dim) 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      box-shadow: 0 0 40px rgba(139,92,246,0.35), 0 0 80px rgba(6,182,212,0.15);
+      position: relative;
+    }
+    .hero-logo-icon::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 17px;
+      background: linear-gradient(135deg, rgba(6,182,212,0.5), rgba(139,92,246,0.5));
+      z-index: -1;
+    }
+    .hero-logo-text {
+      text-align: left;
+    }
+    .hero-logo-name {
+      font-size: 42px;
+      font-weight: 900;
+      letter-spacing: -2px;
+      line-height: 1;
+      background: linear-gradient(90deg, var(--cyan) 0%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .hero-logo-sub {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-top: 4px;
+    }
+
+    .hero-tagline {
+      font-size: 19px;
+      font-weight: 400;
+      color: var(--text-secondary);
+      line-height: 1.65;
+      margin-bottom: 16px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    .hero-tagline strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .hero-pills {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 28px;
+    }
+    .hero-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-secondary);
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 20px;
+    }
+    .hero-pill .pill-dot {
+      width: 5px; height: 5px;
+      border-radius: 50%;
+    }
+
+    /* ── Stats Bar ── */
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      background: var(--bg-surface);
+    }
+    .stat-item {
+      flex: 1;
+      max-width: 200px;
+      padding: 20px 24px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+    }
+    .stat-item:last-child { border-right: none; }
+    .stat-value {
+      font-size: 26px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+    /* ── Main Content ── */
+    .main-content {
+      flex: 1;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+      padding: 64px 48px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+    .section-heading {
+      font-size: 24px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    .section-sub {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 36px;
+    }
+
+    /* ── Featured Card (HLD) ── */
+    .featured-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      margin-bottom: 48px;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.25s;
+    }
+    .featured-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(6,182,212,0.05) 0%, rgba(139,92,246,0.05) 100%);
+      pointer-events: none;
+    }
+    .featured-card:hover {
+      border-color: var(--cyan-dim);
+      box-shadow: 0 8px 40px rgba(6,182,212,0.12), 0 0 0 1px rgba(6,182,212,0.15);
+      transform: translateY(-2px);
+    }
+    .featured-icon {
+      width: 72px; height: 72px;
+      border-radius: 16px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 32px;
+      flex-shrink: 0;
+      box-shadow: 0 4px 20px rgba(139,92,246,0.3);
+    }
+    .featured-body { flex: 1; position: relative; z-index: 1; }
+    .featured-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--cyan);
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.25);
+      padding: 3px 10px;
+      border-radius: 20px;
+      margin-bottom: 10px;
+    }
+    .featured-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-primary);
+      letter-spacing: -0.4px;
+      margin-bottom: 8px;
+    }
+    .featured-desc {
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+    .featured-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 14px;
+    }
+    .featured-chip {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .featured-arrow {
+      font-size: 24px;
+      color: var(--text-muted);
+      transition: all 0.2s;
+      position: relative; z-index: 1;
+    }
+    .featured-card:hover .featured-arrow {
+      color: var(--cyan);
+      transform: translateX(4px);
+    }
+
+    /* ── Docs Grid ── */
+    .docs-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .doc-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .doc-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--card-accent, var(--cyan)), transparent);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .doc-card:hover {
+      border-color: var(--border-light);
+      transform: translateY(-3px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.35);
+    }
+    .doc-card:hover::before { opacity: 1; }
+
+    .doc-card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .doc-num-badge {
+      font-size: 11px;
+      font-weight: 700;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+    .doc-status-badge {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 3px 10px;
+      border-radius: 20px;
+    }
+    .status-not-started {
+      color: var(--text-muted);
+      background: rgba(100,116,139,0.1);
+      border: 1px solid rgba(100,116,139,0.2);
+    }
+    .status-in-progress {
+      color: var(--amber);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+    }
+    .status-done {
+      color: var(--emerald);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.2);
+    }
+
+    .doc-icon {
+      width: 44px; height: 44px;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+      margin-bottom: 14px;
+      flex-shrink: 0;
+    }
+
+    .doc-name {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 6px;
+      letter-spacing: -0.2px;
+      line-height: 1.3;
+    }
+    .doc-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      flex: 1;
+    }
+    .doc-footer {
+      margin-top: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .doc-file {
+      font-size: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+    .doc-arrow {
+      font-size: 14px;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .doc-card:hover .doc-arrow {
+      color: var(--cyan);
+      transform: translateX(3px);
+    }
+
+    /* ── Tech Stack Mini-section ── */
+    .tech-strip {
+      margin: 48px 0;
+      padding: 28px 36px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+    .tech-strip-title {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+    .tech-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .tech-pill {
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .tech-pill.fe  { color: var(--cyan);    border-color: rgba(6,182,212,0.3);   background: rgba(6,182,212,0.06); }
+    .tech-pill.be  { color: var(--violet);  border-color: rgba(139,92,246,0.3);  background: rgba(139,92,246,0.06); }
+    .tech-pill.ai  { color: var(--amber);   border-color: rgba(245,158,11,0.3);  background: rgba(245,158,11,0.06); }
+    .tech-pill.db  { color: var(--sky);     border-color: rgba(56,189,248,0.3);  background: rgba(56,189,248,0.06); }
+    .tech-pill.inf { color: var(--emerald); border-color: rgba(16,185,129,0.3);  background: rgba(16,185,129,0.06); }
+
+    /* ── Info cards at bottom ── */
+    .info-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: 48px;
+    }
+    .info-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .info-card-icon { font-size: 24px; margin-bottom: 12px; }
+    .info-card-title { font-size: 14px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px; }
+    .info-card-body  { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      background: var(--bg-surface);
+      padding: 28px 48px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .footer-owl {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .footer-name {
+      font-size: 14px;
+      font-weight: 700;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .footer-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .footer-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .footer-tag {
+      font-size: 11px;
+      color: var(--text-muted);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 3px 10px;
+      border-radius: 6px;
+    }
+
+    /* scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+  </style>
+</head>
+<body>
+
+  <!-- ── Top Bar ── -->
+  <header class="topbar">
+    <a href="INDEX.html" class="topbar-brand">
+      <div class="topbar-owl">&#x1F989;</div>
+      <span class="topbar-wordmark">OpsOwl AI</span>
+    </a>
+    <div class="topbar-right">
+      <span class="topbar-meta">Internal Engineering Docs · May 2026</span>
+      <div class="topbar-status"><span class="dot"></span> MVP Active</div>
+    </div>
+  </header>
+
+  <!-- ── Hero ── -->
+  <section class="hero">
+    <div class="hero-glow-1"></div>
+    <div class="hero-glow-2"></div>
+    <div class="hero-content">
+
+      <div class="hero-eyebrow">
+        &#x1F4DA; Engineering Documentation Hub
+      </div>
+
+      <div class="hero-logo">
+        <div class="hero-logo-icon">&#x1F989;</div>
+        <div class="hero-logo-text">
+          <div class="hero-logo-name">OpsOwl AI</div>
+          <div class="hero-logo-sub">Investigation &amp; Operations Workspace</div>
+        </div>
+      </div>
+
+      <p class="hero-tagline">
+        <strong>AI-powered investigation workspace for enterprise teams.</strong><br/>
+        Built for fintech, NBFCs, lending ops, and compliance consultancies who need structured investigations with audit-grade traceability and AI assistance.
+      </p>
+
+      <div class="hero-pills">
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--cyan)"></span>Next.js 16 + Go 1.26</span>
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--violet)"></span>Python 3.14 AI Service</span>
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--sky)"></span>PostgreSQL 18.4 + pgvector</span>
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--emerald)"></span>Docker Compose MVP</span>
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--amber)"></span>Schema-per-Tenant</span>
+        <span class="hero-pill"><span class="pill-dot" style="background:var(--rose)"></span>Event Sourced Audit</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Stats Bar ── -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <div class="stat-value">6</div>
+      <div class="stat-label">Architecture Layers</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">14</div>
+      <div class="stat-label">System Modules</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">12</div>
+      <div class="stat-label">MVP Features</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">13</div>
+      <div class="stat-label">Doc Files</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-value">RS256</div>
+      <div class="stat-label">JWT Auth</div>
+    </div>
+  </div>
+
+  <!-- ── Main Content ── -->
+  <main class="main-content">
+
+    <!-- Featured: HLD -->
+    <div class="section-label">Start Here</div>
+    <div class="section-heading">System Architecture</div>
+    <p class="section-sub">The high-level design document is the authoritative reference for the full system — architecture, modules, data flows, and design decisions.</p>
+
+    <a href="00_HLD.html" class="featured-card">
+      <div class="featured-icon">&#x1F5FA;</div>
+      <div class="featured-body">
+        <div class="featured-tag">&#x2B50; Foundation Document</div>
+        <div class="featured-title">High-Level Design (HLD)</div>
+        <div class="featured-desc">
+          Comprehensive system architecture document covering all 6 layers, 14 modules, data flow, security architecture, AI pipeline, API standards, performance targets, and deployment strategy. Read this before any feature doc.
+        </div>
+        <div class="featured-chips">
+          <span class="featured-chip">6-Layer Architecture</span>
+          <span class="featured-chip">14 Modules</span>
+          <span class="featured-chip">Security Model</span>
+          <span class="featured-chip">AI Architecture</span>
+          <span class="featured-chip">DB Schema Strategy</span>
+          <span class="featured-chip">API Standards</span>
+          <span class="featured-chip">Phase 2 Roadmap</span>
+        </div>
+      </div>
+      <div class="featured-arrow">&#8594;</div>
+    </a>
+
+    <!-- Feature Docs -->
+    <div class="section-label">Feature Documentation</div>
+    <div class="section-heading">12 MVP Features</div>
+    <p class="section-sub">Each document covers the detailed design, API contracts, data model, and implementation notes for one MVP feature. All files follow the same structure for consistency.</p>
+
+    <div class="docs-grid">
+
+      <!-- F01: Auth & RBAC -->
+      <a href="01_AUTH_RBAC.html" class="doc-card" style="--card-accent: var(--rose)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-01</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(244,63,94,0.1);">&#x1F512;</div>
+        <div class="doc-name">Authentication &amp; RBAC</div>
+        <div class="doc-desc">JWT RS256 auth flow, refresh token rotation, bcrypt password hashing, RBAC middleware model, and role permission matrix for all five roles.</div>
+        <div class="doc-footer">
+          <span class="doc-file">01_AUTH_RBAC.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F02: Case Management -->
+      <a href="02_CASE_MANAGEMENT.html" class="doc-card" style="--card-accent: var(--cyan)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-02</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(6,182,212,0.1);">&#x1F4C2;</div>
+        <div class="doc-name">Case Management</div>
+        <div class="doc-desc">Case lifecycle (OPEN → UNDER_REVIEW → PENDING_INFO → CLOSED), assignee management, tags, priority, status machine, and case summary AI generation.</div>
+        <div class="doc-footer">
+          <span class="doc-file">02_CASE_MANAGEMENT.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F03: Timeline Workspace -->
+      <a href="03_TIMELINE_WORKSPACE.html" class="doc-card" style="--card-accent: var(--violet)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-03</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(139,92,246,0.1);">&#x23F3;</div>
+        <div class="doc-name">Timeline Workspace</div>
+        <div class="doc-desc">Ordered, immutable case timeline with thread-based evidence, event types, AI-generated summaries, and real-time SSE updates.</div>
+        <div class="doc-footer">
+          <span class="doc-file">03_TIMELINE_WORKSPACE.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F04: AI Copilot -->
+      <a href="04_AI_COPILOT.html" class="doc-card" style="--card-accent: var(--amber)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-04</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(245,158,11,0.1);">&#x1F9E0;</div>
+        <div class="doc-name">AI Copilot</div>
+        <div class="doc-desc">LLM router, RAG pipeline, PII masking, streaming SSE responses, prompt registry, guardrails, and AI Action Ledger. Anthropic Claude primary, OpenAI fallback.</div>
+        <div class="doc-footer">
+          <span class="doc-file">04_AI_COPILOT.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F05: Document Intelligence -->
+      <a href="05_DOCUMENT_INTELLIGENCE.html" class="doc-card" style="--card-accent: var(--sky)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-05</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(56,189,248,0.1);">&#x1F4C4;</div>
+        <div class="doc-name">Document Upload &amp; Intelligence</div>
+        <div class="doc-desc">PDF/image upload to MinIO/S3, River background processing, OCR, chunking, pgvector embedding, and document Q&amp;A via RAG pipeline.</div>
+        <div class="doc-footer">
+          <span class="doc-file">05_DOCUMENT_INTELLIGENCE.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F06: Notes & Collaboration -->
+      <a href="06_NOTES_COLLABORATION.html" class="doc-card" style="--card-accent: var(--emerald)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-06</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(16,185,129,0.1);">&#x1F4DD;</div>
+        <div class="doc-name">Notes &amp; Collaboration</div>
+        <div class="doc-desc">Tiptap rich-text notes per case, @mention triggers, threaded comments, note versioning, edit locking, and collaborative annotation.</div>
+        <div class="doc-footer">
+          <span class="doc-file">06_NOTES_COLLABORATION.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F07: Task Management -->
+      <a href="07_TASK_MANAGEMENT.html" class="doc-card" style="--card-accent: var(--violet)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-07</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(139,92,246,0.1);">&#x2705;</div>
+        <div class="doc-name">Task Management</div>
+        <div class="doc-desc">Create and assign tasks per case, due dates, sub-tasks (self-referential), status workflow, optimistic UI updates, and task-to-evidence linking.</div>
+        <div class="doc-footer">
+          <span class="doc-file">07_TASK_MANAGEMENT.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F08: Dashboard -->
+      <a href="08_DASHBOARD.html" class="doc-card" style="--card-accent: var(--cyan)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-08</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(6,182,212,0.1);">&#x1F4CA;</div>
+        <div class="doc-name">Dashboard</div>
+        <div class="doc-desc">Case velocity, SLA status, analyst productivity, team workload, open/closed trends, and AI usage analytics. PostgreSQL aggregation with materialized views.</div>
+        <div class="doc-footer">
+          <span class="doc-file">08_DASHBOARD.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F09: Notifications -->
+      <a href="09_NOTIFICATIONS.html" class="doc-card" style="--card-accent: var(--rose)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-09</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(244,63,94,0.1);">&#x1F514;</div>
+        <div class="doc-name">Notifications</div>
+        <div class="doc-desc">In-app SSE notifications, email digests via Resend, @mention alerts, SLA breach alerts, River background jobs for email dispatch, and read/unread state management.</div>
+        <div class="doc-footer">
+          <span class="doc-file">09_NOTIFICATIONS.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F10: Audit Logging -->
+      <a href="10_AUDIT_LOGGING.html" class="doc-card" style="--card-accent: var(--amber)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-10</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(245,158,11,0.1);">&#x1F4DC;</div>
+        <div class="doc-name">Audit Logging</div>
+        <div class="doc-desc">Immutable, append-only event log for every state change. Tamper-evident design via DB-level INSERT-only permissions. Audit log export for regulators and compliance teams.</div>
+        <div class="doc-footer">
+          <span class="doc-file">10_AUDIT_LOGGING.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F11: Search -->
+      <a href="11_SEARCH.html" class="doc-card" style="--card-accent: var(--sky)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-11</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(56,189,248,0.1);">&#x1F50D;</div>
+        <div class="doc-name">Search</div>
+        <div class="doc-desc">Unified full-text search (PostgreSQL tsvector + GIN index) and semantic search (pgvector cosine similarity) across cases, notes, timeline events, and documents.</div>
+        <div class="doc-footer">
+          <span class="doc-file">11_SEARCH.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+      <!-- F12: AI Logging -->
+      <a href="12_AI_LOGGING.html" class="doc-card" style="--card-accent: var(--emerald)">
+        <div class="doc-card-top">
+          <span class="doc-num-badge">F-12</span>
+          <span class="doc-status-badge status-not-started">Not Started</span>
+        </div>
+        <div class="doc-icon" style="background:rgba(16,185,129,0.1);">&#x1F50E;</div>
+        <div class="doc-name">AI Logging &amp; Explainability</div>
+        <div class="doc-desc">Every AI inference logged in the AI Action Ledger: masked input, model, tokens, latency, PII count, and human review flags. Full explainability trail for compliance.</div>
+        <div class="doc-footer">
+          <span class="doc-file">12_AI_LOGGING.html</span>
+          <span class="doc-arrow">&#8594;</span>
+        </div>
+      </a>
+
+    </div><!-- /docs-grid -->
+
+    <!-- Tech Stack Strip -->
+    <div class="tech-strip">
+      <div class="tech-strip-title">Full Technology Stack</div>
+      <div class="tech-pills">
+        <span class="tech-pill fe">Next.js 16</span>
+        <span class="tech-pill fe">TypeScript strict</span>
+        <span class="tech-pill fe">Tailwind CSS v4</span>
+        <span class="tech-pill fe">shadcn/ui</span>
+        <span class="tech-pill fe">TanStack Query v5</span>
+        <span class="tech-pill fe">Zustand</span>
+        <span class="tech-pill fe">Tiptap</span>
+        <span class="tech-pill fe">SSE</span>
+        <span class="tech-pill be">Go 1.26</span>
+        <span class="tech-pill be">Chi Router</span>
+        <span class="tech-pill be">sqlc</span>
+        <span class="tech-pill be">River (job queue)</span>
+        <span class="tech-pill be">golang-jwt RS256</span>
+        <span class="tech-pill be">Zap</span>
+        <span class="tech-pill be">OpenTelemetry</span>
+        <span class="tech-pill ai">Python 3.14</span>
+        <span class="tech-pill ai">FastAPI</span>
+        <span class="tech-pill ai">LangChain</span>
+        <span class="tech-pill ai">Anthropic SDK</span>
+        <span class="tech-pill ai">OpenAI SDK</span>
+        <span class="tech-pill db">PostgreSQL 18.4</span>
+        <span class="tech-pill db">pgvector</span>
+        <span class="tech-pill db">MinIO / S3</span>
+        <span class="tech-pill db">Resend</span>
+        <span class="tech-pill inf">Docker Compose</span>
+        <span class="tech-pill inf">bcrypt cost 12</span>
+      </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="info-row">
+      <div class="info-card">
+        <div class="info-card-icon">&#x1F3D7;</div>
+        <div class="info-card-title">Architecture Philosophy</div>
+        <div class="info-card-body">Go modular monolith with strict module boundaries. Each module owns its schema queries and service interface. No cross-module DB joins. Phase 2 extraction requires a rename, not a rewrite.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">&#x1F6E1;</div>
+        <div class="info-card-title">Security-First Design</div>
+        <div class="info-card-body">Schema-per-tenant isolation from day one. PII masked before every LLM call. Audit log is INSERT-only at DB permission level. RBAC enforced in middleware, never in handlers. JWT RS256 with 1hr access + refresh rotation.</div>
+      </div>
+      <div class="info-card">
+        <div class="info-card-icon">&#x1F9E0;</div>
+        <div class="info-card-title">AI Governance</div>
+        <div class="info-card-body">Provider-agnostic LLM router — swap Anthropic for OpenAI without code changes. Every AI inference in the Action Ledger. Human review gates on low-confidence outputs. Prompt registry versioned with human approval gates.</div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- ── Footer ── -->
+  <footer>
+    <div class="footer-brand">
+      <div class="footer-owl">&#x1F989;</div>
+      <span class="footer-name">OpsOwl AI</span>
+    </div>
+    <span class="footer-meta">Internal Engineering Documentation &mdash; May 2026 &mdash; Confidential</span>
+    <div class="footer-tags">
+      <span class="footer-tag">MVP Active</span>
+      <span class="footer-tag">v1.0</span>
+      <span class="footer-tag">12 Features</span>
+      <span class="footer-tag">14 Modules</span>
+    </div>
+  </footer>
+
+</body>
+</html>

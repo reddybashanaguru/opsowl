@@ -1,0 +1,114 @@
+name: opsowl
+
+services:
+  # ── Database ────────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: opsowl-postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: opsowl
+      POSTGRES_USER: opsowl
+      POSTGRES_PASSWORD: opsowldev
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opsowl -d opsowl"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Object Storage ───────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: opsowl-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Console UI
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Go API ───────────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    container_name: opsowl-api
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgres://opsowl:opsowldev@postgres:5432/opsowl?sslmode=disable
+      PORT: "8080"
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: minioadmin
+      STORAGE_SECRET_KEY: minioadmin123
+      STORAGE_BUCKET: opsowl
+      STORAGE_USE_SSL: "false"
+      AI_SERVICE_URL: http://ai-service:8000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Python AI Service ────────────────────────────────────────────────────────
+  ai-service:
+    build:
+      context: ../../apps/ai-service
+      dockerfile: Dockerfile
+    container_name: opsowl-ai
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      ENVIRONMENT: development
+      DATABASE_URL: postgres://opsowl:opsowldev@postgres:5432/opsowl
+      GO_API_URL: http://api:8080
+    env_file:
+      - ../../apps/ai-service/.env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+
+  # ── Next.js Frontend ─────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    container_name: opsowl-web
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  minio_data:

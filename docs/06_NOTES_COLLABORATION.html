@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>06 — Notes &amp; Collaboration | OpsOwl AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0f172a;
+      --surface:      #1e293b;
+      --surface-2:    #263148;
+      --surface-3:    #2d3a52;
+      --border:       #334155;
+      --border-2:     #475569;
+      --text:         #e2e8f0;
+      --text-muted:   #94a3b8;
+      --text-dim:     #64748b;
+      --cyan:         #22d3ee;
+      --cyan-dim:     #0e7490;
+      --violet:       #a78bfa;
+      --violet-dim:   #5b21b6;
+      --emerald:      #34d399;
+      --emerald-dim:  #065f46;
+      --amber:        #fbbf24;
+      --amber-dim:    #78350f;
+      --rose:         #fb7185;
+      --rose-dim:     #881337;
+      --sky:          #38bdf8;
+      --indigo:       #818cf8;
+      --pink:         #f472b6;
+      --font-mono:    'JetBrains Mono', 'Fira Code', monospace;
+      --font-sans:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --radius:       8px;
+      --radius-lg:    12px;
+      --radius-xl:    16px;
+      --shadow:       0 4px 24px rgba(0,0,0,0.4);
+      --shadow-sm:    0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 264px;
+      min-width: 264px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      padding: 0 20px 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 14px;
+      transition: color 0.15s;
+    }
+    .back-link:hover { color: var(--cyan); }
+    .back-link svg { width: 13px; height: 13px; }
+    .product-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .product-name span { color: var(--cyan); }
+    .doc-subtitle {
+      font-size: 10.5px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav { padding: 0 12px; flex: 1; }
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 10px 8px 4px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      margin-bottom: 1px;
+    }
+    .nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .nav-item.active { background: rgba(34,211,238,0.1); color: var(--cyan); }
+    .nav-item .nav-num {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      min-width: 20px;
+    }
+    .nav-item.active .nav-num { color: var(--cyan-dim); }
+
+    /* ── Main ── */
+    .main { flex: 1; min-width: 0; padding: 48px 56px; max-width: 980px; }
+
+    /* ── Page Header ── */
+    .page-header {
+      margin-bottom: 52px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,211,238,0.1);
+      border: 1px solid rgba(34,211,238,0.25);
+      color: var(--cyan);
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+    .page-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--cyan);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+    h1 .accent { color: var(--cyan); }
+    h1 .accent-v { color: var(--violet); }
+
+    .page-subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 660px;
+      line-height: 1.65;
+      margin-bottom: 20px;
+    }
+    .page-meta {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .meta-item strong { color: var(--text-muted); font-weight: 600; }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 60px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--cyan);
+      background: rgba(34,211,238,0.08);
+      border: 1px solid rgba(34,211,238,0.2);
+      padding: 3px 8px;
+      border-radius: var(--radius);
+      margin-top: 5px;
+      white-space: nowrap;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 10px;
+      margin-top: 24px;
+    }
+    h3:first-child { margin-top: 0; }
+
+    p { color: var(--text-muted); margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card-sm {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+    .card-sm h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .card-sm p { font-size: 12.5px; margin: 0; }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 2px 9px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.03em;
+    }
+    .badge-cyan   { background: rgba(34,211,238,0.12);  color: var(--cyan);    border: 1px solid rgba(34,211,238,0.25);  }
+    .badge-violet { background: rgba(167,139,250,0.12); color: var(--violet);  border: 1px solid rgba(167,139,250,0.25); }
+    .badge-emerald{ background: rgba(52,211,153,0.12);  color: var(--emerald); border: 1px solid rgba(52,211,153,0.25);  }
+    .badge-amber  { background: rgba(251,191,36,0.12);  color: var(--amber);   border: 1px solid rgba(251,191,36,0.25);  }
+    .badge-rose   { background: rgba(251,113,133,0.12); color: var(--rose);    border: 1px solid rgba(251,113,133,0.25); }
+    .badge-sky    { background: rgba(56,189,248,0.12);  color: var(--sky);     border: 1px solid rgba(56,189,248,0.25);  }
+    .badge-indigo { background: rgba(129,140,248,0.12); color: var(--indigo);  border: 1px solid rgba(129,140,248,0.25); }
+    .badge-pink   { background: rgba(244,114,182,0.12); color: var(--pink);    border: 1px solid rgba(244,114,182,0.25); }
+
+    /* ── Code blocks ── */
+    pre {
+      background: #0a1020;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.65;
+      margin-bottom: 16px;
+    }
+    code { font-family: var(--font-mono); }
+    .inline-code {
+      background: rgba(34,211,238,0.08);
+      border: 1px solid rgba(34,211,238,0.15);
+      color: var(--cyan);
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    /* SQL syntax coloring */
+    .kw  { color: #93c5fd; } /* blue - keywords */
+    .ty  { color: #34d399; } /* emerald - types */
+    .st  { color: #fbbf24; } /* amber - strings */
+    .cm  { color: #64748b; } /* dim - comments */
+    .fn  { color: #a78bfa; } /* violet - functions */
+    .cn  { color: #fb7185; } /* rose - constraint names */
+    .go-kw  { color: #93c5fd; }
+    .go-ty  { color: #34d399; }
+    .go-str { color: #fbbf24; }
+    .go-cm  { color: #64748b; font-style: italic; }
+    .go-fn  { color: #a78bfa; }
+    .go-pkg { color: #22d3ee; }
+    .ts-kw  { color: #93c5fd; }
+    .ts-ty  { color: #34d399; }
+    .ts-str { color: #fbbf24; }
+    .ts-cm  { color: #64748b; font-style: italic; }
+    .ts-fn  { color: #a78bfa; }
+
+    /* ── Note Type Cards ── */
+    .note-type-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .note-type-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: border-color 0.2s, transform 0.15s;
+    }
+    .note-type-card:hover { border-color: var(--border-2); transform: translateY(-1px); }
+    .note-type-icon {
+      width: 40px; height: 40px;
+      border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .nt-case    .note-type-icon { background: rgba(34,211,238,0.1); }
+    .nt-timeline .note-type-icon { background: rgba(167,139,250,0.1); }
+    .nt-formal  .note-type-icon { background: rgba(52,211,153,0.1); }
+    .nt-ai      .note-type-icon { background: rgba(244,114,182,0.1); }
+    .note-type-card h4 { font-size: 13.5px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+    .note-type-card p  { font-size: 12.5px; margin: 0; }
+
+    /* ── API Endpoint Table ── */
+    .endpoint-list { display: flex; flex-direction: column; gap: 12px; }
+    .endpoint-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .method {
+      font-family: var(--font-mono);
+      font-size: 11.5px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 5px;
+      letter-spacing: 0.05em;
+    }
+    .method-get    { background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.3); }
+    .method-post   { background: rgba(34,211,238,0.15); color: var(--cyan);    border: 1px solid rgba(34,211,238,0.3); }
+    .method-put    { background: rgba(251,191,36,0.15); color: var(--amber);   border: 1px solid rgba(251,191,36,0.3); }
+    .method-delete { background: rgba(251,113,133,0.15); color: var(--rose);   border: 1px solid rgba(251,113,133,0.3); }
+    .endpoint-path {
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      color: var(--text);
+      font-weight: 500;
+      flex: 1;
+    }
+    .endpoint-body { padding: 16px 20px; }
+    .endpoint-desc { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
+    .param-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .param-table th {
+      text-align: left;
+      padding: 5px 10px;
+      font-size: 10.5px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      border-bottom: 1px solid var(--border);
+    }
+    .param-table td {
+      padding: 7px 10px;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      vertical-align: top;
+    }
+    .param-table tr:last-child td { border-bottom: none; }
+    .param-table td:first-child { font-family: var(--font-mono); color: var(--cyan); font-size: 12px; }
+    .param-table td:nth-child(2) { color: var(--violet); font-family: var(--font-mono); font-size: 11.5px; }
+    .param-table td:nth-child(3) { color: var(--text-muted); }
+    .optional { color: var(--text-dim) !important; font-size: 10px !important; font-style: italic; }
+
+    /* ── Activity Feed Demo ── */
+    .activity-feed {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .feed-header {
+      padding: 14px 20px;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .feed-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid rgba(51,65,85,0.5);
+      transition: background 0.15s;
+    }
+    .feed-item:last-child { border-bottom: none; }
+    .feed-item:hover { background: rgba(38,49,72,0.6); }
+    .avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .av-cyan   { background: rgba(34,211,238,0.15); color: var(--cyan); }
+    .av-violet { background: rgba(167,139,250,0.15); color: var(--violet); }
+    .av-emerald{ background: rgba(52,211,153,0.15); color: var(--emerald); }
+    .av-amber  { background: rgba(251,191,36,0.15); color: var(--amber); }
+    .feed-content { flex: 1; min-width: 0; }
+    .feed-action {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .feed-action strong { font-weight: 600; }
+    .feed-action .action-verb { color: var(--text-muted); font-weight: 400; }
+    .feed-excerpt {
+      font-size: 12px;
+      color: var(--text-dim);
+      background: var(--surface-3);
+      border-left: 2px solid var(--border-2);
+      padding: 4px 10px;
+      border-radius: 0 4px 4px 0;
+      margin-top: 5px;
+      font-style: italic;
+    }
+    .feed-time { font-size: 11px; color: var(--text-dim); white-space: nowrap; }
+
+    /* ── Tiptap Extensions Grid ── */
+    .ext-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(165px, 1fr));
+      gap: 8px;
+    }
+    .ext-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 9px 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text);
+      transition: border-color 0.15s;
+    }
+    .ext-pill:hover { border-color: var(--border-2); }
+    .ext-pill .ext-icon { font-size: 14px; }
+    .ext-pill code { font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); }
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      flex-wrap: wrap;
+      margin: 16px 0;
+    }
+    .flow-step {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 14px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: var(--text);
+      white-space: nowrap;
+    }
+    .flow-arrow {
+      color: var(--cyan-dim);
+      font-size: 16px;
+      padding: 0 6px;
+    }
+
+    /* ── Module structure ── */
+    .module-tree {
+      background: #0a1020;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 2;
+    }
+    .tree-dir  { color: var(--cyan); }
+    .tree-file { color: var(--text-muted); }
+    .tree-desc { color: var(--text-dim); font-style: italic; }
+
+    /* ── SSE event block ── */
+    .sse-block {
+      background: #0a1020;
+      border: 1px solid rgba(34,211,238,0.2);
+      border-left: 3px solid var(--cyan);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.8;
+    }
+    .sse-key   { color: #93c5fd; }
+    .sse-val   { color: #fbbf24; }
+    .sse-str   { color: #34d399; }
+    .sse-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-dim); margin-bottom: 8px; font-family: var(--font-sans); }
+
+    /* ── Test strategy list ── */
+    .test-list { display: flex; flex-direction: column; gap: 8px; }
+    .test-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-size: 13px;
+    }
+    .test-item .test-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .test-item .test-text { color: var(--text-muted); }
+    .test-item .test-text strong { color: var(--text); font-weight: 600; }
+
+    /* ── Component grid ── */
+    .comp-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 12px;
+    }
+    .comp-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      transition: border-color 0.15s;
+    }
+    .comp-card:hover { border-color: var(--border-2); }
+    .comp-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .comp-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .comp-card ul li {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 3px 0;
+      padding-left: 14px;
+      position: relative;
+    }
+    .comp-card ul li::before {
+      content: '–';
+      position: absolute;
+      left: 0;
+      color: var(--text-dim);
+    }
+
+    /* ── Info callout ── */
+    .callout {
+      display: flex;
+      gap: 14px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      margin-bottom: 16px;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; }
+    .callout-body { flex: 1; }
+    .callout-body p { font-size: 13px; }
+    .callout-body strong { color: var(--text); }
+    .callout-cyan   { border-left: 3px solid var(--cyan); }
+    .callout-violet { border-left: 3px solid var(--violet); }
+    .callout-amber  { border-left: 3px solid var(--amber); }
+    .callout-emerald{ border-left: 3px solid var(--emerald); }
+
+    /* ── Index table row accent ── */
+    .index-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+
+    /* ── Divider ── */
+    .divider { border: none; border-top: 1px solid var(--border); margin: 0 0 24px; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { padding: 32px 24px; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- ══════════════════════════════════════════════
+       SIDEBAR
+  ══════════════════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="INDEX.html" class="back-link">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M10 12L6 8l4-4"/>
+        </svg>
+        All Docs
+      </a>
+      <div class="product-name">Ops<span>Owl</span> AI</div>
+      <div class="doc-subtitle">06 · Notes &amp; Collaboration</div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">Sections</div>
+      <a href="#overview"       class="nav-item active"><span class="nav-num">01</span> Feature Overview</a>
+      <a href="#note-types"     class="nav-item"><span class="nav-num">02</span> Note Types</a>
+      <a href="#schema"         class="nav-item"><span class="nav-num">03</span> Database Schema</a>
+      <a href="#tiptap"         class="nav-item"><span class="nav-num">04</span> Rich Text Editor</a>
+      <a href="#mentions"       class="nav-item"><span class="nav-num">05</span> @Mentions System</a>
+      <a href="#activity"       class="nav-item"><span class="nav-num">06</span> Activity Feed</a>
+      <a href="#api"            class="nav-item"><span class="nav-num">07</span> API Endpoints</a>
+      <a href="#sse"            class="nav-item"><span class="nav-num">08</span> Real-time via SSE</a>
+      <a href="#ai"             class="nav-item"><span class="nav-num">09</span> AI Integration</a>
+      <a href="#modules"        class="nav-item"><span class="nav-num">10</span> Go Module Structure</a>
+      <a href="#components"     class="nav-item"><span class="nav-num">11</span> Frontend Components</a>
+      <a href="#export"         class="nav-item"><span class="nav-num">12</span> Export</a>
+      <a href="#testing"        class="nav-item"><span class="nav-num">13</span> Test Strategy</a>
+
+      <div class="nav-group-label" style="margin-top:16px;">Other Docs</div>
+      <a href="00_HLD.html"               class="nav-item"><span class="nav-num">00</span> High-Level Design</a>
+      <a href="01_AUTH_RBAC.html"         class="nav-item"><span class="nav-num">01</span> Auth &amp; RBAC</a>
+      <a href="02_CASE_MANAGEMENT.html"   class="nav-item"><span class="nav-num">02</span> Case Management</a>
+      <a href="03_TIMELINE_WORKSPACE.html" class="nav-item"><span class="nav-num">03</span> Timeline Workspace</a>
+      <a href="05_DOCUMENT_INTELLIGENCE.html" class="nav-item"><span class="nav-num">05</span> Document Intelligence</a>
+      <a href="07_TASK_MANAGEMENT.html"   class="nav-item"><span class="nav-num">07</span> Task Management</a>
+      <a href="09_NOTIFICATIONS.html"     class="nav-item"><span class="nav-num">09</span> Notifications</a>
+      <a href="11_SEARCH.html"            class="nav-item"><span class="nav-num">11</span> Search</a>
+    </nav>
+  </aside>
+
+  <!-- ══════════════════════════════════════════════
+       MAIN CONTENT
+  ══════════════════════════════════════════════ -->
+  <main class="main">
+
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-badge"><span class="dot"></span> Feature Spec · MVP</div>
+      <h1>Notes &amp; <span class="accent-v">Collaboration</span></h1>
+      <p class="page-subtitle">
+        Investigators write structured case notes, comment on timeline events, mention colleagues, and build shared understanding — all in real time. Notes are the human narrative layer on top of AI analysis and ingested documents.
+      </p>
+      <div class="page-meta">
+        <div class="meta-item">📄 <strong>Document:</strong> 06_NOTES_COLLABORATION</div>
+        <div class="meta-item">🏷️ <strong>Module:</strong> notes · collaboration</div>
+        <div class="meta-item">🔧 <strong>Editor:</strong> Tiptap v3</div>
+        <div class="meta-item">⚡ <strong>RT Push:</strong> SSE</div>
+        <div class="meta-item">📅 <strong>Version:</strong> 1.0.0</div>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────
+         01  FEATURE OVERVIEW
+    ───────────────────────────────────────────── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <span class="section-num">01</span>
+        <h2>Feature Overview</h2>
+      </div>
+
+      <p>
+        Every investigation generates raw evidence — transactions, documents, timeline events, AI summaries — but investigations are ultimately resolved by human judgment. Notes &amp; Collaboration is the layer where that judgment is captured, refined, and shared.
+      </p>
+      <p>
+        An investigator can annotate any case with a rich-text note, pin key findings, thread comments directly onto specific timeline events, and loop in colleagues with an @mention that triggers an instant notification. When a teammate posts a new note while you are viewing the case, your feed updates in real time via SSE — no page refresh, no missed context.
+      </p>
+
+      <div class="card-grid" style="margin-top:20px;">
+        <div class="card-sm">
+          <h4>📝 Structured Notes</h4>
+          <p>Rich text with headings, tables, code blocks, and bullet lists. Stored as HTML; plain text indexed for search.</p>
+        </div>
+        <div class="card-sm">
+          <h4>💬 Threaded Comments</h4>
+          <p>Comments attach to timeline events or notes. Nested replies (one level deep for MVP) keep discussions focused.</p>
+        </div>
+        <div class="card-sm">
+          <h4>@ Mentions</h4>
+          <p>Type @ inside any editor to surface active case members. Saved mentions trigger River notification jobs.</p>
+        </div>
+        <div class="card-sm">
+          <h4>⚡ Real-time Feed</h4>
+          <p>Combined activity feed per case, pushed via SSE. TanStack Query invalidation keeps UI fresh without polling.</p>
+        </div>
+        <div class="card-sm">
+          <h4>🤖 AI-Assisted Notes</h4>
+          <p>AI Copilot pre-fills note content. Human review required before save; badge tracks provenance.</p>
+        </div>
+        <div class="card-sm">
+          <h4>📤 Formal Export</h4>
+          <p>Formal notes compile into a single PDF report per case. Internal notes never leave the platform.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         02  NOTE TYPES
+    ───────────────────────────────────────────── -->
+    <section class="section" id="note-types">
+      <div class="section-header">
+        <span class="section-num">02</span>
+        <h2>Note Types</h2>
+      </div>
+
+      <p>Four distinct note types govern visibility, export eligibility, and authorship trust.</p>
+
+      <div class="note-type-grid">
+        <div class="note-type-card nt-case">
+          <div class="note-type-icon">📋</div>
+          <h4>Case Note</h4>
+          <span class="badge badge-cyan">internal / formal</span>
+          <p style="margin-top:10px;">Rich-text note attached to the case root. Can be designated internal (team only) or formal (exportable). Supports pinning to the top of the note list. Primary artifact for investigator findings.</p>
+        </div>
+
+        <div class="note-type-card nt-timeline">
+          <div class="note-type-icon">🗂️</div>
+          <h4>Timeline Comment</h4>
+          <span class="badge badge-violet">event-attached</span>
+          <p style="margin-top:10px;">Comment linked to a specific <code>timeline_event_id</code>. Renders inline in the timeline workspace beneath its parent event. Useful for annotating a single suspicious transaction or document finding.</p>
+        </div>
+
+        <div class="note-type-card nt-formal">
+          <div class="note-type-icon">📄</div>
+          <h4>Formal Note</h4>
+          <span class="badge badge-emerald">exportable</span>
+          <p style="margin-top:10px;">A case note with <code>note_type = 'formal'</code>. Written with external audience in mind — regulators, compliance officers, auditors. Included in the case PDF report. Requires deliberate classification by author.</p>
+        </div>
+
+        <div class="note-type-card nt-ai">
+          <div class="note-type-icon">✨</div>
+          <h4>AI-Generated Note</h4>
+          <span class="badge badge-pink">AI badge</span>
+          <p style="margin-top:10px;">Created by AI Copilot and pre-filled. Shows a prominent <strong>"AI Generated"</strong> badge (purple). Must be reviewed and edited by a human before saving. Once saved after edits, badge downgrades to <strong>"AI Assisted"</strong>.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-amber" style="margin-top:16px;">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <p><strong>MVP Scope:</strong> <code>note_type</code> enum covers <code>'internal'</code> and <code>'formal'</code>. AI provenance is tracked via a separate boolean column (<code>ai_generated</code>, <code>ai_assisted</code>) added in migration, not as a third enum value — keeping the export filter simple.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         03  DATABASE SCHEMA
+    ───────────────────────────────────────────── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <span class="section-num">03</span>
+        <h2>Database Schema</h2>
+      </div>
+
+      <p>All tables follow the platform conventions: UUID v4 primary keys, <code class="inline-code">TIMESTAMPTZ</code> timestamps, soft-delete via <code class="inline-code">deleted_at</code>, foreign key enforcement enabled.</p>
+
+      <h3>notes</h3>
+      <pre><span class="cm">-- ──────────────────────────────────────────────────
+-- notes: rich-text case notes authored by investigators
+-- ──────────────────────────────────────────────────</span>
+<span class="kw">CREATE TYPE</span> note_type_enum <span class="kw">AS ENUM</span> (<span class="st">'internal'</span>, <span class="st">'formal'</span>);
+
+<span class="kw">CREATE TABLE</span> notes (
+  id                <span class="ty">UUID</span>             <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  case_id           <span class="ty">UUID</span>             <span class="kw">NOT NULL REFERENCES</span> cases(id) <span class="kw">ON DELETE CASCADE</span>,
+  author_id         <span class="ty">UUID</span>             <span class="kw">NOT NULL REFERENCES</span> users(id),
+  title             <span class="ty">VARCHAR</span>(255)     <span class="kw">NOT NULL DEFAULT</span> <span class="st">''</span>,
+  content           <span class="ty">TEXT</span>             <span class="kw">NOT NULL DEFAULT</span> <span class="st">''</span>,   <span class="cm">-- Tiptap HTML output</span>
+  content_text      <span class="ty">TEXT</span>             <span class="kw">NOT NULL DEFAULT</span> <span class="st">''</span>,   <span class="cm">-- plain-text for search</span>
+  note_type         note_type_enum   <span class="kw">NOT NULL DEFAULT</span> <span class="st">'internal'</span>,
+  is_pinned         <span class="ty">BOOLEAN</span>          <span class="kw">NOT NULL DEFAULT FALSE</span>,
+  ai_generated      <span class="ty">BOOLEAN</span>          <span class="kw">NOT NULL DEFAULT FALSE</span>,
+  ai_assisted       <span class="ty">BOOLEAN</span>          <span class="kw">NOT NULL DEFAULT FALSE</span>,
+  created_at        <span class="ty">TIMESTAMPTZ</span>      <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  updated_at        <span class="ty">TIMESTAMPTZ</span>      <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  deleted_at        <span class="ty">TIMESTAMPTZ</span>
+);
+
+<span class="cm">-- Indexes</span>
+<span class="kw">CREATE INDEX</span> idx_notes_case_id   <span class="kw">ON</span> notes(case_id)   <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_notes_author_id <span class="kw">ON</span> notes(author_id) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_notes_created   <span class="kw">ON</span> notes(case_id, created_at <span class="kw">DESC</span>) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_notes_pinned    <span class="kw">ON</span> notes(case_id, is_pinned) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;</pre>
+
+      <h3>comments</h3>
+      <pre><span class="cm">-- ──────────────────────────────────────────────────
+-- comments: threaded comments on notes or timeline events
+-- ──────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> comments (
+  id                <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  case_id           <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> cases(id) <span class="kw">ON DELETE CASCADE</span>,
+  timeline_event_id <span class="ty">UUID</span>        <span class="kw">REFERENCES</span> timeline_events(id) <span class="kw">ON DELETE SET NULL</span>,
+  note_id           <span class="ty">UUID</span>        <span class="kw">REFERENCES</span> notes(id) <span class="kw">ON DELETE CASCADE</span>,
+  author_id         <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> users(id),
+  content           <span class="ty">TEXT</span>        <span class="kw">NOT NULL</span>,
+  parent_id         <span class="ty">UUID</span>        <span class="kw">REFERENCES</span> comments(id) <span class="kw">ON DELETE CASCADE</span>, <span class="cm">-- threaded replies</span>
+  created_at        <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  updated_at        <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  deleted_at        <span class="ty">TIMESTAMPTZ</span>,
+
+  <span class="cn">CONSTRAINT</span> chk_comment_target
+    <span class="kw">CHECK</span> (timeline_event_id <span class="kw">IS NOT NULL OR</span> note_id <span class="kw">IS NOT NULL</span>)
+);
+
+<span class="kw">CREATE INDEX</span> idx_comments_case_id           <span class="kw">ON</span> comments(case_id)           <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_comments_timeline_event_id <span class="kw">ON</span> comments(timeline_event_id) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_comments_note_id           <span class="kw">ON</span> comments(note_id)           <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_comments_parent_id         <span class="kw">ON</span> comments(parent_id)         <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_comments_created           <span class="kw">ON</span> comments(case_id, created_at <span class="kw">DESC</span>) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;</pre>
+
+      <h3>mentions</h3>
+      <pre><span class="cm">-- ──────────────────────────────────────────────────
+-- mentions: tracks @mention records for notification delivery
+-- ──────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> mentions (
+  id                  <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  comment_id          <span class="ty">UUID</span>        <span class="kw">REFERENCES</span> comments(id) <span class="kw">ON DELETE CASCADE</span>,
+  note_id             <span class="ty">UUID</span>        <span class="kw">REFERENCES</span> notes(id)    <span class="kw">ON DELETE CASCADE</span>,
+  mentioned_user_id   <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> users(id),
+  is_read             <span class="ty">BOOLEAN</span>     <span class="kw">NOT NULL DEFAULT FALSE</span>,
+  read_at             <span class="ty">TIMESTAMPTZ</span>,
+  created_at          <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>(),
+
+  <span class="cn">CONSTRAINT</span> chk_mention_source
+    <span class="kw">CHECK</span> (comment_id <span class="kw">IS NOT NULL OR</span> note_id <span class="kw">IS NOT NULL</span>)
+);
+
+<span class="kw">CREATE INDEX</span> idx_mentions_user      <span class="kw">ON</span> mentions(mentioned_user_id, is_read);
+<span class="kw">CREATE INDEX</span> idx_mentions_comment   <span class="kw">ON</span> mentions(comment_id);
+<span class="kw">CREATE INDEX</span> idx_mentions_note      <span class="kw">ON</span> mentions(note_id);
+<span class="kw">CREATE INDEX</span> idx_mentions_created   <span class="kw">ON</span> mentions(created_at <span class="kw">DESC</span>);</pre>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         04  RICH TEXT EDITOR (TIPTAP V3)
+    ───────────────────────────────────────────── -->
+    <section class="section" id="tiptap">
+      <div class="section-header">
+        <span class="section-num">04</span>
+        <h2>Rich Text Editor — Tiptap v3</h2>
+      </div>
+
+      <p>
+        Tiptap v3 is used as the rich text editing engine throughout Notes &amp; Collaboration. It provides a ProseMirror-based headless editor that integrates cleanly with React and produces deterministic HTML output stored in the <code class="inline-code">content</code> column.
+      </p>
+
+      <h3>Enabled Extensions</h3>
+      <div class="ext-grid" style="margin-bottom:20px;">
+        <div class="ext-pill"><span class="ext-icon">𝐁</span> Bold</div>
+        <div class="ext-pill"><span class="ext-icon">𝐼</span> Italic</div>
+        <div class="ext-pill"><span class="ext-icon">U̲</span> Underline</div>
+        <div class="ext-pill"><span class="ext-icon">H</span> Heading <code>H1–H3</code></div>
+        <div class="ext-pill"><span class="ext-icon">•</span> BulletList</div>
+        <div class="ext-pill"><span class="ext-icon">1.</span> OrderedList</div>
+        <div class="ext-pill"><span class="ext-icon">@</span> Mention</div>
+        <div class="ext-pill"><span class="ext-icon">&lt;&gt;</span> CodeBlock</div>
+        <div class="ext-pill"><span class="ext-icon">"</span> Blockquote</div>
+        <div class="ext-pill"><span class="ext-icon">⊞</span> Table</div>
+        <div class="ext-pill"><span class="ext-icon">─</span> HorizontalRule</div>
+        <div class="ext-pill"><span class="ext-icon">Σ</span> CharacterCount</div>
+      </div>
+
+      <h3>Mention Extension — Inline Autocomplete</h3>
+      <div class="flow" style="flex-wrap:wrap; gap:4px;">
+        <div class="flow-step">User types <code>@</code></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Tiptap fires <code>onQuery</code></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step"><code>GET /api/v1/cases/:id/members</code></div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Dropdown renders</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">User selects</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Mention node inserted</div>
+      </div>
+
+      <h3>Output Format</h3>
+      <p>Tiptap produces two representations on save:</p>
+      <div class="card-grid">
+        <div class="card-sm">
+          <h4>HTML — <code>content</code> column</h4>
+          <p>Full rich text as HTML string. Used to render the note in the UI via <code>dangerouslySetInnerHTML</code> (sanitized with DOMPurify before render).</p>
+        </div>
+        <div class="card-sm">
+          <h4>Plain Text — <code>content_text</code> column</h4>
+          <p>Stripped plain text extracted from Tiptap JSON before save. Used by the full-text search indexer. Avoids indexing raw HTML tags.</p>
+        </div>
+        <div class="card-sm">
+          <h4>JSON — transient</h4>
+          <p>Tiptap internal JSON document used server-side in <code>mention_parser.go</code> to extract mention nodes. Never persisted; derived from submitted HTML on the API handler.</p>
+        </div>
+      </div>
+
+      <h3>Editor Component Configuration</h3>
+      <pre><span class="ts-cm">// components/notes/NoteEditor.tsx</span>
+<span class="ts-kw">import</span> { useEditor, EditorContent } <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/react'</span>
+<span class="ts-kw">import</span> StarterKit <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/starter-kit'</span>
+<span class="ts-kw">import</span> Mention <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-mention'</span>
+<span class="ts-kw">import</span> Table <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-table'</span>
+<span class="ts-kw">import</span> TableRow <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-table-row'</span>
+<span class="ts-kw">import</span> TableCell <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-table-cell'</span>
+<span class="ts-kw">import</span> TableHeader <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-table-header'</span>
+<span class="ts-kw">import</span> CharacterCount <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-character-count'</span>
+<span class="ts-kw">import</span> Underline <span class="ts-kw">from</span> <span class="ts-str">'@tiptap/extension-underline'</span>
+<span class="ts-kw">import</span> { MentionSuggestion } <span class="ts-kw">from</span> <span class="ts-str">'./MentionSuggestion'</span>
+
+<span class="ts-kw">const</span> editor = <span class="ts-fn">useEditor</span>({
+  extensions: [
+    StarterKit,
+    Underline,
+    CharacterCount.<span class="ts-fn">configure</span>({ limit: <span class="ts-str">50_000</span> }),
+    Table.<span class="ts-fn">configure</span>({ resizable: <span class="ts-kw">true</span> }),
+    TableRow, TableCell, TableHeader,
+    Mention.<span class="ts-fn">configure</span>({
+      HTMLAttributes: { class: <span class="ts-str">'mention'</span> },
+      suggestion: MentionSuggestion,  <span class="ts-cm">// fetches /api/v1/cases/:id/members</span>
+    }),
+  ],
+  content: initialContent,
+  onUpdate: ({ editor }) => <span class="ts-fn">onContentChange</span>(editor.<span class="ts-fn">getHTML</span>()),
+})</pre>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         05  @MENTIONS SYSTEM
+    ───────────────────────────────────────────── -->
+    <section class="section" id="mentions">
+      <div class="section-header">
+        <span class="section-num">05</span>
+        <h2>@Mentions System</h2>
+      </div>
+
+      <p>
+        The mention system bridges the editor, the database, and the notification pipeline. Mentions are first-class records, not just text annotations.
+      </p>
+
+      <h3>End-to-End Flow</h3>
+      <div class="flow" style="flex-wrap:wrap; gap:4px; margin-bottom:20px;">
+        <div class="flow-step">@-trigger in editor</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Query case members</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Select user</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Note/comment saved</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Parse mention nodes</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Insert mentions rows</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Enqueue River job</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Notify user</div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px;">
+        <h3 style="margin-top:0;">Member Lookup Endpoint</h3>
+        <p>Autocomplete queries the case's active member list — only users with a role on the case (Investigator, Reviewer, Supervisor) are surfaced. This prevents mentioning users who cannot access the case.</p>
+        <pre style="margin-top:12px;margin-bottom:0;"><span class="cm">// GET /api/v1/cases/:id/members
+// Response shape</span>
+{
+  <span class="sse-key">"data"</span>: [
+    { <span class="sse-key">"id"</span>: <span class="sse-str">"uuid"</span>, <span class="sse-key">"name"</span>: <span class="sse-str">"Priya Sharma"</span>, <span class="sse-key">"role"</span>: <span class="sse-str">"investigator"</span>, <span class="sse-key">"avatar_url"</span>: <span class="sse-str">"..."</span> },
+    { <span class="sse-key">"id"</span>: <span class="sse-str">"uuid"</span>, <span class="sse-key">"name"</span>: <span class="sse-str">"Rohan Mehta"</span>,  <span class="sse-key">"role"</span>: <span class="sse-str">"reviewer"</span>,     <span class="sse-key">"avatar_url"</span>: <span class="sse-str">"..."</span> }
+  ],
+  <span class="sse-key">"meta"</span>: { <span class="sse-key">"total"</span>: 2 }
+}</pre>
+      </div>
+
+      <h3>Server-Side Mention Parsing — <code>mention_parser.go</code></h3>
+      <pre><span class="go-cm">// internal/notes/mention_parser.go
+// Parses Tiptap JSON (re-derived from submitted HTML) to extract mentioned user IDs</span>
+
+<span class="go-kw">package</span> <span class="go-pkg">notes</span>
+
+<span class="go-kw">type</span> <span class="go-ty">TiptapNode</span> <span class="go-kw">struct</span> {
+    Type    <span class="go-ty">string</span>       `json:<span class="go-str">"type"`</span>
+    Attrs   <span class="go-ty">map[string]any</span> `json:<span class="go-str">"attrs,omitempty"`</span>
+    Content []<span class="go-ty">TiptapNode</span>  `json:<span class="go-str">"content,omitempty"`</span>
+}
+
+<span class="go-cm">// ExtractMentions walks the Tiptap JSON tree and collects all mention node user IDs.</span>
+<span class="go-kw">func</span> <span class="go-fn">ExtractMentions</span>(root <span class="go-ty">TiptapNode</span>) []<span class="go-ty">string</span> {
+    <span class="go-kw">var</span> ids []<span class="go-ty">string</span>
+    <span class="go-kw">var</span> walk <span class="go-kw">func</span>(n <span class="go-ty">TiptapNode</span>)
+    walk = <span class="go-kw">func</span>(n <span class="go-ty">TiptapNode</span>) {
+        <span class="go-kw">if</span> n.Type == <span class="go-str">"mention"</span> {
+            <span class="go-kw">if</span> id, ok := n.Attrs[<span class="go-str">"id"</span>].(<span class="go-ty">string</span>); ok {
+                ids = <span class="go-fn">append</span>(ids, id)
+            }
+        }
+        <span class="go-kw">for</span> _, child := <span class="go-kw">range</span> n.Content {
+            <span class="go-fn">walk</span>(child)
+        }
+    }
+    <span class="go-fn">walk</span>(root)
+    <span class="go-kw">return</span> ids
+}</pre>
+
+      <h3>Notification Content</h3>
+      <div class="card-sm" style="margin-top:0;">
+        <h4>Mention Notification Payload (River Job Input)</h4>
+        <pre style="margin-top:8px; padding:12px; font-size:12px;">{
+  <span class="sse-key">"mentioned_user_id"</span>: <span class="sse-str">"uuid"</span>,
+  <span class="sse-key">"mentioned_by_id"</span>:   <span class="sse-str">"uuid"</span>,
+  <span class="sse-key">"mentioned_by_name"</span>: <span class="sse-str">"Priya Sharma"</span>,
+  <span class="sse-key">"case_id"</span>:           <span class="sse-str">"uuid"</span>,
+  <span class="sse-key">"case_title"</span>:        <span class="sse-str">"Fraud Investigation - ACC-2024-001"</span>,
+  <span class="sse-key">"source_type"</span>:       <span class="sse-str">"note"</span>,     <span class="cm">// or "comment"</span>
+  <span class="sse-key">"source_id"</span>:         <span class="sse-str">"uuid"</span>,
+  <span class="sse-key">"excerpt"</span>:           <span class="sse-str">"Please review the transaction cluster on Mar 15..."</span>
+}</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         06  ACTIVITY FEED
+    ───────────────────────────────────────────── -->
+    <section class="section" id="activity">
+      <div class="section-header">
+        <span class="section-num">06</span>
+        <h2>Activity Feed</h2>
+      </div>
+
+      <p>
+        The activity feed provides a unified, chronological view of all collaboration events on a case — notes created or edited, comments added, and mentions. It is the collaboration command center, showing the team's investigative narrative as it unfolds.
+      </p>
+
+      <h3>Feed Composition</h3>
+      <div class="card-grid">
+        <div class="card-sm"><h4>Notes</h4><p>Each note creation and edit appears as a feed entry with title, author, type badge, and a 200-character excerpt.</p></div>
+        <div class="card-sm"><h4>Comments</h4><p>Comments on events or notes appear with context — "commented on Transaction T-4829" or "replied to Priya's note".</p></div>
+        <div class="card-sm"><h4>Pinned items</h4><p>Pin/unpin actions appear as feed events for visibility — e.g., "Rohan pinned a note".</p></div>
+      </div>
+
+      <h3>Live Feed Preview</h3>
+      <div class="activity-feed" style="margin-top:8px;">
+        <div class="feed-header">
+          <span>⚡</span> Case Activity — CASE-2024-0041 (Real-time)
+        </div>
+        <div class="feed-item">
+          <div class="avatar av-cyan">PS</div>
+          <div class="feed-content">
+            <div class="feed-action"><strong>Priya Sharma</strong> <span class="action-verb">added a formal note</span> · <span class="badge badge-emerald">Formal</span></div>
+            <div class="feed-excerpt">"Transaction cluster on Mar 15 shows velocity inconsistent with declared income — three transfers within 90 minutes totalling ₹4.2L..."</div>
+          </div>
+          <div class="feed-time">2 min ago</div>
+        </div>
+        <div class="feed-item">
+          <div class="avatar av-violet">RM</div>
+          <div class="feed-content">
+            <div class="feed-action"><strong>Rohan Mehta</strong> <span class="action-verb">commented on event</span> <strong>TXN-7842</strong></div>
+            <div class="feed-excerpt">"@Priya — can you cross-check this against the KYC document uploaded on 12 Mar? Beneficiary name differs."</div>
+          </div>
+          <div class="feed-time">5 min ago</div>
+        </div>
+        <div class="feed-item">
+          <div class="avatar av-emerald">AI</div>
+          <div class="feed-content">
+            <div class="feed-action"><strong>AI Copilot</strong> <span class="action-verb">generated a draft note</span> · <span class="badge badge-pink">AI Generated</span></div>
+            <div class="feed-excerpt">"Summary of anomalous activity detected: 3 high-risk patterns identified across 14 transactions between Jan–Mar 2024..."</div>
+          </div>
+          <div class="feed-time">18 min ago</div>
+        </div>
+        <div class="feed-item">
+          <div class="avatar av-amber">AK</div>
+          <div class="feed-content">
+            <div class="feed-action"><strong>Anjali Kumar</strong> <span class="action-verb">pinned a note</span> · "Key Findings — Phase 1"</div>
+          </div>
+          <div class="feed-time">1 hr ago</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:24px;">Feed Query — Activity Feed SQL</h3>
+      <pre><span class="cm">-- Combined activity feed: notes + comments, newest first, cursor paginated</span>
+<span class="kw">SELECT</span>
+  <span class="st">'note'</span>     <span class="kw">AS</span> event_type,
+  n.id       <span class="kw">AS</span> source_id,
+  n.title    <span class="kw">AS</span> summary,
+  <span class="fn">LEFT</span>(n.content_text, <span class="st">200</span>) <span class="kw">AS</span> excerpt,
+  n.author_id,
+  n.created_at
+<span class="kw">FROM</span>   notes n
+<span class="kw">WHERE</span>  n.case_id = $1 <span class="kw">AND</span> n.deleted_at <span class="kw">IS NULL</span>
+
+<span class="kw">UNION ALL</span>
+
+<span class="kw">SELECT</span>
+  <span class="st">'comment'</span>  <span class="kw">AS</span> event_type,
+  c.id        <span class="kw">AS</span> source_id,
+  <span class="fn">COALESCE</span>(te.description, <span class="st">'a note'</span>) <span class="kw">AS</span> summary,
+  <span class="fn">LEFT</span>(c.content, <span class="st">200</span>) <span class="kw">AS</span> excerpt,
+  c.author_id,
+  c.created_at
+<span class="kw">FROM</span>   comments c
+<span class="kw">LEFT JOIN</span> timeline_events te <span class="kw">ON</span> te.id = c.timeline_event_id
+<span class="kw">WHERE</span>  c.case_id = $1 <span class="kw">AND</span> c.deleted_at <span class="kw">IS NULL</span>
+
+<span class="kw">ORDER BY</span> created_at <span class="kw">DESC</span>
+<span class="kw">LIMIT</span>  $2    <span class="cm">-- page size (default 25)</span>
+<span class="kw">OFFSET</span> $3;   <span class="cm">-- cursor-based: WHERE created_at &lt; :cursor</span></pre>
+
+      <div class="callout callout-cyan">
+        <span class="callout-icon">💡</span>
+        <div class="callout-body">
+          <p><strong>Performance:</strong> The activity feed is virtualized in the frontend using <code>@tanstack/react-virtual</code> to handle cases with thousands of events. The backend always uses cursor pagination (keyed on <code>created_at</code> + <code>id</code>) — never offset.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         07  API ENDPOINTS
+    ───────────────────────────────────────────── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <span class="section-num">07</span>
+        <h2>API Endpoints</h2>
+      </div>
+
+      <p>All endpoints are under <code class="inline-code">/api/v1/</code>, require a valid JWT bearer token, and return the standard <code class="inline-code">{data, meta, error}</code> envelope. Timestamps are ISO 8601 UTC. IDs are UUID v4.</p>
+
+      <div class="endpoint-list">
+
+        <!-- POST notes -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-post">POST</span>
+            <span class="endpoint-path">/api/v1/cases/:id/notes</span>
+            <span class="badge badge-cyan">Auth: case member</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Create a new note on a case. The backend extracts mention nodes from the submitted content, inserts <code>mentions</code> rows, and enqueues notification jobs atomically within a transaction.</div>
+            <table class="param-table">
+              <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>title</td><td>string</td><td>Note title, max 255 chars</td></tr>
+                <tr><td>content</td><td>string</td><td>Tiptap HTML output</td></tr>
+                <tr><td>note_type</td><td>'internal' | 'formal'</td><td>Visibility and export class</td></tr>
+                <tr><td>ai_generated</td><td>boolean <span class="optional">optional</span></td><td>Flag from AI Copilot flow; default false</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- GET notes list -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/v1/cases/:id/notes</span>
+            <span class="badge badge-cyan">Auth: case member</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">List notes for a case, newest first. Pinned notes are always returned first regardless of cursor position.</div>
+            <table class="param-table">
+              <thead><tr><th>Query Param</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>cursor</td><td>string <span class="optional">optional</span></td><td>Opaque cursor from previous page <code>meta.next_cursor</code></td></tr>
+                <tr><td>limit</td><td>integer <span class="optional">optional</span></td><td>Page size, default 20, max 100</td></tr>
+                <tr><td>note_type</td><td>string <span class="optional">optional</span></td><td>Filter by <code>internal</code> or <code>formal</code></td></tr>
+                <tr><td>is_pinned</td><td>boolean <span class="optional">optional</span></td><td>Filter to pinned notes only</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- GET single note -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/v1/cases/:id/notes/:note_id</span>
+            <span class="badge badge-cyan">Auth: case member</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Fetch a single note with full HTML content, author details, comment count, and mention list.</div>
+          </div>
+        </div>
+
+        <!-- PUT note -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-put">PUT</span>
+            <span class="endpoint-path">/api/v1/cases/:id/notes/:note_id</span>
+            <span class="badge badge-amber">Auth: author or supervisor</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Update a note. If <code>ai_generated</code> was true and this is the first human edit, the service sets <code>ai_generated=false</code> and <code>ai_assisted=true</code> automatically. Mention diff is computed and new mention rows are inserted for newly added mentions.</div>
+            <table class="param-table">
+              <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>title</td><td>string <span class="optional">optional</span></td><td>Updated title</td></tr>
+                <tr><td>content</td><td>string <span class="optional">optional</span></td><td>Updated Tiptap HTML</td></tr>
+                <tr><td>note_type</td><td>string <span class="optional">optional</span></td><td>Promote internal → formal</td></tr>
+                <tr><td>is_pinned</td><td>boolean <span class="optional">optional</span></td><td>Pin or unpin note</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- DELETE note -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-delete">DELETE</span>
+            <span class="endpoint-path">/api/v1/cases/:id/notes/:note_id</span>
+            <span class="badge badge-rose">Auth: author or supervisor</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Soft-delete a note by setting <code>deleted_at = NOW()</code>. The note is excluded from all queries. Associated comments and mentions are cascade-soft-deleted by a River cleanup job (async, not blocking the request).</div>
+          </div>
+        </div>
+
+        <!-- POST comment -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-post">POST</span>
+            <span class="endpoint-path">/api/v1/cases/:id/comments</span>
+            <span class="badge badge-cyan">Auth: case member</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Post a comment on a timeline event or note. Exactly one of <code>timeline_event_id</code> or <code>note_id</code> must be provided. <code>parent_id</code> enables threaded replies (one level deep for MVP).</div>
+            <table class="param-table">
+              <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>content</td><td>string</td><td>Comment text (plain text for MVP, no rich text in comments)</td></tr>
+                <tr><td>timeline_event_id</td><td>UUID <span class="optional">optional</span></td><td>Attach to a timeline event</td></tr>
+                <tr><td>note_id</td><td>UUID <span class="optional">optional</span></td><td>Attach to a note</td></tr>
+                <tr><td>parent_id</td><td>UUID <span class="optional">optional</span></td><td>Reply to an existing comment</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- GET activity -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/v1/cases/:id/activity</span>
+            <span class="badge badge-cyan">Auth: case member</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Cursor-paginated combined activity feed (notes + comments), sorted newest first. Frontend uses this with TanStack Query + <code>useInfiniteQuery</code> for infinite scroll. SSE invalidates cache on new events.</div>
+            <table class="param-table">
+              <thead><tr><th>Query Param</th><th>Type</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td>cursor</td><td>string <span class="optional">optional</span></td><td>Cursor token from previous response</td></tr>
+                <tr><td>limit</td><td>integer <span class="optional">optional</span></td><td>Default 25, max 50</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- PUT mention read -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-put">PUT</span>
+            <span class="endpoint-path">/api/v1/mentions/:id/read</span>
+            <span class="badge badge-cyan">Auth: mentioned user</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Mark a specific mention as read. Sets <code>is_read=true</code> and <code>read_at=NOW()</code>. Called when the user clicks the mention notification.</div>
+          </div>
+        </div>
+
+        <!-- GET unread count -->
+        <div class="endpoint-card">
+          <div class="endpoint-header">
+            <span class="method method-get">GET</span>
+            <span class="endpoint-path">/api/v1/mentions/unread-count</span>
+            <span class="badge badge-cyan">Auth: self</span>
+          </div>
+          <div class="endpoint-body">
+            <div class="endpoint-desc">Returns the total count of unread mentions for the authenticated user. Polled on app load and updated via SSE. Drives the notification badge in the top navigation bar.</div>
+            <pre style="margin-top:10px;padding:12px;font-size:12px;">{ <span class="sse-key">"data"</span>: { <span class="sse-key">"unread_count"</span>: <span class="sse-val">4</span> } }</pre>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         08  REAL-TIME COLLABORATION VIA SSE
+    ───────────────────────────────────────────── -->
+    <section class="section" id="sse">
+      <div class="section-header">
+        <span class="section-num">08</span>
+        <h2>Real-time Collaboration via SSE</h2>
+      </div>
+
+      <p>
+        Server-Sent Events deliver real-time collaboration updates to all users currently viewing a case. The Go service maintains a per-case SSE broker that fans out events to connected clients. No WebSocket negotiation is required — SSE is simpler, HTTP/1.1 compatible, and sufficient for the one-directional push pattern needed here.
+      </p>
+
+      <h3>Architecture — SSE Broker</h3>
+      <div class="flow" style="flex-wrap:wrap; gap:4px; margin-bottom:20px;">
+        <div class="flow-step">Teammate saves note</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">service.go publishes event</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">SSE broker fans out</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">All case viewers receive push</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">TanStack Query invalidated</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Feed refetched &amp; rendered</div>
+      </div>
+
+      <h3>SSE Event Formats</h3>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; margin-bottom:16px;">
+        <div>
+          <div class="sse-label">note_added event</div>
+          <div class="sse-block">
+event: <span class="sse-key">note_added</span><br>
+data: {<br>
+&nbsp;&nbsp;<span class="sse-key">"note_id"</span>:    <span class="sse-str">"uuid"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"author"</span>:     <span class="sse-str">"Priya Sharma"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"author_id"</span>:  <span class="sse-str">"uuid"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"title"</span>:      <span class="sse-str">"Key Findings"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"excerpt"</span>:    <span class="sse-str">"Transaction cluster on..."</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"note_type"</span>:  <span class="sse-str">"formal"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"created_at"</span>: <span class="sse-str">"2024-03-15T09:41:00Z"</span><br>
+}
+          </div>
+        </div>
+        <div>
+          <div class="sse-label">comment_added event</div>
+          <div class="sse-block">
+event: <span class="sse-key">comment_added</span><br>
+data: {<br>
+&nbsp;&nbsp;<span class="sse-key">"comment_id"</span>:  <span class="sse-str">"uuid"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"author"</span>:      <span class="sse-str">"Rohan Mehta"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"author_id"</span>:   <span class="sse-str">"uuid"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"context"</span>:     <span class="sse-str">"event TXN-7842"</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"excerpt"</span>:     <span class="sse-str">"@Priya — can you check..."</span>,<br>
+&nbsp;&nbsp;<span class="sse-key">"created_at"</span>:  <span class="sse-str">"2024-03-15T09:46:00Z"</span><br>
+}
+          </div>
+        </div>
+      </div>
+
+      <h3>Go SSE Broker Sketch</h3>
+      <pre><span class="go-cm">// internal/collaboration/sse_broker.go</span>
+
+<span class="go-kw">type</span> <span class="go-ty">CaseBroker</span> <span class="go-kw">struct</span> {
+    mu      sync.<span class="go-ty">RWMutex</span>
+    clients <span class="go-kw">map</span>[<span class="go-ty">string</span>]<span class="go-kw">map</span>[<span class="go-ty">string</span>]<span class="go-kw">chan</span> <span class="go-ty">Event</span>  <span class="go-cm">// caseID → clientID → channel</span>
+}
+
+<span class="go-kw">func</span> (b *<span class="go-ty">CaseBroker</span>) <span class="go-fn">Subscribe</span>(caseID, clientID <span class="go-ty">string</span>) <span class="go-kw">chan</span> <span class="go-ty">Event</span> {
+    ch := <span class="go-fn">make</span>(<span class="go-kw">chan</span> <span class="go-ty">Event</span>, <span class="go-str">32</span>)
+    b.mu.<span class="go-fn">Lock</span>()
+    <span class="go-kw">defer</span> b.mu.<span class="go-fn">Unlock</span>()
+    <span class="go-kw">if</span> b.clients[caseID] == <span class="go-kw">nil</span> {
+        b.clients[caseID] = <span class="go-fn">make</span>(<span class="go-kw">map</span>[<span class="go-ty">string</span>]<span class="go-kw">chan</span> <span class="go-ty">Event</span>)
+    }
+    b.clients[caseID][clientID] = ch
+    <span class="go-kw">return</span> ch
+}
+
+<span class="go-kw">func</span> (b *<span class="go-ty">CaseBroker</span>) <span class="go-fn">Publish</span>(caseID <span class="go-ty">string</span>, evt <span class="go-ty">Event</span>) {
+    b.mu.<span class="go-fn">RLock</span>()
+    <span class="go-kw">defer</span> b.mu.<span class="go-fn">RUnlock</span>()
+    <span class="go-kw">for</span> _, ch := <span class="go-kw">range</span> b.clients[caseID] {
+        <span class="go-kw">select</span> {
+        <span class="go-kw">case</span> ch &lt;- evt:
+        <span class="go-kw">default</span>:  <span class="go-cm">// drop if client is slow; client will refetch on reconnect</span>
+        }
+    }
+}</pre>
+
+      <div class="callout callout-amber">
+        <span class="callout-icon">⚠️</span>
+        <div class="callout-body">
+          <p><strong>MVP constraint — no simultaneous editing:</strong> Two investigators cannot edit the same note at the same time. There is no optimistic locking or operational transform. If a concurrent edit occurs, last-write wins (the second PUT overwrites). A user-facing warning for concurrent edits is a Phase 2 enhancement.</p>
+        </div>
+      </div>
+
+      <div class="callout callout-violet">
+        <span class="callout-icon">💭</span>
+        <div class="callout-body">
+          <p><strong>Phase 2 — Typing Indicator:</strong> SSE can carry a <code>user_typing</code> event (debounced, sent on Tiptap <code>onUpdate</code>) to show a "Priya is editing this note..." indicator to other viewers. This requires a lightweight heartbeat mechanism and is deferred post-MVP.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         09  AI INTEGRATION
+    ───────────────────────────────────────────── -->
+    <section class="section" id="ai">
+      <div class="section-header">
+        <span class="section-num">09</span>
+        <h2>AI Integration</h2>
+      </div>
+
+      <p>
+        The AI Copilot can draft notes pre-filled with synthesized case context — summaries, risk narratives, key transaction highlights. Human review is mandatory before the note is persisted as final.
+      </p>
+
+      <h3>Generate Note Flow</h3>
+      <div class="flow" style="flex-wrap:wrap; gap:4px; margin-bottom:20px;">
+        <div class="flow-step">Investigator clicks "Generate Note"</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">AI Copilot drafts content</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Tiptap editor pre-filled</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">"AI Generated" badge shown</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Human edits &amp; reviews</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-step">Save → "AI Assisted" badge</div>
+      </div>
+
+      <div class="card-grid">
+        <div class="card-sm">
+          <h4><span class="badge badge-pink" style="margin-right:6px;">AI Generated</span></h4>
+          <p>Note was created by AI Copilot and has not yet been reviewed or edited by a human. Rendered with a prominent purple badge. Cannot be included in PDF report until edited.</p>
+        </div>
+        <div class="card-sm">
+          <h4><span class="badge badge-indigo" style="margin-right:6px;">AI Assisted</span></h4>
+          <p>AI drafted the note but a human has since edited and saved it. Indigo badge — lower visual prominence. Eligible for formal export. Provenance is preserved for audit.</p>
+        </div>
+        <div class="card-sm">
+          <h4>No badge</h4>
+          <p>Note written entirely by a human. <code>ai_generated=false</code>, <code>ai_assisted=false</code>. No badge displayed. Most formal notes will be in this state.</p>
+        </div>
+      </div>
+
+      <h3>API Contract — AI Generate Endpoint</h3>
+      <div class="endpoint-card" style="margin-top:8px;">
+        <div class="endpoint-header">
+          <span class="method method-post">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/notes/generate</span>
+          <span class="badge badge-violet">AI Copilot</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">Request AI Copilot to generate a draft note for the case. Returns a transient draft — <strong>not yet persisted</strong>. The frontend loads the returned content into the Tiptap editor for human review. The investigator then calls <code>POST /notes</code> with <code>ai_generated: true</code> to persist.</div>
+          <table class="param-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>prompt_hint</td><td>string <span class="optional">optional</span></td><td>Investigator guidance, e.g. "Summarise transaction anomalies"</td></tr>
+              <tr><td>note_type</td><td>string</td><td>Desired note type — influences tone (formal vs. internal)</td></tr>
+            </tbody>
+          </table>
+          <pre style="margin-top:12px;padding:12px;font-size:12px;"><span class="cm">// Response — draft, not persisted</span>
+{
+  <span class="sse-key">"data"</span>: {
+    <span class="sse-key">"title"</span>:   <span class="sse-str">"Transaction Anomaly Summary — CASE-2024-0041"</span>,
+    <span class="sse-key">"content"</span>: <span class="sse-str">"&lt;h2&gt;Key Findings&lt;/h2&gt;&lt;p&gt;Analysis of 14 transactions..."</span>
+  }
+}</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         10  GO MODULE STRUCTURE
+    ───────────────────────────────────────────── -->
+    <section class="section" id="modules">
+      <div class="section-header">
+        <span class="section-num">10</span>
+        <h2>Go Module Structure</h2>
+      </div>
+
+      <p>The notes and collaboration logic is split across two Go packages within the modular monolith: <code class="inline-code">internal/notes</code> for note and comment CRUD, and <code class="inline-code">internal/collaboration</code> for the activity feed and SSE broker.</p>
+
+      <div class="module-tree">
+<span class="tree-dir">internal/</span><br>
+<span class="tree-dir">├── notes/</span><br>
+<span class="tree-file">│   ├── handler.go</span>         <span class="tree-desc">    — Chi route handlers: POST, GET, PUT, DELETE notes &amp; comments</span><br>
+<span class="tree-file">│   ├── service.go</span>         <span class="tree-desc">    — Business logic: create note, compute mention diff, pin toggle</span><br>
+<span class="tree-file">│   ├── mention_parser.go</span>  <span class="tree-desc">    — Walk Tiptap JSON; extract mention node user IDs</span><br>
+<span class="tree-file">│   ├── query.sql.go</span>       <span class="tree-desc">    — sqlc-generated queries for notes, comments, mentions tables</span><br>
+<span class="tree-file">│   ├── models.go</span>          <span class="tree-desc">    — Domain types: Note, Comment, Mention, NoteType enum</span><br>
+<span class="tree-file">│   └── jobs.go</span>            <span class="tree-desc">    — River job definitions: MentionNotificationJob, CleanupJob</span><br>
+<span class="tree-dir">│</span><br>
+<span class="tree-dir">├── collaboration/</span><br>
+<span class="tree-file">│   ├── activity_feed.go</span>   <span class="tree-desc">    — UNION query builder; cursor pagination logic for activity feed</span><br>
+<span class="tree-file">│   ├── sse_broker.go</span>      <span class="tree-desc">    — In-process SSE broker; per-case fan-out; Subscribe/Publish/Unsubscribe</span><br>
+<span class="tree-file">│   └── sse_handler.go</span>    <span class="tree-desc">    — HTTP SSE handler: GET /cases/:id/events (text/event-stream)</span><br>
+<span class="tree-dir">│</span><br>
+<span class="tree-dir">└── ai/</span><br>
+<span class="tree-file">    └── note_generator.go</span>  <span class="tree-desc">    — Calls Python AI service; returns draft note title + HTML content</span>
+      </div>
+
+      <h3>Key Service Method Signatures</h3>
+      <pre><span class="go-cm">// internal/notes/service.go</span>
+
+<span class="go-kw">type</span> <span class="go-ty">Service</span> <span class="go-kw">interface</span> {
+    <span class="go-fn">CreateNote</span>(ctx <span class="go-ty">context.Context</span>, req <span class="go-ty">CreateNoteReq</span>) (*<span class="go-ty">Note</span>, <span class="go-ty">error</span>)
+    <span class="go-fn">ListNotes</span>(ctx <span class="go-ty">context.Context</span>, caseID <span class="go-ty">string</span>, filter <span class="go-ty">NoteFilter</span>) (<span class="go-ty">NotePage</span>, <span class="go-ty">error</span>)
+    <span class="go-fn">GetNote</span>(ctx <span class="go-ty">context.Context</span>, noteID <span class="go-ty">string</span>) (*<span class="go-ty">Note</span>, <span class="go-ty">error</span>)
+    <span class="go-fn">UpdateNote</span>(ctx <span class="go-ty">context.Context</span>, noteID <span class="go-ty">string</span>, req <span class="go-ty">UpdateNoteReq</span>) (*<span class="go-ty">Note</span>, <span class="go-ty">error</span>)
+    <span class="go-fn">DeleteNote</span>(ctx <span class="go-ty">context.Context</span>, noteID <span class="go-ty">string</span>) <span class="go-ty">error</span>
+    <span class="go-fn">CreateComment</span>(ctx <span class="go-ty">context.Context</span>, req <span class="go-ty">CreateCommentReq</span>) (*<span class="go-ty">Comment</span>, <span class="go-ty">error</span>)
+    <span class="go-fn">MarkMentionRead</span>(ctx <span class="go-ty">context.Context</span>, mentionID, userID <span class="go-ty">string</span>) <span class="go-ty">error</span>
+    <span class="go-fn">UnreadMentionCount</span>(ctx <span class="go-ty">context.Context</span>, userID <span class="go-ty">string</span>) (<span class="go-ty">int64</span>, <span class="go-ty">error</span>)
+}</pre>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         11  FRONTEND COMPONENTS
+    ───────────────────────────────────────────── -->
+    <section class="section" id="components">
+      <div class="section-header">
+        <span class="section-num">11</span>
+        <h2>Frontend Components</h2>
+      </div>
+
+      <p>All components are TypeScript strict, use Tailwind v4 utility classes, and are composed from shadcn/ui primitives where applicable.</p>
+
+      <div class="comp-grid">
+        <div class="comp-card">
+          <h4>📝 NoteEditor</h4>
+          <ul>
+            <li>Tiptap v3 editor instance</li>
+            <li>Toolbar: Bold, Italic, Heading, Lists, Table, Code</li>
+            <li>Mention autocomplete (MentionSuggestion component)</li>
+            <li>CharacterCount display</li>
+            <li>note_type toggle (Internal / Formal)</li>
+            <li>Submit + Cancel actions</li>
+          </ul>
+        </div>
+
+        <div class="comp-card">
+          <h4>🗒️ NoteCard</h4>
+          <ul>
+            <li>Title, author avatar + name, relative timestamp</li>
+            <li>note_type badge (Internal / Formal)</li>
+            <li>AI Generated / AI Assisted badge when applicable</li>
+            <li>Pin button (toggle, supervisor or author only)</li>
+            <li>Edit / Delete menu (author or supervisor)</li>
+            <li>Comment count chip — click to expand comments</li>
+          </ul>
+        </div>
+
+        <div class="comp-card">
+          <h4>💬 CommentThread</h4>
+          <ul>
+            <li>Flat list of top-level comments</li>
+            <li>Nested replies (one level, collapsible)</li>
+            <li>Reply input inline below each comment</li>
+            <li>Mention rendering (@name highlighted)</li>
+            <li>Relative timestamp with ISO tooltip on hover</li>
+          </ul>
+        </div>
+
+        <div class="comp-card">
+          <h4>⚡ ActivityFeed</h4>
+          <ul>
+            <li>Virtualized via @tanstack/react-virtual</li>
+            <li>useInfiniteQuery for cursor pagination</li>
+            <li>SSE listener: invalidates query on new events</li>
+            <li>Unified note + comment rows with type icons</li>
+            <li>Filter tabs: All / Notes / Comments</li>
+          </ul>
+        </div>
+
+        <div class="comp-card">
+          <h4>@ MentionAutocomplete</h4>
+          <ul>
+            <li>Dropdown rendered via Tiptap Suggestion API</li>
+            <li>Queries <code>GET /api/v1/cases/:id/members</code></li>
+            <li>Debounced — 150ms after @ trigger</li>
+            <li>Shows avatar, name, role</li>
+            <li>Keyboard navigable (↑ ↓ Enter Escape)</li>
+          </ul>
+        </div>
+
+        <div class="comp-card">
+          <h4>📌 PinnedNotesBar</h4>
+          <ul>
+            <li>Horizontal strip at top of notes panel</li>
+            <li>Shows up to 3 pinned note titles with truncation</li>
+            <li>Click navigates to note in main list</li>
+            <li>Empty state hidden (bar not rendered)</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="callout callout-violet" style="margin-top:16px;">
+        <span class="callout-icon">💭</span>
+        <div class="callout-body">
+          <p><strong>Phase 2 — Typing Indicator:</strong> A "Priya is editing this note..." indicator can be added by having the editor broadcast a debounced <code>user_typing</code> SSE event. The <code>ActivityFeed</code> and <code>NoteCard</code> components would render a subtle animated dot when a teammate's typing event arrives. Deferred post-MVP.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         12  EXPORT
+    ───────────────────────────────────────────── -->
+    <section class="section" id="export">
+      <div class="section-header">
+        <span class="section-num">12</span>
+        <h2>Export</h2>
+      </div>
+
+      <p>
+        Formal notes are the authoritative output artifacts of an investigation. They can be compiled into a single PDF report per case, suitable for sharing with compliance officers, regulators, or legal counsel.
+      </p>
+
+      <div class="card-grid" style="margin-bottom:16px;">
+        <div class="card-sm">
+          <h4>Eligibility</h4>
+          <p>Only notes with <code>note_type = 'formal'</code> and <code>ai_generated = false</code> are included. Draft AI-generated notes are excluded until a human edits and saves them.</p>
+        </div>
+        <div class="card-sm">
+          <h4>Ordering</h4>
+          <p>Notes appear in the PDF in chronological order (created_at ASC). Pinned notes are not given priority in export — export order is temporal.</p>
+        </div>
+        <div class="card-sm">
+          <h4>Content</h4>
+          <p>Note HTML is rendered to PDF. Tiptap-generated HTML is clean and structured — headings, tables, bullet lists render faithfully via Go's PDF library (chromedp headless or wkhtmltopdf for MVP).</p>
+        </div>
+      </div>
+
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method method-get">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/report/export</span>
+          <span class="badge badge-emerald">Auth: reviewer / supervisor</span>
+        </div>
+        <div class="endpoint-body">
+          <div class="endpoint-desc">
+            Compile all formal notes on the case into a single PDF report and return it as a file download. The response content type is <code>application/pdf</code> with <code>Content-Disposition: attachment</code>. PDF generation is synchronous for MVP (acceptable for cases with &lt;50 formal notes). Async generation via River job is a Phase 2 enhancement for large cases.
+          </div>
+          <table class="param-table" style="margin-top:8px;">
+            <thead><tr><th>Query Param</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td>include_metadata</td><td>boolean <span class="optional">optional</span></td><td>Include case header (ID, title, dates, assignee) on cover page. Default true.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="callout callout-emerald" style="margin-top:12px;">
+        <span class="callout-icon">✅</span>
+        <div class="callout-body">
+          <p><strong>MVP Scope:</strong> PDF report is a basic compilation of formal notes. Branding (logo, header/footer), table of contents, and digital signature are Phase 2 features. The endpoint is built now with a simple layout so Phase 2 can layer styling on top.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────
+         13  TEST STRATEGY
+    ───────────────────────────────────────────── -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <span class="section-num">13</span>
+        <h2>Test Strategy</h2>
+      </div>
+
+      <p>Tests are written at the unit, integration, and end-to-end levels. Go tests use <code class="inline-code">testing</code> + <code class="inline-code">testify</code>; frontend tests use Vitest + Testing Library.</p>
+
+      <div class="test-list">
+        <div class="test-item">
+          <span class="test-icon">🔬</span>
+          <div class="test-text"><strong>Tiptap content parsing:</strong> Unit tests for the frontend HTML-to-plaintext extractor — verify tables, nested lists, code blocks, and blockquotes are correctly stripped. Edge cases: empty content, malformed HTML, XSS payloads (DOMPurify integration).</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">🔬</span>
+          <div class="test-text"><strong>Mention extraction tests (<code>mention_parser.go</code>):</strong> Unit tests for <code>ExtractMentions</code> — deeply nested mention nodes, duplicate mentions (same user twice → deduplicated), note with zero mentions, non-mention nodes not captured.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">🗄️</span>
+          <div class="test-text"><strong>Activity feed ordering tests:</strong> Integration tests against a test Postgres instance — verify UNION query returns correct chronological order across notes and comments, cursor pagination produces non-overlapping pages, deleted items excluded, pinned notes do not affect feed order.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">⚙️</span>
+          <div class="test-text"><strong>River notification job tests:</strong> Unit tests for <code>MentionNotificationJob</code> — mock notification service, verify correct payload construction, idempotency on duplicate job insertion, dead-letter handling on notification failure.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">⚡</span>
+          <div class="test-text"><strong>SSE push tests:</strong> Integration tests for <code>CaseBroker</code> — subscribe a test client, publish an event, assert delivery within timeout. Verify slow client drop (non-blocking send) does not block other subscribers. Verify Unsubscribe cleans up channel.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">🔗</span>
+          <div class="test-text"><strong>API handler tests:</strong> HTTP-level tests using <code>httptest.NewRecorder</code> — verify <code>POST /notes</code> returns 201 with correct body, <code>DELETE /notes/:id</code> soft-deletes (not hard deletes), <code>PUT /notes/:id</code> by non-author returns 403.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">🤖</span>
+          <div class="test-text"><strong>AI badge state machine tests:</strong> Verify that <code>ai_generated=true → PUT note → ai_generated=false, ai_assisted=true</code>. Verify a note with <code>ai_generated=true</code> is excluded from <code>GET /report/export</code>. Verify badge rendering in NoteCard via React Testing Library snapshot tests.</div>
+        </div>
+        <div class="test-item">
+          <span class="test-icon">📄</span>
+          <div class="test-text"><strong>PDF export tests:</strong> Smoke test for <code>GET /cases/:id/report/export</code> — returns 200, content-type is <code>application/pdf</code>, response body is non-empty. Verify cases with zero formal notes return 204 with descriptive error body.</div>
+        </div>
+      </div>
+
+      <div class="callout callout-cyan" style="margin-top:16px;">
+        <span class="callout-icon">🧪</span>
+        <div class="callout-body">
+          <p><strong>Test database:</strong> All Go integration tests run against a real Postgres 18.4 instance managed by <code>testcontainers-go</code>. Schema is applied from migration files. Each test case runs in a transaction that is rolled back on cleanup — no state leakage between tests.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <hr class="divider" />
+    <div style="display:flex; justify-content:space-between; align-items:center; padding: 8px 0 32px;">
+      <a href="INDEX.html" style="display:inline-flex;align-items:center;gap:7px;color:var(--text-muted);text-decoration:none;font-size:13px;font-weight:500;transition:color 0.15s;" onmouseover="this.style.color='var(--cyan)'" onmouseout="this.style.color='var(--text-muted)'">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 12L6 8l4-4"/></svg>
+        Back to Documentation Hub
+      </a>
+      <div style="font-size:12px;color:var(--text-dim);">OpsOwl AI · Feature Spec 06 · v1.0.0</div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  // Sidebar active link sync on scroll
+  const sections = document.querySelectorAll('.section[id]');
+  const navItems = document.querySelectorAll('.sidebar-nav .nav-item[href^="#"]');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const id = entry.target.id;
+        navItems.forEach(item => {
+          item.classList.toggle('active', item.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

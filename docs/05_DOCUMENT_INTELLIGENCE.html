@@ -1,0 +1,1508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>05 — Document Upload & Intelligence | OpsOwl AI</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-2:   #263148;
+      --surface-3:   #2d3a52;
+      --border:      #334155;
+      --border-2:    #475569;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0e7490;
+      --violet:      #a78bfa;
+      --violet-dim:  #5b21b6;
+      --emerald:     #34d399;
+      --emerald-dim: #065f46;
+      --amber:       #fbbf24;
+      --amber-dim:   #78350f;
+      --rose:        #fb7185;
+      --rose-dim:    #881337;
+      --sky:         #38bdf8;
+      --indigo:      #818cf8;
+      --font-mono:   'JetBrains Mono', 'Fira Code', monospace;
+      --font-sans:   'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      --radius:      8px;
+      --radius-lg:   12px;
+      --radius-xl:   16px;
+      --shadow:      0 4px 24px rgba(0,0,0,0.4);
+      --shadow-sm:   0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: var(--font-sans);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.7;
+      font-size: 15px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-2); }
+
+    /* ── Layout ── */
+    .layout { display: flex; min-height: 100vh; }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 24px 0;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .sidebar-logo {
+      padding: 0 20px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 16px;
+    }
+    .sidebar-logo .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      transition: color 0.15s;
+    }
+    .sidebar-logo .back-link:hover { color: var(--cyan); }
+    .sidebar-logo .back-link svg { width: 14px; height: 14px; }
+    .product-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+    .product-name span { color: var(--cyan); }
+    .doc-title-sidebar {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 4px;
+      font-weight: 500;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    .sidebar-nav { padding: 0 12px; flex: 1; }
+    .nav-group-label {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      padding: 8px 8px 4px;
+      margin-top: 8px;
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 10px;
+      border-radius: var(--radius);
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.15s;
+      cursor: pointer;
+      margin-bottom: 1px;
+    }
+    .nav-item:hover { background: var(--surface-2); color: var(--text); }
+    .nav-item.active { background: rgba(34,211,238,0.1); color: var(--cyan); }
+    .nav-item .nav-num {
+      font-size: 10px;
+      font-family: var(--font-mono);
+      color: var(--text-dim);
+      min-width: 18px;
+    }
+    .nav-item.active .nav-num { color: var(--cyan-dim); }
+
+    /* ── Main content ── */
+    .main { flex: 1; min-width: 0; padding: 48px 56px; max-width: 960px; }
+
+    /* ── Page header ── */
+    .page-header {
+      margin-bottom: 48px;
+      padding-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+    }
+    .page-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(34,211,238,0.1);
+      border: 1px solid rgba(34,211,238,0.25);
+      color: var(--cyan);
+      padding: 4px 12px;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .page-badge .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    h1 {
+      font-size: 36px;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      color: var(--text);
+      margin-bottom: 12px;
+    }
+    h1 .accent { color: var(--cyan); }
+    .page-subtitle {
+      font-size: 16px;
+      color: var(--text-muted);
+      max-width: 640px;
+      line-height: 1.6;
+    }
+    .page-meta {
+      display: flex;
+      gap: 24px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .meta-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-dim);
+    }
+    .meta-item strong { color: var(--text-muted); font-weight: 600; }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 56px;
+      scroll-margin-top: 24px;
+    }
+    .section-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .section-num {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--cyan);
+      background: rgba(34,211,238,0.08);
+      border: 1px solid rgba(34,211,238,0.2);
+      padding: 3px 8px;
+      border-radius: var(--radius);
+      margin-top: 6px;
+      white-space: nowrap;
+    }
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 12px;
+      margin-top: 24px;
+    }
+    h3:first-child { margin-top: 0; }
+
+    p { color: var(--text-muted); margin-bottom: 12px; }
+    p:last-child { margin-bottom: 0; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .card-sm {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .card-sm h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .card-sm p { font-size: 12px; margin: 0; }
+
+    /* ── File type grid ── */
+    .filetype-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .filetype-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+      transition: border-color 0.2s, transform 0.2s;
+    }
+    .filetype-card:hover { border-color: var(--border-2); transform: translateY(-1px); }
+    .filetype-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: var(--radius);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    .filetype-card .ext {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .filetype-card .method {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+    .ft-pdf  .filetype-icon { background: rgba(251,113,133,0.12); }
+    .ft-doc  .filetype-icon { background: rgba(96,165,250,0.12); }
+    .ft-xlsx .filetype-icon { background: rgba(52,211,153,0.12); }
+    .ft-img  .filetype-icon { background: rgba(167,139,250,0.12); }
+    .ft-pdf  .ext { color: var(--rose); }
+    .ft-doc  .ext { color: var(--sky); }
+    .ft-xlsx .ext { color: var(--emerald); }
+    .ft-img  .ext { color: var(--violet); }
+
+    /* ── Pipeline flow ── */
+    .pipeline {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .pipeline-step {
+      display: flex;
+      gap: 20px;
+      position: relative;
+    }
+    .pipeline-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 19px;
+      top: 44px;
+      bottom: -1px;
+      width: 2px;
+      background: linear-gradient(to bottom, var(--cyan-dim), transparent);
+    }
+    .step-icon {
+      width: 40px;
+      height: 40px;
+      min-width: 40px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 2px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      z-index: 1;
+    }
+    .pipeline-step.active .step-icon {
+      border-color: var(--cyan);
+      background: rgba(34,211,238,0.1);
+    }
+    .step-body {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 20px;
+      margin-bottom: 12px;
+    }
+    .step-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .step-desc { font-size: 13px; color: var(--text-muted); margin: 0; }
+    .step-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .tag {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 99px;
+      font-weight: 500;
+    }
+    .tag-cyan   { background: rgba(34,211,238,0.1);  color: var(--cyan);    border: 1px solid rgba(34,211,238,0.2); }
+    .tag-violet { background: rgba(167,139,250,0.1); color: var(--violet);  border: 1px solid rgba(167,139,250,0.2); }
+    .tag-emerald{ background: rgba(52,211,153,0.1);  color: var(--emerald); border: 1px solid rgba(52,211,153,0.2); }
+    .tag-amber  { background: rgba(251,191,36,0.1);  color: var(--amber);   border: 1px solid rgba(251,191,36,0.2); }
+    .tag-rose   { background: rgba(251,113,133,0.1); color: var(--rose);    border: 1px solid rgba(251,113,133,0.2); }
+    .tag-sky    { background: rgba(56,189,248,0.1);  color: var(--sky);     border: 1px solid rgba(56,189,248,0.2); }
+
+    /* ── Code block ── */
+    .code-wrap {
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    .code-lang {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--cyan);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .code-dots { display: flex; gap: 6px; }
+    .code-dots span {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .code-dots span:nth-child(1) { background: #ff5f57; }
+    .code-dots span:nth-child(2) { background: #febc2e; }
+    .code-dots span:nth-child(3) { background: #28c840; }
+    pre {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      line-height: 1.7;
+      padding: 20px;
+      overflow-x: auto;
+      color: #cdd6f4;
+    }
+    .kw  { color: #cba6f7; }
+    .fn  { color: #89b4fa; }
+    .str { color: #a6e3a1; }
+    .cm  { color: #585b70; font-style: italic; }
+    .ty  { color: #f38ba8; }
+    .num { color: #fab387; }
+    .op  { color: #89dceb; }
+
+    /* ── API table ── */
+    .api-list { display: flex; flex-direction: column; gap: 8px; }
+    .api-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      transition: border-color 0.15s;
+    }
+    .api-item:hover { border-color: var(--border-2); }
+    .method-badge {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 4px;
+      min-width: 50px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+    .method-get    { background: rgba(52,211,153,0.15);  color: var(--emerald); }
+    .method-post   { background: rgba(34,211,238,0.15);  color: var(--cyan); }
+    .method-put    { background: rgba(251,191,36,0.15);  color: var(--amber); }
+    .method-delete { background: rgba(251,113,133,0.15); color: var(--rose); }
+    .api-path {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+      flex: 1;
+    }
+    .api-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+    /* ── Module tree ── */
+    .module-tree {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.9;
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 24px;
+    }
+    .tree-dir  { color: var(--cyan); font-weight: 600; }
+    .tree-file { color: var(--text-muted); }
+    .tree-comment { color: var(--text-dim); font-style: italic; }
+    .tree-indent-1 { padding-left: 20px; }
+    .tree-indent-2 { padding-left: 40px; }
+    .tree-indent-3 { padding-left: 60px; }
+
+    /* ── Info boxes ── */
+    .info-box {
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .info-box.note  { background: rgba(34,211,238,0.06);   border: 1px solid rgba(34,211,238,0.2); }
+    .info-box.warn  { background: rgba(251,191,36,0.06);   border: 1px solid rgba(251,191,36,0.2); }
+    .info-box.tip   { background: rgba(52,211,153,0.06);   border: 1px solid rgba(52,211,153,0.2); }
+    .info-box.danger{ background: rgba(251,113,133,0.06);  border: 1px solid rgba(251,113,133,0.2); }
+    .info-icon { font-size: 18px; line-height: 1; margin-top: 2px; }
+    .info-box p { margin: 0; font-size: 13.5px; }
+    .info-box.note  p { color: #a5f3fc; }
+    .info-box.warn  p { color: #fde68a; }
+    .info-box.tip   p { color: #a7f3d0; }
+    .info-box.danger p { color: #fecdd3; }
+
+    /* ── Limits ── */
+    .limit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .limit-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      text-align: center;
+    }
+    .limit-value {
+      font-size: 28px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      color: var(--cyan);
+      line-height: 1.1;
+    }
+    .limit-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* ── Security checklist ── */
+    .checklist { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+    .checklist li {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    .check-icon { color: var(--emerald); font-size: 16px; line-height: 1.5; flex-shrink: 0; }
+
+    /* ── Frontend components ── */
+    .component-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    }
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px;
+      transition: border-color 0.2s;
+    }
+    .component-card:hover { border-color: var(--violet); }
+    .component-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--violet);
+      margin-bottom: 8px;
+    }
+    .component-card ul {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .component-card ul li {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .component-card ul li::before {
+      content: '›';
+      color: var(--text-dim);
+    }
+
+    /* ── Storage path ── */
+    .storage-path {
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      color: var(--emerald);
+      letter-spacing: 0.02em;
+    }
+    .storage-path .part { color: var(--cyan); }
+
+    /* ── Test matrix ── */
+    .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .test-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+    .test-card h4 {
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--emerald);
+      margin-bottom: 10px;
+    }
+    .test-card ul { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .test-card ul li { font-size: 12px; color: var(--text-muted); padding-left: 12px; position: relative; }
+    .test-card ul li::before { content: '—'; position: absolute; left: 0; color: var(--text-dim); }
+
+    /* ── SSE event ── */
+    .sse-event {
+      background: #0a0f1e;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 16px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+    }
+    .sse-field { color: var(--cyan); }
+    .sse-val   { color: var(--text); }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── Footer ── */
+    .footer {
+      margin-top: 64px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: gap;
+    }
+    .footer-text { font-size: 12px; color: var(--text-dim); }
+    .footer-link { color: var(--cyan); text-decoration: none; font-size: 12px; }
+    .footer-link:hover { text-decoration: underline; }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .sidebar { display: none; }
+      .main { padding: 32px 24px; }
+      h1 { font-size: 28px; }
+    }
+    @media (max-width: 600px) {
+      .limit-grid { grid-template-columns: 1fr; }
+      .test-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-logo">
+      <a href="INDEX.html" class="back-link">
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <path d="M10 12L6 8l4-4"/>
+        </svg>
+        Back to Index
+      </a>
+      <div class="product-name">Ops<span>Owl</span> AI</div>
+      <div class="doc-title-sidebar">Feature Specification</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-group-label">Document Intelligence</div>
+      <a href="#overview" class="nav-item active">
+        <span class="nav-num">§1</span> Feature Overview
+      </a>
+      <a href="#file-types" class="nav-item">
+        <span class="nav-num">§2</span> Supported File Types
+      </a>
+      <a href="#pipeline" class="nav-item">
+        <span class="nav-num">§3</span> Processing Pipeline
+      </a>
+      <a href="#schema" class="nav-item">
+        <span class="nav-num">§4</span> Database Schema
+      </a>
+      <a href="#storage" class="nav-item">
+        <span class="nav-num">§5</span> Storage Strategy
+      </a>
+      <a href="#security" class="nav-item">
+        <span class="nav-num">§6</span> Security
+      </a>
+      <a href="#api" class="nav-item">
+        <span class="nav-num">§7</span> API Endpoints
+      </a>
+      <a href="#go-module" class="nav-item">
+        <span class="nav-num">§8</span> Go Module Structure
+      </a>
+      <a href="#python-ai" class="nav-item">
+        <span class="nav-num">§9</span> Python AI Service
+      </a>
+      <a href="#frontend" class="nav-item">
+        <span class="nav-num">§10</span> Frontend Components
+      </a>
+      <a href="#onprem" class="nav-item">
+        <span class="nav-num">§11</span> On-Prem Strategy
+      </a>
+      <a href="#tests" class="nav-item">
+        <span class="nav-num">§12</span> Test Strategy
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main">
+
+    <!-- Page Header -->
+    <header class="page-header">
+      <div class="page-badge">
+        <span class="dot"></span>
+        Feature Specification · 05
+      </div>
+      <h1>Document Upload &amp; <span class="accent">Intelligence</span></h1>
+      <p class="page-subtitle">
+        Investigators work with large volumes of unstructured documents — bank statements, KYC records, legal letters,
+        contracts, and photo IDs. OpsOwl AI processes, indexes, and makes every document queryable via AI, turning
+        static attachments into live investigation context.
+      </p>
+      <div class="page-meta">
+        <div class="meta-item"><strong>Module:</strong> internal/documents</div>
+        <div class="meta-item"><strong>Service:</strong> Go + Python AI</div>
+        <div class="meta-item"><strong>Storage:</strong> MinIO / S3</div>
+        <div class="meta-item"><strong>Queue:</strong> River (Postgres)</div>
+        <div class="meta-item"><strong>Phase:</strong> MVP</div>
+      </div>
+    </header>
+
+    <!-- §1 Feature Overview -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <span class="section-num">§ 01</span>
+        <h2>Feature Overview</h2>
+      </div>
+      <p>
+        Every investigation in OpsOwl AI revolves around evidence — and evidence lives in documents. Bank statements
+        reveal transaction patterns. KYC documents establish identity. Legal letters define obligations. Contracts
+        expose counterparty risk. Photo IDs confirm who is who.
+      </p>
+      <p>
+        The Document Intelligence system handles the full lifecycle: upload → validate → store → extract → embed →
+        index → query. Once a document is attached to a case, its full text content becomes part of the AI's context
+        window when investigators ask questions or generate summaries.
+      </p>
+
+      <div class="card-grid" style="margin-top:24px;">
+        <div class="card-sm">
+          <h4>📤 Upload</h4>
+          <p>Drag-and-drop or file picker. Multipart POST. Immediate validation before any storage.</p>
+        </div>
+        <div class="card-sm">
+          <h4>🔬 Extract</h4>
+          <p>PyMuPDF for PDFs, Tesseract OCR for images and scanned docs, python-docx/openpyxl for Office formats.</p>
+        </div>
+        <div class="card-sm">
+          <h4>🧠 Embed</h4>
+          <p>Text chunked into ~500-token segments. Each chunk embedded via OpenAI or Anthropic. Stored in pgvector.</p>
+        </div>
+        <div class="card-sm">
+          <h4>🔍 Query</h4>
+          <p>AI Copilot performs semantic search across case documents. Results ranked by cosine similarity.</p>
+        </div>
+      </div>
+
+      <div class="info-box note" style="margin-top:20px;">
+        <span class="info-icon">💡</span>
+        <p>Every document attached to a case becomes part of the AI context. The AI Copilot never operates on raw
+        files — it operates on extracted, chunked, and indexed text, ensuring consistent performance regardless of
+        source format.</p>
+      </div>
+    </section>
+
+    <!-- §2 Supported File Types -->
+    <section class="section" id="file-types">
+      <div class="section-header">
+        <span class="section-num">§ 02</span>
+        <h2>Supported File Types</h2>
+      </div>
+
+      <div class="filetype-grid">
+        <div class="filetype-card ft-pdf">
+          <div class="filetype-icon">📄</div>
+          <div class="ext">.PDF</div>
+          <div class="method">
+            Text extraction via <strong>PyMuPDF</strong> (fitz). If text layer is absent or sparse (&lt;50 chars/page),
+            automatically falls back to <strong>Tesseract OCR</strong> per page. Handles scanned bank statements natively.
+          </div>
+        </div>
+        <div class="filetype-card ft-doc">
+          <div class="filetype-icon">📝</div>
+          <div class="ext">.DOCX / .DOC</div>
+          <div class="method">
+            Extracted via <strong>python-docx</strong>. Paragraphs, headings, table cells, and inline text are all
+            captured. Legacy .doc files converted via LibreOffice headless before extraction.
+          </div>
+        </div>
+        <div class="filetype-card ft-xlsx">
+          <div class="filetype-icon">📊</div>
+          <div class="ext">.XLSX / .XLS</div>
+          <div class="method">
+            Tabular data extracted via <strong>openpyxl</strong>. Each sheet becomes a structured text block with
+            headers and rows preserved. Ideal for bank ledger exports and transaction dumps.
+          </div>
+        </div>
+        <div class="filetype-card ft-img">
+          <div class="filetype-icon">🖼️</div>
+          <div class="ext">.JPG / .PNG / .TIFF</div>
+          <div class="method">
+            Full OCR via <strong>Tesseract</strong> (eng+hin language packs). TIFF supported for multi-page fax
+            documents. Image preprocessing (deskew, contrast) applied before OCR.
+          </div>
+        </div>
+      </div>
+
+      <div class="limit-grid" style="margin-top:20px;">
+        <div class="limit-item">
+          <div class="limit-value">50 MB</div>
+          <div class="limit-label">Maximum size per file</div>
+        </div>
+        <div class="limit-item">
+          <div class="limit-value">500 MB</div>
+          <div class="limit-label">Maximum total per case</div>
+        </div>
+      </div>
+
+      <div class="info-box warn" style="margin-top:16px;">
+        <span class="info-icon">⚠️</span>
+        <p>Executable files (.exe, .sh, .bat, .js, .py, .zip, .jar) are rejected at the Go middleware layer before
+        any processing. File type is determined by magic bytes (libmagic), not file extension.</p>
+      </div>
+    </section>
+
+    <!-- §3 Processing Pipeline -->
+    <section class="section" id="pipeline">
+      <div class="section-header">
+        <span class="section-num">§ 03</span>
+        <h2>Document Processing Pipeline</h2>
+      </div>
+      <p>
+        Processing is fully asynchronous via the <strong>River</strong> job queue (backed by PostgreSQL). The upload
+        request returns immediately after validation and storage; the heavy lifting happens in background workers.
+      </p>
+
+      <div class="pipeline" style="margin-top:28px;">
+
+        <div class="pipeline-step active">
+          <div class="step-icon">📤</div>
+          <div class="step-body">
+            <div class="step-title">1 — Upload &amp; Validate</div>
+            <p class="step-desc">Client POSTs multipart form data. Go middleware validates file size, MIME type (magic bytes), and extension allowlist. Request is rejected immediately if validation fails — nothing is written.</p>
+            <div class="step-tags">
+              <span class="tag tag-cyan">Go chi router</span>
+              <span class="tag tag-amber">magic bytes check</span>
+              <span class="tag tag-rose">reject if invalid</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">🔬</div>
+          <div class="step-body">
+            <div class="step-title">2 — Virus Scan</div>
+            <p class="step-desc">File content is streamed to ClamAV daemon via TCP socket. If ClamAV returns a threat signature, the upload is rejected and the threat is logged. No file reaches permanent storage without passing the scan.</p>
+            <div class="step-tags">
+              <span class="tag tag-rose">ClamAV integration</span>
+              <span class="tag tag-amber">TCP socket scan</span>
+              <span class="tag tag-emerald">stream — no temp disk write</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">🗃️</div>
+          <div class="step-body">
+            <div class="step-title">3 — Store in MinIO / S3</div>
+            <p class="step-desc">Clean file is written to object storage at path <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">{org_id}/{case_id}/{doc_id}/{filename}</code>. Document metadata row is inserted into <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">documents</code> table with <code>status = 'pending'</code>.</p>
+            <div class="step-tags">
+              <span class="tag tag-sky">MinIO / S3</span>
+              <span class="tag tag-violet">documents.status = pending</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">📋</div>
+          <div class="step-body">
+            <div class="step-title">4 — Enqueue River Job</div>
+            <p class="step-desc">A <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">DocumentProcessingJob</code> is inserted into River's job table (in the same Postgres transaction as the document row). Atomicity guaranteed — if job enqueue fails, document insert rolls back.</p>
+            <div class="step-tags">
+              <span class="tag tag-cyan">River job queue</span>
+              <span class="tag tag-emerald">atomic with DB insert</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">🤖</div>
+          <div class="step-body">
+            <div class="step-title">5 — Text Extraction (Python AI Service)</div>
+            <p class="step-desc">River worker calls <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">POST /process-document</code> on the Python AI service. The service downloads the file from MinIO/S3 and runs the appropriate extractor (PyMuPDF → OCR fallback, python-docx, openpyxl, Tesseract). Raw text is returned to the worker. Document status set to <code>processing</code>.</p>
+            <div class="step-tags">
+              <span class="tag tag-violet">FastAPI</span>
+              <span class="tag tag-amber">PyMuPDF</span>
+              <span class="tag tag-sky">Tesseract OCR</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">✂️</div>
+          <div class="step-body">
+            <div class="step-title">6 — Chunk Text</div>
+            <p class="step-desc">Extracted text is split into ~500-token segments with 50-token overlap. Chunking respects sentence boundaries and paragraph breaks where possible. Each chunk records its source page number for provenance.</p>
+            <div class="step-tags">
+              <span class="tag tag-cyan">~500 tokens / chunk</span>
+              <span class="tag tag-amber">50-token overlap</span>
+              <span class="tag tag-emerald">page provenance tracked</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">🧮</div>
+          <div class="step-body">
+            <div class="step-title">7 — Generate Embeddings</div>
+            <p class="step-desc">Each chunk is embedded via <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">POST /embed-chunks</code>. Default model: <strong>OpenAI text-embedding-3-small</strong> (1536 dimensions). Fallback: Anthropic voyage-3-lite. Embeddings are batch-generated (up to 100 chunks per API call). Stored in <code>document_chunks.embedding vector(1536)</code>.</p>
+            <div class="step-tags">
+              <span class="tag tag-sky">text-embedding-3-small</span>
+              <span class="tag tag-violet">1536 dimensions</span>
+              <span class="tag tag-emerald">pgvector storage</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pipeline-step">
+          <div class="step-icon">✅</div>
+          <div class="step-body">
+            <div class="step-title">8 — Complete &amp; Notify</div>
+            <p class="step-desc">Document status updated to <code>completed</code> (or <code>failed</code> with error message). A <code style="color:var(--cyan);font-family:var(--font-mono);font-size:12px;">document_processed</code> timeline event is emitted. Case viewers receive an SSE push notification — no page refresh needed.</p>
+            <div class="step-tags">
+              <span class="tag tag-emerald">documents.status = completed</span>
+              <span class="tag tag-cyan">SSE notify</span>
+              <span class="tag tag-violet">timeline event</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- §4 Database Schema -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <span class="section-num">§ 04</span>
+        <h2>Database Schema</h2>
+      </div>
+      <p>Three tables cover the document lifecycle. All use UUID v4 primary keys, TIMESTAMPTZ, and enforce foreign
+      keys with indexed FK columns.</p>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <div class="code-lang">SQL — PostgreSQL 18</div>
+        </div>
+        <pre><span class="cm">-- ────────────────────────────────────────────────────────────
+-- documents: core document metadata
+-- ────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TYPE</span> <span class="ty">document_processing_status</span> <span class="kw">AS ENUM</span> (
+  <span class="str">'pending'</span>, <span class="str">'processing'</span>, <span class="str">'completed'</span>, <span class="str">'failed'</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="fn">documents</span> (
+  id                   <span class="ty">UUID</span>            <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  case_id              <span class="ty">UUID</span>            <span class="kw">NOT NULL REFERENCES</span> <span class="fn">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  uploaded_by          <span class="ty">UUID</span>            <span class="kw">NOT NULL REFERENCES</span> <span class="fn">users</span>(id),
+  original_filename    <span class="ty">TEXT</span>            <span class="kw">NOT NULL</span>,
+  stored_path          <span class="ty">TEXT</span>            <span class="kw">NOT NULL</span>,             <span class="cm">-- {org_id}/{case_id}/{doc_id}/{filename}</span>
+  file_type            <span class="ty">TEXT</span>            <span class="kw">NOT NULL</span>,             <span class="cm">-- pdf, docx, xlsx, jpg, png, tiff</span>
+  mime_type            <span class="ty">TEXT</span>            <span class="kw">NOT NULL</span>,
+  file_size_bytes      <span class="ty">BIGINT</span>          <span class="kw">NOT NULL</span>,
+  processing_status    <span class="ty">document_processing_status</span> <span class="kw">NOT NULL DEFAULT</span> <span class="str">'pending'</span>,
+  page_count           <span class="ty">INTEGER</span>,                               <span class="cm">-- populated after extraction</span>
+  extracted_text_path  <span class="ty">TEXT</span>,                                  <span class="cm">-- MinIO path to raw extracted text</span>
+  created_at           <span class="ty">TIMESTAMPTZ</span>     <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  updated_at           <span class="ty">TIMESTAMPTZ</span>     <span class="kw">NOT NULL DEFAULT NOW</span>(),
+  deleted_at           <span class="ty">TIMESTAMPTZ</span>
+);
+
+<span class="kw">CREATE INDEX</span> idx_documents_case_id         <span class="kw">ON</span> <span class="fn">documents</span> (case_id);
+<span class="kw">CREATE INDEX</span> idx_documents_uploaded_by      <span class="kw">ON</span> <span class="fn">documents</span> (uploaded_by);
+<span class="kw">CREATE INDEX</span> idx_documents_processing_status <span class="kw">ON</span> <span class="fn">documents</span> (processing_status) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_documents_deleted_at        <span class="kw">ON</span> <span class="fn">documents</span> (deleted_at) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NOT NULL</span>;
+
+<span class="cm">-- ────────────────────────────────────────────────────────────
+-- document_chunks: text chunks with vector embeddings
+-- ────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="fn">document_chunks</span> (
+  id           <span class="ty">UUID</span>           <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  document_id  <span class="ty">UUID</span>           <span class="kw">NOT NULL REFERENCES</span> <span class="fn">documents</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  case_id      <span class="ty">UUID</span>           <span class="kw">NOT NULL REFERENCES</span> <span class="fn">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  chunk_index  <span class="ty">INTEGER</span>        <span class="kw">NOT NULL</span>,
+  content      <span class="ty">TEXT</span>           <span class="kw">NOT NULL</span>,
+  embedding    <span class="ty">vector</span>(<span class="num">1536</span>)  <span class="kw">NOT NULL</span>,              <span class="cm">-- OpenAI text-embedding-3-small</span>
+  page_number  <span class="ty">INTEGER</span>,                               <span class="cm">-- source page (null for non-paged formats)</span>
+  created_at   <span class="ty">TIMESTAMPTZ</span>    <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="kw">CREATE INDEX</span> idx_chunks_document_id  <span class="kw">ON</span> <span class="fn">document_chunks</span> (document_id);
+<span class="kw">CREATE INDEX</span> idx_chunks_case_id      <span class="kw">ON</span> <span class="fn">document_chunks</span> (case_id);
+<span class="cm">-- HNSW index for fast cosine similarity search:</span>
+<span class="kw">CREATE INDEX</span> idx_chunks_embedding <span class="kw">ON</span> <span class="fn">document_chunks</span>
+  <span class="kw">USING</span> hnsw (embedding <span class="fn">vector_cosine_ops</span>)
+  <span class="kw">WITH</span> (m = <span class="num">16</span>, ef_construction = <span class="num">64</span>);
+
+<span class="cm">-- ────────────────────────────────────────────────────────────
+-- document_processing_jobs: tracks River job lifecycle
+-- ────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="fn">document_processing_jobs</span> (
+  id            <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  document_id   <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="fn">documents</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  status        <span class="ty">TEXT</span>        <span class="kw">NOT NULL DEFAULT</span> <span class="str">'queued'</span>,
+  error_message <span class="ty">TEXT</span>,
+  started_at    <span class="ty">TIMESTAMPTZ</span>,
+  completed_at  <span class="ty">TIMESTAMPTZ</span>,
+  created_at    <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="kw">CREATE INDEX</span> idx_proc_jobs_document_id <span class="kw">ON</span> <span class="fn">document_processing_jobs</span> (document_id);
+<span class="kw">CREATE INDEX</span> idx_proc_jobs_status      <span class="kw">ON</span> <span class="fn">document_processing_jobs</span> (status)
+  <span class="kw">WHERE</span> status <span class="kw">IN</span> (<span class="str">'queued'</span>, <span class="str">'processing'</span>);</pre>
+      </div>
+    </section>
+
+    <!-- §5 Storage Strategy -->
+    <section class="section" id="storage">
+      <div class="section-header">
+        <span class="section-num">§ 05</span>
+        <h2>Storage Strategy</h2>
+      </div>
+      <p>
+        OpsOwl AI uses an S3-compatible object storage interface. In development and on-premise deployments, MinIO
+        provides a self-hosted S3-compatible server. In cloud deployments, the same interface targets AWS S3.
+        No code changes are required between environments — only configuration.
+      </p>
+
+      <h3>Path Convention</h3>
+      <div class="storage-path">
+        <span class="part">{org_id}</span>/<span class="part">{case_id}</span>/<span class="part">{doc_id}</span>/<span class="part">{original_filename}</span>
+      </div>
+      <p style="margin-top:12px;font-size:13px;">
+        Example: <code style="font-family:var(--font-mono);color:var(--cyan);font-size:12px;">org_9f3a.../case_d12b.../doc_47cc.../bank_statement_jan2025.pdf</code>
+      </p>
+
+      <h3>Presigned URL Access</h3>
+      <div class="card">
+        <p>Files are never served directly. All download access is via <strong>presigned URLs</strong> generated at
+        request time with a 1-hour expiry. The URL is generated server-side, includes the requester's identity in
+        the audit log, and is single-use scoped.</p>
+        <div class="step-tags" style="margin-top:12px;">
+          <span class="tag tag-emerald">1-hour URL expiry</span>
+          <span class="tag tag-cyan">audit logged on every generate</span>
+          <span class="tag tag-amber">no direct bucket access</span>
+        </div>
+      </div>
+
+      <h3>Environment Mapping</h3>
+      <div class="card-grid">
+        <div class="card-sm">
+          <h4>Development / On-Prem</h4>
+          <p>MinIO runs as a Docker container. Bucket: <code style="font-family:var(--font-mono);font-size:11px;color:var(--cyan);">opsowl-documents</code>. Endpoint configured via <code style="font-family:var(--font-mono);font-size:11px;color:var(--cyan);">STORAGE_ENDPOINT</code> env var.</p>
+        </div>
+        <div class="card-sm">
+          <h4>Cloud Production</h4>
+          <p>AWS S3 bucket in ap-south-1 (Mumbai) for Indian data residency. IAM role with least-privilege GetObject/PutObject. No public bucket policy.</p>
+        </div>
+      </div>
+
+      <div class="info-box tip">
+        <span class="info-icon">✅</span>
+        <p>The Go storage client is defined as an interface (<code style="font-family:var(--font-mono);font-size:12px;">StorageClient</code>). Both MinIO and S3 implement it. Tests use a mock implementation. No AWS SDK leakage into business logic.</p>
+      </div>
+    </section>
+
+    <!-- §6 Security -->
+    <section class="section" id="security">
+      <div class="section-header">
+        <span class="section-num">§ 06</span>
+        <h2>Security</h2>
+      </div>
+
+      <ul class="checklist">
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>Virus scanning (ClamAV)</strong> — every uploaded file is streamed to ClamAV before storage.
+          ClamAV runs as a sidecar container. The Go service connects via TCP to clamd. Files containing known
+          malware signatures are rejected and the event is logged with severity CRITICAL.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>Magic bytes validation</strong> — MIME type is determined by reading the file's magic bytes
+          (using <code style="font-family:var(--font-mono);font-size:12px;">net/http.DetectContentType</code> + custom signatures), never trusting the Content-Type header or
+          file extension. A .pdf extension with a ZIP magic byte is rejected.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>Extension allowlist</strong> — only PDF, DOCX, DOC, XLSX, XLS, JPG, JPEG, PNG, TIFF are
+          accepted. Executables (.exe, .sh, .bat), archives (.zip, .tar, .gz), scripts (.js, .py, .rb) are blocked
+          at the middleware layer.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>Presigned URL expiry</strong> — download URLs expire after 1 hour. Each generation is
+          logged with the requesting user ID, timestamp, and document ID. Links cannot be shared externally
+          without also sharing authentication context.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>RBAC enforcement</strong> — document endpoints verify that the requesting user is a member
+          of the case's organization and has at least Investigator role. Upload requires write permission.
+          Delete requires case owner or admin role.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>No executables stored</strong> — the allowlist combined with magic byte checking ensures
+          no executable content can be stored, even in renamed form.</span>
+        </li>
+        <li>
+          <span class="check-icon">🛡️</span>
+          <span><strong>PII masking before AI calls</strong> — Aadhaar numbers, PAN, account numbers, and phone
+          numbers are masked in extracted text before embedding and before sending to AI providers. Raw PII
+          never leaves the Postgres/MinIO perimeter.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- §7 API Endpoints -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <span class="section-num">§ 07</span>
+        <h2>API Endpoints</h2>
+      </div>
+      <p>All responses follow the envelope <code style="font-family:var(--font-mono);font-size:12px;">{"data": ..., "meta": ..., "error": null}</code>.
+      Cursor pagination used for list endpoints. Authentication required on all routes (JWT RS256).</p>
+
+      <div class="api-list">
+        <div class="api-item">
+          <span class="method-badge method-post">POST</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents</div>
+            <div class="api-desc">Multipart file upload. Validates type + virus scan → stores → enqueues processing job. Returns document metadata with <code>status: "pending"</code>.</div>
+          </div>
+        </div>
+        <div class="api-item">
+          <span class="method-badge method-get">GET</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents</div>
+            <div class="api-desc">List all documents for a case. Cursor paginated. Includes <code>processing_status</code>, <code>file_type</code>, <code>file_size_bytes</code>, <code>page_count</code>. Excludes soft-deleted rows.</div>
+          </div>
+        </div>
+        <div class="api-item">
+          <span class="method-badge method-get">GET</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents/:doc_id</div>
+            <div class="api-desc">Single document metadata. Includes uploader info, timestamps, processing status, page count.</div>
+          </div>
+        </div>
+        <div class="api-item">
+          <span class="method-badge method-get">GET</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents/:doc_id/download</div>
+            <div class="api-desc">Generates a presigned URL (1-hour expiry) and returns it. Client uses the URL to download directly from MinIO/S3. Download is logged for audit.</div>
+          </div>
+        </div>
+        <div class="api-item">
+          <span class="method-badge method-get">GET</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents/:doc_id/status</div>
+            <div class="api-desc">Processing status polling endpoint. Returns <code>{ status, page_count, chunk_count, error_message }</code>. Used by frontend before SSE is established.</div>
+          </div>
+        </div>
+        <div class="api-item">
+          <span class="method-badge method-delete">DELETE</span>
+          <div>
+            <div class="api-path">/api/v1/cases/:id/documents/:doc_id</div>
+            <div class="api-desc">Soft delete (sets <code>deleted_at</code>). Schedules async job to delete MinIO/S3 object and all associated chunks + embeddings. Requires admin or case owner role.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:28px;">River Job (Internal)</h3>
+      <div class="card">
+        <p style="font-size:13px;">The document processing pipeline runs as a River worker inside the Go service. It is not an HTTP endpoint — River pulls jobs from the Postgres-backed queue. The worker calls the Python AI service via HTTP. Retries: 3 attempts with exponential backoff. Dead-letter: failed jobs remain in <code style="font-family:var(--font-mono);font-size:12px;">document_processing_jobs</code> with <code>status = 'failed'</code>.</p>
+      </div>
+
+      <h3>SSE Events (document processing)</h3>
+      <div class="sse-event">
+        <div><span class="sse-field">event: </span><span class="sse-val">document_processed</span></div>
+        <div><span class="sse-field">data: </span><span class="sse-val">{"document_id":"uuid","status":"completed","chunk_count":42,"page_count":18}</span></div>
+        <div style="margin-top:6px;"><span class="sse-field">event: </span><span class="sse-val">document_processing_failed</span></div>
+        <div><span class="sse-field">data: </span><span class="sse-val">{"document_id":"uuid","status":"failed","error":"OCR timeout after 120s"}</span></div>
+      </div>
+    </section>
+
+    <!-- §8 Go Module Structure -->
+    <section class="section" id="go-module">
+      <div class="section-header">
+        <span class="section-num">§ 08</span>
+        <h2>Go Module Structure</h2>
+      </div>
+
+      <div class="module-tree">
+<span class="tree-dir">internal/documents/</span>
+<span class="tree-indent-1 tree-file">├── handler.go</span>         <span class="tree-comment">  # HTTP handlers (upload, list, download, delete)</span>
+<span class="tree-indent-1 tree-file">├── service.go</span>         <span class="tree-comment">  # Business logic: validate, store, enqueue</span>
+<span class="tree-indent-1 tree-file">├── repository.go</span>      <span class="tree-comment">  # sqlc-generated queries + custom queries</span>
+<span class="tree-indent-1 tree-file">├── river_worker.go</span>    <span class="tree-comment">  # River job handler: process document async</span>
+<span class="tree-indent-1 tree-file">├── validator.go</span>       <span class="tree-comment">  # Magic bytes check, extension allowlist</span>
+<span class="tree-indent-1 tree-file">├── clamav.go</span>          <span class="tree-comment">  # ClamAV TCP client</span>
+<span class="tree-indent-1 tree-file">└── dto.go</span>             <span class="tree-comment">  # Request/response structs</span>
+
+<span class="tree-dir">internal/storage/</span>
+<span class="tree-indent-1 tree-file">├── client.go</span>          <span class="tree-comment">  # StorageClient interface</span>
+<span class="tree-indent-1 tree-file">├── minio.go</span>           <span class="tree-comment">  # MinIO implementation</span>
+<span class="tree-indent-1 tree-file">├── s3.go</span>              <span class="tree-comment">  # AWS S3 implementation</span>
+<span class="tree-indent-1 tree-file">└── mock.go</span>            <span class="tree-comment">  # Test mock</span>
+
+<span class="tree-dir">internal/aiclient/</span>
+<span class="tree-indent-1 tree-file">├── client.go</span>          <span class="tree-comment">  # HTTP client for Python AI service</span>
+<span class="tree-indent-1 tree-file">├── process.go</span>         <span class="tree-comment">  # process-document call</span>
+<span class="tree-indent-1 tree-file">└── embed.go</span>           <span class="tree-comment">  # embed-chunks call</span>
+
+<span class="tree-dir">db/migrations/</span>
+<span class="tree-indent-1 tree-file">├── 005_documents.sql</span>
+<span class="tree-indent-1 tree-file">└── 006_document_chunks.sql</span>
+
+<span class="tree-dir">db/queries/</span>
+<span class="tree-indent-1 tree-file">└── documents.sql</span>      <span class="tree-comment">  # sqlc query annotations</span>
+      </div>
+    </section>
+
+    <!-- §9 Python AI Service -->
+    <section class="section" id="python-ai">
+      <div class="section-header">
+        <span class="section-num">§ 09</span>
+        <h2>Python AI Service Endpoints</h2>
+      </div>
+      <p>The Python AI service exposes two internal HTTP endpoints called exclusively by the Go River worker.
+      These are not exposed to the public internet. mTLS or shared secret header for service-to-service auth.</p>
+
+      <div class="code-wrap">
+        <div class="code-header">
+          <div class="code-dots"><span></span><span></span><span></span></div>
+          <div class="code-lang">Python — FastAPI</div>
+        </div>
+        <pre><span class="cm"># POST /process-document</span>
+<span class="cm"># Called by Go River worker after file is stored in MinIO/S3.</span>
+<span class="cm"># Downloads the file, runs appropriate extractor, returns raw text + metadata.</span>
+
+<span class="kw">class</span> <span class="ty">ProcessDocumentRequest</span>(BaseModel):
+    document_id: <span class="ty">str</span>
+    stored_path: <span class="ty">str</span>              <span class="cm"># MinIO/S3 path</span>
+    file_type:   <span class="ty">str</span>              <span class="cm"># pdf | docx | xlsx | jpg | png | tiff</span>
+    org_id:      <span class="ty">str</span>
+
+<span class="kw">class</span> <span class="ty">ProcessDocumentResponse</span>(BaseModel):
+    document_id:    <span class="ty">str</span>
+    raw_text:       <span class="ty">str</span>
+    page_count:     <span class="ty">int</span>
+    extraction_method: <span class="ty">str</span>        <span class="cm"># pymupdf | tesseract | python-docx | openpyxl</span>
+    char_count:     <span class="ty">int</span>
+
+<span class="fn">@router.post</span>(<span class="str">"/process-document"</span>)
+<span class="kw">async def</span> <span class="fn">process_document</span>(req: <span class="ty">ProcessDocumentRequest</span>) -> <span class="ty">ProcessDocumentResponse</span>:
+    file_bytes = <span class="kw">await</span> <span class="fn">storage.download</span>(req.stored_path)
+    extractor  = <span class="fn">get_extractor</span>(req.file_type)    <span class="cm"># factory: PDF|DOCX|XLSX|image</span>
+    result     = <span class="kw">await</span> extractor.<span class="fn">extract</span>(file_bytes)
+    <span class="kw">return</span> <span class="ty">ProcessDocumentResponse</span>(**result)
+
+<span class="cm"># ────────────────────────────────────────────────────────────
+# POST /embed-chunks
+# Accepts up to 100 text chunks, returns embeddings.
+# ────────────────────────────────────────────────────────────</span>
+
+<span class="kw">class</span> <span class="ty">EmbedChunksRequest</span>(BaseModel):
+    document_id: <span class="ty">str</span>
+    case_id:     <span class="ty">str</span>
+    chunks:      <span class="ty">list</span>[<span class="ty">ChunkInput</span>]  <span class="cm"># {chunk_index, content, page_number}</span>
+    model:       <span class="ty">str</span> = <span class="str">"text-embedding-3-small"</span>
+
+<span class="kw">class</span> <span class="ty">EmbedChunksResponse</span>(BaseModel):
+    embeddings:  <span class="ty">list</span>[<span class="ty">ChunkEmbedding</span>]  <span class="cm"># {chunk_index, embedding: list[float]}</span>
+    model_used:  <span class="ty">str</span>
+    token_count: <span class="ty">int</span>
+
+<span class="fn">@router.post</span>(<span class="str">"/embed-chunks"</span>)
+<span class="kw">async def</span> <span class="fn">embed_chunks</span>(req: <span class="ty">EmbedChunksRequest</span>) -> <span class="ty">EmbedChunksResponse</span>:
+    embeddings = <span class="kw">await</span> <span class="fn">embedding_provider.embed_batch</span>(
+        texts=[c.content <span class="kw">for</span> c <span class="kw">in</span> req.chunks],
+        model=req.model
+    )
+    <span class="kw">return</span> <span class="ty">EmbedChunksResponse</span>(embeddings=embeddings, ...)</pre>
+      </div>
+
+      <div class="info-box note" style="margin-top:4px;">
+        <span class="info-icon">💡</span>
+        <p>The embedding provider is an abstraction over OpenAI and Anthropic SDKs. Switching providers requires only
+        changing the <code>EMBEDDING_PROVIDER</code> env var. Vector dimension must match the pgvector column — if
+        provider changes, a migration is required to re-embed all chunks.</p>
+      </div>
+    </section>
+
+    <!-- §10 Frontend Components -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <span class="section-num">§ 10</span>
+        <h2>Frontend Components</h2>
+      </div>
+      <p>All components are Next.js 16 RSC-compatible where possible; upload and real-time components use client
+      components. State managed via TanStack Query v5 + Zustand. Tailwind v4 + shadcn/ui for styling.</p>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <h4>DocumentUploadZone</h4>
+          <ul>
+            <li>Drag-and-drop (react-dropzone)</li>
+            <li>File type indicator on hover</li>
+            <li>Size validation before POST</li>
+            <li>Upload progress bar (XHR)</li>
+            <li>Immediate pending card appears</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <h4>DocumentList</h4>
+          <ul>
+            <li>Skeleton loader on fetch</li>
+            <li>Processing spinner (animated)</li>
+            <li>Completed: file icon + name</li>
+            <li>Failed: red badge + error tooltip</li>
+            <li>SSE updates without refresh</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <h4>DocumentPreview</h4>
+          <ul>
+            <li>PDF.js for PDF rendering</li>
+            <li>Page navigation controls</li>
+            <li>Zoom in/out</li>
+            <li>Thumbnail strip (sidebar)</li>
+            <li>Image viewer for JPG/PNG/TIFF</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <h4>DocumentMetadataPanel</h4>
+          <ul>
+            <li>File name, type, size, pages</li>
+            <li>Uploaded by + timestamp</li>
+            <li>Processing status badge</li>
+            <li>Download button (presigned)</li>
+            <li>Delete (admin/owner only)</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <h4>ProcessingStatusBadge</h4>
+          <ul>
+            <li>pending: grey pulse</li>
+            <li>processing: cyan spinner</li>
+            <li>completed: green check</li>
+            <li>failed: red X + tooltip</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <h4>ThumbnailGenerator</h4>
+          <ul>
+            <li>First-page PDF thumbnail via PDF.js canvas</li>
+            <li>Cached in TanStack Query</li>
+            <li>Fallback: file-type icon</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- §11 On-Prem Strategy -->
+    <section class="section" id="onprem">
+      <div class="section-header">
+        <span class="section-num">§ 11</span>
+        <h2>On-Prem Deployment Strategy</h2>
+      </div>
+      <p>
+        Many fintech and NBFC customers operate under strict data residency requirements — RBI guidelines often
+        mandate that sensitive financial data must not leave the customer's data centre. OpsOwl AI's architecture
+        is designed for true on-premise deployment with zero cloud dependencies.
+      </p>
+
+      <div class="card-grid">
+        <div class="card-sm">
+          <h4>MinIO = Self-hosted S3</h4>
+          <p>MinIO is S3-protocol-compatible. The Go <code style="font-family:var(--font-mono);font-size:11px;">StorageClient</code> interface works identically against MinIO or S3. Customers run MinIO on their own hardware.</p>
+        </div>
+        <div class="card-sm">
+          <h4>No Data Egress</h4>
+          <p>Documents, extracted text, and embeddings never leave the customer's network. Even AI calls can be routed to an on-prem LLM (Ollama) by swapping the embedding provider config.</p>
+        </div>
+        <div class="card-sm">
+          <h4>Docker Compose Stack</h4>
+          <p>Full stack ships as a Docker Compose file: Go API, Python AI service, Postgres + pgvector, MinIO, ClamAV. One command deployment for on-prem teams.</p>
+        </div>
+        <div class="card-sm">
+          <h4>Kubernetes Support</h4>
+          <p>Helm chart provided for K8s deployments. MinIO Operator supported. PVC-backed storage for MinIO persistence. StatefulSet for Postgres with WAL archiving.</p>
+        </div>
+      </div>
+
+      <div class="info-box tip" style="margin-top:4px;">
+        <span class="info-icon">✅</span>
+        <p>The same Docker image is deployed to cloud (S3 endpoint) and on-prem (MinIO endpoint). The only difference
+        is environment variables: <code style="font-family:var(--font-mono);font-size:12px;">STORAGE_ENDPOINT</code>, <code style="font-family:var(--font-mono);font-size:12px;">STORAGE_ACCESS_KEY</code>,
+        <code style="font-family:var(--font-mono);font-size:12px;">STORAGE_SECRET_KEY</code>.</p>
+      </div>
+    </section>
+
+    <!-- §12 Test Strategy -->
+    <section class="section" id="tests">
+      <div class="section-header">
+        <span class="section-num">§ 12</span>
+        <h2>Test Strategy</h2>
+      </div>
+
+      <div class="test-grid">
+        <div class="test-card">
+          <h4>File Type Validation</h4>
+          <ul>
+            <li>PDF with valid magic bytes → accepted</li>
+            <li>ZIP renamed to .pdf → rejected</li>
+            <li>EXE with any extension → rejected</li>
+            <li>Empty file → rejected</li>
+            <li>Over 50MB → rejected pre-scan</li>
+            <li>Content-Type spoofing → ignored</li>
+          </ul>
+        </div>
+        <div class="test-card">
+          <h4>Processing Pipeline</h4>
+          <ul>
+            <li>PDF extraction returns text</li>
+            <li>Scanned PDF falls back to OCR</li>
+            <li>XLSX extraction preserves table structure</li>
+            <li>Chunking respects 500-token limit</li>
+            <li>Embeddings have correct dimension (1536)</li>
+            <li>Failed job sets status = failed</li>
+          </ul>
+        </div>
+        <div class="test-card">
+          <h4>Storage (Mock)</h4>
+          <ul>
+            <li>Path follows org/case/doc/filename convention</li>
+            <li>Presigned URL generated with 1hr expiry</li>
+            <li>Delete removes MinIO object</li>
+            <li>StorageClient interface mock used in unit tests</li>
+            <li>MinIO integration tests use testcontainers</li>
+          </ul>
+        </div>
+        <div class="test-card">
+          <h4>API Integration</h4>
+          <ul>
+            <li>Unauthorized request → 401</li>
+            <li>Wrong org → 404</li>
+            <li>Upload with virus → 422 with error</li>
+            <li>Processing status polling</li>
+            <li>SSE event received after completion</li>
+            <li>Soft delete does not expose in list</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <hr class="divider" />
+
+    <footer class="footer">
+      <div class="footer-text">OpsOwl AI · Feature Specification · Doc 05 of 12 · MVP Phase</div>
+      <a href="INDEX.html" class="footer-link">← Back to Index</a>
+    </footer>
+
+  </main>
+</div>
+
+<script>
+  // Active nav item highlight on scroll
+  const sections = document.querySelectorAll('.section');
+  const navItems = document.querySelectorAll('.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(n => n.classList.remove('active'));
+        const active = document.querySelector(`.nav-item[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

@@ -1,0 +1,2077 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>10 · Audit Logging — OpsOwl AI Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-2:   #263348;
+      --border:      #334155;
+      --border-light:#3d526b;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0891b2;
+      --cyan-glow:   rgba(34,211,238,0.12);
+      --violet:      #a78bfa;
+      --violet-dim:  #7c3aed;
+      --violet-glow: rgba(167,139,250,0.12);
+      --green:       #34d399;
+      --green-glow:  rgba(52,211,153,0.12);
+      --amber:       #fbbf24;
+      --amber-glow:  rgba(251,191,36,0.12);
+      --red:         #f87171;
+      --red-glow:    rgba(248,113,113,0.12);
+      --blue:        #60a5fa;
+      --blue-glow:   rgba(96,165,250,0.12);
+      --pink:        #f472b6;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--cyan);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .header-brand .owl-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .back-link {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--cyan); }
+    .doc-badge {
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      padding: 2px 10px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: calc(100vh - 60px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: sticky;
+      top: 60px;
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+      padding: 2rem 1.25rem;
+      border-right: 1px solid var(--border);
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .sidebar-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+      padding-left: 0.5rem;
+    }
+    .sidebar-nav { list-style: none; }
+    .sidebar-nav li { margin-bottom: 2px; }
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .sidebar-nav a:hover { background: var(--surface); color: var(--text); }
+    .sidebar-nav a .sec-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-width: 1.5rem;
+    }
+
+    /* ── Main Content ── */
+    .main-content {
+      padding: 3rem 3.5rem;
+      max-width: 980px;
+    }
+
+    /* ── Hero ── */
+    .page-hero {
+      margin-bottom: 3.5rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .feature-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+    }
+    .page-title {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--cyan) 60%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 640px;
+      line-height: 1.65;
+      margin-bottom: 1.5rem;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .meta-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 80px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .section-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--cyan);
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      padding: 3px 9px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .section-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .section-divider {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-sm {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .card-highlight {
+      background: var(--surface-2);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-cyan {
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-violet {
+      background: var(--violet-glow);
+      border: 1px solid var(--violet-dim);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-amber {
+      background: var(--amber-glow);
+      border: 1px solid #92400e;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-red {
+      background: var(--red-glow);
+      border: 1px solid #991b1b;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-green {
+      background: var(--green-glow);
+      border: 1px solid #065f46;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Typography ── */
+    p { margin-bottom: 1rem; color: var(--text-muted); line-height: 1.75; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--text); font-weight: 600; }
+    .lead { font-size: 1.05rem; color: var(--text); }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    h3:first-child { margin-top: 0; }
+    h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    /* ── Code ── */
+    pre {
+      background: #080f1e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+    pre::-webkit-scrollbar { height: 4px; }
+    pre::-webkit-scrollbar-track { background: transparent; }
+    pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+    }
+    .inline-code {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+    }
+
+    /* Syntax highlight */
+    .kw  { color: #c084fc; }
+    .ty  { color: #67e8f9; }
+    .st  { color: #86efac; }
+    .cm  { color: #475569; font-style: italic; }
+    .num { color: #fb923c; }
+    .fn  { color: #fbbf24; }
+    .op  { color: #94a3b8; }
+    .at  { color: #f472b6; }
+    .en  { color: #f472b6; }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    td strong { color: var(--text); }
+    td code { color: var(--cyan); font-size: 0.8rem; }
+
+    /* ── Tags / Chips ── */
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin: 1px;
+    }
+    .chip-cyan   { background: var(--cyan-glow);   border: 1px solid var(--cyan-dim);   color: var(--cyan); }
+    .chip-violet { background: var(--violet-glow); border: 1px solid var(--violet-dim); color: var(--violet); }
+    .chip-green  { background: var(--green-glow);  border: 1px solid #065f46;           color: var(--green); }
+    .chip-amber  { background: var(--amber-glow);  border: 1px solid #92400e;           color: var(--amber); }
+    .chip-red    { background: var(--red-glow);    border: 1px solid #991b1b;           color: var(--red); }
+    .chip-blue   { background: var(--blue-glow);   border: 1px solid #1d4ed8;           color: var(--blue); }
+
+    /* ── Grid layouts ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+    /* ── API endpoint rows ── */
+    .endpoint-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 1rem;
+      overflow: hidden;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.85rem 1.1rem;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .endpoint-body {
+      padding: 1rem 1.25rem;
+    }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 9px;
+      border-radius: 4px;
+      min-width: 46px;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .method-get    { background: var(--green-glow); color: var(--green); border: 1px solid #065f46; }
+    .method-post   { background: var(--blue-glow);  color: var(--blue);  border: 1px solid #1d4ed8; }
+    .method-put    { background: var(--amber-glow); color: var(--amber); border: 1px solid #92400e; }
+    .method-delete { background: var(--red-glow);   color: var(--red);   border: 1px solid #991b1b; }
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.88rem;
+      color: var(--text);
+      flex: 1;
+    }
+    .auth-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--violet-glow);
+      border: 1px solid var(--violet-dim);
+      color: var(--violet);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Alert boxes ── */
+    .alert {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.88rem;
+    }
+    .alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .alert-info    { background: var(--blue-glow);   border: 1px solid #1d4ed8; color: var(--blue); }
+    .alert-warn    { background: var(--amber-glow);  border: 1px solid #92400e; color: var(--amber); }
+    .alert-success { background: var(--green-glow);  border: 1px solid #065f46; color: var(--green); }
+    .alert-danger  { background: var(--red-glow);    border: 1px solid #991b1b; color: var(--red); }
+    .alert p { color: inherit; margin: 0; }
+
+    /* ── Styled lists ── */
+    ul.styled { list-style: none; padding: 0; margin-bottom: 1rem; }
+    ul.styled li {
+      padding: 0.3rem 0 0.3rem 1.25rem;
+      position: relative;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    ul.styled li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: var(--cyan);
+      font-size: 0.7rem;
+      top: 0.45rem;
+    }
+    ul.styled li strong { color: var(--text); }
+
+    /* ── Audit event category card ── */
+    .event-category {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 0.75rem;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .event-category:hover { border-color: var(--border-light); }
+    .event-category-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.75rem 1.1rem;
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    .event-category-icon {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .icon-auth     { background: rgba(34,211,238,0.15); }
+    .icon-user     { background: rgba(167,139,250,0.15); }
+    .icon-case     { background: rgba(52,211,153,0.15); }
+    .icon-doc      { background: rgba(251,191,36,0.15); }
+    .icon-note     { background: rgba(96,165,250,0.15); }
+    .icon-task     { background: rgba(244,114,182,0.15); }
+    .icon-ai       { background: rgba(167,139,250,0.2); }
+    .icon-search   { background: rgba(34,211,238,0.15); }
+    .icon-admin    { background: rgba(248,113,113,0.15); }
+    .event-category-name {
+      font-weight: 600;
+      font-size: 0.92rem;
+      color: var(--text);
+    }
+    .event-category-count {
+      margin-left: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 1px 8px;
+      border-radius: 100px;
+    }
+    .event-list {
+      padding: 0.75rem 1.1rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+    }
+    .event-action {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+    }
+
+    /* ── Component cards ── */
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .component-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+    .component-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.35rem;
+    }
+    .component-file {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+    .component-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ── Immutability badge ── */
+    .immutable-banner {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      border-radius: 10px;
+      background: linear-gradient(135deg, rgba(248,113,113,0.08) 0%, rgba(167,139,250,0.08) 100%);
+      border: 1px solid #991b1b;
+      margin-bottom: 1.5rem;
+    }
+    .immutable-icon {
+      font-size: 1.75rem;
+      flex-shrink: 0;
+    }
+    .immutable-text h3 { margin: 0 0 0.25rem; color: var(--red); font-size: 1rem; }
+    .immutable-text p { margin: 0; color: var(--text-muted); font-size: 0.88rem; }
+
+    /* ── Chain integrity visual ── */
+    .chain-row {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin-bottom: 0.5rem;
+      font-size: 0.82rem;
+    }
+    .chain-index {
+      width: 36px;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-right: none;
+      border-radius: 6px 0 0 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+    .chain-content {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 0 6px 6px 0;
+      padding: 0.5rem 0.85rem;
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--text-muted);
+    }
+    .chain-hash { color: var(--cyan); font-size: 0.72rem; }
+    .chain-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      padding: 0.2rem 0.5rem;
+    }
+
+    /* ── Perf stat cards ── */
+    .perf-stat {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      text-align: center;
+    }
+    .perf-stat-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: -0.03em;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+    .perf-stat-label {
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      font-weight: 500;
+    }
+
+    /* ── Test item ── */
+    .test-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.75rem;
+      padding: 0.65rem 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.87rem;
+    }
+    .test-item:last-child { border-bottom: none; }
+    .test-check {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      border: 1.5px solid var(--green);
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+      margin-top: 0.1rem;
+      font-size: 0.65rem;
+      color: var(--green);
+    }
+    .test-name { font-weight: 500; color: var(--text); }
+    .test-desc { color: var(--text-muted); font-size: 0.82rem; }
+
+    /* ── Footer ── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 3.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      margin-left: 260px;
+    }
+    .footer-brand { color: var(--text-muted); font-weight: 500; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main-content { padding: 2rem 1.25rem; }
+      .site-footer { margin-left: 0; padding: 1.25rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header class="site-header">
+  <a href="INDEX.html" class="header-brand">
+    <div class="owl-icon">🦉</div>
+    OpsOwl AI
+  </a>
+  <nav class="header-nav">
+    <a href="INDEX.html" class="back-link">← Back to Index</a>
+    <span class="doc-badge">FEATURE 10</span>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <!-- ═══════════════════════════ SIDEBAR ════════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul class="sidebar-nav">
+      <li><a href="#overview"><span class="sec-num">01</span>Feature Overview</a></li>
+      <li><a href="#what-gets-logged"><span class="sec-num">02</span>What Gets Logged</a></li>
+      <li><a href="#immutability"><span class="sec-num">03</span>Immutability Design</a></li>
+      <li><a href="#schema"><span class="sec-num">04</span>Database Schema</a></li>
+      <li><a href="#middleware"><span class="sec-num">05</span>Middleware Approach</a></li>
+      <li><a href="#before-after"><span class="sec-num">06</span>Before / After State</a></li>
+      <li><a href="#api"><span class="sec-num">07</span>API Endpoints</a></li>
+      <li><a href="#compliance"><span class="sec-num">08</span>Compliance Features</a></li>
+      <li><a href="#otel"><span class="sec-num">09</span>OpenTelemetry Integration</a></li>
+      <li><a href="#go-modules"><span class="sec-num">10</span>Go Module Structure</a></li>
+      <li><a href="#frontend"><span class="sec-num">11</span>Frontend Components</a></li>
+      <li><a href="#performance"><span class="sec-num">12</span>Performance</a></li>
+      <li><a href="#testing"><span class="sec-num">13</span>Test Strategy</a></li>
+    </ul>
+  </aside>
+
+  <!-- ═══════════════════════════ MAIN ═══════════════════════════════════ -->
+  <main class="main-content">
+
+    <!-- Hero -->
+    <div class="page-hero">
+      <div class="feature-tag">🔐 FEATURE · 10</div>
+      <h1 class="page-title">Audit Logging</h1>
+      <p class="page-subtitle lead">
+        Non-negotiable compliance infrastructure for regulated fintech and NBFC operations.
+        Every user action, AI decision, data change, login event, and file access is recorded
+        immutably — tamper-evident, partitioned, and retained for 7 years to satisfy RBI and
+        SEBI audit requirements.
+      </p>
+      <div class="meta-pills">
+        <span class="meta-pill">Go 1.26</span>
+        <span class="meta-pill">PostgreSQL 18.4</span>
+        <span class="meta-pill">River (batch jobs)</span>
+        <span class="meta-pill">PARTITION BY RANGE</span>
+        <span class="meta-pill">Row-Level Security</span>
+        <span class="meta-pill">OpenTelemetry</span>
+        <span class="meta-pill">Next.js 16</span>
+        <span class="meta-pill">CSV Export</span>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 01 · OVERVIEW -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title">Feature Overview</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p class="lead">
+        Enterprise customers in fintech, NBFCs, and lending operations are regulated entities.
+        They must be able to prove to external auditors — and regulators — exactly who did what,
+        when they did it, and why. Audit logging is not a nice-to-have; it is the compliance
+        foundation every other feature depends on.
+      </p>
+
+      <div class="grid-2">
+        <div class="card-cyan">
+          <h3>The Regulatory Reality</h3>
+          <ul class="styled">
+            <li><strong>RBI</strong> mandates tamper-proof audit trails for all digital lending platforms</li>
+            <li><strong>SEBI</strong> requires complete action logs for licensed intermediaries</li>
+            <li>7-year retention is the minimum regulatory requirement in India</li>
+            <li>Regulators can demand logs during inspections with no advance notice</li>
+            <li>Log tampering is a criminal offence — immutability is non-negotiable</li>
+          </ul>
+        </div>
+        <div class="card-violet">
+          <h3>What Audit Logging Enables</h3>
+          <ul class="styled">
+            <li>Forensic investigation after an incident or fraud event</li>
+            <li>Insider threat detection — who accessed which sensitive case</li>
+            <li>AI accountability — every AI action is traceable to a human approver</li>
+            <li>Change history reconstruction for any resource</li>
+            <li>Export evidence packs for regulators within minutes</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="alert alert-danger">
+        <span class="alert-icon">🔒</span>
+        <p><strong>Design constraint:</strong> The <span class="inline-code">audit_logs</span> table is append-only by design. No <span class="inline-code">deleted_at</span> column. No UPDATE. No soft-delete. PostgreSQL row-level security enforces INSERT + SELECT only for the application user. Violation attempts return a PostgreSQL permission error — not a business logic error.</p>
+      </div>
+
+      <div class="grid-3">
+        <div class="perf-stat">
+          <span class="perf-stat-value">&lt; 0ms</span>
+          <span class="perf-stat-label">Impact on API response (async)</span>
+        </div>
+        <div class="perf-stat">
+          <span class="perf-stat-value">7 yr</span>
+          <span class="perf-stat-label">Mandatory retention period</span>
+        </div>
+        <div class="perf-stat">
+          <span class="perf-stat-value">100%</span>
+          <span class="perf-stat-label">Mutating operations covered</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 02 · WHAT GETS LOGGED -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="what-gets-logged">
+      <div class="section-header">
+        <span class="section-number">02</span>
+        <h2 class="section-title">What Gets Logged</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Every meaningful action in OpsOwl AI is captured. Actions are grouped into nine categories. Each action maps to a specific <span class="inline-code">action</span> enum value in the database.</p>
+
+      <!-- Auth -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-auth">🔑</div>
+          <span class="event-category-name">Authentication Events</span>
+          <span class="event-category-count">6 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">auth.login_success</span>
+          <span class="event-action">auth.login_failure</span>
+          <span class="event-action">auth.logout</span>
+          <span class="event-action">auth.password_changed</span>
+          <span class="event-action">auth.token_refreshed</span>
+          <span class="event-action">auth.account_locked</span>
+        </div>
+      </div>
+
+      <!-- User Management -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-user">👤</div>
+          <span class="event-category-name">User Management Events</span>
+          <span class="event-category-count">4 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">user.created</span>
+          <span class="event-action">user.role_changed</span>
+          <span class="event-action">user.deactivated</span>
+          <span class="event-action">user.deleted</span>
+        </div>
+      </div>
+
+      <!-- Case Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-case">📁</div>
+          <span class="event-category-name">Case Events</span>
+          <span class="event-category-count">5 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">case.created</span>
+          <span class="event-action">case.status_changed</span>
+          <span class="event-action">case.assigned</span>
+          <span class="event-action">case.priority_changed</span>
+          <span class="event-action">case.deleted</span>
+        </div>
+      </div>
+
+      <!-- Document Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-doc">📄</div>
+          <span class="event-category-name">Document Events</span>
+          <span class="event-category-count">5 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">document.uploaded</span>
+          <span class="event-action">document.processing_started</span>
+          <span class="event-action">document.processing_completed</span>
+          <span class="event-action">document.downloaded</span>
+          <span class="event-action">document.deleted</span>
+        </div>
+      </div>
+
+      <!-- Note / Comment Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-note">💬</div>
+          <span class="event-category-name">Note &amp; Comment Events</span>
+          <span class="event-category-count">4 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">note.created</span>
+          <span class="event-action">note.edited</span>
+          <span class="event-action">note.deleted</span>
+          <span class="event-action">comment.added</span>
+        </div>
+      </div>
+
+      <!-- Task Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-task">✅</div>
+          <span class="event-category-name">Task Events</span>
+          <span class="event-category-count">4 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">task.created</span>
+          <span class="event-action">task.assigned</span>
+          <span class="event-action">task.completed</span>
+          <span class="event-action">task.overdue_marked</span>
+        </div>
+      </div>
+
+      <!-- AI Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-ai">🤖</div>
+          <span class="event-category-name">AI Events</span>
+          <span class="event-category-count">5 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">ai.query_made</span>
+          <span class="event-action">ai.response_generated</span>
+          <span class="event-action">ai.human_approved</span>
+          <span class="event-action">ai.human_rejected</span>
+          <span class="event-action">ai.human_edited</span>
+        </div>
+      </div>
+
+      <!-- Search Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-search">🔍</div>
+          <span class="event-category-name">Search Events</span>
+          <span class="event-category-count">1 action</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">search.executed</span>
+        </div>
+        <div style="padding: 0 1.1rem 0.75rem; font-size: 0.8rem; color: var(--text-dim);">
+          Payload captures query text, filters applied, result count, and time taken (ms).
+        </div>
+      </div>
+
+      <!-- Admin Events -->
+      <div class="event-category">
+        <div class="event-category-header">
+          <div class="event-category-icon icon-admin">⚙️</div>
+          <span class="event-category-name">Admin &amp; Settings Events</span>
+          <span class="event-category-count">2 actions</span>
+        </div>
+        <div class="event-list">
+          <span class="event-action">admin.settings_changed</span>
+          <span class="event-action">admin.notification_prefs_changed</span>
+        </div>
+      </div>
+
+      <div class="alert alert-info" style="margin-top:1rem;">
+        <span class="alert-icon">ℹ️</span>
+        <p><strong>Sensitive reads are also logged.</strong> Document downloads (<span class="inline-code">document.downloaded</span>) and audit log exports are captured even though they are GET requests. The <span class="inline-code">AuditMiddleware</span> is configured to intercept specific GET routes for data access accountability.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 03 · IMMUTABILITY DESIGN -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="immutability">
+      <div class="section-header">
+        <span class="section-number">03</span>
+        <h2 class="section-title">Immutability Design</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="immutable-banner">
+        <div class="immutable-icon">🔒</div>
+        <div class="immutable-text">
+          <h3>audit_logs is append-only — by law, by design, by enforcement</h3>
+          <p>No <code>deleted_at</code> column. No UPDATE path in the service layer. PostgreSQL RLS blocks UPDATE and DELETE at the database level. Tampering is impossible through the application stack.</p>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>No <span class="inline-code">deleted_at</span> Column</h3>
+          <p>Every other table in OpsOwl AI uses soft-delete via <span class="inline-code">deleted_at TIMESTAMPTZ</span>. The <span class="inline-code">audit_logs</span> table intentionally omits this column entirely. Its absence is the design. A log entry cannot be "soft deleted" — it does not exist in the code model, the DDL, or the sqlc-generated queries.</p>
+        </div>
+        <div class="card">
+          <h3>No UPDATE in Service Layer</h3>
+          <p>The <span class="inline-code">internal/audit/service.go</span> exposes only two operations: <span class="inline-code">Insert</span> and <span class="inline-code">Query</span>. There is no <span class="inline-code">Update</span> method, no <span class="inline-code">Delete</span> method. sqlc-generated queries for this table contain only INSERT and SELECT statements — no UPDATE or DELETE queries are generated.</p>
+        </div>
+      </div>
+
+      <div class="card-highlight">
+        <h3>PostgreSQL Row-Level Security</h3>
+        <p style="margin-bottom:1rem;">Even if a bug or malicious code somehow called UPDATE on <span class="inline-code">audit_logs</span>, PostgreSQL RLS stops it at the database level. The application database user is granted only INSERT and SELECT on this table. UPDATE and DELETE are explicitly denied.</p>
+        <pre><span class="cm">-- Application role has INSERT + SELECT only</span>
+<span class="kw">GRANT</span> <span class="ty">INSERT</span>, <span class="ty">SELECT</span> <span class="kw">ON</span> audit_logs <span class="kw">TO</span> opsowl_app;
+
+<span class="cm">-- Superuser / migration role retains full access for partition management</span>
+<span class="kw">GRANT</span> <span class="ty">ALL</span> <span class="kw">ON</span> audit_logs <span class="kw">TO</span> opsowl_migrations;
+
+<span class="cm">-- RLS policy: app user can insert and select their tenant's rows</span>
+<span class="kw">ALTER TABLE</span> audit_logs <span class="kw">ENABLE ROW LEVEL SECURITY</span>;
+
+<span class="kw">CREATE POLICY</span> audit_logs_insert_policy
+  <span class="kw">ON</span> audit_logs
+  <span class="kw">FOR</span> <span class="ty">INSERT</span>
+  <span class="kw">TO</span> opsowl_app
+  <span class="kw">WITH CHECK</span> (<span class="at">true</span>);
+
+<span class="kw">CREATE POLICY</span> audit_logs_select_policy
+  <span class="kw">ON</span> audit_logs
+  <span class="kw">FOR</span> <span class="ty">SELECT</span>
+  <span class="kw">TO</span> opsowl_app
+  <span class="kw">USING</span> (<span class="at">true</span>);
+
+<span class="cm">-- No UPDATE policy, no DELETE policy → operations are rejected</span></pre>
+      </div>
+
+      <div class="alert alert-success">
+        <span class="alert-icon">✓</span>
+        <p><strong>Defence-in-depth:</strong> Three independent immutability controls — no column, no service method, no DB permission. All three must be bypassed simultaneously to tamper with a log. This satisfies tamper-evident log requirements under RBI Digital Lending Guidelines.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 04 · DATABASE SCHEMA -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Database Schema</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>The <span class="inline-code">audit_logs</span> table is range-partitioned by <span class="inline-code">occurred_at</span> with monthly child partitions. This ensures that queries filtered to a date range scan only the relevant partition, keeping read performance consistent as the table grows to hundreds of millions of rows over 7 years.</p>
+
+      <pre><span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- Action enum — exhaustive list of all loggable actions
+-- ─────────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TYPE</span> <span class="ty">audit_action</span> <span class="kw">AS ENUM</span> (
+  <span class="cm">-- Auth</span>
+  <span class="st">'auth.login_success'</span>, <span class="st">'auth.login_failure'</span>, <span class="st">'auth.logout'</span>,
+  <span class="st">'auth.password_changed'</span>, <span class="st">'auth.token_refreshed'</span>, <span class="st">'auth.account_locked'</span>,
+  <span class="cm">-- User management</span>
+  <span class="st">'user.created'</span>, <span class="st">'user.role_changed'</span>, <span class="st">'user.deactivated'</span>, <span class="st">'user.deleted'</span>,
+  <span class="cm">-- Case</span>
+  <span class="st">'case.created'</span>, <span class="st">'case.status_changed'</span>, <span class="st">'case.assigned'</span>,
+  <span class="st">'case.priority_changed'</span>, <span class="st">'case.deleted'</span>,
+  <span class="cm">-- Document</span>
+  <span class="st">'document.uploaded'</span>, <span class="st">'document.processing_started'</span>,
+  <span class="st">'document.processing_completed'</span>, <span class="st">'document.downloaded'</span>, <span class="st">'document.deleted'</span>,
+  <span class="cm">-- Note / comment</span>
+  <span class="st">'note.created'</span>, <span class="st">'note.edited'</span>, <span class="st">'note.deleted'</span>, <span class="st">'comment.added'</span>,
+  <span class="cm">-- Task</span>
+  <span class="st">'task.created'</span>, <span class="st">'task.assigned'</span>, <span class="st">'task.completed'</span>, <span class="st">'task.overdue_marked'</span>,
+  <span class="cm">-- AI</span>
+  <span class="st">'ai.query_made'</span>, <span class="st">'ai.response_generated'</span>,
+  <span class="st">'ai.human_approved'</span>, <span class="st">'ai.human_rejected'</span>, <span class="st">'ai.human_edited'</span>,
+  <span class="cm">-- Search</span>
+  <span class="st">'search.executed'</span>,
+  <span class="cm">-- Admin</span>
+  <span class="st">'admin.settings_changed'</span>, <span class="st">'admin.notification_prefs_changed'</span>
+);
+
+<span class="kw">CREATE TYPE</span> <span class="ty">audit_resource_type</span> <span class="kw">AS ENUM</span> (
+  <span class="st">'user'</span>, <span class="st">'case'</span>, <span class="st">'document'</span>, <span class="st">'note'</span>,
+  <span class="st">'comment'</span>, <span class="st">'task'</span>, <span class="st">'ai_response'</span>, <span class="st">'search'</span>, <span class="st">'system'</span>
+);
+
+<span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- Parent table — partitioned by occurred_at (monthly)
+-- NOTE: NO deleted_at — intentional, immutable by design
+-- ─────────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">audit_logs</span> (
+  <span class="at">id</span>              <span class="ty">UUID</span>                     <span class="kw">NOT NULL DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+  <span class="at">actor_id</span>        <span class="ty">UUID</span>                     <span class="kw">REFERENCES</span> users(id) <span class="kw">ON DELETE SET NULL</span>,
+                  <span class="cm">-- NULL for system-generated events (e.g. River job completions)</span>
+  <span class="at">action</span>          <span class="ty">audit_action</span>             <span class="kw">NOT NULL</span>,
+  <span class="at">resource_type</span>   <span class="ty">audit_resource_type</span>      <span class="kw">NOT NULL</span>,
+  <span class="at">resource_id</span>     <span class="ty">UUID</span>,                    <span class="cm">-- NULL for system/search events</span>
+  <span class="at">case_id</span>         <span class="ty">UUID</span>                     <span class="kw">REFERENCES</span> cases(id) <span class="kw">ON DELETE SET NULL</span>,
+                  <span class="cm">-- Denormalized for fast case-scoped queries without joins</span>
+  <span class="at">payload</span>         <span class="ty">JSONB</span>                    <span class="kw">NOT NULL DEFAULT</span> <span class="st">'{}'</span>,
+                  <span class="cm">-- {before: {...}, after: {...}} | {created: {...}} | {deleted: {...}}</span>
+  <span class="at">ip_address</span>      <span class="ty">INET</span>,
+  <span class="at">user_agent</span>      <span class="ty">TEXT</span>,
+  <span class="at">request_id</span>      <span class="ty">UUID</span>,                    <span class="cm">-- OpenTelemetry trace ID</span>
+  <span class="at">chain_hash</span>      <span class="ty">TEXT</span>                     <span class="kw">NOT NULL</span>,
+                  <span class="cm">-- SHA256(prev_id || occurred_at || actor_id || action)</span>
+  <span class="at">occurred_at</span>     <span class="ty">TIMESTAMPTZ</span>              <span class="kw">NOT NULL</span>,
+                  <span class="cm">-- When the action happened (partition key)</span>
+  <span class="at">created_at</span>      <span class="ty">TIMESTAMPTZ</span>              <span class="kw">NOT NULL DEFAULT NOW</span>()
+                  <span class="cm">-- When this row was written (async insert lag is visible here)</span>
+  <span class="cm">-- NO deleted_at — audit_logs are immutable by design</span>
+) <span class="kw">PARTITION BY RANGE</span> (occurred_at);
+
+<span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- Monthly partitions (created ahead of time by a maintenance job)
+-- ─────────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">audit_logs_2026_01</span> <span class="kw">PARTITION OF</span> audit_logs
+  <span class="kw">FOR VALUES FROM</span> (<span class="st">'2026-01-01'</span>) <span class="kw">TO</span> (<span class="st">'2026-02-01'</span>);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">audit_logs_2026_02</span> <span class="kw">PARTITION OF</span> audit_logs
+  <span class="kw">FOR VALUES FROM</span> (<span class="st">'2026-02-01'</span>) <span class="kw">TO</span> (<span class="st">'2026-03-01'</span>);
+
+<span class="cm">-- ... partitions created 3 months ahead by a River cron job ...</span>
+
+<span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- Indexes — created on each partition (PostgreSQL inherits automatically)
+-- ─────────────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE INDEX</span> idx_audit_actor_time
+  <span class="kw">ON</span> audit_logs (actor_id, occurred_at <span class="kw">DESC</span>);
+
+<span class="kw">CREATE INDEX</span> idx_audit_resource
+  <span class="kw">ON</span> audit_logs (resource_type, resource_id);
+
+<span class="kw">CREATE INDEX</span> idx_audit_case_time
+  <span class="kw">ON</span> audit_logs (case_id, occurred_at <span class="kw">DESC</span>)
+  <span class="kw">WHERE</span> case_id <span class="kw">IS NOT NULL</span>;
+
+<span class="kw">CREATE INDEX</span> idx_audit_action_time
+  <span class="kw">ON</span> audit_logs (action, occurred_at <span class="kw">DESC</span>);
+
+<span class="kw">CREATE INDEX</span> idx_audit_request_id
+  <span class="kw">ON</span> audit_logs (request_id)
+  <span class="kw">WHERE</span> request_id <span class="kw">IS NOT NULL</span>;</pre>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Column</th>
+              <th>Type</th>
+              <th>Nullable</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>id</code></td>
+              <td><code>UUID</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>PK, gen_random_uuid()</td>
+            </tr>
+            <tr>
+              <td><code>actor_id</code></td>
+              <td><code>UUID</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>NULL for system-triggered events</td>
+            </tr>
+            <tr>
+              <td><code>action</code></td>
+              <td><code>audit_action</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>Enum of 36 action values</td>
+            </tr>
+            <tr>
+              <td><code>resource_type</code></td>
+              <td><code>audit_resource_type</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>9 resource types</td>
+            </tr>
+            <tr>
+              <td><code>resource_id</code></td>
+              <td><code>UUID</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>NULL for search/system events</td>
+            </tr>
+            <tr>
+              <td><code>case_id</code></td>
+              <td><code>UUID</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>Denormalized for fast case-scoped queries</td>
+            </tr>
+            <tr>
+              <td><code>payload</code></td>
+              <td><code>JSONB</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>Before/after diff or created/deleted snapshot</td>
+            </tr>
+            <tr>
+              <td><code>ip_address</code></td>
+              <td><code>INET</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>NULL for internal system events</td>
+            </tr>
+            <tr>
+              <td><code>user_agent</code></td>
+              <td><code>TEXT</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>Browser/client identifier</td>
+            </tr>
+            <tr>
+              <td><code>request_id</code></td>
+              <td><code>UUID</code></td>
+              <td><span class="chip chip-amber">NULLABLE</span></td>
+              <td>OpenTelemetry trace ID for correlation</td>
+            </tr>
+            <tr>
+              <td><code>chain_hash</code></td>
+              <td><code>TEXT</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>SHA256 of previous row + this row fields</td>
+            </tr>
+            <tr>
+              <td><code>occurred_at</code></td>
+              <td><code>TIMESTAMPTZ</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>Partition key; when action happened</td>
+            </tr>
+            <tr>
+              <td><code>created_at</code></td>
+              <td><code>TIMESTAMPTZ</code></td>
+              <td><span class="chip chip-red">NOT NULL</span></td>
+              <td>DEFAULT NOW() — write time (async lag visible)</td>
+            </tr>
+            <tr>
+              <td><strong style="color:var(--red)">deleted_at</strong></td>
+              <td>—</td>
+              <td>—</td>
+              <td><strong style="color:var(--red)">DOES NOT EXIST — intentional</strong></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 05 · MIDDLEWARE APPROACH -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="middleware">
+      <div class="section-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title">Middleware Approach (Go)</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Audit logging is <strong>fully automatic</strong>. Handlers never call the audit service manually. A single <span class="inline-code">AuditMiddleware</span> wraps all mutating routes and specific sensitive read routes, capturing metadata before and after each request, then dispatching an async River job for the actual write.</p>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ️</span>
+        <p><strong>Key design choice:</strong> Audit entries are enqueued to River <em>after</em> the handler returns a successful response (2xx). Failed requests (4xx, 5xx) are not audited as completed actions. Authentication failures (<span class="inline-code">auth.login_failure</span>) are a special case — they are logged via the auth handler directly since the middleware can't determine the actor before auth completes.</p>
+      </div>
+
+      <pre><span class="cm">// internal/audit/middleware.go</span>
+
+<span class="kw">package</span> audit
+
+<span class="kw">import</span> (
+  <span class="st">"context"</span>
+  <span class="st">"net/http"</span>
+  <span class="st">"time"</span>
+
+  <span class="st">"github.com/go-chi/chi/v5"</span>
+  <span class="st">"go.opentelemetry.io/otel/trace"</span>
+  <span class="st">"opsowl/internal/auth"</span>
+)
+
+<span class="cm">// mutatingMethods are intercepted unconditionally.</span>
+<span class="kw">var</span> mutatingMethods = <span class="kw">map</span>[<span class="ty">string</span>]<span class="ty">bool</span>{
+  <span class="st">"POST"</span>: <span class="at">true</span>, <span class="st">"PUT"</span>: <span class="at">true</span>, <span class="st">"PATCH"</span>: <span class="at">true</span>, <span class="st">"DELETE"</span>: <span class="at">true</span>,
+}
+
+<span class="cm">// sensitiveGetRoutes: specific GET routes also audited (data access).</span>
+<span class="kw">var</span> sensitiveGetRoutes = <span class="kw">map</span>[<span class="ty">string</span>]<span class="ty">bool</span>{
+  <span class="st">"/api/v1/documents/{id}/download"</span>: <span class="at">true</span>,
+  <span class="st">"/api/v1/audit-logs/export"</span>:        <span class="at">true</span>,
+}
+
+<span class="kw">func</span> <span class="fn">AuditMiddleware</span>(svc *<span class="ty">Service</span>) <span class="fn">func</span>(<span class="ty">http.Handler</span>) <span class="ty">http.Handler</span> {
+  <span class="kw">return func</span>(next <span class="ty">http.Handler</span>) <span class="ty">http.Handler</span> {
+    <span class="kw">return</span> <span class="ty">http.HandlerFunc</span>(<span class="kw">func</span>(w <span class="ty">http.ResponseWriter</span>, r *<span class="ty">http.Request</span>) {
+      routePattern := chi.<span class="fn">RouteContext</span>(r.<span class="ty">Context</span>()).<span class="fn">RoutePattern</span>()
+      isMutating   := mutatingMethods[r.<span class="ty">Method</span>]
+      isSensitive  := sensitiveGetRoutes[routePattern]
+
+      <span class="kw">if</span> !isMutating &amp;&amp; !isSensitive {
+        next.<span class="fn">ServeHTTP</span>(w, r)
+        <span class="kw">return</span>
+      }
+
+      <span class="cm">// Capture pre-request state (for update diffs)</span>
+      actor   := auth.<span class="fn">ActorFromCtx</span>(r.<span class="ty">Context</span>())
+      traceID := trace.<span class="fn">SpanFromContext</span>(r.<span class="ty">Context</span>()).<span class="fn">SpanContext</span>().<span class="fn">TraceID</span>()
+      meta := &amp;<span class="ty">RequestMeta</span>{
+        ActorID:   actor.<span class="ty">ID</span>,
+        IP:        <span class="fn">realIP</span>(r),
+        UserAgent: r.<span class="fn">UserAgent</span>(),
+        RequestID: traceID.<span class="fn">String</span>(),
+        OccurredAt: time.<span class="fn">Now</span>().<span class="fn">UTC</span>(),
+      }
+
+      <span class="cm">// Pre-fetch current resource state for diff computation</span>
+      before, _ := svc.<span class="fn">FetchResourceSnapshot</span>(r.<span class="ty">Context</span>(), r)
+      ctx := <span class="fn">WithAuditBefore</span>(r.<span class="ty">Context</span>(), before)
+
+      <span class="cm">// Wrap response writer to capture status code</span>
+      rw := <span class="fn">NewStatusRecorder</span>(w)
+      next.<span class="fn">ServeHTTP</span>(rw, r.<span class="fn">WithContext</span>(ctx))
+
+      <span class="cm">// Only enqueue on success (2xx)</span>
+      <span class="kw">if</span> rw.<span class="ty">Status</span> &gt;= <span class="num">200</span> &amp;&amp; rw.<span class="ty">Status</span> &lt; <span class="num">300</span> {
+        after, _ := svc.<span class="fn">FetchResourceSnapshot</span>(r.<span class="ty">Context</span>(), r)
+        svc.<span class="fn">EnqueueAsync</span>(r.<span class="ty">Context</span>(), meta, before, after)
+      }
+    })
+  }
+}</pre>
+
+      <div class="card">
+        <h3>Route Registration (Chi)</h3>
+        <p>The middleware is applied at the router group level, not globally, to avoid auditing health-checks, metrics, and public endpoints:</p>
+        <pre><span class="cm">// cmd/api/router.go</span>
+r.<span class="fn">Group</span>(<span class="kw">func</span>(r chi.<span class="ty">Router</span>) {
+  r.<span class="fn">Use</span>(middleware.<span class="fn">Authenticate</span>(jwtSvc))
+  r.<span class="fn">Use</span>(audit.<span class="fn">AuditMiddleware</span>(auditSvc))  <span class="cm">// ← applied here</span>
+
+  r.<span class="fn">Mount</span>(<span class="st">"/api/v1/cases"</span>,     cases.<span class="fn">Routes</span>(caseHandler))
+  r.<span class="fn">Mount</span>(<span class="st">"/api/v1/documents"</span>, docs.<span class="fn">Routes</span>(docHandler))
+  r.<span class="fn">Mount</span>(<span class="st">"/api/v1/tasks"</span>,     tasks.<span class="fn">Routes</span>(taskHandler))
+  <span class="cm">// ...</span>
+})</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 06 · BEFORE / AFTER STATE -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="before-after">
+      <div class="section-header">
+        <span class="section-number">06</span>
+        <h2 class="section-title">Before / After State Capture</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>The <span class="inline-code">payload</span> JSONB column stores a rich diff of resource state. The shape of the payload depends on the operation type.</p>
+
+      <div class="grid-3">
+        <div class="card-sm">
+          <h4 style="margin-top:0;">CREATE</h4>
+          <p style="font-size:0.83rem;">Full object snapshot captured after successful insert.</p>
+          <pre style="padding:0.75rem; font-size:0.75rem;">{
+  <span class="at">"created"</span>: {
+    <span class="at">"id"</span>: <span class="st">"uuid..."</span>,
+    <span class="at">"title"</span>: <span class="st">"..."</span>,
+    <span class="at">"status"</span>: <span class="st">"open"</span>
+  }
+}</pre>
+        </div>
+        <div class="card-sm">
+          <h4 style="margin-top:0;">UPDATE</h4>
+          <p style="font-size:0.83rem;">Pre-fetch before, post-fetch after — only diff fields stored.</p>
+          <pre style="padding:0.75rem; font-size:0.75rem;">{
+  <span class="at">"before"</span>: {
+    <span class="at">"status"</span>: <span class="st">"open"</span>
+  },
+  <span class="at">"after"</span>: {
+    <span class="at">"status"</span>: <span class="st">"closed"</span>
+  }
+}</pre>
+        </div>
+        <div class="card-sm">
+          <h4 style="margin-top:0;">DELETE</h4>
+          <p style="font-size:0.83rem;">Full object snapshot at the moment of deletion.</p>
+          <pre style="padding:0.75rem; font-size:0.75rem;">{
+  <span class="at">"deleted"</span>: {
+    <span class="at">"id"</span>: <span class="st">"uuid..."</span>,
+    <span class="at">"title"</span>: <span class="st">"..."</span>,
+    <span class="at">"assignee"</span>: <span class="st">"..."</span>
+  }
+}</pre>
+        </div>
+      </div>
+
+      <div class="card-highlight">
+        <h3>Diff Computation Strategy</h3>
+        <ul class="styled">
+          <li><strong>Pre-fetch:</strong> Middleware calls <span class="inline-code">FetchResourceSnapshot()</span> before the handler runs. The snapshot is stored in request context via <span class="inline-code">WithAuditBefore(ctx, snapshot)</span>.</li>
+          <li><strong>Post-fetch:</strong> After the handler returns 2xx, middleware fetches the updated resource again for the "after" snapshot.</li>
+          <li><strong>Diff:</strong> Go struct comparison produces a map of only the changed fields — full objects are not stored for updates to keep payload size small.</li>
+          <li><strong>Create/Delete:</strong> No diff — the full object is stored as-is. For deletes, the snapshot is captured before the handler runs (the "before" fetch), stored as <span class="inline-code">{deleted: {...}}</span>.</li>
+          <li><strong>Sensitive fields:</strong> Fields in the <span class="inline-code">AuditRedacted</span> struct tag (e.g. password hashes, raw PAN) are stripped before storage.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 07 · API ENDPOINTS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <span class="section-number">07</span>
+        <h2 class="section-title">API Endpoints</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <!-- GET /api/v1/audit-logs -->
+      <div class="endpoint-block">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/audit-logs</span>
+          <span class="auth-badge">admin</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Paginated, filterable list of all audit logs across the workspace. Admin-only — analysts do not have access to global audit logs.</p>
+          <h4>Query Parameters</h4>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Param</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+              <tbody>
+                <tr><td><code>actor_id</code></td><td>UUID</td><td>—</td><td>Filter by actor who performed the action</td></tr>
+                <tr><td><code>action</code></td><td>string</td><td>—</td><td>Filter by action enum value (e.g. <code>case.status_changed</code>)</td></tr>
+                <tr><td><code>resource_type</code></td><td>string</td><td>—</td><td>Filter by resource type</td></tr>
+                <tr><td><code>case_id</code></td><td>UUID</td><td>—</td><td>Filter logs related to a specific case</td></tr>
+                <tr><td><code>date_from</code></td><td>ISO 8601</td><td>—</td><td>Start of time range (inclusive)</td></tr>
+                <tr><td><code>date_to</code></td><td>ISO 8601</td><td>—</td><td>End of time range (exclusive)</td></tr>
+                <tr><td><code>cursor</code></td><td>string</td><td>—</td><td>Opaque cursor for next page</td></tr>
+                <tr><td><code>limit</code></td><td>integer</td><td>—</td><td>Page size, default 50, max 200</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>Response</h4>
+          <pre style="padding:1rem; font-size:0.77rem;">{
+  <span class="at">"data"</span>: [
+    {
+      <span class="at">"id"</span>: <span class="st">"uuid"</span>,
+      <span class="at">"actor"</span>: { <span class="at">"id"</span>: <span class="st">"uuid"</span>, <span class="at">"email"</span>: <span class="st">"user@corp.com"</span>, <span class="at">"name"</span>: <span class="st">"Ananya Sharma"</span> },
+      <span class="at">"action"</span>: <span class="st">"case.status_changed"</span>,
+      <span class="at">"resource_type"</span>: <span class="st">"case"</span>,
+      <span class="at">"resource_id"</span>: <span class="st">"uuid"</span>,
+      <span class="at">"case_id"</span>: <span class="st">"uuid"</span>,
+      <span class="at">"ip_address"</span>: <span class="st">"203.0.113.42"</span>,
+      <span class="at">"occurred_at"</span>: <span class="st">"2026-05-16T09:14:22Z"</span>
+    }
+  ],
+  <span class="at">"meta"</span>: {
+    <span class="at">"cursor"</span>: <span class="st">"eyJpZCI6Ii4uLiJ9"</span>,
+    <span class="at">"has_more"</span>: <span class="at">true</span>,
+    <span class="at">"total_filtered"</span>: <span class="num">1842</span>
+  },
+  <span class="at">"error"</span>: <span class="at">null</span>
+}</pre>
+        </div>
+      </div>
+
+      <!-- GET /api/v1/cases/:id/audit-logs -->
+      <div class="endpoint-block">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/audit-logs</span>
+          <span class="auth-badge">analyst, manager, admin</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Case-scoped audit trail. Accessible by any authenticated role that has access to the case. Returns only logs where <span class="inline-code">case_id = :id</span>. Analysts see their own cases' logs — no global log access.</p>
+          <h4>Query Parameters</h4>
+          <ul class="styled">
+            <li><code>cursor</code>, <code>limit</code> — standard cursor pagination</li>
+            <li><code>action</code> — optional filter by action type</li>
+          </ul>
+          <p>Response shape is identical to the global endpoint but scoped to the case.</p>
+        </div>
+      </div>
+
+      <!-- GET /api/v1/audit-logs/export -->
+      <div class="endpoint-block">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/audit-logs/export</span>
+          <span class="auth-badge">admin</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Streamed CSV export of audit logs. Admin only. <strong>Date range is mandatory</strong> — requests without <span class="inline-code">date_from</span> and <span class="inline-code">date_to</span> return <span class="inline-code">400 Bad Request</span>. Maximum range is 30 days per export request to prevent full-table scans.</p>
+          <h4>Query Parameters</h4>
+          <div class="table-wrap">
+            <table>
+              <thead><tr><th>Param</th><th>Required</th><th>Notes</th></tr></thead>
+              <tbody>
+                <tr><td><code>date_from</code></td><td><span class="chip chip-red">Required</span></td><td>ISO 8601 UTC start (inclusive)</td></tr>
+                <tr><td><code>date_to</code></td><td><span class="chip chip-red">Required</span></td><td>ISO 8601 UTC end (exclusive), max 30 days from date_from</td></tr>
+                <tr><td><code>actor_id</code></td><td>Optional</td><td>Filter by actor</td></tr>
+                <tr><td><code>action</code></td><td>Optional</td><td>Filter by action type</td></tr>
+                <tr><td><code>case_id</code></td><td>Optional</td><td>Filter by case</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <h4>Response</h4>
+          <ul class="styled">
+            <li>Content-Type: <code>text/csv; charset=utf-8</code></li>
+            <li>Content-Disposition: <code>attachment; filename="audit-logs-2026-05-01_2026-05-31.csv"</code></li>
+            <li>Streamed row-by-row — does not buffer all rows in memory</li>
+            <li>CSV columns: <code>timestamp, actor_email, action, resource_type, resource_id, ip_address, payload_summary</code></li>
+            <li>The export itself is logged as <code>admin.audit_export</code> in audit_logs</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- GET /api/v1/audit-logs/:id -->
+      <div class="endpoint-block">
+        <div class="endpoint-header">
+          <span class="method-badge method-get">GET</span>
+          <span class="endpoint-path">/api/v1/audit-logs/:id</span>
+          <span class="auth-badge">admin</span>
+        </div>
+        <div class="endpoint-body">
+          <p>Single audit log entry with full payload. Used when an admin clicks into a specific log entry in the audit viewer to inspect the full before/after diff.</p>
+          <h4>Response includes</h4>
+          <ul class="styled">
+            <li>All columns from the table including <code>payload</code> (full JSONB)</li>
+            <li><code>chain_hash</code> for tamper verification</li>
+            <li>Resolved <code>actor</code> object (id, email, name)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 08 · COMPLIANCE FEATURES -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="compliance">
+      <div class="section-header">
+        <span class="section-number">08</span>
+        <h2 class="section-title">Compliance Features</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-cyan">
+          <h3>CSV Export Format</h3>
+          <p>Standardized columns usable directly in Excel, auditor tools, and compliance dashboards without preprocessing.</p>
+          <pre style="padding:0.75rem; font-size:0.72rem;"><span class="st">timestamp</span>,<span class="st">actor_email</span>,<span class="st">action</span>,<span class="st">resource_type</span>,<span class="st">resource_id</span>,<span class="st">ip_address</span>,<span class="st">payload_summary</span>
+<span class="num">2026-05-16T09:14:22Z</span>,<span class="st">ananya@corp.com</span>,<span class="st">case.status_changed</span>,<span class="st">case</span>,<span class="num">uuid...</span>,<span class="num">203.0.113.42</span>,<span class="st">status: open→closed</span>
+<span class="num">2026-05-16T09:15:01Z</span>,<span class="at">SYSTEM</span>,<span class="st">document.processing_completed</span>,<span class="st">document</span>,<span class="num">uuid...</span>,<span class="op">—</span>,<span class="st">pages: 12</span></pre>
+        </div>
+        <div class="card-violet">
+          <h3>Export Guard Rails</h3>
+          <ul class="styled">
+            <li>Date range <strong>mandatory</strong> — prevents accidental full-table dumps</li>
+            <li>Maximum 30-day window per request — large exports require multiple calls</li>
+            <li>Export itself is audited (<code>admin.audit_export</code>) — meta-accountability</li>
+            <li>Rate limited to 10 exports per hour per admin account</li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>Chain Integrity — Tamper Detection</h3>
+      <p>Each audit log row stores a cryptographic chain hash linking it to the previous row. Any modification to an existing row breaks the chain, which is detectable during an integrity scan.</p>
+
+      <div class="card-highlight" style="margin-bottom:1.5rem;">
+        <h3>Hash Formula</h3>
+        <pre><span class="cm">// Computed in Go before enqueueing the River job</span>
+<span class="cm">// chainHash = SHA256(prevRowID + occurred_at.RFC3339Nano + actorID + action)</span>
+
+<span class="kw">func</span> <span class="fn">computeChainHash</span>(prev <span class="ty">ChainAnchor</span>, e *<span class="ty">AuditEntry</span>) <span class="ty">string</span> {
+  h := sha256.<span class="fn">New</span>()
+  h.<span class="fn">Write</span>([]<span class="ty">byte</span>(prev.<span class="ty">ID</span>.String()))
+  h.<span class="fn">Write</span>([]<span class="ty">byte</span>(e.<span class="ty">OccurredAt</span>.<span class="fn">Format</span>(time.<span class="ty">RFC3339Nano</span>)))
+  h.<span class="fn">Write</span>([]<span class="ty">byte</span>(e.<span class="ty">ActorID</span>.<span class="fn">String</span>()))
+  h.<span class="fn">Write</span>([]<span class="ty">byte</span>(<span class="ty">string</span>(e.<span class="ty">Action</span>)))
+  <span class="kw">return</span> <span class="fn">hex.EncodeToString</span>(h.<span class="fn">Sum</span>(<span class="at">nil</span>))
+}</pre>
+      </div>
+
+      <p>Chain visualization — each row references the previous via its hash:</p>
+
+      <div class="chain-row">
+        <div class="chain-index">#1</div>
+        <div class="chain-content">
+          <span style="color:var(--text);">auth.login_success</span> · 2026-05-16T09:00:01Z
+          <br><span class="chain-hash">hash: a3f9c2... (genesis — hashed with zero UUID)</span>
+        </div>
+      </div>
+      <div class="chain-arrow">↓ next hash includes prev id + above fields</div>
+      <div class="chain-row">
+        <div class="chain-index">#2</div>
+        <div class="chain-content">
+          <span style="color:var(--text);">case.created</span> · 2026-05-16T09:01:44Z
+          <br><span class="chain-hash">hash: 7b1e4d... (SHA256 of row#1.id + row#2 fields)</span>
+        </div>
+      </div>
+      <div class="chain-arrow">↓</div>
+      <div class="chain-row">
+        <div class="chain-index">#3</div>
+        <div class="chain-content">
+          <span style="color:var(--text);">document.uploaded</span> · 2026-05-16T09:02:19Z
+          <br><span class="chain-hash">hash: 2c8a91... (SHA256 of row#2.id + row#3 fields)</span>
+        </div>
+      </div>
+
+      <div class="alert alert-warn" style="margin-top:1.25rem;">
+        <span class="alert-icon">⚠️</span>
+        <p><strong>Phase 2 — Retention archival:</strong> PostgreSQL partitions older than 7 years will be detached and archived to S3 Glacier cold storage. Querying archived partitions requires reattachment (manual for audit investigations) or a Phase 2 foreign data wrapper (S3 FDW). This is deferred — the partition detach script will be shipped in Phase 2.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 09 · OPENTELEMETRY -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="otel">
+      <div class="section-header">
+        <span class="section-number">09</span>
+        <h2 class="section-title">OpenTelemetry Integration</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>The <span class="inline-code">request_id</span> column in <span class="inline-code">audit_logs</span> is the OpenTelemetry trace ID for the HTTP request that triggered the action. This creates a three-way correlation between structured logs, distributed traces, and audit records.</p>
+
+      <div class="card-highlight">
+        <h3>Full Observability Chain</h3>
+        <pre><span class="cm">HTTP Request arrives
+  │
+  ├─ OTel middleware assigns Trace ID: 4bf92f3577b34da6...
+  │
+  ├─ Zap logger: {"trace_id": "4bf92f3577b34da6...", "msg": "PUT /api/v1/cases/uuid"}
+  │
+  ├─ Handler executes → case status updated
+  │
+  ├─ AuditMiddleware enqueues River AuditJob:
+  │    { request_id: "4bf92f35-77b3-4da6-...",   ← trace ID stored here
+  │      action: "case.status_changed", ... }
+  │
+  └─ Grafana Tempo: trace 4bf92f3577b34da6
+       ├─ span: authenticate
+       ├─ span: db.update_case_status (2ms)
+       └─ span: river.enqueue_audit_job (&lt;1ms)</span></pre>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-cyan">
+          <h3>What This Enables</h3>
+          <ul class="styled">
+            <li>Given an audit log entry → jump directly to the Grafana trace</li>
+            <li>Given a trace → find the audit log row for that exact request</li>
+            <li>Correlate slow queries (Tempo) with the action that caused them (audit log)</li>
+            <li>"Show everything that happened in this specific user session" — filter by actor + time range in both systems</li>
+          </ul>
+        </div>
+        <div class="card-violet">
+          <h3>Implementation Notes</h3>
+          <ul class="styled">
+            <li>Trace ID extracted via <span class="inline-code">trace.SpanFromContext(ctx).SpanContext().TraceID()</span></li>
+            <li>Stored as UUID-formatted string in <span class="inline-code">request_id</span> column</li>
+            <li>Zap logger middleware also injects <span class="inline-code">trace_id</span> into every log line for the request</li>
+            <li>Grafana dashboard: "Audit + Trace correlation" view ships in Phase 1</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 10 · GO MODULE STRUCTURE -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="go-modules">
+      <div class="section-header">
+        <span class="section-number">10</span>
+        <h2 class="section-title">Go Module Structure</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <pre><span class="ty">internal/audit/</span>
+├── <span class="fn">middleware.go</span>       <span class="cm">— AuditMiddleware, StatusRecorder, FetchResourceSnapshot</span>
+├── <span class="fn">service.go</span>          <span class="cm">— Service struct, Insert (via River), Query (paginated)</span>
+├── <span class="fn">job_handler.go</span>      <span class="cm">— River AuditInsertJob, batch insert logic</span>
+├── <span class="fn">export.go</span>           <span class="cm">— CSV streaming export, date-range validation</span>
+├── <span class="fn">chain.go</span>            <span class="cm">— computeChainHash, VerifyChainIntegrity</span>
+└── <span class="fn">queries/</span>
+    └── <span class="fn">audit.sql</span>       <span class="cm">— sqlc source queries (INSERT + SELECT only)</span></pre>
+
+      <div class="grid-2">
+        <div class="component-card">
+          <div class="component-name">middleware.go</div>
+          <div class="component-file">internal/audit/middleware.go</div>
+          <div class="component-desc">
+            Intercepts all mutating HTTP methods and configured sensitive GETs. Captures actor, IP, user agent, and trace ID before the handler. Fetches resource snapshots for diff computation. Enqueues async River job on success.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">service.go</div>
+          <div class="component-file">internal/audit/service.go</div>
+          <div class="component-desc">
+            Thin service layer. Exposes <span class="inline-code">Insert()</span> (delegates to River), <span class="inline-code">Query()</span> (paginated DB read), and <span class="inline-code">FetchResourceSnapshot()</span>. Has no Update or Delete methods — absence is enforced.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">job_handler.go</div>
+          <div class="component-file">internal/audit/job_handler.go</div>
+          <div class="component-desc">
+            River <span class="inline-code">AuditInsertJob</span> handler. Batches audit events in memory for up to 100ms or 50 events, then bulk-inserts via a single <span class="inline-code">INSERT INTO audit_logs ... VALUES (...), (...)</span>. Handles chain hash computation per batch.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">export.go</div>
+          <div class="component-file">internal/audit/export.go</div>
+          <div class="component-desc">
+            Streams CSV rows directly to the <span class="inline-code">http.ResponseWriter</span> using Go's <span class="inline-code">encoding/csv</span> writer and a cursor-based DB query loop. Never loads more than one page of rows into memory at a time.
+          </div>
+        </div>
+      </div>
+
+      <h3>River AuditInsertJob — Batch Design</h3>
+      <pre><span class="cm">// internal/audit/job_handler.go</span>
+
+<span class="kw">type</span> <span class="ty">AuditInsertArgs</span> <span class="kw">struct</span> {
+  Entries []<span class="ty">AuditEntry</span> <span class="at">`json:"entries"`</span>
+}
+
+<span class="kw">type</span> <span class="ty">AuditInsertWorker</span> <span class="kw">struct</span> {
+  db      *<span class="ty">pgxpool.Pool</span>
+  chainSvc *<span class="ty">ChainService</span>
+  river.<span class="ty">WorkerDefaults</span>[<span class="ty">AuditInsertArgs</span>]
+}
+
+<span class="kw">func</span> (w *<span class="ty">AuditInsertWorker</span>) <span class="fn">Work</span>(ctx <span class="ty">context.Context</span>, job *river.<span class="ty">Job</span>[<span class="ty">AuditInsertArgs</span>]) <span class="ty">error</span> {
+  entries := job.<span class="ty">Args</span>.<span class="ty">Entries</span>
+  <span class="kw">if</span> <span class="fn">len</span>(entries) == <span class="num">0</span> { <span class="kw">return nil</span> }
+
+  <span class="cm">// Fetch last chain anchor (most recent row in partition)</span>
+  anchor, _ := w.chainSvc.<span class="fn">LatestAnchor</span>(ctx)
+
+  <span class="cm">// Compute hashes and build batch insert values</span>
+  rows := <span class="fn">make</span>([]<span class="ty">AuditRow</span>, <span class="fn">len</span>(entries))
+  <span class="kw">for</span> i, e := <span class="kw">range</span> entries {
+    e.<span class="ty">ChainHash</span> = <span class="fn">computeChainHash</span>(anchor, &amp;e)
+    rows[i] = e.<span class="fn">ToRow</span>()
+    anchor = e.<span class="fn">AsAnchor</span>()
+  }
+
+  <span class="cm">// Single bulk INSERT</span>
+  <span class="kw">return</span> <span class="fn">bulkInsert</span>(ctx, w.db, rows)
+}
+
+<span class="cm">// Batch scheduling: producer collects events for 100ms or 50 entries</span>
+<span class="kw">const</span> (
+  batchWindow = <span class="num">100</span> * time.<span class="ty">Millisecond</span>
+  batchSize   = <span class="num">50</span>
+)</pre>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 11 · FRONTEND COMPONENTS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <span class="section-number">11</span>
+        <h2 class="section-title">Frontend Components</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-2" style="margin-bottom:1.5rem;">
+        <div class="component-card">
+          <div class="component-name">AuditLogViewer</div>
+          <div class="component-file">app/(admin)/audit-logs/page.tsx</div>
+          <div class="component-desc">
+            Full-page admin table view. Filterable by actor, action type, resource type, and date range. Cursor-paginated with infinite scroll. Export button triggers the date range modal. Each row is clickable to open the detail modal.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">CaseAuditTimeline</div>
+          <div class="component-file">components/cases/CaseAuditTimeline.tsx</div>
+          <div class="component-desc">
+            Compact vertical timeline embedded in the Case Detail page. Shows the last 20 audit events for the case. Chronological order, oldest first. Each entry shows actor avatar, action badge, and human-readable description. Click to expand full payload.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">AuditLogDetailModal</div>
+          <div class="component-file">components/audit/AuditLogDetailModal.tsx</div>
+          <div class="component-desc">
+            Slide-over modal showing a single audit entry in full. Displays all metadata (actor, IP, trace ID, timestamps) and renders the <span class="inline-code">payload</span> JSONB as a syntax-highlighted diff — green for additions (after), red for removals (before). Uses <span class="inline-code">react-json-view</span>.
+          </div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">AuditExportModal</div>
+          <div class="component-file">components/audit/AuditExportModal.tsx</div>
+          <div class="component-desc">
+            Dialog triggered from the Audit Log Viewer. Presents a date range picker (max 30-day span enforced on the client), optional action/actor filters, and a Download CSV button. Triggers a streaming GET with <span class="inline-code">window.location.href</span> to the export endpoint so the browser handles the file download natively.
+          </div>
+        </div>
+      </div>
+
+      <div class="card-highlight">
+        <h3>Data Fetching — TanStack Query v5</h3>
+        <pre><span class="cm">// hooks/useAuditLogs.ts</span>
+<span class="kw">export function</span> <span class="fn">useAuditLogs</span>(filters: <span class="ty">AuditLogFilters</span>) {
+  <span class="kw">return</span> <span class="fn">useInfiniteQuery</span>({
+    queryKey: [<span class="st">'audit-logs'</span>, filters],
+    queryFn: ({ pageParam: cursor }) =&gt;
+      api.<span class="fn">get</span>(<span class="st">'/api/v1/audit-logs'</span>, { params: { ...filters, cursor } }),
+    getNextPageParam: (last) =&gt; last.meta.cursor,
+    staleTime: <span class="num">30_000</span>,  <span class="cm">// 30s — audit logs don't need real-time freshness</span>
+  });
+}
+
+<span class="cm">// hooks/useCaseAuditLogs.ts</span>
+<span class="kw">export function</span> <span class="fn">useCaseAuditLogs</span>(caseId: <span class="ty">string</span>) {
+  <span class="kw">return</span> <span class="fn">useInfiniteQuery</span>({
+    queryKey: [<span class="st">'case-audit-logs'</span>, caseId],
+    queryFn: ({ pageParam: cursor }) =&gt;
+      api.<span class="fn">get</span>(<span class="st">`/api/v1/cases/${caseId}/audit-logs`</span>, { params: { cursor } }),
+    getNextPageParam: (last) =&gt; last.meta.cursor,
+    staleTime: <span class="num">10_000</span>,
+  });
+}</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 12 · PERFORMANCE -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="performance">
+      <div class="section-header">
+        <span class="section-number">12</span>
+        <h2 class="section-title">Performance</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-3" style="margin-bottom:1.5rem;">
+        <div class="perf-stat">
+          <span class="perf-stat-value">&lt; 1ms</span>
+          <span class="perf-stat-label">Write path overhead (async River enqueue)</span>
+        </div>
+        <div class="perf-stat">
+          <span class="perf-stat-value">1 partition</span>
+          <span class="perf-stat-label">Scanned per date-filtered query</span>
+        </div>
+        <div class="perf-stat">
+          <span class="perf-stat-value">streaming</span>
+          <span class="perf-stat-label">CSV export — no full-table memory load</span>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Write Path</h3>
+          <ul class="styled">
+            <li>Middleware enqueues a River job in-process — no network round trip</li>
+            <li>River job executes asynchronously in a background worker</li>
+            <li>Batch window: 100ms or 50 events — whichever comes first</li>
+            <li>Bulk INSERT reduces per-row overhead by 40-60x vs individual inserts</li>
+            <li>Zero impact on API response time — users never wait for audit writes</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3>Read Path</h3>
+          <ul class="styled">
+            <li>All queries include <span class="inline-code">occurred_at</span> range → PostgreSQL partition pruning kicks in</li>
+            <li>Monthly partition = each query scans at most 31 days of rows</li>
+            <li>Composite indexes on <span class="inline-code">(actor_id, occurred_at DESC)</span> and <span class="inline-code">(case_id, occurred_at DESC)</span> make common access patterns index-only scans</li>
+            <li>Cursor pagination avoids OFFSET scans — O(log n) per page</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card-amber">
+        <h3>Phase 2 — Archival Strategy</h3>
+        <p>Partitions older than 2 years will be detached from the live table and archived to S3 (cold tier). For compliance investigations requiring archived data:</p>
+        <ul class="styled">
+          <li>Phase 2: Re-attach the partition temporarily for the investigation window</li>
+          <li>Phase 2: S3 Foreign Data Wrapper (aws_s3 or parquet_fdw) for read-only queries against archived partitions without re-attach</li>
+          <li>Archival cadence: quarterly batch job, run by River cron</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 13 · TEST STRATEGY -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <span class="section-number">13</span>
+        <h2 class="section-title">Test Strategy</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Middleware Intercept Tests</h3>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Every POST creates an audit entry</div>
+              <div class="test-desc">Table-driven test over all POST routes verifies River job is enqueued with correct action and resource_type.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Every PUT/PATCH creates an audit entry with diff</div>
+              <div class="test-desc">Verifies payload has <code>before</code> and <code>after</code> keys and that changed fields are present.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Every DELETE creates an audit entry with deleted snapshot</div>
+              <div class="test-desc">Verifies payload has <code>deleted</code> key with full object captured before deletion.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Failed requests (4xx/5xx) do NOT create audit entries</div>
+              <div class="test-desc">Verifies River job is not enqueued when handler returns a non-2xx status.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Sensitive GET routes are intercepted</div>
+              <div class="test-desc">document download and audit export routes create <code>document.downloaded</code> entries.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Immutability Tests</h3>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Service has no Update method</div>
+              <div class="test-desc">Static analysis / reflection test verifies AuditService exposes only Insert and Query.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">PostgreSQL rejects UPDATE on audit_logs</div>
+              <div class="test-desc">Integration test connects as <code>opsowl_app</code> role, attempts UPDATE, asserts pgx permission error.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">PostgreSQL rejects DELETE on audit_logs</div>
+              <div class="test-desc">Same as above for DELETE — asserts pgx permission error, not a silent no-op.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">sqlc generates no UPDATE/DELETE queries</div>
+              <div class="test-desc">CI step asserts <code>audit.sql</code> contains only SELECT and INSERT statements.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3>Chain Integrity Tests</h3>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Sequential inserts produce valid chain</div>
+              <div class="test-desc">Insert 100 rows, run VerifyChainIntegrity — asserts all hashes are valid and linked.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Tampered row breaks chain</div>
+              <div class="test-desc">Directly modifies a row in test DB (superuser), re-runs VerifyChainIntegrity — asserts broken chain is detected at the correct row.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Genesis row hash is deterministic</div>
+              <div class="test-desc">First row always uses zero UUID as previous ID — test verifies hash is stable across restarts.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Export &amp; Partition Tests</h3>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">CSV export format is correct</div>
+              <div class="test-desc">Parses exported CSV, verifies column headers, UTF-8 encoding, and that date values are ISO 8601 UTC.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">CSV export is streamed (not buffered)</div>
+              <div class="test-desc">Instruments memory allocator — asserts peak heap during 10k-row export is below 5MB.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Export rejects missing date range</div>
+              <div class="test-desc">Asserts 400 response when date_from or date_to is absent.</div>
+            </div>
+          </div>
+          <div class="test-item">
+            <div class="test-check">✓</div>
+            <div>
+              <div class="test-name">Partition routing correctness</div>
+              <div class="test-desc">Inserts rows dated to three different months, queries with EXPLAIN, asserts only the relevant partition is scanned (no cross-partition scan).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
+<footer class="site-footer">
+  <span class="footer-brand">OpsOwl AI — Feature Specification</span>
+  <span>10 · Audit Logging · v1.0 · 2026-05-16</span>
+</footer>
+
+</body>
+</html>

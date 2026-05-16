@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — Feature 11: Search</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-2:   #263347;
+      --surface-3:   #2d3f55;
+      --border:      #334155;
+      --border-light:#3d5068;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0891b2;
+      --cyan-glow:   rgba(34,211,238,0.15);
+      --violet:      #a78bfa;
+      --violet-dim:  #7c3aed;
+      --violet-glow: rgba(167,139,250,0.12);
+      --emerald:     #34d399;
+      --amber:       #fbbf24;
+      --rose:        #fb7185;
+      --sky:         #38bdf8;
+      --indigo:      #818cf8;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Top nav ── */
+    .topnav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.92);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 0 32px;
+      height: 56px;
+    }
+    .topnav-logo {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--cyan);
+      letter-spacing: -0.5px;
+      text-decoration: none;
+    }
+    .topnav-logo span { color: var(--text-muted); font-weight: 400; }
+    .topnav-sep { color: var(--border); user-select: none; }
+    .topnav-title { font-size: 14px; color: var(--text-muted); font-weight: 500; flex: 1; }
+    .back-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--cyan);
+      text-decoration: none;
+      padding: 6px 14px;
+      border: 1px solid var(--cyan-dim);
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    .back-link:hover { background: var(--cyan-glow); }
+    .back-link svg { width: 14px; height: 14px; }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 32px 80px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 52px 0 40px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 48px;
+    }
+    .feature-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--cyan);
+      background: var(--cyan-glow);
+      border: 1px solid rgba(34,211,238,0.3);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 42px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      color: #f1f5f9;
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--cyan); }
+    .hero-desc {
+      font-size: 17px;
+      color: var(--text-muted);
+      max-width: 680px;
+      line-height: 1.75;
+      margin-bottom: 28px;
+    }
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .meta-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text-muted);
+    }
+    .meta-badge .dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+    }
+    .dot-cyan  { background: var(--cyan); }
+    .dot-violet{ background: var(--violet); }
+    .dot-emerald{ background: var(--emerald); }
+    .dot-amber { background: var(--amber); }
+
+    /* ── Section ── */
+    .section {
+      margin-bottom: 56px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 24px;
+    }
+    .section-num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 34px; height: 34px;
+      border-radius: 8px;
+      background: var(--cyan-glow);
+      border: 1px solid rgba(34,211,238,0.35);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+    .section-header h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #f1f5f9;
+      letter-spacing: -0.3px;
+    }
+
+    /* ── Card ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px 28px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Grid ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    @media(max-width: 720px) {
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+
+    /* ── Entity scope cards ── */
+    .entity-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 20px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .entity-card:hover {
+      border-color: var(--cyan-dim);
+      background: var(--surface-2);
+    }
+    .entity-card .entity-icon {
+      font-size: 22px;
+      margin-bottom: 10px;
+    }
+    .entity-card .entity-name {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 6px;
+    }
+    .entity-card .entity-fields {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.7;
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      margin: 2px 2px 2px 0;
+    }
+    .tag-cyan    { background: rgba(34,211,238,0.12); color: var(--cyan); border: 1px solid rgba(34,211,238,0.25); }
+    .tag-violet  { background: rgba(167,139,250,0.12); color: var(--violet); border: 1px solid rgba(167,139,250,0.25); }
+    .tag-emerald { background: rgba(52,211,153,0.12); color: var(--emerald); border: 1px solid rgba(52,211,153,0.25); }
+    .tag-amber   { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.25); }
+    .tag-rose    { background: rgba(251,113,133,0.12); color: var(--rose); border: 1px solid rgba(251,113,133,0.25); }
+    .tag-sky     { background: rgba(56,189,248,0.12); color: var(--sky); border: 1px solid rgba(56,189,248,0.25); }
+    .tag-indigo  { background: rgba(129,140,248,0.12); color: var(--indigo); border: 1px solid rgba(129,140,248,0.25); }
+
+    /* ── Code block ── */
+    pre {
+      background: #080f1e;
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--cyan);
+      border-radius: 10px;
+      padding: 22px 24px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.75;
+      color: #cbd5e1;
+    }
+    pre .kw  { color: #7dd3fc; }   /* keyword */
+    pre .ty  { color: #86efac; }   /* type */
+    pre .st  { color: #fde68a; }   /* string */
+    pre .cm  { color: #475569; font-style: italic; }  /* comment */
+    pre .fn  { color: #c4b5fd; }   /* function */
+    pre .nu  { color: #fb7185; }   /* number */
+    pre .cn  { color: #34d399; }   /* constant */
+
+    /* ── Flow diagram ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 0;
+      position: relative;
+    }
+    .flow-step:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 17px;
+      top: 52px;
+      width: 2px;
+      height: calc(100% - 20px);
+      background: linear-gradient(to bottom, var(--cyan-dim), transparent);
+    }
+    .flow-num {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: var(--surface-2);
+      border: 2px solid var(--cyan-dim);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--cyan);
+      flex-shrink: 0;
+    }
+    .flow-content h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 4px;
+    }
+    .flow-content p {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+    .flow-content code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      background: rgba(34,211,238,0.08);
+      color: var(--cyan);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* ── API endpoint ── */
+    .endpoint {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .endpoint-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface-2);
+    }
+    .method {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 9px;
+      border-radius: 4px;
+      letter-spacing: 0.5px;
+    }
+    .method-get  { background: rgba(52,211,153,0.15); color: var(--emerald); border: 1px solid rgba(52,211,153,0.3); }
+    .method-post { background: rgba(34,211,238,0.12); color: var(--cyan); border: 1px solid rgba(34,211,238,0.3); }
+    .method-put  { background: rgba(251,191,36,0.12); color: var(--amber); border: 1px solid rgba(251,191,36,0.3); }
+    .method-del  { background: rgba(251,113,133,0.12); color: var(--rose); border: 1px solid rgba(251,113,133,0.3); }
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #f1f5f9;
+    }
+    .endpoint-path .param { color: var(--amber); }
+    .endpoint-body { padding: 14px 18px; }
+    .endpoint-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-bottom: 10px;
+    }
+    .param-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    .param-table th {
+      text-align: left;
+      padding: 7px 10px;
+      color: var(--text-dim);
+      font-weight: 600;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border);
+    }
+    .param-table td {
+      padding: 7px 10px;
+      color: var(--text-muted);
+      border-bottom: 1px solid rgba(51,65,85,0.4);
+      vertical-align: top;
+    }
+    .param-table td:first-child {
+      font-family: 'JetBrains Mono', monospace;
+      color: var(--amber);
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .param-table td:nth-child(2) {
+      color: var(--cyan);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .param-table tr:last-child td { border-bottom: none; }
+
+    /* ── Info/Warning callout ── */
+    .callout {
+      border-radius: 10px;
+      padding: 16px 20px;
+      display: flex;
+      gap: 14px;
+      margin-bottom: 16px;
+      align-items: flex-start;
+    }
+    .callout-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+    .callout-body { flex: 1; }
+    .callout-body h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .callout-body p  { font-size: 13px; line-height: 1.65; }
+    .callout-info  { background: rgba(34,211,238,0.07); border: 1px solid rgba(34,211,238,0.2); }
+    .callout-info  h4 { color: var(--cyan); }
+    .callout-info  p  { color: var(--text-muted); }
+    .callout-warn  { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.2); }
+    .callout-warn  h4 { color: var(--amber); }
+    .callout-warn  p  { color: var(--text-muted); }
+    .callout-success{ background: rgba(52,211,153,0.07); border: 1px solid rgba(52,211,153,0.2); }
+    .callout-success h4{ color: var(--emerald); }
+    .callout-success p { color: var(--text-muted); }
+    .callout-violet { background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2); }
+    .callout-violet h4 { color: var(--violet); }
+    .callout-violet p  { color: var(--text-muted); }
+
+    /* ── Component spec ── */
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--cyan);
+      border-radius: 10px;
+      padding: 20px 22px;
+    }
+    .component-card h4 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #f1f5f9;
+      margin-bottom: 8px;
+    }
+    .component-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .component-card ul li {
+      font-size: 13px;
+      color: var(--text-muted);
+      padding: 4px 0;
+      padding-left: 16px;
+      position: relative;
+      line-height: 1.6;
+    }
+    .component-card ul li::before {
+      content: '→';
+      position: absolute;
+      left: 0;
+      color: var(--cyan);
+      font-size: 11px;
+    }
+
+    /* ── Inline code ── */
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      background: rgba(34,211,238,0.08);
+      color: var(--cyan);
+      padding: 1px 6px;
+      border-radius: 3px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 40px 0;
+    }
+
+    /* ── Tech stack row ── */
+    .tech-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    /* ── Phase migration card ── */
+    .phase-card {
+      background: linear-gradient(135deg, rgba(167,139,250,0.05) 0%, rgba(34,211,238,0.05) 100%);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--violet);
+      border-radius: 10px;
+      padding: 22px 24px;
+    }
+    .phase-card h4 {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--violet);
+      margin-bottom: 12px;
+    }
+    .phase-card p {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.7;
+      margin-bottom: 10px;
+    }
+
+    /* ── RBAC table ── */
+    .rbac-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .rbac-table th {
+      background: var(--surface-2);
+      padding: 10px 14px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--text-dim);
+      border: 1px solid var(--border);
+    }
+    .rbac-table td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    .rbac-table tr:nth-child(even) td {
+      background: rgba(30,41,59,0.4);
+    }
+
+    /* ── Module tree ── */
+    .module-tree {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      background: #080f1e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      line-height: 2;
+      color: #94a3b8;
+    }
+    .module-tree .dir  { color: var(--cyan); font-weight: 600; }
+    .module-tree .file { color: #e2e8f0; }
+    .module-tree .ann  { color: #475569; font-style: italic; }
+
+    /* ── Performance metric ── */
+    .perf-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media(max-width: 720px) { .perf-grid { grid-template-columns: 1fr 1fr; } }
+    .perf-metric {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 16px;
+      text-align: center;
+    }
+    .perf-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--cyan);
+      letter-spacing: -1px;
+      margin-bottom: 4px;
+    }
+    .perf-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid var(--border);
+      margin-top: 60px;
+      padding-top: 28px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .footer-brand { font-size: 14px; font-weight: 700; color: var(--cyan); }
+    .footer-meta  { font-size: 12px; color: var(--text-dim); }
+  </style>
+</head>
+<body>
+
+<!-- ── Top Nav ── -->
+<nav class="topnav">
+  <a href="INDEX.html" class="topnav-logo">OpsOwl <span>AI</span></a>
+  <span class="topnav-sep">/</span>
+  <span class="topnav-title">Feature Specification — 11: Search</span>
+  <a href="INDEX.html" class="back-link">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M10 12L6 8l4-4"/>
+    </svg>
+    Back to Index
+  </a>
+</nav>
+
+<div class="container">
+
+  <!-- ── Hero ── -->
+  <div class="hero">
+    <div class="feature-pill">Feature 11 &mdash; Search</div>
+    <h1>Global <span>Search</span> &amp;<br />Full-Text Discovery</h1>
+    <p class="hero-desc">
+      Investigators need to find anything instantly — a case by customer name, a note mentioning "fraud", a document containing a specific account number, a task assigned to a specific analyst.
+      Global search across all entities in a single query, powered by PostgreSQL FTS with semantic augmentation via pgvector.
+    </p>
+    <div class="hero-meta">
+      <span class="meta-badge"><span class="dot dot-cyan"></span> PostgreSQL 18.4 FTS</span>
+      <span class="meta-badge"><span class="dot dot-violet"></span> pgvector Semantic Search</span>
+      <span class="meta-badge"><span class="dot dot-emerald"></span> GIN Indexed</span>
+      <span class="meta-badge"><span class="dot dot-amber"></span> RBAC Enforced</span>
+      <span class="meta-badge"><span class="dot dot-cyan"></span> Cmd+K Palette</span>
+    </div>
+  </div>
+
+  <!-- ── 1. Feature Overview ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">1</span>
+      <h2>Feature Overview</h2>
+    </div>
+    <div class="card">
+      <p style="color:var(--text-muted); font-size:14.5px; line-height:1.8; margin-bottom:16px;">
+        In a live investigation workspace handling hundreds of cases, dozens of analysts, and thousands of notes and documents, the ability to <strong style="color:#f1f5f9">find anything instantly</strong> is not a convenience — it is a core workflow requirement. An analyst investigating a fraud cluster needs to pull up every note mentioning "mule account" across all cases. A compliance manager needs to locate all documents containing a specific IFSC code. A supervisor needs to find every task assigned to an analyst who just went on leave.
+      </p>
+      <p style="color:var(--text-muted); font-size:14.5px; line-height:1.8;">
+        OpsOwl Search provides a <strong style="color:#f1f5f9">single, unified query</strong> that reaches across cases, notes, comments, documents, tasks, and timeline events simultaneously. Results are ranked by relevance, grouped by entity type, and filtered by the searcher's RBAC permissions — so analysts never see results they are not authorized to access.
+      </p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-icon">&#9729;</div>
+      <div class="callout-body">
+        <h4>MVP Scope</h4>
+        <p>MVP ships with PostgreSQL full-text search (<code>tsvector/tsquery</code>) and pgvector semantic search for document chunks. Elasticsearch integration is deferred to Phase 2 and triggered only by measured query latency exceeding 500ms consistently.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 2. Search Scope ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">2</span>
+      <h2>Search Scope — What is Searchable</h2>
+    </div>
+    <div class="grid-3">
+      <div class="entity-card">
+        <div class="entity-icon">&#128193;</div>
+        <div class="entity-name">Cases</div>
+        <div class="entity-fields">
+          Title, description, case number, tags, assigned analyst name
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-cyan">title</span>
+          <span class="tag tag-cyan">description</span>
+          <span class="tag tag-cyan">case_number</span>
+          <span class="tag tag-cyan">tags[]</span>
+          <span class="tag tag-cyan">analyst_name</span>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="entity-icon">&#128221;</div>
+        <div class="entity-name">Notes</div>
+        <div class="entity-fields">
+          Note content body, note title, author display name
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-violet">content</span>
+          <span class="tag tag-violet">title</span>
+          <span class="tag tag-violet">author</span>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="entity-icon">&#128172;</div>
+        <div class="entity-name">Comments</div>
+        <div class="entity-fields">
+          Comment content text (on cases, notes, tasks)
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-emerald">content</span>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="entity-icon">&#128196;</div>
+        <div class="entity-name">Documents</div>
+        <div class="entity-fields">
+          Filename, extracted OCR/parsed text content (via document chunks)
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-amber">filename</span>
+          <span class="tag tag-amber">extracted_text</span>
+          <span class="tag tag-amber">chunk_content</span>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="entity-icon">&#9989;</div>
+        <div class="entity-name">Tasks</div>
+        <div class="entity-fields">
+          Task title, description, assigned analyst name
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-sky">title</span>
+          <span class="tag tag-sky">description</span>
+        </div>
+      </div>
+      <div class="entity-card">
+        <div class="entity-icon">&#128336;</div>
+        <div class="entity-name">Timeline Events</div>
+        <div class="entity-fields">
+          Event payload content (JSON stringified and indexed for searchability)
+        </div>
+        <div style="margin-top:10px;">
+          <span class="tag tag-indigo">payload_text</span>
+          <span class="tag tag-indigo">event_type</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 3. Search Technology ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">3</span>
+      <h2>Search Technology</h2>
+    </div>
+
+    <div class="grid-2" style="margin-bottom:16px;">
+      <div class="card">
+        <div class="card-title">PostgreSQL FTS — Why</div>
+        <ul style="list-style:none; padding:0;">
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--emerald);">&#10003;</span>
+            Adequate for records under 1 million — no new infrastructure to operate
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--emerald);">&#10003;</span>
+            Built into PostgreSQL 18.4 — zero additional services to deploy or monitor
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--emerald);">&#10003;</span>
+            ACID-consistent with application data — search index always transactionally correct
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--emerald);">&#10003;</span>
+            GIN indexes deliver sub-50ms queries for typical case loads
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--emerald);">&#10003;</span>
+            <code>ts_rank</code> relevance scoring available out of the box
+          </li>
+        </ul>
+      </div>
+      <div class="card">
+        <div class="card-title">PostgreSQL FTS — How</div>
+        <ul style="list-style:none; padding:0;">
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--cyan);">&#8594;</span>
+            <code>tsvector</code> generated column on <code>search_index.ts_content</code>
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--cyan);">&#8594;</span>
+            GIN index on <code>ts_content</code> for fast bitset intersection
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--cyan);">&#8594;</span>
+            Query converted with <code>plainto_tsquery('english', $1)</code>
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--cyan);">&#8594;</span>
+            Results ranked via <code>ts_rank(ts_content, query)</code>
+          </li>
+          <li style="padding:6px 0; padding-left:18px; position:relative; font-size:13.5px; color:var(--text-muted); line-height:1.65;">
+            <span style="position:absolute; left:0; color:var(--cyan);">&#8594;</span>
+            Snippets generated via <code>ts_headline(content, query)</code>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="callout callout-violet">
+      <div class="callout-icon">&#128204;</div>
+      <div class="callout-body">
+        <h4>Semantic Search via pgvector</h4>
+        <p>Document chunks are embedded using <code>text-embedding-3-small</code> and stored as <code>vector(1536)</code> in the <code>document_chunks</code> table. When a user searches, the query is also embedded (Python AI service) and an <code>IVFFlat</code> ANN search runs against document chunk vectors to find semantically similar passages — even without exact keyword matches. FTS and vector results are merged and de-duplicated before returning.</p>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-icon">&#9888;</div>
+      <div class="callout-body">
+        <h4>Phase 2 Trigger — Elasticsearch Migration</h4>
+        <p>When P95 search query latency exceeds <strong>500ms</strong> consistently over a 24-hour window (measured via Prometheus + Grafana), the team initiates the Elasticsearch migration. The API contract (<code>GET /api/v1/search</code>) does not change — only the backend implementation switches. See Section 13 for migration path.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 4. Database Schema ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">4</span>
+      <h2>Database Schema</h2>
+    </div>
+
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title">search_index Table — Purpose</div>
+      <p style="font-size:13.5px; color:var(--text-muted); line-height:1.7; margin-bottom:12px;">
+        A centralized, denormalized index table that aggregates searchable text from all entity types into a single place. Each row represents one searchable unit of content, tagged with its entity type and linked back to the original entity and case. The <code>ts_content</code> column is a <strong style="color:#f1f5f9">generated column</strong> — PostgreSQL automatically maintains it.
+      </p>
+      <div class="tech-row">
+        <span class="tag tag-cyan">entity_type enum</span>
+        <span class="tag tag-violet">GIN index</span>
+        <span class="tag tag-emerald">GENERATED ALWAYS</span>
+        <span class="tag tag-amber">River job updates</span>
+      </div>
+    </div>
+
+<pre><span class="cm">-- ────────────────────────────────────────────────────────────
+-- OpsOwl AI — Search Index Schema
+-- PostgreSQL 18.4 + pgvector
+-- ────────────────────────────────────────────────────────────</span>
+
+<span class="kw">CREATE TYPE</span> <span class="ty">entity_type_enum</span> <span class="kw">AS ENUM</span> (
+    <span class="st">'case'</span>,
+    <span class="st">'note'</span>,
+    <span class="st">'comment'</span>,
+    <span class="st">'document'</span>,
+    <span class="st">'task'</span>,
+    <span class="st">'timeline_event'</span>
+);
+
+<span class="kw">CREATE TABLE</span> <span class="ty">search_index</span> (
+    <span class="cn">id</span>           UUID          <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="cn">entity_type</span>  <span class="ty">entity_type_enum</span>  <span class="kw">NOT NULL</span>,
+    <span class="cn">entity_id</span>    UUID          <span class="kw">NOT NULL</span>,          <span class="cm">-- FK to the source row</span>
+    <span class="cn">case_id</span>      UUID          <span class="kw">REFERENCES</span> <span class="ty">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="cm">-- case_id nullable: some global entities are not case-scoped</span>
+    <span class="cn">org_id</span>       UUID          <span class="kw">NOT NULL REFERENCES</span> <span class="ty">organizations</span>(id),
+    <span class="cn">content</span>      TEXT          <span class="kw">NOT NULL</span>,          <span class="cm">-- raw text corpus</span>
+    <span class="cn">ts_content</span>   TSVECTOR      <span class="kw">GENERATED ALWAYS AS</span> (
+                    <span class="fn">to_tsvector</span>(<span class="st">'english'</span>, <span class="fn">coalesce</span>(content, <span class="st">''</span>))
+                 ) <span class="kw">STORED</span>,
+    <span class="cn">updated_at</span>   TIMESTAMPTZ   <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="cm">-- Primary FTS index — GIN on generated tsvector</span>
+<span class="kw">CREATE INDEX</span> idx_search_ts_content
+    <span class="kw">ON</span> <span class="ty">search_index</span> <span class="kw">USING GIN</span>(ts_content);
+
+<span class="cm">-- Filter indexes — always needed for scoped searches</span>
+<span class="kw">CREATE INDEX</span> idx_search_entity_type <span class="kw">ON</span> <span class="ty">search_index</span>(entity_type);
+<span class="kw">CREATE INDEX</span> idx_search_case_id     <span class="kw">ON</span> <span class="ty">search_index</span>(case_id) <span class="kw">WHERE</span> case_id <span class="kw">IS NOT NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_search_org_id      <span class="kw">ON</span> <span class="ty">search_index</span>(org_id);
+<span class="kw">CREATE UNIQUE INDEX</span> idx_search_entity_unique
+    <span class="kw">ON</span> <span class="ty">search_index</span>(entity_type, entity_id);  <span class="cm">-- one row per entity</span>
+
+<span class="cm">-- ────────────────────────────────────────────────────────────
+-- Document Chunks — semantic search via pgvector
+-- ────────────────────────────────────────────────────────────</span>
+
+<span class="kw">CREATE TABLE</span> <span class="ty">document_chunks</span> (
+    <span class="cn">id</span>           UUID          <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="cn">document_id</span>  UUID          <span class="kw">NOT NULL REFERENCES</span> <span class="ty">documents</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="cn">case_id</span>      UUID          <span class="kw">NOT NULL REFERENCES</span> <span class="ty">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="cn">org_id</span>       UUID          <span class="kw">NOT NULL REFERENCES</span> <span class="ty">organizations</span>(id),
+    <span class="cn">chunk_index</span>  INT           <span class="kw">NOT NULL</span>,            <span class="cm">-- ordinal within document</span>
+    <span class="cn">content</span>      TEXT          <span class="kw">NOT NULL</span>,
+    <span class="cn">embedding</span>    vector(<span class="nu">1536</span>) <span class="kw">NOT NULL</span>,            <span class="cm">-- text-embedding-3-small</span>
+    <span class="cn">created_at</span>   TIMESTAMPTZ   <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="cn">updated_at</span>   TIMESTAMPTZ   <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="cm">-- IVFFlat ANN index — lists tuned for ~100k chunks</span>
+<span class="kw">CREATE INDEX</span> idx_chunks_embedding
+    <span class="kw">ON</span> <span class="ty">document_chunks</span> <span class="kw">USING IVFFLAT</span> (embedding <span class="fn">vector_cosine_ops</span>)
+    <span class="kw">WITH</span> (lists = <span class="nu">100</span>);
+
+<span class="kw">CREATE INDEX</span> idx_chunks_document_id <span class="kw">ON</span> <span class="ty">document_chunks</span>(document_id);
+<span class="kw">CREATE INDEX</span> idx_chunks_case_id     <span class="kw">ON</span> <span class="ty">document_chunks</span>(case_id);
+</pre>
+
+    <div class="callout callout-info" style="margin-top:16px;">
+      <div class="callout-icon">&#128279;</div>
+      <div class="callout-body">
+        <h4>Index Maintenance via River</h4>
+        <p>Each module (cases, notes, comments, documents, tasks, timeline) emits a <code>SearchIndexEvent{entity_type, entity_id, operation}</code> whenever content is created, updated, or deleted. A River background job handler picks this up and performs an <code>INSERT INTO search_index ... ON CONFLICT (entity_type, entity_id) DO UPDATE SET content = ..., updated_at = NOW()</code>. Deletions propagate via <code>ON DELETE CASCADE</code> on the source FK. The generated <code>ts_content</code> column updates automatically when <code>content</code> is written.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 5. Search Query Flow ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">5</span>
+      <h2>Search Query Flow</h2>
+    </div>
+    <div class="card">
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <h4>User Types Query</h4>
+            <p>User opens the command palette (Cmd+K) or the search page and types a query string. Input is trimmed and validated (min 2 characters, max 200 characters).</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <h4>Debounced Request (300ms)</h4>
+            <p>Frontend debounces the query by 300ms. On the 300ms boundary, dispatches <code>GET /api/v1/search?q=fraud+mule&amp;types[]=note&amp;types[]=case&amp;limit=20</code>. Abort controller cancels any pending in-flight request.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <h4>Go Handler — Auth &amp; Parse</h4>
+            <p>Go Chi handler extracts JWT claims, resolves <code>org_id</code> and <code>user_id</code>, parses query parameters, constructs <code>SearchParams</code> struct. Validates entity type filters against the allowed enum.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <h4>PostgreSQL FTS Query</h4>
+            <p>Calls sqlc-generated query: <code>SELECT entity_type, entity_id, case_id, content, ts_rank(ts_content, query) AS rank, ts_headline('english', content, query, 'MaxWords=35, MinWords=15, StartSel=&lt;mark&gt;, StopSel=&lt;/mark&gt;') AS snippet FROM search_index, plainto_tsquery('english', $1) query WHERE org_id = $2 AND ts_content @@ query ORDER BY rank DESC LIMIT $3</code>. RBAC filter applied via JOIN on accessible <code>case_ids</code>.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">5</div>
+          <div class="flow-content">
+            <h4>pgvector Semantic Query (Documents)</h4>
+            <p>In parallel (goroutine), if entity types include <code>document</code>: calls Python AI service <code>POST /internal/embed</code> with query text → receives <code>vector[1536]</code> → runs <code>SELECT ... FROM document_chunks WHERE org_id = $org ORDER BY embedding &lt;=&gt; $vec LIMIT 10</code>. Results merged and de-duplicated by <code>entity_id</code>.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">6</div>
+          <div class="flow-content">
+            <h4>Group &amp; Enrich Results</h4>
+            <p>Go service groups results by <code>entity_type</code>. For each result, fetches the display title from the in-memory entity resolver (already warm from primary queries). Constructs response envelope with grouped buckets, total counts, and relevance scores.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">7</div>
+          <div class="flow-content">
+            <h4>Cached Response</h4>
+            <p>Response cached in-process (go-cache) for 5 seconds keyed by <code>org_id:user_id:query_hash:filters_hash</code>. Cache skipped for case-scoped searches where live accuracy matters. Returns <code>200 OK</code> with <code>{data: {results: {...}}, meta: {total, query_ms}}</code>.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 6. API Endpoints ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">6</span>
+      <h2>API Endpoints</h2>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/v1/search</span>
+      </div>
+      <div class="endpoint-body">
+        <p class="endpoint-desc">Global search across all entity types within the caller's organization. Results grouped by entity type. Respects RBAC — analyst sees only their accessible cases.</p>
+        <table class="param-table">
+          <thead>
+            <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>q</td><td>string</td><td>Yes</td><td>Search query. Min 2 chars. Passed to <code>plainto_tsquery</code>.</td></tr>
+            <tr><td>types[]</td><td>enum[]</td><td>No</td><td>Filter to specific entity types: <code>case, note, comment, document, task, timeline_event</code>. Omit for all.</td></tr>
+            <tr><td>case_id</td><td>UUID</td><td>No</td><td>Scope results to a specific case.</td></tr>
+            <tr><td>limit</td><td>int</td><td>No</td><td>Max results per type. Default: 5. Max: 20.</td></tr>
+            <tr><td>cursor</td><td>string</td><td>No</td><td>Opaque cursor for pagination within a type bucket.</td></tr>
+            <tr><td>date_from</td><td>ISO 8601</td><td>No</td><td>Filter by <code>updated_at &gt;= date_from</code>.</td></tr>
+            <tr><td>date_to</td><td>ISO 8601</td><td>No</td><td>Filter by <code>updated_at &lt;= date_to</code>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="endpoint">
+      <div class="endpoint-header">
+        <span class="method method-get">GET</span>
+        <span class="endpoint-path">/api/v1/cases/<span class="param">:id</span>/search</span>
+      </div>
+      <div class="endpoint-body">
+        <p class="endpoint-desc">Case-scoped search. Identical query interface but results restricted to the specified case. No cross-case leakage. Cache TTL reduced to 2s for case-scoped searches.</p>
+        <table class="param-table">
+          <thead>
+            <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>q</td><td>string</td><td>Yes</td><td>Search query text.</td></tr>
+            <tr><td>types[]</td><td>enum[]</td><td>No</td><td>Filter to entity types within case scope.</td></tr>
+            <tr><td>limit</td><td>int</td><td>No</td><td>Default 10. Max 50.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:8px;">
+      <div class="card-title">Response Envelope — Example</div>
+<pre style="margin:0;"><span class="cm">// GET /api/v1/search?q=fraud+mule&types[]=note&types[]=case</span>
+{
+  <span class="st">"data"</span>: {
+    <span class="st">"results"</span>: {
+      <span class="st">"case"</span>: {
+        <span class="st">"count"</span>: <span class="nu">3</span>,
+        <span class="st">"items"</span>: [
+          {
+            <span class="st">"entity_id"</span>: <span class="st">"9c3a1f2e-..."</span>,
+            <span class="st">"entity_type"</span>: <span class="st">"case"</span>,
+            <span class="st">"title"</span>: <span class="st">"Fraud Investigation — Rajesh Kumar"</span>,
+            <span class="st">"snippet"</span>: <span class="st">"...identified as a &lt;mark&gt;mule&lt;/mark&gt; account linked to &lt;mark&gt;fraud&lt;/mark&gt; ring..."</span>,
+            <span class="st">"case_id"</span>: <span class="st">"9c3a1f2e-..."</span>,
+            <span class="st">"case_number"</span>: <span class="st">"OPS-2024-0312"</span>,
+            <span class="st">"relevance"</span>: <span class="nu">0.8423</span>,
+            <span class="st">"updated_at"</span>: <span class="st">"2024-03-15T09:22:00Z"</span>
+          }
+        ]
+      },
+      <span class="st">"note"</span>: {
+        <span class="st">"count"</span>: <span class="nu">7</span>,
+        <span class="st">"items"</span>: [ <span class="cm">/* ... */</span> ]
+      }
+    },
+    <span class="st">"total"</span>: <span class="nu">10</span>,
+    <span class="st">"query"</span>: <span class="st">"fraud mule"</span>,
+    <span class="st">"query_ms"</span>: <span class="nu">34</span>
+  },
+  <span class="st">"meta"</span>: {
+    <span class="st">"request_id"</span>: <span class="st">"req_01HXYZ..."</span>,
+    <span class="st">"timestamp"</span>: <span class="st">"2024-03-15T09:22:05Z"</span>
+  },
+  <span class="st">"error"</span>: <span class="kw">null</span>
+}</pre>
+    </div>
+  </div>
+
+  <!-- ── 7. Result Highlighting ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">7</span>
+      <h2>Result Highlighting</h2>
+    </div>
+    <div class="card">
+      <div class="card-title">ts_headline — PostgreSQL Native Highlighting</div>
+      <p style="font-size:13.5px; color:var(--text-muted); line-height:1.75; margin-bottom:16px;">
+        PostgreSQL's <code>ts_headline()</code> function generates a short excerpt from the content with matched terms wrapped in configurable HTML tags. OpsOwl uses <code>&lt;mark&gt;</code> tags so that frontend styling is consistent with the rest of the app.
+      </p>
+<pre><span class="cm">-- ts_headline configuration used in OpsOwl search queries</span>
+<span class="fn">ts_headline</span>(
+    <span class="st">'english'</span>,              <span class="cm">-- text search configuration</span>
+    search_index.content,   <span class="cm">-- source text</span>
+    plainto_tsquery(<span class="st">'english'</span>, <span class="nu">$1</span>),  <span class="cm">-- query</span>
+    <span class="st">'MaxWords=35,           -- max words in snippet
+     MinWords=15,           -- min words in snippet
+     ShortWord=3,           -- ignore words shorter than 3 chars in highlighting
+     HighlightAll=false,    -- only highlight if matches exist
+     MaxFragments=2,        -- show up to 2 non-contiguous fragments
+     FragmentDelimiter=" … ", -- separator between fragments
+     StartSel=&lt;mark&gt;,      -- open tag
+     StopSel=&lt;/mark&gt;'</span>      <span class="cm">-- close tag</span>
+)</pre>
+      <p style="font-size:13.5px; color:var(--text-muted); line-height:1.75; margin-top:16px;">
+        Frontend renders the snippet as <code>dangerouslySetInnerHTML</code> with a strict allowlist sanitizer (only <code>&lt;mark&gt;</code> permitted). The <code>&lt;mark&gt;</code> element is styled via Tailwind: <code>bg-cyan-400/20 text-cyan-300 rounded px-0.5</code>. No raw HTML injection risk as the snippet source is the database, not user-controlled HTML.
+      </p>
+    </div>
+  </div>
+
+  <!-- ── 8. RBAC on Search ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">8</span>
+      <h2>RBAC on Search</h2>
+    </div>
+    <div class="callout callout-warn" style="margin-bottom:20px;">
+      <div class="callout-icon">&#128274;</div>
+      <div class="callout-body">
+        <h4>Security Principle</h4>
+        <p>Search is not a backdoor to restricted data. An analyst searching for "fraud" cannot discover cases that are not in their accessible case set. Permission enforcement happens at the database query level — not the result-filtering level — so restricted results are never fetched.</p>
+      </div>
+    </div>
+    <table class="rbac-table">
+      <thead>
+        <tr>
+          <th>Role</th>
+          <th>Accessible Cases</th>
+          <th>Search Scope</th>
+          <th>Implementation</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="tag tag-cyan">analyst</span></td>
+          <td>Cases assigned to them, or cases where they have a task/note</td>
+          <td>Only their case subset. Cannot see other analysts' cases.</td>
+          <td><code>AND case_id = ANY(SELECT case_id FROM case_members WHERE user_id = $user)</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-violet">manager</span></td>
+          <td>All cases within their organization</td>
+          <td>Full org-wide search. Can see all analysts' work.</td>
+          <td><code>AND org_id = $org_id</code></td>
+        </tr>
+        <tr>
+          <td><span class="tag tag-amber">admin</span></td>
+          <td>All cases across all orgs (super admin only)</td>
+          <td>Full platform search (internal tooling only).</td>
+          <td>No case filter applied; org filter still applies for org admins.</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="callout callout-info" style="margin-top:16px;">
+      <div class="callout-icon">&#9432;</div>
+      <div class="callout-body">
+        <h4>Global Content (non-case-scoped)</h4>
+        <p>Some entities (e.g. global templates) have <code>case_id = NULL</code> in <code>search_index</code>. These are returned to all users in the same organization. Org-level isolation is always enforced via <code>org_id</code> — cross-tenant search is architecturally impossible.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 9. Search Index Maintenance ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">9</span>
+      <h2>Search Index Maintenance</h2>
+    </div>
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-title">Initial Full Index Build</div>
+        <p style="font-size:13.5px; color:var(--text-muted); line-height:1.7;">
+          Run as a one-time migration step after schema creation. A Go CLI command <code>opsowl-admin index --rebuild</code> iterates all entity tables in batches of 500 rows, builds the content string, and upserts into <code>search_index</code>. Runs inside a single long-lived transaction per batch to avoid partial states. ETA: ~2 minutes for 50,000 entities.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Incremental Updates (River)</div>
+        <p style="font-size:13.5px; color:var(--text-muted); line-height:1.7;">
+          Every write path (note saved, case updated, document uploaded, task created) enqueues a <code>search_index_sync</code> River job with a 1-second delay (deduplicated by entity key). River worker calls <code>UPSERT INTO search_index ... ON CONFLICT DO UPDATE</code>. Since <code>ts_content</code> is a generated column, no explicit tsvector computation in application code.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Deletion Propagation</div>
+        <p style="font-size:13.5px; color:var(--text-muted); line-height:1.7;">
+          Soft-deleted entities: River job sets <code>content = ''</code> in search_index (empty tsvector matches nothing). Hard deletes: <code>ON DELETE CASCADE</code> on <code>case_id</code> FK propagates automatically. Entity-level deletes require explicit River job to delete the search_index row.
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-title">Drift Recovery</div>
+        <p style="font-size:13.5px; color:var(--text-muted); line-height:1.7;">
+          Nightly River scheduled job (<code>search_index_audit</code>) runs at 02:00 UTC: counts rows in each entity table vs search_index, identifies missing or stale entries (updated_at delta &gt; 1 hour), and re-enqueues sync jobs for drifted entities. Alert fires if drift exceeds 0.1% of total entities.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 10. Go Module Structure ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">10</span>
+      <h2>Go Module Structure</h2>
+    </div>
+    <div class="module-tree">
+<span class="dir">internal/search/</span>
+├── <span class="dir">handler/</span>
+│   ├── <span class="file">search_handler.go</span>         <span class="ann">// Chi HTTP handlers: global + case-scoped search</span>
+│   └── <span class="file">search_handler_test.go</span>
+├── <span class="dir">service/</span>
+│   ├── <span class="file">search_service.go</span>         <span class="ann">// Orchestrates FTS + vector merge + RBAC filter</span>
+│   ├── <span class="file">search_service_test.go</span>
+│   └── <span class="file">result_merger.go</span>          <span class="ann">// Merges FTS and pgvector results, deduplicates</span>
+├── <span class="dir">index/</span>
+│   ├── <span class="file">index_manager.go</span>          <span class="ann">// Upsert/delete entries in search_index table</span>
+│   ├── <span class="file">index_manager_test.go</span>
+│   └── <span class="file">events.go</span>                 <span class="ann">// SearchIndexEvent struct + River job enqueue</span>
+├── <span class="dir">repository/</span>
+│   ├── <span class="file">search_queries.sql</span>        <span class="ann">// sqlc source: FTS query, ts_headline, ts_rank</span>
+│   └── <span class="file">search_queries.sql.go</span>     <span class="ann">// sqlc generated — DO NOT EDIT</span>
+├── <span class="dir">workers/</span>
+│   ├── <span class="file">sync_worker.go</span>            <span class="ann">// River worker: search_index_sync job handler</span>
+│   └── <span class="file">audit_worker.go</span>           <span class="ann">// River worker: nightly drift audit job</span>
+└── <span class="file">module.go</span>                    <span class="ann">// Module wiring: registers routes + River workers</span>
+
+<span class="dir">internal/ai/</span>
+└── <span class="dir">client/</span>
+    └── <span class="file">embed_client.go</span>           <span class="ann">// HTTP client to Python AI service /internal/embed</span>
+    </div>
+  </div>
+
+  <!-- ── 11. Frontend Components ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">11</span>
+      <h2>Frontend Components</h2>
+    </div>
+    <div class="grid-2">
+      <div class="component-card">
+        <h4>GlobalSearchBar — Command Palette</h4>
+        <ul>
+          <li>Triggered by Cmd+K (Mac) / Ctrl+K (Windows/Linux)</li>
+          <li>Full-screen overlay with input at top, results below</li>
+          <li>Uses shadcn/ui <code>Command</code> primitive</li>
+          <li>Debounced TanStack Query with <code>staleTime: 5000</code></li>
+          <li>Keyboard navigation: arrow keys + Enter to open result</li>
+          <li>Recent searches from <code>localStorage</code> (max 10)</li>
+          <li>ESC to close; click outside to close</li>
+        </ul>
+      </div>
+      <div class="component-card">
+        <h4>SearchResultsPage</h4>
+        <ul>
+          <li>Full dedicated page at <code>/search?q=...</code></li>
+          <li>Sidebar with entity type filter pills</li>
+          <li>Date range picker (from shadcn/ui Calendar)</li>
+          <li>Grouped sections per entity type with count badges</li>
+          <li>"Load more" within each group (cursor pagination)</li>
+          <li>Sync with URL params for shareable search links</li>
+        </ul>
+      </div>
+      <div class="component-card">
+        <h4>SearchResultCard</h4>
+        <ul>
+          <li>Entity type badge (colored by type)</li>
+          <li>Title — bolded, clickable to open entity</li>
+          <li>Snippet — rendered with <code>&lt;mark&gt;</code> highlights (cyan bg)</li>
+          <li>Case link pill if entity is case-scoped</li>
+          <li>Relative timestamp (updated_at)</li>
+          <li>Relevance score (small, dimmed) for debug mode</li>
+        </ul>
+      </div>
+      <div class="component-card">
+        <h4>SearchFilterBar</h4>
+        <ul>
+          <li>Filter pills for each entity type (toggleable)</li>
+          <li>Active filter count badge</li>
+          <li>Date range quick picks: Today, This Week, This Month</li>
+          <li>Case scope selector (search within case)</li>
+          <li>Clear all filters button</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 12. Performance ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">12</span>
+      <h2>Performance</h2>
+    </div>
+    <div class="perf-grid" style="margin-bottom:24px;">
+      <div class="perf-metric">
+        <div class="perf-value">&lt;50ms</div>
+        <div class="perf-label">P95 FTS query latency (GIN indexed, 500k rows)</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-value">5s</div>
+        <div class="perf-label">In-process cache TTL for global search results</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-value">300ms</div>
+        <div class="perf-label">Frontend debounce delay before issuing request</div>
+      </div>
+      <div class="perf-metric">
+        <div class="perf-value">100</div>
+        <div class="perf-label">IVFFlat lists for pgvector ANN index</div>
+      </div>
+    </div>
+<pre><span class="cm">-- EXPLAIN ANALYZE for typical FTS search query
+-- Observed plan with 500k rows in search_index</span>
+
+<span class="kw">EXPLAIN ANALYZE</span>
+<span class="kw">SELECT</span>
+    entity_type, entity_id, case_id,
+    <span class="fn">ts_rank</span>(ts_content, q) <span class="kw">AS</span> rank,
+    <span class="fn">ts_headline</span>(<span class="st">'english'</span>, content, q,
+        <span class="st">'MaxWords=35,MinWords=15,MaxFragments=2,StartSel=&lt;mark&gt;,StopSel=&lt;/mark&gt;'</span>) <span class="kw">AS</span> snippet
+<span class="kw">FROM</span> search_index,
+     <span class="fn">plainto_tsquery</span>(<span class="st">'english'</span>, <span class="st">'fraud mule account'</span>) q
+<span class="kw">WHERE</span>
+    org_id = <span class="st">'org-uuid'</span>
+    <span class="kw">AND</span> ts_content @@ q
+<span class="kw">ORDER BY</span> rank <span class="kw">DESC</span>
+<span class="kw">LIMIT</span> <span class="nu">20</span>;
+
+<span class="cm">--  Bitmap Heap Scan on search_index  (cost=28.4..312.6 rows=80 width=820)
+--    Recheck Cond: (ts_content @@ '''fraud'' &amp; ''mule'' &amp; ''account''':tsquery)
+--    Filter: (org_id = 'org-uuid')
+--    Heap Blocks: exact=42
+--    -&gt;  Bitmap Index Scan on idx_search_ts_content
+--          Index Cond: (ts_content @@ ...)
+--  Planning Time: 0.8 ms
+--  Execution Time: 18.3 ms   ← well within 500ms SLA</span></pre>
+  </div>
+
+  <!-- ── 13. Phase 2 Elasticsearch Migration ── -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-num">13</span>
+      <h2>Phase 2 — Elasticsearch Migration Path</h2>
+    </div>
+    <div class="phase-card">
+      <h4>When to Migrate</h4>
+      <p>The migration is triggered when <strong>P95 search latency exceeds 500ms consistently over a 72-hour window</strong>, as measured by Prometheus metrics exported from the Go search handler. This corresponds to roughly 2–5 million indexed entities at typical query complexity.</p>
+      <p>Do not migrate early. PostgreSQL FTS is fully adequate and operationally simpler. Elasticsearch adds significant operational overhead (cluster management, index mapping, replication), which is not justified until load demands it.</p>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title">Zero-Downtime Migration Steps</div>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-num">1</div>
+          <div class="flow-content">
+            <h4>Deploy Elasticsearch Cluster</h4>
+            <p>Provision ES cluster alongside existing PostgreSQL. No changes to application yet.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">2</div>
+          <div class="flow-content">
+            <h4>Dual-Write Mode</h4>
+            <p>Enable feature flag <code>search.dual_write=true</code>. Search index sync River job writes to both PostgreSQL <code>search_index</code> and Elasticsearch index simultaneously. API still reads from PostgreSQL.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">3</div>
+          <div class="flow-content">
+            <h4>Backfill Elasticsearch</h4>
+            <p>Run <code>opsowl-admin index --rebuild --target=elasticsearch</code> to bulk-index existing data. Verify index counts match PostgreSQL row counts within 0.1%.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">4</div>
+          <div class="flow-content">
+            <h4>Shadow Read Mode (Canary)</h4>
+            <p>Feature flag <code>search.read_from=elasticsearch</code> for 5% of traffic. Compare result quality and latency. Fix any discrepancies in mapping or tokenization.</p>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-num">5</div>
+          <div class="flow-content">
+            <h4>Full Cutover</h4>
+            <p>Increase canary to 100%. Disable PG FTS queries. The <code>GET /api/v1/search</code> endpoint URL does not change. Remove <code>search_index</code> writes after 30-day stability period.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="callout callout-success" style="margin-top:16px;">
+      <div class="callout-icon">&#128279;</div>
+      <div class="callout-body">
+        <h4>API Contract Stability</h4>
+        <p>The search API contract — request parameters, response schema, highlighting format, cursor pagination — remains identical throughout the migration. Frontend code is never touched. Only the <code>internal/search/service/search_service.go</code> backend implementation changes behind the interface.</p>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider" />
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-brand">OpsOwl AI</span>
+    <span class="footer-meta">Feature 11 — Search &nbsp;|&nbsp; PostgreSQL 18.4 + pgvector &nbsp;|&nbsp; Go 1.26 &nbsp;|&nbsp; Next.js 16</span>
+    <a href="INDEX.html" class="back-link">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M10 12L6 8l4-4"/>
+      </svg>
+      Back to Index
+    </a>
+  </div>
+
+</div>
+</body>
+</html>

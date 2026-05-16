@@ -1,0 +1,1685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — System Architecture (HLD)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base:      #0f172a;
+      --bg-surface:   #1e293b;
+      --bg-elevated:  #263347;
+      --bg-code:      #0d1b2e;
+      --border:       #334155;
+      --border-light: #475569;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --text-muted:   #64748b;
+      --cyan:         #06b6d4;
+      --cyan-dim:     #0e7490;
+      --violet:       #8b5cf6;
+      --violet-dim:   #5b21b6;
+      --emerald:      #10b981;
+      --amber:        #f59e0b;
+      --rose:         #f43f5e;
+      --sky:          #38bdf8;
+      --sidebar-w:    260px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg-base);
+      color: var(--text-primary);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      display: flex;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: var(--sidebar-w);
+      min-height: 100vh;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      position: fixed;
+      top: 0; left: 0;
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-logo {
+      padding: 24px 20px 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-logo .owl-mark {
+      font-size: 22px;
+      font-weight: 800;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    .sidebar-logo .doc-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-top: 4px;
+    }
+
+    .nav-section-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--text-muted);
+      padding: 16px 20px 6px;
+    }
+
+    .nav-item {
+      display: block;
+      padding: 9px 20px;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 450;
+      transition: all 0.15s;
+      border-left: 3px solid transparent;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .nav-item:hover {
+      color: var(--text-primary);
+      background: var(--bg-elevated);
+      border-left-color: var(--cyan);
+    }
+    .nav-item.active {
+      color: var(--cyan);
+      border-left-color: var(--cyan);
+      background: rgba(6,182,212,0.08);
+    }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 20px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* ── Main ── */
+    #main {
+      margin-left: var(--sidebar-w);
+      flex: 1;
+      min-width: 0;
+    }
+
+    /* ── Page Header ── */
+    .page-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1a1040 50%, #0f172a 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 60px 40px;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(139,92,246,0.12) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .page-header::after {
+      content: '';
+      position: absolute;
+      bottom: -60px; left: 200px;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(6,182,212,0.10) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .ph-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: var(--cyan);
+      margin-bottom: 12px;
+    }
+    .ph-title {
+      font-size: 34px;
+      font-weight: 800;
+      letter-spacing: -1px;
+      line-height: 1.15;
+      background: linear-gradient(90deg, #f1f5f9, #94a3b8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .ph-title span {
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .ph-meta {
+      margin-top: 16px;
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .ph-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .ph-badge .dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--emerald);
+    }
+
+    /* ── Content ── */
+    .content {
+      padding: 56px 60px;
+      max-width: 1100px;
+    }
+
+    section {
+      margin-bottom: 80px;
+      scroll-margin-top: 24px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-num {
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .section-title {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+    }
+
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin: 28px 0 12px;
+    }
+    h4 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--cyan);
+      margin: 20px 0 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    p { color: var(--text-secondary); margin-bottom: 12px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 16px;
+    }
+    .card-grid {
+      display: grid;
+      gap: 16px;
+    }
+    .card-grid-2 { grid-template-columns: repeat(2, 1fr); }
+    .card-grid-3 { grid-template-columns: repeat(3, 1fr); }
+
+    .card.highlight {
+      border-color: var(--cyan-dim);
+      background: linear-gradient(135deg, var(--bg-surface), rgba(6,182,212,0.04));
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+    .card-body { font-size: 13px; color: var(--text-secondary); }
+
+    /* ── Badges ── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 2px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-cyan    { background: rgba(6,182,212,0.15);  color: var(--cyan);    border: 1px solid rgba(6,182,212,0.3); }
+    .badge-violet  { background: rgba(139,92,246,0.15); color: var(--violet);  border: 1px solid rgba(139,92,246,0.3); }
+    .badge-emerald { background: rgba(16,185,129,0.15); color: var(--emerald); border: 1px solid rgba(16,185,129,0.3); }
+    .badge-amber   { background: rgba(245,158,11,0.15); color: var(--amber);   border: 1px solid rgba(245,158,11,0.3); }
+    .badge-rose    { background: rgba(244,63,94,0.15);  color: var(--rose);    border: 1px solid rgba(244,63,94,0.3); }
+    .badge-sky     { background: rgba(56,189,248,0.15); color: var(--sky);     border: 1px solid rgba(56,189,248,0.3); }
+
+    /* ── Tables ── */
+    .table-wrap { overflow-x: auto; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 24px; }
+    table { width: 100%; border-collapse: collapse; }
+    thead tr { background: var(--bg-elevated); }
+    thead th {
+      padding: 12px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--text-muted);
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-top: 1px solid var(--border);
+      transition: background 0.1s;
+    }
+    tbody tr:hover { background: var(--bg-elevated); }
+    tbody td {
+      padding: 13px 16px;
+      font-size: 13px;
+      color: var(--text-secondary);
+      vertical-align: top;
+    }
+    tbody td:first-child { color: var(--text-primary); font-weight: 500; }
+    .td-mono { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--cyan); }
+
+    /* ── Code ── */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+    pre {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 16px 0;
+      color: #e2e8f0;
+    }
+    code {
+      background: rgba(6,182,212,0.1);
+      color: var(--cyan);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    pre code { background: none; color: inherit; padding: 0; border-radius: 0; }
+
+    /* ── Architecture Diagram ── */
+    .arch-diagram {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 24px 0;
+    }
+    .arch-layer {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+    }
+    .arch-layer-num {
+      width: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+    .arch-layer-box {
+      flex: 1;
+      border: 1px solid var(--border);
+      border-radius: 0;
+      padding: 16px 20px;
+      position: relative;
+    }
+    .arch-layer:first-child .arch-layer-box { border-radius: 12px 12px 0 0; }
+    .arch-layer:last-child  .arch-layer-box { border-radius: 0 0 12px 12px; }
+    .arch-layer:not(:last-child) .arch-layer-box { border-bottom: none; }
+
+    .arch-layer.l1 .arch-layer-box { background: linear-gradient(90deg, rgba(6,182,212,0.08), rgba(6,182,212,0.03)); border-color: rgba(6,182,212,0.4); }
+    .arch-layer.l2 .arch-layer-box { background: linear-gradient(90deg, rgba(139,92,246,0.08), rgba(139,92,246,0.03)); border-color: rgba(139,92,246,0.4); border-top: none; }
+    .arch-layer.l3 .arch-layer-box { background: linear-gradient(90deg, rgba(16,185,129,0.08), rgba(16,185,129,0.03)); border-color: rgba(16,185,129,0.4); border-top: none; }
+    .arch-layer.l4 .arch-layer-box { background: linear-gradient(90deg, rgba(245,158,11,0.08), rgba(245,158,11,0.03)); border-color: rgba(245,158,11,0.4); border-top: none; }
+    .arch-layer.l5 .arch-layer-box { background: linear-gradient(90deg, rgba(56,189,248,0.08), rgba(56,189,248,0.03)); border-color: rgba(56,189,248,0.4); border-top: none; }
+    .arch-layer.l6 .arch-layer-box { background: linear-gradient(90deg, rgba(244,63,94,0.08), rgba(244,63,94,0.03)); border-color: rgba(244,63,94,0.4); border-top: none; border-radius: 0 0 12px 12px; }
+
+    .arch-label { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+    .arch-components { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+    .arch-chip {
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+      background: rgba(255,255,255,0.06);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-secondary);
+    }
+    .arch-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 24px;
+      color: var(--text-muted);
+      font-size: 18px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* ── Module Cards ── */
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .module-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+    .module-card:hover {
+      border-color: var(--border-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .module-card.phase2 {
+      opacity: 0.65;
+      border-style: dashed;
+    }
+    .module-num {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .module-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 8px;
+    }
+
+    /* ── Flow Diagram ── */
+    .flow {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      margin: 20px 0;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 16px 20px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 0;
+      position: relative;
+    }
+    .flow-step:first-child { border-radius: 12px 12px 0 0; }
+    .flow-step:last-child  { border-radius: 0 0 12px 12px; }
+    .flow-step:not(:last-child) { border-bottom: none; }
+    .flow-icon {
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+    .flow-content { flex: 1; }
+    .flow-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .flow-desc  { font-size: 12px; color: var(--text-secondary); }
+
+    /* ── Perf Targets ── */
+    .perf-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .perf-card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px 16px;
+      text-align: center;
+    }
+    .perf-value {
+      font-size: 28px;
+      font-weight: 800;
+      font-family: 'JetBrains Mono', monospace;
+      margin-bottom: 4px;
+    }
+    .perf-label { font-size: 12px; color: var(--text-muted); }
+    .perf-type  { font-size: 11px; color: var(--text-secondary); margin-top: 6px; }
+
+    /* ── Info Box ── */
+    .info-box {
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 16px 0;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+    .info-box.info  { background: rgba(6,182,212,0.08);  border: 1px solid rgba(6,182,212,0.25); }
+    .info-box.warn  { background: rgba(245,158,11,0.08); border: 1px solid rgba(245,158,11,0.25); }
+    .info-box.tip   { background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.25); }
+    .info-icon { font-size: 18px; margin-top: 1px; }
+    .info-text { font-size: 13px; color: var(--text-secondary); }
+    .info-text strong { color: var(--text-primary); }
+
+    /* ── Decision List ── */
+    .decision-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+    .decision-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+    }
+    .decision-mark {
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      background: rgba(16,185,129,0.15);
+      border: 1px solid rgba(16,185,129,0.3);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; color: var(--emerald);
+      flex-shrink: 0; margin-top: 1px;
+    }
+    .decision-text { font-size: 13px; color: var(--text-secondary); }
+    .decision-text strong { color: var(--text-primary); }
+
+    /* ── Docker Services ── */
+    .docker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .docker-service {
+      background: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .docker-icon {
+      width: 38px; height: 38px;
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+    .docker-info { flex: 1; }
+    .docker-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+    .docker-desc { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+    .docker-port { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--cyan); }
+
+    /* scroll bar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg-base); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <div class="owl-mark">&#x1F989; OpsOwl AI</div>
+    <div class="doc-label">System Architecture — HLD</div>
+  </div>
+
+  <div class="nav-section-label">Overview</div>
+  <a href="#overview"      class="nav-item">01 · Product Overview</a>
+  <a href="#architecture"  class="nav-item">02 · Architecture Overview</a>
+  <a href="#tech-stack"    class="nav-item">03 · Tech Stack Deep Dive</a>
+
+  <div class="nav-section-label">Design</div>
+  <a href="#modules"       class="nav-item">04 · 14 Module Map</a>
+  <a href="#features"      class="nav-item">05 · MVP Feature Matrix</a>
+  <a href="#data-flow"     class="nav-item">06 · Data Flow</a>
+
+  <div class="nav-section-label">Infrastructure</div>
+  <a href="#db-schema"     class="nav-item">07 · Database Schema Strategy</a>
+  <a href="#security"      class="nav-item">08 · Security Architecture</a>
+  <a href="#ai-arch"       class="nav-item">09 · AI Architecture</a>
+
+  <div class="nav-section-label">Standards</div>
+  <a href="#api-standards" class="nav-item">10 · API Standards</a>
+  <a href="#performance"   class="nav-item">11 · Performance Targets</a>
+  <a href="#deployment"    class="nav-item">12 · Deployment Architecture</a>
+  <a href="#roadmap"       class="nav-item">13 · Phase 2 Roadmap</a>
+
+  <div class="sidebar-footer">
+    <a href="INDEX.html" style="color:var(--cyan); text-decoration:none; font-size:12px;">&#8592; Back to Docs Index</a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════
+     MAIN
+══════════════════════════════════════ -->
+<main id="main">
+
+  <!-- Page Header -->
+  <header class="page-header">
+    <div class="ph-eyebrow">High-Level Design Document · v1.0</div>
+    <h1 class="ph-title">OpsOwl AI —<br/><span>System Architecture</span></h1>
+    <div class="ph-meta">
+      <span class="ph-badge"><span class="dot"></span> MVP Active</span>
+      <span class="ph-badge">May 2026</span>
+      <span class="ph-badge">Internal Engineering</span>
+      <span class="ph-badge">Confidential</span>
+    </div>
+  </header>
+
+  <div class="content">
+
+    <!-- ── 01 Product Overview ── -->
+    <section id="overview">
+      <div class="section-header">
+        <div class="section-num">01</div>
+        <h2 class="section-title">Product Overview</h2>
+      </div>
+
+      <p>
+        <strong style="color:var(--text-primary)">OpsOwl AI</strong> is an AI-native enterprise investigation and operations workspace purpose-built
+        for fraud analysts, compliance officers, and risk operations teams inside fintech startups, NBFCs, lending platforms, and compliance consultancies.
+        It replaces fragmented spreadsheets, email chains, and disconnected tools with a single structured workspace where cases are opened, investigated with AI assistance,
+        documented with an immutable audit trail, and closed with full evidentiary integrity.
+      </p>
+
+      <div class="card-grid card-grid-3" style="margin-top:24px;">
+        <div class="card highlight">
+          <div class="card-title">&#x1F4CA; Primary ICP</div>
+          <div class="card-body">Fintech startups, NBFCs, lending ops teams, compliance consultancies, risk operations. 10–500 seat teams who run investigations on customers, transactions, and entities.</div>
+        </div>
+        <div class="card highlight">
+          <div class="card-title">&#x2728; Core Value Prop</div>
+          <div class="card-body">AI-assisted case investigation with structured timelines, document intelligence, collaborative notes, immutable audit trail, and human-review gates — all within a multi-tenant, RBAC-governed workspace.</div>
+        </div>
+        <div class="card highlight">
+          <div class="card-title">&#x1F6E1; Compliance-First</div>
+          <div class="card-body">Every AI action is logged, explainable, and human-reviewable. PII is masked before every LLM call. Schema-per-tenant isolation. Event-sourced audit trail is tamper-evident by design.</div>
+        </div>
+      </div>
+
+      <h3>Key Differentiators</h3>
+      <div class="decision-list">
+        <div class="decision-item">
+          <div class="decision-mark">✓</div>
+          <div class="decision-text"><strong>Investigation-native UX:</strong> Timeline workspace with thread-based evidence and AI-generated summaries tailored to ops analysts, not generic project management.</div>
+        </div>
+        <div class="decision-item">
+          <div class="decision-mark">✓</div>
+          <div class="decision-text"><strong>AI with guardrails:</strong> Provider-agnostic LLM router (Anthropic + OpenAI abstraction), PII masking pipeline, and AI Action Ledger — every AI output is traceable, reviewable, and correctable.</div>
+        </div>
+        <div class="decision-item">
+          <div class="decision-mark">✓</div>
+          <div class="decision-text"><strong>Enterprise governance:</strong> Schema-per-tenant from day one, RBAC at middleware level, RS256 JWT auth, event sourcing for compliance, and full audit logging on every state change.</div>
+        </div>
+        <div class="decision-item">
+          <div class="decision-mark">✓</div>
+          <div class="decision-text"><strong>Lightweight infrastructure:</strong> PostgreSQL-only for MVP (pgvector, River job queue) — no Redis, no Elasticsearch, no separate vector DB. Upgrade thresholds are defined, not speculative.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 02 Architecture Overview ── -->
+    <section id="architecture">
+      <div class="section-header">
+        <div class="section-num">02</div>
+        <h2 class="section-title">Architecture Overview</h2>
+      </div>
+
+      <p>OpsOwl AI uses a <strong style="color:var(--text-primary)">6-layer modular architecture</strong>. The layers are strictly ordered — upper layers never bypass lower layers. All cross-cutting concerns (auth, rate limiting, audit interception) live in the API Gateway layer.</p>
+
+      <div class="arch-diagram">
+        <div class="arch-layer l1">
+          <div class="arch-layer-num">L1</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--cyan)">Frontend Experience</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Next.js 16 App Router · TypeScript strict · Tailwind v4 · shadcn/ui · TanStack Query v5 · Zustand · Tiptap rich text · SSE real-time</div>
+            <div class="arch-components">
+              <span class="arch-chip">Browser SPA/SSR</span>
+              <span class="arch-chip">Case Workspace</span>
+              <span class="arch-chip">Timeline Editor</span>
+              <span class="arch-chip">AI Copilot Panel</span>
+              <span class="arch-chip">Document Viewer</span>
+              <span class="arch-chip">Dashboard</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-layer l2">
+          <div class="arch-layer-num">L2</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--violet)">API Gateway (Go)</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Chi router · JWT RS256 verification · RBAC middleware · Rate limiting · Audit interception · Request tracing (OpenTelemetry) · Zap structured logging</div>
+            <div class="arch-components">
+              <span class="arch-chip">Auth Middleware</span>
+              <span class="arch-chip">RBAC Guard</span>
+              <span class="arch-chip">Rate Limiter</span>
+              <span class="arch-chip">Audit Hook</span>
+              <span class="arch-chip">Request ID</span>
+              <span class="arch-chip">CORS</span>
+              <span class="arch-chip">Versioning /v1/</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-layer l3">
+          <div class="arch-layer-num">L3</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--emerald)">Core Operational Services (Go Modules)</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Modular monolith — each module owns its DB schema queries (sqlc), business logic, and service interface. No cross-module DB joins; inter-module calls via internal Go interfaces.</div>
+            <div class="arch-components">
+              <span class="arch-chip">Cases</span>
+              <span class="arch-chip">Timeline</span>
+              <span class="arch-chip">Tasks</span>
+              <span class="arch-chip">Notes & Collab</span>
+              <span class="arch-chip">Notifications</span>
+              <span class="arch-chip">Audit</span>
+              <span class="arch-chip">Search</span>
+              <span class="arch-chip">Tenants</span>
+              <span class="arch-chip">Users / RBAC</span>
+              <span class="arch-chip">Documents</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-layer l4">
+          <div class="arch-layer-num">L4</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--amber)">AI Orchestration (Python Service)</div>
+            <div style="font-size:12px; color:var(--text-secondary);">FastAPI · LangChain · Anthropic SDK + OpenAI SDK abstraction · pgvector RAG · PII masking · AI Action Ledger · Document intelligence</div>
+            <div class="arch-components">
+              <span class="arch-chip">LLM Router</span>
+              <span class="arch-chip">Prompt Registry</span>
+              <span class="arch-chip">RAG Pipeline</span>
+              <span class="arch-chip">PII Masking</span>
+              <span class="arch-chip">Embeddings</span>
+              <span class="arch-chip">Doc Intelligence</span>
+              <span class="arch-chip">AI Ledger</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-layer l5">
+          <div class="arch-layer-num">L5</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--sky)">Data &amp; Event Layer</div>
+            <div style="font-size:12px; color:var(--text-secondary);">PostgreSQL 18.4 + pgvector (schema-per-tenant) · River job queue on Postgres · MinIO (local) / AWS S3 (prod) file storage · Event sourcing for audit</div>
+            <div class="arch-components">
+              <span class="arch-chip">PostgreSQL 18.4</span>
+              <span class="arch-chip">pgvector</span>
+              <span class="arch-chip">River Queue</span>
+              <span class="arch-chip">MinIO / S3</span>
+              <span class="arch-chip">Event Store</span>
+              <span class="arch-chip">Resend (email)</span>
+            </div>
+          </div>
+        </div>
+        <div class="arch-layer l6">
+          <div class="arch-layer-num">L6</div>
+          <div class="arch-layer-box">
+            <div class="arch-label" style="color:var(--rose)">Deployment &amp; Infrastructure</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Docker + Docker Compose MVP · Environment parity (dev / staging / prod) · OpenTelemetry traces · Zap structured logs · Health check endpoints</div>
+            <div class="arch-components">
+              <span class="arch-chip">Docker Compose</span>
+              <span class="arch-chip">Env Files</span>
+              <span class="arch-chip">OTel Collector</span>
+              <span class="arch-chip">Healthz</span>
+              <span class="arch-chip">Volume Mounts</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-box info">
+        <div class="info-icon">ℹ️</div>
+        <div class="info-text"><strong>Monolith boundary:</strong> Go modules (L3) compile into a single binary. They share the same Postgres connection pool but <strong>never issue cross-schema SQL joins</strong>. Inter-module calls go through Go interfaces, making future service extraction a rename not a rewrite.</div>
+      </div>
+    </section>
+
+    <!-- ── 03 Tech Stack ── -->
+    <section id="tech-stack">
+      <div class="section-header">
+        <div class="section-num">03</div>
+        <h2 class="section-title">Tech Stack Deep Dive</h2>
+      </div>
+
+      <h3>Frontend</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Technology</th><th>Version</th><th>Role</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Next.js</td><td class="td-mono">16</td><td>App Router SSR/SPA framework</td><td>Server Components for layout; Client Components for interactive workspace</td></tr>
+            <tr><td>TypeScript</td><td class="td-mono">strict</td><td>Type safety across entire frontend</td><td>noImplicitAny, strictNullChecks, exactOptionalPropertyTypes</td></tr>
+            <tr><td>Tailwind CSS</td><td class="td-mono">v4</td><td>Utility-first styling</td><td>Design tokens in CSS variables; dark theme enforced</td></tr>
+            <tr><td>shadcn/ui</td><td class="td-mono">latest</td><td>Accessible component library</td><td>Radix primitives; copy-own, customisable</td></tr>
+            <tr><td>TanStack Query</td><td class="td-mono">v5</td><td>Server state, caching, mutations</td><td>Optimistic updates on task/note mutations</td></tr>
+            <tr><td>Zustand</td><td class="td-mono">latest</td><td>Client UI state (sidebar, panel state)</td><td>Minimal slices; no global server state</td></tr>
+            <tr><td>Tiptap</td><td class="td-mono">2.x</td><td>Rich-text editor for notes</td><td>Collaborative extension planned Phase 2</td></tr>
+            <tr><td>SSE</td><td class="td-mono">—</td><td>Real-time notifications, AI streaming</td><td>EventSource API; chosen over WebSockets for simplicity</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Backend (Go)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Technology</th><th>Version</th><th>Role</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Go</td><td class="td-mono">1.26</td><td>Primary backend language</td><td>Strong typing, fast compile, excellent concurrency</td></tr>
+            <tr><td>Chi</td><td class="td-mono">v5</td><td>HTTP router</td><td>Lightweight; middleware-first design matches our layer strategy</td></tr>
+            <tr><td>sqlc</td><td class="td-mono">latest</td><td>Type-safe SQL queries → Go structs</td><td>No ORM; raw SQL with compile-time safety</td></tr>
+            <tr><td>River</td><td class="td-mono">latest</td><td>Background job queue</td><td>Runs on Postgres — no Redis dependency for MVP</td></tr>
+            <tr><td>golang-jwt</td><td class="td-mono">v5</td><td>JWT RS256 issuance &amp; validation</td><td>Asymmetric keys; access 1hr + refresh rotation</td></tr>
+            <tr><td>Zap</td><td class="td-mono">latest</td><td>Structured JSON logging</td><td>request_id, tenant_id on every log line</td></tr>
+            <tr><td>OpenTelemetry</td><td class="td-mono">latest</td><td>Distributed traces &amp; metrics</td><td>OTLP export; spans from HTTP down to SQL</td></tr>
+            <tr><td>bcrypt</td><td class="td-mono">cost 12</td><td>Password hashing</td><td>Argon2id is migration target post-MVP</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>AI Service (Python)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Technology</th><th>Version</th><th>Role</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>Python</td><td class="td-mono">3.14</td><td>AI service runtime</td><td>Type annotations enforced; async throughout</td></tr>
+            <tr><td>FastAPI</td><td class="td-mono">latest</td><td>AI service HTTP API</td><td>Internal-only (not public-facing); called by Go backend</td></tr>
+            <tr><td>LangChain</td><td class="td-mono">latest</td><td>LLM chain orchestration</td><td>RAG chains, document Q&amp;A, prompt templates</td></tr>
+            <tr><td>Anthropic SDK</td><td class="td-mono">latest</td><td>Claude model access</td><td>Primary provider; wrapped in abstraction layer</td></tr>
+            <tr><td>OpenAI SDK</td><td class="td-mono">latest</td><td>GPT-4o fallback / embeddings</td><td>Same interface as Anthropic in abstraction layer</td></tr>
+            <tr><td>pgvector</td><td class="td-mono">—</td><td>Vector similarity search</td><td>Embedded in PostgreSQL; no separate vector DB</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h3>Database &amp; Infrastructure</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Technology</th><th>Role</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr><td>PostgreSQL 18.4</td><td>Primary data store</td><td>Schema-per-tenant; event store; job queue; vector search — single engine for MVP</td></tr>
+            <tr><td>pgvector extension</td><td>Embedding storage &amp; retrieval</td><td>cosine similarity; 1536-dim (OpenAI) or 1024-dim (Cohere/Anthropic)</td></tr>
+            <tr><td>MinIO (dev)</td><td>Object / file storage</td><td>S3-compatible API; local Docker service for dev</td></tr>
+            <tr><td>AWS S3 (prod)</td><td>Object / file storage</td><td>Same SDK — env flag switches endpoint</td></tr>
+            <tr><td>Resend</td><td>Transactional email</td><td>Email notifications; invite flows; digest emails</td></tr>
+            <tr><td>Docker Compose</td><td>Orchestration (MVP)</td><td>Single-host multi-service; upgrade path to k8s defined</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 04 Module Map ── -->
+    <section id="modules">
+      <div class="section-header">
+        <div class="section-num">04</div>
+        <h2 class="section-title">14 Module Map</h2>
+      </div>
+
+      <p>OpsOwl AI is composed of 14 logical modules. <span class="badge badge-emerald">MVP</span> modules ship in the initial release. <span class="badge badge-amber">Phase 2</span> modules are architecturally designed but deferred until load/usage data justifies them.</p>
+
+      <div class="module-grid">
+        <div class="module-card">
+          <div class="module-num">MOD-01</div>
+          <div class="module-name">Investigation Workspace</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Central case management, evidence attachment, status lifecycle, assignee management, and case summary.</div>
+        </div>
+        <div class="module-card phase2">
+          <div class="module-num">MOD-02</div>
+          <div class="module-name">Entity / Knowledge Graph</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-amber">Phase 2</span></div>
+          <div class="card-body" style="font-size:12px;">Graph traversal of entities (persons, accounts, transactions). Neo4j or PostgreSQL adjacency list.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-03</div>
+          <div class="module-name">Timeline Engine</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Ordered, immutable event timeline per case. Thread-based evidence. AI-summarised timeline segments.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-04</div>
+          <div class="module-name">AI Copilot Layer</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">LLM router, prompt registry, RAG, guardrails, PII masking, AI Action Ledger, human review gates.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-05</div>
+          <div class="module-name">Document Intelligence</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">PDF/image upload, OCR, parsing, embedding, Q&amp;A over documents, extraction of structured entities.</div>
+        </div>
+        <div class="module-card phase2">
+          <div class="module-num">MOD-06</div>
+          <div class="module-name">Workflow Engine</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-amber">Phase 2</span></div>
+          <div class="card-body" style="font-size:12px;">Configurable SLA-driven case workflows, automated escalation, approval gates, trigger conditions.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-07</div>
+          <div class="module-name">Collaboration Layer</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Tiptap rich-text notes, @mention notifications, threaded comments, note locking.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-08</div>
+          <div class="module-name">Notification &amp; Alerting</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">In-app SSE notifications, email via Resend, @mention alerts, SLA breach alerts, read/unread state.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-09</div>
+          <div class="module-name">Search &amp; Discovery</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Full-text search via PostgreSQL tsvector + pgvector semantic search. Unified search across cases, notes, and documents.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-10</div>
+          <div class="module-name">Audit &amp; Governance</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Immutable event log for every state change. Tamper-evident append-only store. Audit log export for regulators.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-11</div>
+          <div class="module-name">Security Layer</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">JWT RS256, RBAC middleware, bcrypt cost 12, PII masking pipeline, rate limiting, tenant isolation.</div>
+        </div>
+        <div class="module-card">
+          <div class="module-num">MOD-12</div>
+          <div class="module-name">Analytics &amp; Dashboards</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-emerald">MVP</span></div>
+          <div class="card-body" style="font-size:12px;">Case velocity, SLA metrics, analyst productivity, team workload, AI usage stats. PostgreSQL aggregation for MVP.</div>
+        </div>
+        <div class="module-card phase2">
+          <div class="module-num">MOD-13</div>
+          <div class="module-name">Integration Framework</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-amber">Phase 2</span></div>
+          <div class="card-body" style="font-size:12px;">Webhook outbound, Slack/Teams, JIRA, core banking connectors, API key management for external callers.</div>
+        </div>
+        <div class="module-card phase2">
+          <div class="module-num">MOD-14</div>
+          <div class="module-name">Tenant Management</div>
+          <div style="margin-bottom:8px;"><span class="badge badge-amber">Phase 2</span></div>
+          <div class="card-body" style="font-size:12px;">Self-service tenant onboarding, billing integration, plan enforcement, tenant admin portal.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 05 MVP Feature Matrix ── -->
+    <section id="features">
+      <div class="section-header">
+        <div class="section-num">05</div>
+        <h2 class="section-title">MVP Feature Matrix</h2>
+      </div>
+
+      <p>The 12 MVP features represent the complete scope of the initial release. Each feature maps to one primary module and multiple technical components.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Feature</th>
+              <th>Description</th>
+              <th>Primary Module</th>
+              <th>Key Tech Components</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="td-mono">F01</td>
+              <td>Auth &amp; RBAC</td>
+              <td>JWT RS256, refresh rotation, bcrypt, role-based access control enforced at middleware level</td>
+              <td>MOD-11 Security</td>
+              <td>golang-jwt, Chi middleware, bcrypt, RS256 keys</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F02</td>
+              <td>Case Management</td>
+              <td>Create/edit/close cases, status lifecycle, assignees, tags, priority, case summary AI</td>
+              <td>MOD-01 Investigation</td>
+              <td>Go cases module, sqlc, TanStack Query, Zustand</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F03</td>
+              <td>Timeline Workspace</td>
+              <td>Ordered evidence timeline, thread attachments, AI-generated summaries, event types</td>
+              <td>MOD-03 Timeline</td>
+              <td>Go timeline module, event sourcing, pgvector, SSE</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F04</td>
+              <td>AI Copilot</td>
+              <td>Case Q&amp;A, document Q&amp;A, summary generation, RAG over case context, streaming responses</td>
+              <td>MOD-04 AI Copilot</td>
+              <td>Python FastAPI, LangChain, Anthropic SDK, pgvector, SSE streaming</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F05</td>
+              <td>Document Upload &amp; Intelligence</td>
+              <td>PDF/image upload, OCR extraction, entity parsing, embedding, document Q&amp;A</td>
+              <td>MOD-05 Doc Intelligence</td>
+              <td>MinIO/S3, River jobs, pgvector, Python doc parser, LangChain</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F06</td>
+              <td>Notes &amp; Collaboration</td>
+              <td>Rich-text notes per case, @mention, threaded comments, edit history</td>
+              <td>MOD-07 Collaboration</td>
+              <td>Tiptap, Go collab module, SSE mention alerts, Resend</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F07</td>
+              <td>Task Management</td>
+              <td>Create tasks per case, assign, due dates, status, linked evidence, sub-tasks</td>
+              <td>MOD-01 / MOD-07</td>
+              <td>Go tasks module, sqlc, TanStack Query optimistic updates</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F08</td>
+              <td>Dashboard</td>
+              <td>Case metrics, SLA status, team workload, AI usage, open/closed case charts</td>
+              <td>MOD-12 Analytics</td>
+              <td>PostgreSQL aggregation, Go analytics module, Recharts</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F09</td>
+              <td>Notifications</td>
+              <td>In-app SSE notifications, email digests, @mention alerts, SLA breach alerts</td>
+              <td>MOD-08 Notifications</td>
+              <td>SSE, River jobs, Resend, Go notifications module</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F10</td>
+              <td>Audit Logging</td>
+              <td>Immutable event log, every state change recorded, audit log export</td>
+              <td>MOD-10 Audit</td>
+              <td>Event sourcing, append-only audit table, Go audit middleware</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F11</td>
+              <td>Search</td>
+              <td>Full-text + semantic search across cases, notes, documents</td>
+              <td>MOD-09 Search</td>
+              <td>PostgreSQL tsvector, pgvector cosine similarity, Go search module</td>
+            </tr>
+            <tr>
+              <td class="td-mono">F12</td>
+              <td>AI Logging &amp; Explainability</td>
+              <td>Every AI call logged with input (masked), output, model, tokens, latency, and human review flag</td>
+              <td>MOD-04 AI Copilot</td>
+              <td>AI Action Ledger table, Python AI service, human review gates, token tracking</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 06 Data Flow ── -->
+    <section id="data-flow">
+      <div class="section-header">
+        <div class="section-num">06</div>
+        <h2 class="section-title">Data Flow</h2>
+      </div>
+
+      <h3>Standard API Request Flow</h3>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(6,182,212,0.15);">🌐</div>
+          <div class="flow-content">
+            <div class="flow-title">Browser → Next.js API Route / Client fetch</div>
+            <div class="flow-desc">TanStack Query issues <code>fetch()</code> with <code>Authorization: Bearer &lt;access_token&gt;</code>. Server Components fetch on the server. Client Components fetch in the browser. Optimistic updates applied immediately to local cache.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(139,92,246,0.15);">🔐</div>
+          <div class="flow-content">
+            <div class="flow-title">API Gateway — Auth &amp; RBAC Middleware</div>
+            <div class="flow-desc">Chi router receives request. JWT RS256 verified (golang-jwt). Claims extracted: <code>sub</code>, <code>tenant_id</code>, <code>roles[]</code>. RBAC guard checks route permission. Rate limit checked (sliding window, Postgres-backed). Request ID injected into context. Audit hook registered on response.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(16,185,129,0.15);">⚙️</div>
+          <div class="flow-content">
+            <div class="flow-title">Core Service Module</div>
+            <div class="flow-desc">Handler calls service layer. Service validates business rules (e.g. case ownership, status machine). sqlc query executed against tenant schema (<code>SET search_path = tenant_&lt;id&gt;</code>). Transaction wraps mutations + audit event insert. River job enqueued if async work needed (doc processing, email send).</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(56,189,248,0.15);">🗄️</div>
+          <div class="flow-content">
+            <div class="flow-title">PostgreSQL — Tenant Schema</div>
+            <div class="flow-desc">Query runs inside tenant's schema. Immutable audit event appended. If doc upload, River job inserted with file reference. Response rows returned.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(6,182,212,0.15);">📤</div>
+          <div class="flow-content">
+            <div class="flow-title">Response Envelope → Browser</div>
+            <div class="flow-desc">Response formatted: <code>&#123; data: T, meta: &#123; request_id, timestamp &#125;, error: null &#125;</code>. Audit hook fires: writes audit log row asynchronously. TanStack Query cache updated. UI reflects new state.</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>AI Request Flow</h3>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(245,158,11,0.15);">🤖</div>
+          <div class="flow-content">
+            <div class="flow-title">User triggers AI Copilot action</div>
+            <div class="flow-desc">Browser sends POST to Go API Gateway (<code>/v1/ai/copilot/ask</code>) with case_id and user query. SSE connection opened for streaming response.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(139,92,246,0.15);">🔐</div>
+          <div class="flow-content">
+            <div class="flow-title">Go API Gateway validates &amp; proxies</div>
+            <div class="flow-desc">JWT verified, RBAC checked (copilot:read permission). Go backend calls Python AI service via internal HTTP. Passes: masked_context, case_id, tenant_id, user query.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(245,158,11,0.15);">🧠</div>
+          <div class="flow-content">
+            <div class="flow-title">Python AI Service — PII Masking → RAG → LLM</div>
+            <div class="flow-desc">PII masker replaces names, PAN, Aadhaar, phone numbers with tokens before any LLM call. Embedding generated for query. pgvector cosine search retrieves top-k relevant case chunks. Prompt assembled: system prompt (from registry) + context chunks + user query. LLM Router selects provider (Anthropic Claude primary, GPT-4o fallback). Response streamed back.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(16,185,129,0.15);">📋</div>
+          <div class="flow-content">
+            <div class="flow-title">AI Action Ledger Written</div>
+            <div class="flow-desc">Every AI call logged: prompt_hash, masked_input, raw_output, provider, model, tokens_in, tokens_out, latency_ms, pii_entities_masked, needs_human_review flag, case_id, user_id, timestamp.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(6,182,212,0.15);">📡</div>
+          <div class="flow-content">
+            <div class="flow-title">SSE Stream → Browser</div>
+            <div class="flow-desc">Tokens streamed via SSE. Browser Copilot panel renders tokens progressively. On completion, human review flag surfaced if confidence below threshold. Full response stored in AI ledger.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 07 Database Schema Strategy ── -->
+    <section id="db-schema">
+      <div class="section-header">
+        <div class="section-num">07</div>
+        <h2 class="section-title">Database Schema Strategy</h2>
+      </div>
+
+      <div class="card-grid card-grid-2">
+        <div class="card highlight">
+          <div class="card-title">Schema-Per-Tenant</div>
+          <div class="card-body">Every tenant gets a dedicated PostgreSQL schema (<code>tenant_&lt;uuid&gt;</code>). The public schema holds only the tenants registry and global config. Queries set <code>search_path</code> at connection time. No row-level-security required; isolation is schema-level. Makes tenant data export and deletion trivial.</div>
+        </div>
+        <div class="card highlight">
+          <div class="card-title">Event Sourcing (Audit)</div>
+          <div class="card-body">Every state-changing operation appends an immutable event to <code>audit_events</code>. Events are never updated or deleted. Current state is derived by applying events in order. This provides a tamper-evident compliance trail that regulators can export and verify.</div>
+        </div>
+      </div>
+
+      <h3>Key Tables (per-tenant schema)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Table</th><th>Primary Key</th><th>Key Columns</th><th>Notes</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>cases</td>
+              <td class="td-mono">UUID</td>
+              <td>title, status, priority, assignee_id, created_by, closed_at, tags[]</td>
+              <td>Status machine: OPEN → UNDER_REVIEW → PENDING_INFO → CLOSED</td>
+            </tr>
+            <tr>
+              <td>timeline_events</td>
+              <td class="td-mono">UUID</td>
+              <td>case_id, event_type, occurred_at, actor_id, payload JSONB, sequence_num</td>
+              <td>Append-only. sequence_num enforces ordering. Immutable after insert.</td>
+            </tr>
+            <tr>
+              <td>notes</td>
+              <td class="td-mono">UUID</td>
+              <td>case_id, author_id, content_html, content_tiptap JSONB, version, locked_by</td>
+              <td>Versioned. Locked during edit. Edit history retained.</td>
+            </tr>
+            <tr>
+              <td>tasks</td>
+              <td class="td-mono">UUID</td>
+              <td>case_id, title, status, assignee_id, due_at, parent_task_id, priority</td>
+              <td>Self-referential parent_task_id for sub-tasks.</td>
+            </tr>
+            <tr>
+              <td>documents</td>
+              <td class="td-mono">UUID</td>
+              <td>case_id, file_key (S3), mime_type, size_bytes, ocr_text, processing_status</td>
+              <td>processing_status: PENDING → PROCESSING → DONE → FAILED</td>
+            </tr>
+            <tr>
+              <td>document_chunks</td>
+              <td class="td-mono">UUID</td>
+              <td>document_id, chunk_index, text, embedding VECTOR(1536)</td>
+              <td>pgvector. IVFFlat index on embedding column for ANN search.</td>
+            </tr>
+            <tr>
+              <td>audit_events</td>
+              <td class="td-mono">UUID</td>
+              <td>entity_type, entity_id, action, actor_id, before JSONB, after JSONB, occurred_at</td>
+              <td>Append-only. No UPDATE/DELETE permissions granted to app user.</td>
+            </tr>
+            <tr>
+              <td>ai_action_ledger</td>
+              <td class="td-mono">UUID</td>
+              <td>case_id, user_id, prompt_hash, model, provider, tokens_in, tokens_out, latency_ms, pii_masked, needs_review, created_at</td>
+              <td>Every AI call logged. Append-only. Linked to audit_events.</td>
+            </tr>
+            <tr>
+              <td>notifications</td>
+              <td class="td-mono">UUID</td>
+              <td>recipient_id, type, payload JSONB, read_at, channel (in_app | email)</td>
+              <td>SSE polls unread. River job sends email digest.</td>
+            </tr>
+            <tr>
+              <td>users</td>
+              <td class="td-mono">UUID</td>
+              <td>email, password_hash, roles[], status, last_login_at, mfa_enabled</td>
+              <td>In public schema (shared across tenants). RBAC roles stored as array.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box warn">
+        <div class="info-icon">⚠️</div>
+        <div class="info-text"><strong>App DB user permissions:</strong> The application Postgres user has INSERT but NOT UPDATE/DELETE on <code>audit_events</code> and <code>ai_action_ledger</code>. Deletion of these tables requires a separate privileged migration user — enforced at DB level, not just application level.</div>
+      </div>
+    </section>
+
+    <!-- ── 08 Security Architecture ── -->
+    <section id="security">
+      <div class="section-header">
+        <div class="section-num">08</div>
+        <h2 class="section-title">Security Architecture</h2>
+      </div>
+
+      <h3>Authentication Flow (JWT RS256)</h3>
+      <pre><code>1. POST /v1/auth/login  { email, password }
+   └─ bcrypt.Compare(password, hash, cost=12)
+   └─ Sign access_token  (RS256, 1hr, private key)
+   └─ Sign refresh_token (RS256, 7d, private key)
+   └─ Store refresh_token hash in DB (refresh_tokens table)
+   └─ Return { access_token, refresh_token, expires_in }
+
+2. Every authenticated request:
+   Authorization: Bearer &lt;access_token&gt;
+   └─ golang-jwt validates RS256 signature (public key)
+   └─ Checks exp, iat, iss, aud claims
+   └─ Extracts: sub (user_id), tenant_id, roles[]
+   └─ Injects into Go request context
+
+3. POST /v1/auth/refresh  { refresh_token }
+   └─ Hash incoming token → compare with DB
+   └─ Issue new access_token + rotate refresh_token
+   └─ Old refresh_token invalidated (single-use)
+
+4. POST /v1/auth/logout
+   └─ Delete refresh_token row from DB
+   └─ Access token naturally expires (1hr)</code></pre>
+
+      <h3>RBAC Model</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Role</th><th>Cases</th><th>Documents</th><th>AI Copilot</th><th>Audit Log</th><th>Admin</th></tr></thead>
+          <tbody>
+            <tr><td>SUPER_ADMIN</td><td>Full</td><td>Full</td><td>Full</td><td>Full</td><td>Full</td></tr>
+            <tr><td>TENANT_ADMIN</td><td>Full</td><td>Full</td><td>Full</td><td>Read</td><td>Tenant only</td></tr>
+            <tr><td>INVESTIGATOR</td><td>Read/Write</td><td>Upload/Read</td><td>Full</td><td>None</td><td>None</td></tr>
+            <tr><td>REVIEWER</td><td>Read/Comment</td><td>Read</td><td>Read</td><td>None</td><td>None</td></tr>
+            <tr><td>VIEWER</td><td>Read only</td><td>Read</td><td>None</td><td>None</td><td>None</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="info-box tip">
+        <div class="info-icon">✅</div>
+        <div class="info-text"><strong>RBAC enforcement:</strong> All permission checks happen in Chi middleware <em>before</em> any handler code runs. Handlers never perform authorization checks — they trust the middleware contract. This prevents accidental authorization bypass in handler logic.</div>
+      </div>
+
+      <h3>PII Masking Pipeline</h3>
+      <div class="flow">
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(244,63,94,0.12);">🔍</div>
+          <div class="flow-content">
+            <div class="flow-title">PII Detection</div>
+            <div class="flow-desc">Named entity recognition on input text. Detects: full names, email addresses, phone numbers, PAN numbers, Aadhaar numbers, bank account numbers, IFSC codes, IP addresses, dates of birth.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(244,63,94,0.12);">🎭</div>
+          <div class="flow-content">
+            <div class="flow-title">Token Substitution</div>
+            <div class="flow-desc">Each PII entity replaced with deterministic token: <code>[PERSON_1]</code>, <code>[PHONE_2]</code>, <code>[PAN_1]</code>. Token map stored in memory for the duration of the AI call only — never persisted.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(16,185,129,0.12);">🚀</div>
+          <div class="flow-content">
+            <div class="flow-title">Masked Payload → LLM</div>
+            <div class="flow-desc">Only masked text sent to LLM provider. Raw PII never leaves the server. AI Action Ledger stores masked version only.</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-icon" style="background:rgba(56,189,248,0.12);">🔄</div>
+          <div class="flow-content">
+            <div class="flow-title">Response De-tokenisation</div>
+            <div class="flow-desc">LLM response may contain tokens. De-tokeniser replaces <code>[PERSON_1]</code> → original value in response shown to user. De-tokenisation happens in-process; tokens never stored post-call.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 09 AI Architecture ── -->
+    <section id="ai-arch">
+      <div class="section-header">
+        <div class="section-num">09</div>
+        <h2 class="section-title">AI Architecture</h2>
+      </div>
+
+      <div class="card-grid card-grid-2" style="margin-bottom:24px;">
+        <div class="card">
+          <div class="card-title">LLM Router</div>
+          <div class="card-body">Provider-agnostic interface. Primary: <strong>Anthropic Claude</strong> (claude-3-5-sonnet). Fallback: <strong>OpenAI GPT-4o</strong>. Routing logic: task type, cost threshold, latency SLA, provider health. Same Python interface regardless of provider — swap without code changes.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Prompt Registry</div>
+          <div class="card-body">All system prompts stored in <code>prompt_registry</code> table (versioned). Prompts parameterised with Jinja2 templates. New prompt versions require human approval before going live. Rollback to previous version in one DB update.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">RAG Pipeline</div>
+          <div class="card-body">Query → embed (text-embedding-3-small or Cohere) → pgvector IVFFlat cosine search → top-k chunks retrieved → re-rank by relevance → inject into prompt context. Chunking: 512 tokens with 64-token overlap.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Human Review Gates</div>
+          <div class="card-body">AI actions flagged for human review when: confidence score &lt; 0.7, sensitive action (case closure recommendation), new document type seen, PII masking detected ambiguous entities. Flagged items appear in analyst review queue before action taken.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">AI Action Ledger</div>
+          <div class="card-body">Every AI inference logged: provider, model, version, masked_prompt_hash, tokens, latency, pii_count, output_summary, case_id, analyst_id. Enables cost tracking, quality review, compliance audit, and model migration analysis.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Guardrails</div>
+          <div class="card-body">Output validation: hallucination detection on cited document references, citation verification against case documents, refusal on out-of-scope queries, max token budget per call, rate limit per user per day.</div>
+        </div>
+      </div>
+
+      <h3>Document Intelligence Pipeline</h3>
+      <pre><code>Upload → MinIO/S3 ──► River Job Enqueued
+                               │
+                    ┌──────────▼──────────┐
+                    │  Python AI Service  │
+                    │  (async worker)     │
+                    └──────────┬──────────┘
+                               │
+               ┌───────────────▼───────────────┐
+               │  1. Download from S3           │
+               │  2. PDF parse / OCR (if image) │
+               │  3. Text extraction + clean    │
+               │  4. PII masking                │
+               │  5. Chunk (512t / 64t overlap) │
+               │  6. Embed each chunk           │
+               │  7. Upsert document_chunks     │
+               │     (pgvector)                 │
+               │  8. Mark document DONE         │
+               └───────────────────────────────┘</code></pre>
+    </section>
+
+    <!-- ── 10 API Standards ── -->
+    <section id="api-standards">
+      <div class="section-header">
+        <div class="section-num">10</div>
+        <h2 class="section-title">API Standards</h2>
+      </div>
+
+      <div class="card-grid card-grid-2">
+        <div class="card">
+          <div class="card-title">Versioning</div>
+          <div class="card-body">All endpoints prefixed with <code>/v1/</code>. Breaking changes require new version prefix. Non-breaking additions (new optional fields) allowed without version bump. Version sunset minimum 6 months notice.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Date &amp; ID Format</div>
+          <div class="card-body">All dates: ISO 8601 UTC strings — <code>2026-05-16T10:30:00Z</code>. All IDs: UUID v4 in string form. Never expose sequential integer IDs in API responses.</div>
+        </div>
+      </div>
+
+      <h3>Response Envelope</h3>
+      <pre><code>// Success
+{
+  "data": { ... },          // typed payload
+  "meta": {
+    "request_id": "uuid",
+    "timestamp": "ISO8601",
+    "page": 1,              // present when paginated
+    "per_page": 20,
+    "total": 143,
+    "has_next": true
+  },
+  "error": null
+}
+
+// Error
+{
+  "data": null,
+  "meta": { "request_id": "uuid", "timestamp": "ISO8601" },
+  "error": {
+    "code": "CASE_NOT_FOUND",     // machine-readable constant
+    "message": "Case not found",  // human-readable
+    "details": { "case_id": "..." }
+  }
+}</code></pre>
+
+      <h3>Pagination</h3>
+      <pre><code>GET /v1/cases?page=2&per_page=20&sort=created_at&order=desc
+
+// Cursor-based (timeline events — infinite scroll)
+GET /v1/cases/:id/timeline?cursor=&lt;opaque_cursor&gt;&limit=50</code></pre>
+
+      <h3>HTTP Status Codes</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Code</th><th>Usage</th></tr></thead>
+          <tbody>
+            <tr><td class="td-mono">200</td><td>Successful GET, successful PUT/PATCH returning updated resource</td></tr>
+            <tr><td class="td-mono">201</td><td>Successful POST creating a new resource (Location header set)</td></tr>
+            <tr><td class="td-mono">204</td><td>Successful DELETE (no body)</td></tr>
+            <tr><td class="td-mono">400</td><td>Validation error — malformed request body or query params</td></tr>
+            <tr><td class="td-mono">401</td><td>Missing or invalid JWT</td></tr>
+            <tr><td class="td-mono">403</td><td>Valid JWT but insufficient RBAC permissions</td></tr>
+            <tr><td class="td-mono">404</td><td>Resource not found (within tenant's schema)</td></tr>
+            <tr><td class="td-mono">409</td><td>Conflict — e.g. case already closed, optimistic lock failure</td></tr>
+            <tr><td class="td-mono">429</td><td>Rate limit exceeded</td></tr>
+            <tr><td class="td-mono">500</td><td>Internal server error — logged with request_id for debugging</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 11 Performance Targets ── -->
+    <section id="performance">
+      <div class="section-header">
+        <div class="section-num">11</div>
+        <h2 class="section-title">Performance Targets</h2>
+      </div>
+
+      <div class="perf-grid">
+        <div class="perf-card">
+          <div class="perf-value" style="color:var(--emerald);">&lt;50ms</div>
+          <div class="perf-label">GET (cached)</div>
+          <div class="perf-type">TanStack Query cache hit</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-value" style="color:var(--cyan);">&lt;100ms</div>
+          <div class="perf-label">GET (DB)</div>
+          <div class="perf-type">Indexed PostgreSQL read</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-value" style="color:var(--violet);">&lt;200ms</div>
+          <div class="perf-label">POST / PUT</div>
+          <div class="perf-type">Write + audit event</div>
+        </div>
+        <div class="perf-card">
+          <div class="perf-value" style="color:var(--amber);">&lt;200ms</div>
+          <div class="perf-label">Search</div>
+          <div class="perf-type">Full-text + vector</div>
+        </div>
+      </div>
+
+      <div class="card-grid card-grid-2" style="margin-top:16px;">
+        <div class="card">
+          <div class="card-title">AI Responses — Async / Streaming</div>
+          <div class="card-body">AI Copilot responses are not bound by synchronous latency SLAs. First token streamed within <strong>2s</strong> target. Full response typically 5–30s depending on context size. All AI calls are async — UI shows progressive streaming, never a blocking spinner.</div>
+        </div>
+        <div class="card">
+          <div class="card-title">Document Processing — Background</div>
+          <div class="card-body">Document upload returns immediately (<code>201 ACCEPTED</code>). Processing (OCR → embed → index) happens via River job. Target: <strong>&lt;60s</strong> for a 20-page PDF. Status polled by frontend via <code>GET /v1/documents/:id</code> every 3s until DONE.</div>
+        </div>
+      </div>
+
+      <h3>Scaling Thresholds (Phase 2 triggers)</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Signal</th><th>Threshold</th><th>Response</th></tr></thead>
+          <tbody>
+            <tr><td>DB read latency p99</td><td>&gt;200ms sustained</td><td>Add Redis read cache for case list / dashboard</td></tr>
+            <tr><td>Full-text search p99</td><td>&gt;500ms sustained</td><td>Migrate to Elasticsearch</td></tr>
+            <tr><td>Analytics query time</td><td>&gt;1s on dashboard load</td><td>Add ClickHouse for analytics projection</td></tr>
+            <tr><td>Concurrent SSE connections</td><td>&gt;5,000</td><td>Evaluate WebSocket gateway or SSE broker</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── 12 Deployment Architecture ── -->
+    <section id="deployment">
+      <div class="section-header">
+        <div class="section-num">12</div>
+        <h2 class="section-title">Deployment Architecture</h2>
+      </div>
+
+      <p>MVP deployment is a single-host Docker Compose stack. Every service is containerised. The architecture is designed so that each service can be extracted to a cloud-managed equivalent (RDS, ECS, EKS) without application code changes.</p>
+
+      <div class="docker-grid">
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(6,182,212,0.12);">🌐</div>
+          <div class="docker-info">
+            <div class="docker-name">frontend</div>
+            <div class="docker-desc">Next.js 16 — App Router, SSR</div>
+            <div class="docker-port">:3000</div>
+          </div>
+        </div>
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(139,92,246,0.12);">⚡</div>
+          <div class="docker-info">
+            <div class="docker-name">api</div>
+            <div class="docker-desc">Go modular monolith (Chi)</div>
+            <div class="docker-port">:8080</div>
+          </div>
+        </div>
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(245,158,11,0.12);">🧠</div>
+          <div class="docker-info">
+            <div class="docker-name">ai-service</div>
+            <div class="docker-desc">Python FastAPI + LangChain</div>
+            <div class="docker-port">:8000 (internal)</div>
+          </div>
+        </div>
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(56,189,248,0.12);">🐘</div>
+          <div class="docker-info">
+            <div class="docker-name">postgres</div>
+            <div class="docker-desc">PostgreSQL 18.4 + pgvector</div>
+            <div class="docker-port">:5432 (internal)</div>
+          </div>
+        </div>
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(16,185,129,0.12);">📦</div>
+          <div class="docker-info">
+            <div class="docker-name">minio</div>
+            <div class="docker-desc">S3-compatible object storage</div>
+            <div class="docker-port">:9000 API · :9001 Console</div>
+          </div>
+        </div>
+        <div class="docker-service">
+          <div class="docker-icon" style="background:rgba(244,63,94,0.12);">🔄</div>
+          <div class="docker-info">
+            <div class="docker-name">river-worker</div>
+            <div class="docker-desc">Background job worker (Go)</div>
+            <div class="docker-port">No external port</div>
+          </div>
+        </div>
+      </div>
+
+      <h3>Environment Strategy</h3>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Env</th><th>Deployment</th><th>DB</th><th>Storage</th><th>AI Providers</th></tr></thead>
+          <tbody>
+            <tr><td>local</td><td>Docker Compose</td><td>Postgres container</td><td>MinIO container</td><td>Anthropic + OpenAI (API keys)</td></tr>
+            <tr><td>staging</td><td>Docker Compose (VPS)</td><td>Postgres container</td><td>MinIO container</td><td>Anthropic + OpenAI (staging keys)</td></tr>
+            <tr><td>production</td><td>Docker Compose → ECS</td><td>AWS RDS Postgres</td><td>AWS S3</td><td>Anthropic + OpenAI (prod keys)</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box tip">
+        <div class="info-icon">✅</div>
+        <div class="info-text"><strong>No code changes between environments:</strong> All environment differences are captured in <code>.env</code> files. DB URL, S3 endpoint, AI API keys — all environment variables. The same Docker images run in all environments.</div>
+      </div>
+    </section>
+
+    <!-- ── 13 Phase 2 Roadmap ── -->
+    <section id="roadmap">
+      <div class="section-header">
+        <div class="section-num">13</div>
+        <h2 class="section-title">Phase 2 Roadmap</h2>
+      </div>
+
+      <p>The following technologies and features are <strong style="color:var(--text-primary)">deliberately deferred</strong> from MVP. Each has a specific trigger condition based on measured load or usage data — not speculative. Adding them before the trigger wastes engineering capacity and operational complexity.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Technology / Feature</th>
+              <th>What It Adds</th>
+              <th>Trigger Condition</th>
+              <th>Current MVP Alternative</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="badge badge-amber">Redis</span></td>
+              <td>Read cache for hot data (case lists, dashboards), session store, distributed rate limiting</td>
+              <td>DB read p99 &gt; 200ms sustained, or 50+ concurrent active users</td>
+              <td>PostgreSQL-backed cache; River on Postgres for queues</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">Elasticsearch</span></td>
+              <td>Advanced full-text search, faceted filters, typo tolerance, cross-tenant search</td>
+              <td>Full-text search p99 &gt; 500ms, or search becomes a user-reported pain point</td>
+              <td>PostgreSQL tsvector + GIN index + pgvector semantic</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">ClickHouse</span></td>
+              <td>Fast OLAP analytics, high-cardinality aggregations, time-series dashboards at scale</td>
+              <td>Dashboard aggregation query &gt; 1s at p50, or analytics becomes a product differentiator</td>
+              <td>PostgreSQL aggregation queries; materialized views</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">GraphQL</span></td>
+              <td>Flexible client-driven queries, reduced over-fetching, subscription support</td>
+              <td>Multiple distinct client types (mobile, embedded) with divergent data needs</td>
+              <td>REST API with response envelope; typed endpoints per feature</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">Entity / Knowledge Graph (MOD-02)</span></td>
+              <td>Cross-entity relationship traversal, fraud ring detection, network analysis</td>
+              <td>Customer request + 3+ enterprise deals requiring graph analysis</td>
+              <td>Case-level entity lists in JSONB; manual linking</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">Workflow Engine (MOD-06)</span></td>
+              <td>Configurable SLA workflows, automated escalation, approval gates</td>
+              <td>Customer request for configurable workflows in 2+ enterprise deals</td>
+              <td>Manual case status progression with task checklists</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">Integration Framework (MOD-13)</span></td>
+              <td>Webhook outbound, Slack/Teams, JIRA, core banking connectors</td>
+              <td>Integration request from 2+ paying customers</td>
+              <td>Manual export, email notifications via Resend</td>
+            </tr>
+            <tr>
+              <td><span class="badge badge-amber">Kubernetes</span></td>
+              <td>Horizontal scaling, auto-healing, rolling deployments, multi-region</td>
+              <td>Single-host Docker Compose hits CPU/memory ceiling, or 3+ tenants active</td>
+              <td>Single-host Docker Compose with manual restarts</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="info-box info">
+        <div class="info-icon">ℹ️</div>
+        <div class="info-text"><strong>Architecture is Phase-2 ready:</strong> The modular monolith structure, schema-per-tenant DB design, provider-agnostic AI abstraction, and Docker service topology are all designed to accommodate Phase 2 additions without re-architecting. Phase 2 is an addition, not a rewrite.</div>
+      </div>
+    </section>
+
+  </div><!-- /content -->
+</main>
+
+<script>
+  // Sidebar active state on scroll
+  const sections = document.querySelectorAll('section[id]');
+  const navItems = document.querySelectorAll('.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(item => item.classList.remove('active'));
+        const active = document.querySelector(`.nav-item[href="#${entry.target.id}"]`);
+        if (active) active.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

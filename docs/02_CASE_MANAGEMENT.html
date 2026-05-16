@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OpsOwl AI — Case Management Specification</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-base:      #0f172a;
+      --bg-surface:   #1e293b;
+      --bg-elevated:  #263347;
+      --bg-card:      #1a2538;
+      --border:       #334155;
+      --text-primary: #e2e8f0;
+      --text-secondary:#94a3b8;
+      --text-muted:   #64748b;
+      --cyan:         #22d3ee;
+      --cyan-dim:     #0891b2;
+      --cyan-bg:      rgba(34,211,238,.08);
+      --violet:       #a78bfa;
+      --violet-dim:   #7c3aed;
+      --violet-bg:    rgba(167,139,250,.08);
+      --green:        #34d399;
+      --amber:        #fbbf24;
+      --red:          #f87171;
+      --orange:       #fb923c;
+      --blue:         #60a5fa;
+      --pink:         #f472b6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-primary);
+      display: flex;
+      min-height: 100vh;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    /* ── Sidebar ──────────────────────────────────────── */
+    nav#sidebar {
+      width: 260px; min-width: 260px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      position: sticky; top: 0; height: 100vh;
+      overflow-y: auto;
+      display: flex; flex-direction: column;
+      padding: 24px 0;
+    }
+    .nav-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+    .nav-brand .owl { font-size: 22px; font-weight: 700; color: var(--violet); letter-spacing: -.5px; }
+    .nav-brand .sub { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 2px; }
+    .nav-back {
+      display: inline-flex; align-items: center; gap: 6px;
+      margin: 0 20px 16px;
+      color: var(--text-secondary); font-size: 12px;
+      text-decoration: none;
+      border: 1px solid var(--border); border-radius: 6px; padding: 6px 10px;
+      transition: all .2s;
+    }
+    .nav-back:hover { color: var(--violet); border-color: var(--violet-dim); background: var(--violet-bg); }
+    .nav-section-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1.2px; padding: 8px 20px 4px; }
+    nav#sidebar a.nav-item {
+      display: block; padding: 7px 20px;
+      color: var(--text-secondary); text-decoration: none; font-size: 13px;
+      border-left: 2px solid transparent; transition: all .15s;
+    }
+    nav#sidebar a.nav-item:hover { color: var(--text-primary); background: var(--bg-elevated); border-left-color: var(--violet-dim); }
+    nav#sidebar a.nav-item.active { color: var(--violet); background: var(--violet-bg); border-left-color: var(--violet); }
+
+    /* ── Main ─────────────────────────────────────────── */
+    main { flex: 1; overflow-y: auto; }
+    .page-header {
+      background: linear-gradient(135deg, #0f172a 0%, #1a1a2e 50%, #16213e 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 48px 56px 40px;
+      position: relative; overflow: hidden;
+    }
+    .page-header::before {
+      content: ''; position: absolute; top: 0; right: 0; bottom: 0; width: 40%;
+      background: radial-gradient(ellipse at 80% 50%, rgba(167,139,250,.07) 0%, transparent 70%);
+    }
+    .page-header::after {
+      content: ''; position: absolute; top: -60px; right: 80px;
+      width: 220px; height: 220px; border-radius: 50%;
+      background: radial-gradient(circle, rgba(34,211,238,.05) 0%, transparent 70%);
+    }
+    .breadcrumb { font-size: 12px; color: var(--text-muted); margin-bottom: 12px; }
+    .breadcrumb span { color: var(--violet); }
+    .page-title { font-size: 32px; font-weight: 700; color: #fff; line-height: 1.2; margin-bottom: 8px; }
+    .page-title .accent { color: var(--violet); }
+    .page-subtitle { color: var(--text-secondary); font-size: 15px; max-width: 580px; }
+    .feature-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--violet-bg); border: 1px solid var(--violet-dim);
+      color: var(--violet); font-size: 11px; font-weight: 600;
+      padding: 4px 10px; border-radius: 20px; margin-top: 16px;
+      text-transform: uppercase; letter-spacing: .8px;
+    }
+
+    .content-body { padding: 48px 56px; max-width: 960px; }
+
+    /* ── Sections ─────────────────────────────────────── */
+    .section { margin-bottom: 56px; }
+    .section-header {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px; padding-bottom: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+    .section-number {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--violet-dim), var(--cyan-dim));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+    }
+    .section-title { font-size: 20px; font-weight: 700; color: var(--text-primary); }
+    .section-title .tag {
+      font-size: 11px; font-weight: 500; color: var(--text-muted);
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      padding: 2px 8px; border-radius: 4px; margin-left: 10px; vertical-align: middle;
+    }
+    p { color: var(--text-secondary); margin-bottom: 14px; line-height: 1.75; }
+    p strong { color: var(--text-primary); }
+
+    /* ── State Machine ────────────────────────────────── */
+    .state-diagram {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 32px;
+      overflow-x: auto;
+    }
+    .state-row { display: flex; align-items: center; justify-content: flex-start; gap: 0; flex-wrap: nowrap; margin-bottom: 0; }
+    .state-box {
+      border-radius: 10px;
+      padding: 10px 18px;
+      font-size: 12.5px; font-weight: 600;
+      text-align: center; min-width: 90px;
+      border: 1.5px solid;
+      white-space: nowrap;
+    }
+    .state-draft      { background: rgba(100,116,139,.12); border-color: #475569; color: #94a3b8; }
+    .state-open       { background: rgba(96,165,250,.12);  border-color: #3b82f6; color: var(--blue); }
+    .state-inprogress { background: rgba(167,139,250,.12); border-color: var(--violet-dim); color: var(--violet); }
+    .state-review     { background: rgba(251,191,36,.12);  border-color: #d97706; color: var(--amber); }
+    .state-closed     { background: rgba(52,211,153,.12);  border-color: #059669; color: var(--green); }
+    .state-escalated  { background: rgba(248,113,113,.12); border-color: #dc2626; color: var(--red); }
+    .state-arrow {
+      display: flex; align-items: center; padding: 0 6px;
+      color: var(--text-muted); font-size: 20px;
+    }
+    .state-connector-v {
+      display: flex; flex-direction: column; align-items: center;
+      margin: 4px 0; color: var(--text-muted);
+    }
+    .s-line { width: 2px; height: 24px; background: var(--border); }
+    .s-arrow { font-size: 16px; color: var(--text-muted); }
+    .state-label { font-size: 10px; color: var(--text-muted); text-align: center; margin-top: 4px; }
+    .state-fork { display: flex; gap: 16px; }
+
+    /* ── Priority Badges ──────────────────────────────── */
+    .priority-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; margin-bottom: 20px; }
+    .priority-card {
+      border-radius: 10px; padding: 16px;
+      border: 1.5px solid; text-align: center;
+    }
+    .priority-critical { background: rgba(248,113,113,.08); border-color: rgba(248,113,113,.4); }
+    .priority-high     { background: rgba(251,191,36,.08);  border-color: rgba(251,191,36,.4); }
+    .priority-medium   { background: rgba(96,165,250,.08);  border-color: rgba(96,165,250,.4); }
+    .priority-low      { background: rgba(52,211,153,.08);  border-color: rgba(52,211,153,.4); }
+    .priority-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px; }
+    .priority-critical .priority-label { color: var(--red); }
+    .priority-high     .priority-label { color: var(--amber); }
+    .priority-medium   .priority-label { color: var(--blue); }
+    .priority-low      .priority-label { color: var(--green); }
+    .priority-sla { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .priority-critical .priority-sla { color: var(--red); }
+    .priority-high     .priority-sla { color: var(--amber); }
+    .priority-medium   .priority-sla { color: var(--blue); }
+    .priority-low      .priority-sla { color: var(--green); }
+    .priority-sla-label { font-size: 11px; color: var(--text-muted); }
+
+    /* ── Transition Table ─────────────────────────────── */
+    .trans-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .trans-table th {
+      background: var(--bg-elevated); color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      padding: 9px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600;
+    }
+    .trans-table td { padding: 10px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: middle; }
+    .trans-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+    .trans-table td:first-child, .trans-table td:nth-child(2) { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+
+    /* ── Code ─────────────────────────────────────────── */
+    pre {
+      background: #0a0f1a; border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px; overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7;
+      margin-bottom: 16px; position: relative;
+    }
+    .kw  { color: var(--violet); }
+    .ty  { color: var(--cyan); }
+    .st  { color: var(--green); }
+    .cm  { color: var(--text-muted); font-style: italic; }
+    .nm  { color: var(--amber); }
+
+    /* ── API Endpoints ────────────────────────────────── */
+    .endpoint-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+    }
+    .endpoint-header {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 20px; background: var(--bg-elevated); border-bottom: 1px solid var(--border);
+    }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700;
+      padding: 3px 9px; border-radius: 5px; letter-spacing: .5px;
+    }
+    .method-GET    { background: rgba(52,211,153,.15); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+    .method-POST   { background: rgba(96,165,250,.15); color: var(--blue); border: 1px solid rgba(96,165,250,.3); }
+    .method-PUT    { background: rgba(251,191,36,.15); color: var(--amber); border: 1px solid rgba(251,191,36,.3); }
+    .method-DELETE { background: rgba(248,113,113,.15); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text-primary); }
+    .endpoint-auth { margin-left: auto; font-size: 11px; color: var(--text-muted); }
+    .endpoint-auth .auth-tag {
+      background: var(--violet-bg); border: 1px solid var(--violet-dim);
+      color: var(--violet); padding: 2px 8px; border-radius: 4px;
+    }
+    .endpoint-body { padding: 16px 20px; }
+    .ep-label { font-size: 11px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 8px; margin-top: 12px; }
+    .endpoint-body pre { margin-bottom: 0; font-size: 12px; }
+
+    /* ── Package Tree ─────────────────────────────────── */
+    .pkg-tree {
+      font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+      background: #0a0f1a; border: 1px solid var(--border); border-radius: 10px;
+      padding: 20px 24px; line-height: 1.9;
+    }
+    .pkg-dir  { color: var(--violet); font-weight: 600; }
+    .pkg-file { color: var(--text-secondary); }
+    .pkg-comment { color: var(--text-muted); font-style: italic; }
+
+    /* ── SLA Engine ───────────────────────────────────── */
+    .sla-flow {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px;
+    }
+    .sla-step-row { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
+    .sla-step-row:last-child { margin-bottom: 0; }
+    .sla-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--violet-bg); border: 1.5px solid var(--violet-dim);
+      color: var(--violet); font-size: 12px; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 2px;
+    }
+    .sla-content { flex: 1; }
+    .sla-title { font-size: 13px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+    .sla-desc  { font-size: 12.5px; color: var(--text-secondary); line-height: 1.6; }
+
+    /* ── Component Grid ───────────────────────────────── */
+    .component-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .component-card {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 10px; padding: 18px;
+    }
+    .comp-name { font-size: 13px; font-weight: 600; color: var(--violet); font-family: 'JetBrains Mono', monospace; margin-bottom: 6px; }
+    .comp-path { font-size: 11px; color: var(--text-muted); font-family: 'JetBrains Mono', monospace; margin-bottom: 8px; }
+    .component-card ul { list-style: none; }
+    .component-card ul li { font-size: 12px; color: var(--text-secondary); padding: 2px 0 2px 14px; position: relative; }
+    .component-card ul li::before { content: '·'; position: absolute; left: 0; color: var(--violet); }
+
+    /* ── Test List ────────────────────────────────────── */
+    .test-list { list-style: none; }
+    .test-list li {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 14px; border-bottom: 1px solid var(--border);
+      font-size: 13px; color: var(--text-secondary);
+    }
+    .test-list li:last-child { border-bottom: none; }
+    .test-icon { color: var(--green); flex-shrink: 0; margin-top: 2px; }
+    .test-list li strong { color: var(--text-primary); }
+
+    /* ── Audit Table ──────────────────────────────────── */
+    .audit-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+    .audit-table th {
+      background: var(--bg-elevated); color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      padding: 9px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600;
+    }
+    .audit-table td { padding: 9px 14px; border: 1px solid var(--border); color: var(--text-secondary); }
+    .audit-table td:first-child { font-family: 'JetBrains Mono', monospace; color: var(--violet); font-size: 12px; }
+    .audit-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+
+    /* ── UX Decisions ─────────────────────────────────── */
+    .ux-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .ux-table th {
+      background: var(--bg-elevated); color: var(--text-muted);
+      font-size: 11px; text-transform: uppercase; letter-spacing: .8px;
+      padding: 9px 14px; text-align: left; border: 1px solid var(--border); font-weight: 600;
+    }
+    .ux-table td { padding: 11px 14px; border: 1px solid var(--border); color: var(--text-secondary); vertical-align: top; }
+    .ux-table td:first-child { color: var(--text-primary); font-weight: 500; }
+    .ux-table tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+
+    /* ── Misc ─────────────────────────────────────────── */
+    .card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; padding: 24px; margin-bottom: 16px;
+    }
+    .callout {
+      display: flex; gap: 12px; align-items: flex-start;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-left: 3px solid var(--violet); border-radius: 8px;
+      padding: 14px 16px; margin-bottom: 16px;
+    }
+    .callout.cyan  { border-left-color: var(--cyan); }
+    .callout.amber { border-left-color: var(--amber); }
+    .callout-icon { font-size: 16px; flex-shrink: 0; }
+    .callout-text { font-size: 13px; color: var(--text-secondary); line-height: 1.6; }
+    .callout-text strong { color: var(--text-primary); }
+
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+    .info-card {
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      border-radius: 10px; padding: 14px 18px;
+    }
+    .info-card .label { font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4px; }
+    .info-card .value { font-size: 14px; font-weight: 500; color: var(--text-primary); }
+    .info-card .value.violet { color: var(--violet); }
+    .info-card .value.cyan   { color: var(--cyan); }
+
+    .tag-pill {
+      display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      background: var(--bg-elevated); border: 1px solid var(--border);
+      color: var(--text-secondary); margin: 2px;
+    }
+    .tag-pill.green  { background: rgba(52,211,153,.1); border-color: rgba(52,211,153,.3); color: var(--green); }
+    .tag-pill.amber  { background: rgba(251,191,36,.1); border-color: rgba(251,191,36,.3); color: var(--amber); }
+    .tag-pill.red    { background: rgba(248,113,113,.15); border-color: rgba(248,113,113,.4); color: var(--red); }
+    .tag-pill.violet { background: var(--violet-bg); border-color: var(--violet-dim); color: var(--violet); }
+
+    .owl-number {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace; font-size: 18px; font-weight: 700;
+      color: var(--cyan); background: var(--cyan-bg);
+      border: 1.5px solid var(--cyan-dim); border-radius: 8px;
+      padding: 6px 16px; letter-spacing: 2px; margin: 12px 0;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════ SIDEBAR ══════════════ -->
+<nav id="sidebar">
+  <div class="nav-brand">
+    <div class="owl">OpsOwl AI</div>
+    <div class="sub">Feature Specifications</div>
+  </div>
+  <a href="INDEX.html" class="nav-back">← Back to Index</a>
+
+  <div class="nav-section-label">This Document</div>
+  <a href="#overview"    class="nav-item active">1. Feature Overview</a>
+  <a href="#lifecycle"   class="nav-item">2. Lifecycle State Machine</a>
+  <a href="#schema"      class="nav-item">3. Database Schema</a>
+  <a href="#numbering"   class="nav-item">4. Case Numbering</a>
+  <a href="#sla"         class="nav-item">5. SLA Engine</a>
+  <a href="#api"         class="nav-item">6. API Endpoints</a>
+  <a href="#priority"    class="nav-item">7. Priority Levels</a>
+  <a href="#gomodule"    class="nav-item">8. Go Module Structure</a>
+  <a href="#frontend"    class="nav-item">9. Frontend Components</a>
+  <a href="#ux"          class="nav-item">10. UX Decisions</a>
+  <a href="#testing"     class="nav-item">11. Test Strategy</a>
+  <a href="#audit"       class="nav-item">12. Audit Events</a>
+
+  <div class="nav-section-label" style="margin-top:16px;">Other Specs</div>
+  <a href="01_AUTH_RBAC.html" class="nav-item">Auth &amp; RBAC →</a>
+</nav>
+
+<!-- ══════════════ MAIN ══════════════ -->
+<main>
+  <div class="page-header">
+    <div class="breadcrumb">OpsOwl AI / Feature Specs / <span>Case Management</span></div>
+    <h1 class="page-title"><span class="accent">Case Management</span></h1>
+    <p class="page-subtitle">The central entity of OpsOwl AI — structured investigation cases with lifecycle state machines, SLA tracking, intelligent assignment, and a complete activity trail for fintech and lending-ops teams.</p>
+    <div class="feature-badge">⬡ Module 02 · Case Management</div>
+  </div>
+
+  <div class="content-body">
+
+    <!-- ── 1. Feature Overview ── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <div class="section-number">1</div>
+        <div class="section-title">Feature Overview <span class="tag">Core Entity</span></div>
+      </div>
+
+      <p>A <strong>Case</strong> in OpsOwl AI is the fundamental unit of work. It represents an investigation, compliance review, suspicious activity report, or operational exception that requires human analysis, collaboration, and resolution. Cases are how fintech operations teams — from fraud investigators to KYC analysts — track, assign, and close work items.</p>
+
+      <p>Every other OpsOwl AI feature — AI summaries, document attachments, audit trails, SLA alerts, escalations, and reporting — hangs off a case. Cases are <strong>immutable in their history</strong>: every state change, assignment, and edit is recorded. A case is never truly deleted — only soft-deleted, preserving the audit trail for regulatory inspection.</p>
+
+      <div class="info-grid">
+        <div class="info-card">
+          <div class="label">Case Identifier Format</div>
+          <div class="value cyan">OWL-{YYYY}-{NNNNN}</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Lifecycle States</div>
+          <div class="value">6 states (draft → closed / escalated)</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Priority Levels</div>
+          <div class="value">4 (Critical · High · Medium · Low)</div>
+        </div>
+        <div class="info-card">
+          <div class="label">SLA Breach Detection</div>
+          <div class="value violet">River job queue, tick every 5 min</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Bulk Operations</div>
+          <div class="value">Assign, status-change, tag (up to 100)</div>
+        </div>
+        <div class="info-card">
+          <div class="label">Pagination</div>
+          <div class="value">Cursor-based (UUID), max 100/page</div>
+        </div>
+      </div>
+
+      <div class="callout cyan" style="margin-top:16px;">
+        <div class="callout-icon">📁</div>
+        <div class="callout-text"><strong>Regulatory Context:</strong> For NBFC and lending-ops teams, every case represents a potential regulatory touchpoint — a SAR (Suspicious Activity Report), a KYC exception, or a credit fraud investigation. Cases must be immutable in history, timestamped in UTC, and traceable to a named individual for regulatory examination. The Case Management module is designed with these constraints as first-class requirements.</div>
+      </div>
+    </section>
+
+    <!-- ── 2. Lifecycle State Machine ── -->
+    <section class="section" id="lifecycle">
+      <div class="section-header">
+        <div class="section-number">2</div>
+        <div class="section-title">Case Lifecycle State Machine</div>
+      </div>
+
+      <p>Cases follow a strict state machine. Transitions are validated server-side — invalid transitions return <code>422 Unprocessable Entity</code>. State transitions are always recorded in the activity log with actor, timestamp, and optional reason.</p>
+
+      <div class="state-diagram">
+        <div style="display:flex; align-items:flex-start; gap:0; overflow-x:auto;">
+          <!-- Draft -->
+          <div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
+            <div class="state-box state-draft">draft</div>
+            <div class="state-label">Creator saves</div>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 6px;margin-top:18px;">
+            <svg width="40" height="12" viewBox="0 0 40 12"><line x1="0" y1="6" x2="32" y2="6" stroke="#475569" stroke-width="1.5"/><polygon points="32,2 40,6 32,10" fill="#475569"/></svg>
+          </div>
+          <!-- Open -->
+          <div style="display:flex;flex-direction:column;align-items:center;min-width:90px;">
+            <div class="state-box state-open">open</div>
+            <div class="state-label">Published/submitted</div>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 6px;margin-top:18px;">
+            <svg width="40" height="12" viewBox="0 0 40 12"><line x1="0" y1="6" x2="32" y2="6" stroke="#475569" stroke-width="1.5"/><polygon points="32,2 40,6 32,10" fill="#475569"/></svg>
+          </div>
+          <!-- In Progress -->
+          <div style="display:flex;flex-direction:column;align-items:center;min-width:100px;">
+            <div class="state-box state-inprogress">in_progress</div>
+            <div class="state-label">Analyst picks up</div>
+          </div>
+          <div style="display:flex;align-items:center;padding:0 6px;margin-top:18px;">
+            <svg width="40" height="12" viewBox="0 0 40 12"><line x1="0" y1="6" x2="32" y2="6" stroke="#475569" stroke-width="1.5"/><polygon points="32,2 40,6 32,10" fill="#475569"/></svg>
+          </div>
+          <!-- Pending Review -->
+          <div style="display:flex;flex-direction:column;align-items:center;min-width:110px;">
+            <div class="state-box state-review">pending_review</div>
+            <div class="state-label">Analyst submits</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;margin-top:18px;margin-left:8px;">
+            <svg width="40" height="12" viewBox="0 0 40 12"><line x1="0" y1="6" x2="32" y2="6" stroke="#475569" stroke-width="1.5"/><polygon points="32,2 40,6 32,10" fill="#475569"/></svg>
+          </div>
+          <!-- Fork: Closed / Escalated -->
+          <div style="display:flex;flex-direction:column;align-items:flex-start;gap:10px;margin-top:4px;margin-left:4px;">
+            <div class="state-box state-closed">closed</div>
+            <div class="state-box state-escalated">escalated</div>
+          </div>
+        </div>
+        <div style="margin-top:20px;font-size:11.5px;color:var(--text-muted);display:flex;gap:20px;flex-wrap:wrap;">
+          <span>→ <span style="color:var(--text-secondary);">Manager approves → <span style="color:var(--green);">closed</span></span></span>
+          <span>→ <span style="color:var(--text-secondary);">Manager rejects → back to <span style="color:var(--violet);">in_progress</span></span></span>
+          <span>→ <span style="color:var(--text-secondary);">Escalated from any state → <span style="color:var(--red);">escalated</span></span></span>
+          <span>→ <span style="color:var(--text-secondary);">Escalated can be <span style="color:var(--blue);">re-opened</span> to in_progress</span></span>
+        </div>
+      </div>
+
+      <p style="margin-top:20px;"><strong>Role-to-Transition Permissions:</strong></p>
+
+      <table class="trans-table">
+        <thead>
+          <tr>
+            <th>From State</th>
+            <th>To State</th>
+            <th>Allowed Roles</th>
+            <th>Business Rule</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>draft</td>
+            <td>open</td>
+            <td>analyst, manager, admin</td>
+            <td>Case must have title, description, and priority set</td>
+          </tr>
+          <tr>
+            <td>open</td>
+            <td>in_progress</td>
+            <td>analyst (self-assign), manager, admin</td>
+            <td>Case must be assigned to a user</td>
+          </tr>
+          <tr>
+            <td>in_progress</td>
+            <td>pending_review</td>
+            <td>analyst (assigned only), manager, admin</td>
+            <td>At least one activity entry must exist</td>
+          </tr>
+          <tr>
+            <td>pending_review</td>
+            <td>closed</td>
+            <td>manager, admin, super_admin</td>
+            <td>Reviewer must not be the same user who submitted</td>
+          </tr>
+          <tr>
+            <td>pending_review</td>
+            <td>in_progress</td>
+            <td>manager, admin</td>
+            <td>Rejection reason required (min 20 chars)</td>
+          </tr>
+          <tr>
+            <td>any (except closed)</td>
+            <td>escalated</td>
+            <td>manager, admin, super_admin</td>
+            <td>Escalation reason required; notifies super_admin via SSE</td>
+          </tr>
+          <tr>
+            <td>escalated</td>
+            <td>in_progress</td>
+            <td>admin, super_admin</td>
+            <td>Re-assignment mandatory on re-open</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── 3. Database Schema ── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <div class="section-number">3</div>
+        <div class="section-title">Database Schema <span class="tag">PostgreSQL 18.4</span></div>
+      </div>
+
+      <pre><code><span class="cm">-- ─────────────────────────────────────────────────────────────────
+-- CASE MANAGEMENT SCHEMA — OpsOwl AI
+-- PostgreSQL 18.4 | TIMESTAMPTZ | Soft deletes | UUID v4
+-- ─────────────────────────────────────────────────────────────────</span>
+
+<span class="kw">CREATE TYPE</span> <span class="ty">case_status</span> <span class="kw">AS ENUM</span> (
+  <span class="st">'draft'</span>, <span class="st">'open'</span>, <span class="st">'in_progress'</span>, <span class="st">'pending_review'</span>, <span class="st">'closed'</span>, <span class="st">'escalated'</span>
+);
+<span class="kw">CREATE TYPE</span> <span class="ty">case_priority</span> <span class="kw">AS ENUM</span> (<span class="st">'critical'</span>, <span class="st">'high'</span>, <span class="st">'medium'</span>, <span class="st">'low'</span>);
+
+<span class="cm">-- cases ──────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">cases</span> (
+  <span class="nm">id</span>               <span class="ty">UUID</span>          <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">case_number</span>      <span class="ty">TEXT</span>          <span class="kw">NOT NULL UNIQUE</span>,             <span class="cm">-- OWL-2026-00001</span>
+  <span class="nm">title</span>            <span class="ty">TEXT</span>          <span class="kw">NOT NULL</span>  <span class="kw">CHECK</span>(length(title) &gt;= <span class="nm">5</span>),
+  <span class="nm">description</span>      <span class="ty">TEXT</span>          <span class="kw">NOT NULL DEFAULT</span> <span class="st">''</span>,
+  <span class="nm">status</span>           <span class="ty">case_status</span>   <span class="kw">NOT NULL DEFAULT</span> <span class="st">'draft'</span>,
+  <span class="nm">priority</span>         <span class="ty">case_priority</span> <span class="kw">NOT NULL DEFAULT</span> <span class="st">'medium'</span>,
+  <span class="nm">assigned_to</span>      <span class="ty">UUID</span>          <span class="kw">REFERENCES</span> <span class="ty">users</span>(id),         <span class="cm">-- nullable</span>
+  <span class="nm">created_by</span>       <span class="ty">UUID</span>          <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id),
+  <span class="nm">organization_id</span>  <span class="ty">UUID</span>          <span class="kw">NOT NULL</span>,                    <span class="cm">-- multi-tenant scope</span>
+  <span class="nm">due_date</span>         <span class="ty">TIMESTAMPTZ</span>,                               <span class="cm">-- optional manual override</span>
+  <span class="nm">sla_breach_at</span>    <span class="ty">TIMESTAMPTZ</span>,                               <span class="cm">-- computed on creation</span>
+  <span class="nm">sla_breached</span>     <span class="ty">BOOLEAN</span>       <span class="kw">NOT NULL DEFAULT FALSE</span>,
+  <span class="nm">tags</span>             <span class="ty">TEXT[]</span>        <span class="kw">NOT NULL DEFAULT</span> <span class="st">'{}'</span>,
+  <span class="nm">created_at</span>       <span class="ty">TIMESTAMPTZ</span>   <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">updated_at</span>       <span class="ty">TIMESTAMPTZ</span>   <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">deleted_at</span>       <span class="ty">TIMESTAMPTZ</span>                                <span class="cm">-- soft delete</span>
+);
+
+<span class="cm">-- Indexes</span>
+<span class="kw">CREATE INDEX</span> idx_cases_status         <span class="kw">ON</span> <span class="ty">cases</span> (status)          <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_cases_priority        <span class="kw">ON</span> <span class="ty">cases</span> (priority)        <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_cases_assigned_to     <span class="kw">ON</span> <span class="ty">cases</span> (assigned_to)     <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_cases_created_by      <span class="kw">ON</span> <span class="ty">cases</span> (created_by);
+<span class="kw">CREATE INDEX</span> idx_cases_organization_id <span class="kw">ON</span> <span class="ty">cases</span> (organization_id) <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span>;
+<span class="kw">CREATE INDEX</span> idx_cases_sla_breach_at   <span class="kw">ON</span> <span class="ty">cases</span> (sla_breach_at)   <span class="kw">WHERE</span> deleted_at <span class="kw">IS NULL</span> <span class="kw">AND</span> sla_breached = <span class="kw">FALSE</span>;
+<span class="kw">CREATE INDEX</span> idx_cases_created_at      <span class="kw">ON</span> <span class="ty">cases</span> (created_at       <span class="kw">DESC</span>);
+<span class="kw">CREATE INDEX</span> idx_cases_tags            <span class="kw">ON</span> <span class="ty">cases</span> <span class="kw">USING</span> GIN (tags);
+
+<span class="cm">-- Sequence for case numbers per year</span>
+<span class="kw">CREATE SEQUENCE</span> case_number_seq START <span class="nm">1</span> INCREMENT <span class="nm">1</span> NO CYCLE;
+
+<span class="cm">-- case_assignments — full history of assignment changes ───────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">case_assignments</span> (
+  <span class="nm">id</span>          <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">case_id</span>     <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  <span class="nm">assigned_to</span> <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id),
+  <span class="nm">assigned_by</span> <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id),
+  <span class="nm">assigned_at</span> <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="nm">unassigned_at</span> <span class="ty">TIMESTAMPTZ</span>                          <span class="cm">-- set when next assignment happens</span>
+);
+
+<span class="kw">CREATE INDEX</span> idx_ca_case_id     <span class="kw">ON</span> <span class="ty">case_assignments</span> (case_id);
+<span class="kw">CREATE INDEX</span> idx_ca_assigned_to <span class="kw">ON</span> <span class="ty">case_assignments</span> (assigned_to);
+
+<span class="cm">-- case_tags — normalized tag registry ───────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">case_tags</span> (
+  <span class="nm">id</span>         <span class="ty">UUID</span>        <span class="kw">PRIMARY KEY DEFAULT</span> gen_random_uuid(),
+  <span class="nm">name</span>       <span class="ty">TEXT</span>        <span class="kw">NOT NULL UNIQUE</span>,            <span class="cm">-- lowercase, max 64 chars</span>
+  <span class="nm">color_hex</span>  <span class="ty">CHAR(7)</span>     <span class="kw">NOT NULL DEFAULT</span> <span class="st">'#64748b'</span>,
+  <span class="nm">created_at</span> <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>
+);
+
+<span class="cm">-- case_watchers — users subscribed to case updates ───────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">case_watchers</span> (
+  <span class="nm">case_id</span>    <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">cases</span>(id) <span class="kw">ON DELETE CASCADE</span>,
+  <span class="nm">user_id</span>    <span class="ty">UUID</span>        <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(id),
+  <span class="nm">created_at</span> <span class="ty">TIMESTAMPTZ</span> <span class="kw">NOT NULL DEFAULT NOW()</span>,
+  <span class="kw">PRIMARY KEY</span> (case_id, user_id)
+);
+
+<span class="kw">CREATE INDEX</span> idx_cw_user_id <span class="kw">ON</span> <span class="ty">case_watchers</span> (user_id);</code></pre>
+    </section>
+
+    <!-- ── 4. Case Numbering ── -->
+    <section class="section" id="numbering">
+      <div class="section-header">
+        <div class="section-number">4</div>
+        <div class="section-title">Case Numbering</div>
+      </div>
+
+      <p>Each case receives a human-readable, unique, sequential identifier generated at creation time. It is stored as a <code>TEXT</code> column (not an integer) to preserve the formatted string.</p>
+
+      <div class="owl-number">OWL-2026-00001</div>
+
+      <p><strong>Format:</strong> <code>OWL-{YYYY}-{NNNNN}</code></p>
+
+      <ul style="list-style:none;margin:8px 0 16px;color:var(--text-secondary);font-size:13px;">
+        <li style="padding:4px 0 4px 14px;position:relative;"><span style="position:absolute;left:0;color:var(--violet);">·</span><strong style="color:var(--text-primary);">OWL</strong> — fixed prefix, identifies OpsOwl AI system (useful in email subjects, audit reports)</li>
+        <li style="padding:4px 0 4px 14px;position:relative;"><span style="position:absolute;left:0;color:var(--violet);">·</span><strong style="color:var(--text-primary);">{YYYY}</strong> — calendar year of case creation (resets to 00001 each January 1)</li>
+        <li style="padding:4px 0 4px 14px;position:relative;"><span style="position:absolute;left:0;color:var(--violet);">·</span><strong style="color:var(--text-primary);">{NNNNN}</strong> — zero-padded 5-digit sequence; max 99,999 cases/year per organization</li>
+      </ul>
+
+      <div class="callout">
+        <div class="callout-icon">⚙</div>
+        <div class="callout-text"><strong>Generation Strategy:</strong> The case number is generated in a PostgreSQL function called within the INSERT transaction using a per-year sequence (<code>case_number_seq</code>). The function formats: <code>FORMAT('OWL-%s-%05d', EXTRACT(YEAR FROM NOW()), nextval('case_number_seq'))</code>. The sequence is reset to 1 at year boundary via a River cron job that runs at <code>00:00:01 UTC on Jan 1</code>. Multi-tenant orgs each have their own sequence.</div>
+      </div>
+    </section>
+
+    <!-- ── 5. SLA Engine ── -->
+    <section class="section" id="sla">
+      <div class="section-header">
+        <div class="section-number">5</div>
+        <div class="section-title">SLA Engine <span class="tag">River Job Queue</span></div>
+      </div>
+
+      <div class="priority-grid">
+        <div class="priority-card priority-critical">
+          <div class="priority-label">Critical</div>
+          <div class="priority-sla">4 hr</div>
+          <div class="priority-sla-label">SLA window</div>
+        </div>
+        <div class="priority-card priority-high">
+          <div class="priority-label">High</div>
+          <div class="priority-sla">24 hr</div>
+          <div class="priority-sla-label">SLA window</div>
+        </div>
+        <div class="priority-card priority-medium">
+          <div class="priority-label">Medium</div>
+          <div class="priority-sla">72 hr</div>
+          <div class="priority-sla-label">SLA window</div>
+        </div>
+        <div class="priority-card priority-low">
+          <div class="priority-label">Low</div>
+          <div class="priority-sla">7 d</div>
+          <div class="priority-sla-label">SLA window</div>
+        </div>
+      </div>
+
+      <div class="sla-flow">
+        <div class="sla-step-row">
+          <div class="sla-num">1</div>
+          <div class="sla-content">
+            <div class="sla-title">SLA Computation on Case Creation</div>
+            <div class="sla-desc">When a case moves from <code>draft</code> → <code>open</code>, <code>sla_breach_at</code> is set: <code>created_at + SLA_HOURS[priority]</code>. For Critical cases created at 14:00 IST: <code>sla_breach_at = 18:00 IST</code>. Non-working-hour adjustments are not applied in MVP (deferred to Phase 2 per product decision).</div>
+          </div>
+        </div>
+        <div class="sla-step-row">
+          <div class="sla-num">2</div>
+          <div class="sla-content">
+            <div class="sla-title">Breach Detection Job — River Cron, every 5 minutes</div>
+            <div class="sla-desc">A River recurring job queries: <code>SELECT id FROM cases WHERE sla_breach_at &lt;= NOW() AND sla_breached = FALSE AND status NOT IN ('closed', 'escalated') AND deleted_at IS NULL</code>. For each match: sets <code>sla_breached = TRUE</code>, writes a <code>case.sla_breached</code> audit event, and enqueues a notification job.</div>
+          </div>
+        </div>
+        <div class="sla-step-row">
+          <div class="sla-num">3</div>
+          <div class="sla-content">
+            <div class="sla-title">Notification Triggers on Breach</div>
+            <div class="sla-desc">On <code>sla_breached</code> flagging: (a) SSE event pushed to assigned user's active browser session. (b) SSE event pushed to all watchers. (c) Manager and admin receive in-app notification. Email notification is a River job (Phase 2 integration with SendGrid). No SMS in MVP.</div>
+          </div>
+        </div>
+        <div class="sla-step-row">
+          <div class="sla-num">4</div>
+          <div class="sla-content">
+            <div class="sla-title">Priority Change Recalculation</div>
+            <div class="sla-desc">If a manager upgrades a case's priority (e.g., medium → critical), <code>sla_breach_at</code> is recalculated as <code>NOW() + SLA_HOURS[new_priority]</code> and <code>sla_breached</code> is reset to <code>FALSE</code>. Old SLA window is recorded in the activity log for audit purposes.</div>
+          </div>
+        </div>
+        <div class="sla-step-row">
+          <div class="sla-num">5</div>
+          <div class="sla-content">
+            <div class="sla-title">SLA Pause on Closed / Escalated</div>
+            <div class="sla-desc">SLA breach detection skips cases in <code>closed</code> or <code>escalated</code> states. Escalated cases have their own SLA clock managed separately (escalation SLA = Critical regardless of original priority). Closed cases are never re-evaluated for SLA.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 6. API Endpoints ── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <div class="section-number">6</div>
+        <div class="section-title">API Endpoints <span class="tag">REST · /api/v1/</span></div>
+      </div>
+
+      <!-- Create Case -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/cases</span>
+          <span class="endpoint-auth"><span class="auth-tag">analyst+</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{
+  <span class="st">"title"</span>:       <span class="st">"Suspicious UPI transaction cluster — Acme Corp"</span>,
+  <span class="st">"description"</span>: <span class="st">"Multiple UPI transfers exceeding ₹50L in 2hrs..."</span>,
+  <span class="st">"priority"</span>:    <span class="st">"critical"</span>,
+  <span class="st">"assigned_to"</span>: <span class="st">"user-uuid"</span>,  <span class="cm">// optional at creation</span>
+  <span class="st">"due_date"</span>:    <span class="st">"2026-05-17T18:00:00Z"</span>,  <span class="cm">// optional override</span>
+  <span class="st">"tags"</span>:        [<span class="st">"upi-fraud"</span>, <span class="st">"high-value"</span>]
+}</code></pre>
+          <div class="ep-label">Response 201</div>
+          <pre><code>{
+  <span class="st">"data"</span>: {
+    <span class="st">"id"</span>:            <span class="st">"uuid-v4"</span>,
+    <span class="st">"case_number"</span>:   <span class="st">"OWL-2026-00042"</span>,
+    <span class="st">"status"</span>:        <span class="st">"draft"</span>,
+    <span class="st">"priority"</span>:      <span class="st">"critical"</span>,
+    <span class="st">"sla_breach_at"</span>: <span class="kw">null</span>,  <span class="cm">// set when moved to 'open'</span>
+    <span class="st">"created_at"</span>:    <span class="st">"2026-05-16T10:00:00Z"</span>
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- List Cases -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-GET">GET</span>
+          <span class="endpoint-path">/api/v1/cases?status=open&priority=critical&assigned_to=uuid&tags=upi-fraud&from=2026-05-01T00:00:00Z&cursor=uuid&limit=20</span>
+          <span class="endpoint-auth"><span class="auth-tag">viewer+</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Query Parameters</div>
+          <pre><code><span class="cm">// All optional, combinable:</span>
+status=open|in_progress|pending_review|closed|escalated|draft
+priority=critical|high|medium|low
+assigned_to={user_uuid}
+tags={comma-separated}           <span class="cm">// ANY match (OR semantics)</span>
+from={ISO8601}  to={ISO8601}    <span class="cm">// created_at range</span>
+sla_breached=true               <span class="cm">// breach filter</span>
+cursor={uuid}                    <span class="cm">// cursor pagination</span>
+limit=20                         <span class="cm">// max 100</span>
+sort=created_at|updated_at|sla_breach_at  order=asc|desc</code></pre>
+          <div class="ep-label">Response 200</div>
+          <pre><code>{
+  <span class="st">"data"</span>: [{
+    <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"case_number"</span>: <span class="st">"OWL-2026-00042"</span>,
+    <span class="st">"title"</span>: <span class="st">"..."</span>, <span class="st">"status"</span>: <span class="st">"open"</span>, <span class="st">"priority"</span>: <span class="st">"critical"</span>,
+    <span class="st">"assigned_to"</span>: { <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"Priya Sharma"</span> },
+    <span class="st">"sla_breach_at"</span>: <span class="st">"2026-05-16T14:00:00Z"</span>, <span class="st">"sla_breached"</span>: <span class="kw">false</span>,
+    <span class="st">"tags"</span>: [<span class="st">"upi-fraud"</span>], <span class="st">"created_at"</span>: <span class="st">"..."</span>
+  }],
+  <span class="st">"meta"</span>: { <span class="st">"next_cursor"</span>: <span class="st">"uuid"</span>, <span class="st">"has_more"</span>: <span class="kw">true</span>, <span class="st">"total_count"</span>: <span class="nm">214</span> }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- Get Case -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-GET">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id</span>
+          <span class="endpoint-auth"><span class="auth-tag">viewer+</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200 — full case detail with watchers</div>
+          <pre><code>{
+  <span class="st">"data"</span>: {
+    <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"case_number"</span>: <span class="st">"OWL-2026-00042"</span>,
+    <span class="st">"title"</span>: <span class="st">"..."</span>, <span class="st">"description"</span>: <span class="st">"..."</span>,
+    <span class="st">"status"</span>: <span class="st">"in_progress"</span>, <span class="st">"priority"</span>: <span class="st">"critical"</span>,
+    <span class="st">"assigned_to"</span>: { <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"..."</span>, <span class="st">"role"</span>: <span class="st">"analyst"</span> },
+    <span class="st">"created_by"</span>:  { <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"..."</span> },
+    <span class="st">"sla_breach_at"</span>: <span class="st">"2026-05-16T14:00:00Z"</span>, <span class="st">"sla_breached"</span>: <span class="kw">false</span>,
+    <span class="st">"due_date"</span>: <span class="kw">null</span>, <span class="st">"tags"</span>: [<span class="st">"upi-fraud"</span>, <span class="st">"high-value"</span>],
+    <span class="st">"watchers"</span>: [{ <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"..."</span> }],
+    <span class="st">"created_at"</span>: <span class="st">"..."</span>, <span class="st">"updated_at"</span>: <span class="st">"..."</span>
+  }
+}</code></pre>
+        </div>
+      </div>
+
+      <!-- Update Case -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-PUT">PUT</span>
+          <span class="endpoint-path">/api/v1/cases/:id</span>
+          <span class="endpoint-auth"><span class="auth-tag">analyst (assigned) · manager · admin</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body (partial update — all fields optional)</div>
+          <pre><code>{ <span class="st">"title"</span>: <span class="st">"Updated title"</span>, <span class="st">"description"</span>: <span class="st">"..."</span>, <span class="st">"priority"</span>: <span class="st">"high"</span>, <span class="st">"due_date"</span>: <span class="st">"2026-05-20T00:00:00Z"</span> }
+<span class="cm">// priority change recalculates sla_breach_at automatically</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Delete Case -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-DELETE">DELETE</span>
+          <span class="endpoint-path">/api/v1/cases/:id</span>
+          <span class="endpoint-auth"><span class="auth-tag">admin / super_admin only</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200</div>
+          <pre><code>{ <span class="st">"data"</span>: { <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"case_number"</span>: <span class="st">"OWL-2026-00042"</span>, <span class="st">"deleted_at"</span>: <span class="st">"2026-05-16T10:30:00Z"</span> } }
+<span class="cm">// Soft delete only. Case remains in DB with deleted_at set. Not recoverable via API (admin CLI only).</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Assign -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/assign</span>
+          <span class="endpoint-auth"><span class="auth-tag">manager · admin · super_admin</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"user_id"</span>: <span class="st">"analyst-uuid"</span>, <span class="st">"note"</span>: <span class="st">"Assigning to Priya due to UPI expertise"</span> }
+<span class="cm">// Creates case_assignments record, updates cases.assigned_to, writes activity entry</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Status -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/status</span>
+          <span class="endpoint-auth"><span class="auth-tag">role-gated per transition table</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{
+  <span class="st">"status"</span>: <span class="st">"pending_review"</span>,
+  <span class="st">"reason"</span>: <span class="st">"Investigation complete. See attached analysis."</span>  <span class="cm">// required for some transitions</span>
+}
+<span class="cm">// Validates transition legality via state machine. Returns 422 if invalid.</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Tags -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-POST">POST</span>
+          <span class="endpoint-path">/api/v1/cases/:id/tags</span>
+          <span class="endpoint-auth"><span class="auth-tag">analyst · manager · admin</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Request Body</div>
+          <pre><code>{ <span class="st">"add"</span>: [<span class="st">"kyc-pending"</span>], <span class="st">"remove"</span>: [<span class="st">"upi-fraud"</span>] }
+<span class="cm">// Atomic add/remove. Tags are created in case_tags if they don't exist.</span></code></pre>
+        </div>
+      </div>
+
+      <!-- Activity -->
+      <div class="endpoint-card">
+        <div class="endpoint-header">
+          <span class="method-badge method-GET">GET</span>
+          <span class="endpoint-path">/api/v1/cases/:id/activity?cursor=uuid&limit=50</span>
+          <span class="endpoint-auth"><span class="auth-tag">viewer+</span></span>
+        </div>
+        <div class="endpoint-body">
+          <div class="ep-label">Response 200 — cursor paginated activity feed</div>
+          <pre><code>{
+  <span class="st">"data"</span>: [{
+    <span class="st">"id"</span>: <span class="st">"uuid"</span>, <span class="st">"event_type"</span>: <span class="st">"status_changed"</span>,
+    <span class="st">"actor"</span>: { <span class="st">"id"</span>: <span class="st">"..."</span>, <span class="st">"full_name"</span>: <span class="st">"Priya Sharma"</span> },
+    <span class="st">"payload"</span>: { <span class="st">"from"</span>: <span class="st">"open"</span>, <span class="st">"to"</span>: <span class="st">"in_progress"</span> },
+    <span class="st">"created_at"</span>: <span class="st">"2026-05-16T10:15:00Z"</span>
+  }, <span class="cm">/* … */</span> ],
+  <span class="st">"meta"</span>: { <span class="st">"next_cursor"</span>: <span class="st">"uuid"</span>, <span class="st">"has_more"</span>: <span class="kw">false</span> }
+}</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 7. Priority Levels ── -->
+    <section class="section" id="priority">
+      <div class="section-header">
+        <div class="section-number">7</div>
+        <div class="section-title">Priority Levels</div>
+      </div>
+
+      <p>Priority is set at case creation and can be updated (subject to role permissions). Priority drives the SLA window and the visual urgency indicators across the UI.</p>
+
+      <div class="priority-grid" style="margin-bottom:0;">
+        <div class="priority-card priority-critical">
+          <div class="priority-label">Critical</div>
+          <div class="priority-sla">4 hr SLA</div>
+          <div class="priority-sla-label" style="margin-top:8px;font-size:12px;color:var(--red);">Active fraud, regulatory deadline,<br>system-wide compromise</div>
+        </div>
+        <div class="priority-card priority-high">
+          <div class="priority-label">High</div>
+          <div class="priority-sla">24 hr SLA</div>
+          <div class="priority-sla-label" style="margin-top:8px;font-size:12px;color:var(--amber);">KYC exception, suspicious SAR,<br>high-value transaction review</div>
+        </div>
+        <div class="priority-card priority-medium">
+          <div class="priority-label">Medium</div>
+          <div class="priority-sla">72 hr SLA</div>
+          <div class="priority-sla-label" style="margin-top:8px;font-size:12px;color:var(--blue);">Policy exception, AML alert,<br>customer escalation</div>
+        </div>
+        <div class="priority-card priority-low">
+          <div class="priority-label">Low</div>
+          <div class="priority-sla">7 day SLA</div>
+          <div class="priority-sla-label" style="margin-top:8px;font-size:12px;color:var(--green);">Routine review, documentation<br>update, informational</div>
+        </div>
+      </div>
+
+      <div class="callout" style="margin-top:20px;">
+        <div class="callout-icon">🎨</div>
+        <div class="callout-text"><strong>UI Color Coding:</strong> Priority badges use a strict color system across all surfaces — case list rows, detail headers, Kanban cards, notification banners. Critical = red (#ef4444), High = amber (#f59e0b), Medium = blue (#3b82f6), Low = green (#10b981). These are never swapped or overridden by custom themes.</div>
+      </div>
+    </section>
+
+    <!-- ── 8. Go Module Structure ── -->
+    <section class="section" id="gomodule">
+      <div class="section-header">
+        <div class="section-number">8</div>
+        <div class="section-title">Go Module Structure <span class="tag">Go 1.26</span></div>
+      </div>
+
+      <div class="pkg-tree">
+<span class="pkg-dir">internal/</span>
+<span class="pkg-indent">├── </span><span class="pkg-dir">cases/</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">handler.go</span>           <span class="pkg-comment">// Chi handlers: Create, List, Get, Update, Delete, Assign, Status, Tags, Activity</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">service.go</span>           <span class="pkg-comment">// Business logic: state machine validation, SLA calculation, transition guards</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">repository.go</span>        <span class="pkg-comment">// sqlc wrappers: CreateCase, ListCases (cursor + filters), GetCase, UpdateCase, etc.</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">statemachine.go</span>      <span class="pkg-comment">// AllowedTransitions map, ValidateTransition(from, to, role) error</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">sla.go</span>               <span class="pkg-comment">// SLADuration(priority) time.Duration, ComputeBreachAt(priority, createdAt)</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">number.go</span>            <span class="pkg-comment">// GenerateCaseNumber(orgID, year) — calls DB sequence function</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">dto.go</span>               <span class="pkg-comment">// CreateCaseRequest, UpdateCaseRequest, CaseResponse, ActivityResponse</span>
+<span class="pkg-indent">│   └── </span><span class="pkg-file">cases_test.go</span>        <span class="pkg-comment">// table-driven tests; testcontainers pg; >90% coverage</span>
+<span class="pkg-indent">│</span>
+<span class="pkg-indent">├── </span><span class="pkg-dir">sla/</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">worker.go</span>            <span class="pkg-comment">// River recurring job: SLABreachChecker, runs every 5 minutes</span>
+<span class="pkg-indent">│   ├── </span><span class="pkg-file">notifier.go</span>          <span class="pkg-comment">// SSE push to affected users on breach detection</span>
+<span class="pkg-indent">│   └── </span><span class="pkg-file">sla_test.go</span>
+<span class="pkg-indent">│</span>
+<span class="pkg-indent">└── </span><span class="pkg-dir">db/sqlc/</span>
+<span class="pkg-indent">    ├── </span><span class="pkg-file">cases.sql.go</span>         <span class="pkg-comment">// Generated: CreateCase, GetCaseByID, ListCases, UpdateCase, SoftDeleteCase</span>
+<span class="pkg-indent">    ├── </span><span class="pkg-file">case_assignments.sql.go</span>  <span class="pkg-comment">// Generated: CreateAssignment, GetAssignmentHistory</span>
+<span class="pkg-indent">    └── </span><span class="pkg-file">case_activity.sql.go</span> <span class="pkg-comment">// Generated: CreateActivity, ListActivities (cursor paginated)</span>
+      </div>
+    </section>
+
+    <!-- ── 9. Frontend Components ── -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <div class="section-number">9</div>
+        <div class="section-title">Frontend Components <span class="tag">Next.js 16 · TypeScript · shadcn/ui</span></div>
+      </div>
+
+      <div class="component-grid">
+        <div class="component-card">
+          <div class="comp-name">CaseListPage</div>
+          <div class="comp-path">app/(dashboard)/cases/page.tsx</div>
+          <ul>
+            <li>TanStack Table with server-side cursor pagination</li>
+            <li>Filter bar: status, priority, assigned_to, tags, date range</li>
+            <li>URL-driven filters (searchParams) — shareable filtered views</li>
+            <li>useInfiniteQuery for infinite scroll mode toggle</li>
+            <li>Bulk selection checkboxes (shift-click range select)</li>
+            <li>SLA countdown badge on each row (updates live)</li>
+            <li>Empty state with context-appropriate CTA</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">CaseDetailPage</div>
+          <div class="comp-path">app/(dashboard)/cases/[id]/page.tsx</div>
+          <ul>
+            <li>Two-column layout: main content + sidebar panel</li>
+            <li>StatusBadge with transition action dropdown</li>
+            <li>SLACountdown component (live countdown timer)</li>
+            <li>AssigneeSelector (combobox, role-filtered users)</li>
+            <li>ActivityFeed (SSE-streamed real-time updates)</li>
+            <li>WatcherList with add/remove watcher toggle</li>
+            <li>TagEditor with autocomplete from case_tags</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">CaseCreateForm</div>
+          <div class="comp-path">app/(dashboard)/cases/new/page.tsx</div>
+          <ul>
+            <li>Multi-step form: Details → Assignment → Review</li>
+            <li>react-hook-form + zod schema validation</li>
+            <li>Rich text description (Tiptap editor — minimal toolbar)</li>
+            <li>Priority selector with SLA preview ("~4 hours to resolve")</li>
+            <li>Tag multi-select with create-on-type support</li>
+            <li>Auto-save as draft every 30s (localStorage)</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">StatusBadge</div>
+          <div class="comp-path">components/cases/StatusBadge.tsx</div>
+          <ul>
+            <li>Color-coded pill per status (draft=slate, open=blue, etc.)</li>
+            <li>Optional action menu (dropdown) listing valid next states</li>
+            <li>Transition modal with reason input where required</li>
+            <li>Optimistic UI update + TanStack Query invalidation on success</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">SLACountdown</div>
+          <div class="comp-path">components/cases/SLACountdown.tsx</div>
+          <ul>
+            <li>Props: sla_breach_at, sla_breached, priority</li>
+            <li>Live countdown: "2h 34m remaining" or "Breached 1h ago"</li>
+            <li>Color transitions: green → amber (50%) → red (20% / breached)</li>
+            <li>Uses requestAnimationFrame for smooth updates</li>
+            <li>Tooltip shows exact breach timestamp in local time</li>
+          </ul>
+        </div>
+        <div class="component-card">
+          <div class="comp-name">BulkActionBar</div>
+          <div class="comp-path">components/cases/BulkActionBar.tsx</div>
+          <ul>
+            <li>Appears when 1+ cases selected in CaseListPage</li>
+            <li>Actions: Assign, Change Status, Add Tags, Export</li>
+            <li>Shows selection count and "Select all on page" shortcut</li>
+            <li>Role-gated actions (RBACGate per operation)</li>
+            <li>Confirmation dialog for destructive bulk operations</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── 10. UX Decisions ── -->
+    <section class="section" id="ux">
+      <div class="section-header">
+        <div class="section-number">10</div>
+        <div class="section-title">UX Decisions</div>
+      </div>
+
+      <table class="ux-table">
+        <thead>
+          <tr>
+            <th>Decision</th>
+            <th>Approach &amp; Rationale</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Bulk Operations</td>
+            <td>Support bulk assign, status change, and tagging for up to 100 cases simultaneously. Ops teams routinely need to triage dozens of cases from a daily batch. BulkActionBar appears contextually — never clutters the UI when nothing is selected. Uses server-side batch endpoint (not N individual requests).</td>
+          </tr>
+          <tr>
+            <td>Keyboard Shortcuts</td>
+            <td><code>N</code> → New case, <code>F</code> → Focus filter bar, <code>Esc</code> → Close modals, <code>J/K</code> → Navigate case rows, <code>Enter</code> → Open case detail, <code>A</code> → Assign (on detail page), <code>S</code> → Change status (on detail page). Shortcuts are documented in a <code>?</code> help modal.</td>
+          </tr>
+          <tr>
+            <td>Empty States</td>
+            <td>Context-sensitive: no cases at all → "Create your first case" CTA; filtered with no results → "No cases match these filters" with clear-filter button; assigned_to=me with no cases → "No cases assigned to you — check your queue." Never a generic blank screen.</td>
+          </tr>
+          <tr>
+            <td>Mobile Responsiveness</td>
+            <td>Breakpoint strategy: ≥1024px = full two-column layout. 768–1023px = single column, filter bar collapses to filter button + drawer. &lt;768px = list-only view, no inline filters. Case detail on mobile: tabbed (Overview / Activity / Actions). Bulk operations disabled on mobile (&lt;768px) — too error-prone on touch.</td>
+          </tr>
+          <tr>
+            <td>Optimistic Updates</td>
+            <td>Status transitions and assignment changes apply optimistically to the UI before the API response. TanStack Query's <code>onMutate</code> + <code>onError</code> rollback pattern. SLA countdown recalculates client-side on priority change immediately, then corrects when server responds with computed <code>sla_breach_at</code>.</td>
+          </tr>
+          <tr>
+            <td>Real-Time Updates</td>
+            <td>SSE endpoint at <code>/api/v1/cases/:id/stream</code> pushes activity events to all users viewing a case. TanStack Query's <code>invalidateQueries</code> triggered on SSE event receipt. No polling. SSE reconnects automatically with exponential backoff on connection drop.</td>
+          </tr>
+          <tr>
+            <td>URL-driven State</td>
+            <td>All filter combinations serialized to URL searchParams. Users can bookmark a filtered view, share a URL with a colleague, or use browser back/forward to navigate filter history. Next.js router handles searchParams without a full page reload.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ── 11. Test Strategy ── -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <div class="section-number">11</div>
+        <div class="section-title">Test Strategy <span class="tag">&gt;90% Coverage Target</span></div>
+      </div>
+
+      <div class="callout">
+        <div class="callout-icon">🧪</div>
+        <div class="callout-text"><strong>Approach:</strong> Table-driven Go tests with <code>testcontainers-go</code> for real PostgreSQL 18. HTTP handler tests use <code>httptest.NewRecorder</code> + Chi mux. State machine tests are pure-unit (no DB). SLA worker tests use a fake clock (<code>time.Now</code> injected via interface). River job tests use the River test harness. Coverage: <code>go test -coverprofile=coverage.out ./internal/cases/... ./internal/sla/...</code>.</div>
+      </div>
+
+      <div class="card">
+        <ul class="test-list">
+          <li><span class="test-icon">✓</span><div><strong>Create case:</strong> valid payload → 201, case_number auto-generated, sla_breach_at is null (case in draft)</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Create case:</strong> missing title → 422 validation error with field-level details</div></li>
+          <li><span class="test-icon">✓</span><div><strong>State transition: draft → open</strong> → sla_breach_at computed correctly for each priority</div></li>
+          <li><span class="test-icon">✓</span><div><strong>State transition: invalid (draft → closed)</strong> → 422 with code INVALID_TRANSITION</div></li>
+          <li><span class="test-icon">✓</span><div><strong>State transition: analyst attempting pending_review → closed</strong> → 403 RBAC error</div></li>
+          <li><span class="test-icon">✓</span><div><strong>State transition: pending_review → in_progress (rejection)</strong> without reason → 422 REASON_REQUIRED</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Reviewer = submitter guard:</strong> same user cannot approve their own pending_review → 422</div></li>
+          <li><span class="test-icon">✓</span><div><strong>SLA calculation:</strong> critical case created at T → sla_breach_at = T + 4h for each priority variant</div></li>
+          <li><span class="test-icon">✓</span><div><strong>SLA breach job:</strong> cases past sla_breach_at have sla_breached set to TRUE and audit event written</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Priority upgrade:</strong> medium → critical recalculates sla_breach_at as NOW() + 4h, resets sla_breached</div></li>
+          <li><span class="test-icon">✓</span><div><strong>List cases with filters:</strong> status=open + priority=critical returns only matching cases</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Cursor pagination:</strong> consistent page results; cursor from page N returns correct page N+1</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Viewer RBAC:</strong> GET /cases/:id returns 200; PUT /cases/:id returns 403</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Analyst ownership:</strong> analyst can only view/edit cases assigned to them; others return 403</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Soft delete:</strong> deleted case not returned in list; GET by ID returns 404; audit event written</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Case numbering:</strong> concurrent creates → no duplicate case numbers (sequence atomicity)</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Tags:</strong> add/remove atomic operation; tags persisted correctly; GIN index query works</div></li>
+          <li><span class="test-icon">✓</span><div><strong>Assignment history:</strong> GET /cases/:id/activity includes all assignment changes in order</div></li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ── 12. Audit Events ── -->
+    <section class="section" id="audit">
+      <div class="section-header">
+        <div class="section-number">12</div>
+        <div class="section-title">Audit Events</div>
+      </div>
+
+      <p>All case mutations and significant read events are written to the <code>audit_logs</code> table. Case activity events are additionally written to <code>case_activity</code> for the per-case timeline. The audit writer uses the same asynchronous buffered-channel worker as the auth module.</p>
+
+      <table class="audit-table">
+        <thead>
+          <tr>
+            <th>Event Code</th>
+            <th>Trigger</th>
+            <th>Key Fields Logged</th>
+            <th>Severity</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>case.created</td>
+            <td>New case created</td>
+            <td>actor_id, case_id, case_number, priority, status</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.updated</td>
+            <td>Case fields edited</td>
+            <td>actor_id, case_id, changed_fields[], old_values, new_values</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.status_changed</td>
+            <td>Status transition</td>
+            <td>actor_id, case_id, from_status, to_status, reason</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.escalated</td>
+            <td>Case moved to escalated</td>
+            <td>actor_id, case_id, from_status, escalation_reason</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>case.closed</td>
+            <td>Case closed by reviewer</td>
+            <td>actor_id, case_id, resolution_note, time_to_close_hours</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.assigned</td>
+            <td>Case assigned/reassigned</td>
+            <td>actor_id, case_id, prev_assignee_id, new_assignee_id</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.priority_changed</td>
+            <td>Priority updated</td>
+            <td>actor_id, case_id, old_priority, new_priority, new_sla_breach_at</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>case.sla_breached</td>
+            <td>SLA breach detected by worker</td>
+            <td>case_id, priority, breach_time, assigned_to_id, minutes_overdue</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+          <tr>
+            <td>case.deleted</td>
+            <td>Soft delete by admin</td>
+            <td>actor_id, case_id, case_number, reason</td>
+            <td><span class="tag-pill red">warn</span></td>
+          </tr>
+          <tr>
+            <td>case.tags_updated</td>
+            <td>Tags added/removed</td>
+            <td>actor_id, case_id, added_tags[], removed_tags[]</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.watcher_added</td>
+            <td>User watches a case</td>
+            <td>actor_id, case_id, watcher_user_id</td>
+            <td><span class="tag-pill green">info</span></td>
+          </tr>
+          <tr>
+            <td>case.bulk_action</td>
+            <td>Bulk operation executed</td>
+            <td>actor_id, action, case_ids[], count, payload</td>
+            <td><span class="tag-pill amber">warn</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+  </div><!-- /content-body -->
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section.section');
+  const navItems = document.querySelectorAll('nav#sidebar a.nav-item');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        navItems.forEach(a => a.classList.remove('active'));
+        const match = document.querySelector(`nav a[href="#${entry.target.id}"]`);
+        if (match) match.classList.add('active');
+      }
+    });
+  }, { threshold: 0.25 });
+  sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

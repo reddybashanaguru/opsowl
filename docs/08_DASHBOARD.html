@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>08 · Dashboard — OpsOwl AI Docs</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0f172a; --surface: #1e293b; --surface2: #273549; --border: #334155;
+    --text: #e2e8f0; --muted: #94a3b8; --cyan: #06b6d4; --violet: #7c3aed;
+    --violet-light: #a78bfa; --green: #10b981; --amber: #f59e0b; --red: #ef4444;
+    --blue: #3b82f6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Inter', sans-serif; display: flex; min-height: 100vh; }
+  aside { width: 260px; min-width: 260px; background: var(--surface); border-right: 1px solid var(--border); padding: 24px 0; position: sticky; top: 0; height: 100vh; overflow-y: auto; }
+  .logo { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .logo a { text-decoration: none; }
+  .logo-owl { font-size: 20px; font-weight: 700; color: var(--cyan); }
+  .logo-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .back-link { display: block; font-size: 12px; color: var(--violet-light); margin-top: 8px; text-decoration: none; }
+  .back-link:hover { color: var(--cyan); }
+  nav a { display: block; padding: 7px 20px; font-size: 13px; color: var(--muted); text-decoration: none; border-left: 2px solid transparent; transition: all 0.15s; }
+  nav a:hover, nav a.active { color: var(--cyan); border-left-color: var(--cyan); background: rgba(6,182,212,0.05); }
+  nav .nav-section { padding: 14px 20px 6px; font-size: 10px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  main { flex: 1; padding: 48px 56px; max-width: 1000px; }
+  h1 { font-size: 32px; font-weight: 700; margin-bottom: 8px; }
+  .feature-badge { display: inline-flex; align-items: center; gap: 8px; background: rgba(124,58,237,0.15); border: 1px solid rgba(124,58,237,0.4); border-radius: 20px; padding: 4px 14px; font-size: 13px; color: var(--violet-light); margin-bottom: 24px; }
+  .subtitle { color: var(--muted); font-size: 16px; line-height: 1.6; margin-bottom: 40px; max-width: 700px; }
+  h2 { font-size: 22px; font-weight: 600; color: var(--text); margin: 40px 0 16px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--cyan); margin: 24px 0 12px; }
+  p { color: var(--muted); line-height: 1.7; margin-bottom: 12px; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; margin-bottom: 16px; }
+  .card-title { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .card-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 24px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; }
+  .badge-violet { background: rgba(124,58,237,0.2); color: var(--violet-light); border: 1px solid rgba(124,58,237,0.4); }
+  .badge-cyan { background: rgba(6,182,212,0.15); color: var(--cyan); border: 1px solid rgba(6,182,212,0.3); }
+  .badge-green { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.3); }
+  .badge-amber { background: rgba(245,158,11,0.15); color: var(--amber); border: 1px solid rgba(245,158,11,0.3); }
+  pre { background: #0d1117; border: 1px solid var(--border); border-radius: 8px; padding: 20px; overflow-x: auto; margin: 16px 0; }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: #a5f3fc; line-height: 1.6; }
+  .inline-code { font-family: 'JetBrains Mono', monospace; font-size: 12px; background: rgba(6,182,212,0.1); color: var(--cyan); padding: 2px 6px; border-radius: 4px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th { background: var(--surface2); color: var(--text); font-size: 12px; font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; font-size: 13px; color: var(--muted); border-bottom: 1px solid rgba(51,65,85,0.5); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .endpoint { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .ep-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .method { padding: 3px 10px; border-radius: 4px; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; }
+  .get { background: rgba(16,185,129,0.2); color: var(--green); }
+  .ep-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--text); }
+  .ep-desc { font-size: 13px; color: var(--muted); }
+  /* Dashboard preview */
+  .dash-preview { background: var(--surface2); border: 1px solid var(--border); border-radius: 12px; padding: 20px; margin: 20px 0; }
+  .metric-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 16px; }
+  .metric-val { font-size: 28px; font-weight: 700; color: var(--text); }
+  .metric-label { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .metric-trend { font-size: 12px; margin-top: 6px; }
+  .trend-up { color: var(--red); }
+  .trend-down { color: var(--green); }
+  .sla-ring-wrap { display: flex; align-items: center; gap: 20px; }
+  .sla-ring { position: relative; width: 80px; height: 80px; }
+  .sla-ring svg { transform: rotate(-90deg); }
+  .sla-ring-val { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 18px; font-weight: 700; color: var(--green); }
+  .workload-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .workload-name { font-size: 13px; color: var(--text); width: 100px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-bg { flex: 1; height: 12px; background: var(--border); border-radius: 6px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 6px; transition: width 0.3s; }
+  .callout { background: rgba(6,182,212,0.08); border: 1px solid rgba(6,182,212,0.25); border-radius: 8px; padding: 16px 20px; margin: 16px 0; }
+  .callout-title { font-size: 13px; font-weight: 600; color: var(--cyan); margin-bottom: 6px; }
+  footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; font-size: 12px; color: var(--muted); }
+</style>
+</head>
+<body>
+<aside>
+  <div class="logo">
+    <a href="INDEX.html">
+      <div class="logo-owl">🦉 OpsOwl AI</div>
+      <div class="logo-sub">Feature Documentation</div>
+    </a>
+    <a href="INDEX.html" class="back-link">← Back to Index</a>
+  </div>
+  <nav>
+    <div class="nav-section">Architecture</div>
+    <a href="00_HLD.html">00 · System HLD</a>
+    <div class="nav-section">Features</div>
+    <a href="01_AUTH_RBAC.html">01 · Auth & RBAC</a>
+    <a href="02_CASE_MANAGEMENT.html">02 · Case Management</a>
+    <a href="03_TIMELINE_WORKSPACE.html">03 · Timeline Workspace</a>
+    <a href="04_AI_COPILOT.html">04 · AI Copilot</a>
+    <a href="05_DOCUMENT_INTELLIGENCE.html">05 · Document Intelligence</a>
+    <a href="06_NOTES_COLLABORATION.html">06 · Notes & Collaboration</a>
+    <a href="07_TASK_MANAGEMENT.html">07 · Task Management</a>
+    <a href="08_DASHBOARD.html" class="active">08 · Dashboard</a>
+    <a href="09_NOTIFICATIONS.html">09 · Notifications</a>
+    <a href="10_AUDIT_LOGGING.html">10 · Audit Logging</a>
+    <a href="11_SEARCH.html">11 · Search</a>
+    <a href="12_AI_LOGGING.html">12 · AI Logging</a>
+    <div class="nav-section">Sections</div>
+    <a href="#overview">Overview</a>
+    <a href="#widgets">Widgets</a>
+    <a href="#roles">Role-Based Views</a>
+    <a href="#views-preview">UI Preview</a>
+    <a href="#matviews">Materialized Views</a>
+    <a href="#api">API Endpoints</a>
+    <a href="#caching">Caching Strategy</a>
+    <a href="#realtime">Real-time Updates</a>
+    <a href="#modules">Module Structure</a>
+    <a href="#frontend">Frontend Components</a>
+    <a href="#performance">Performance</a>
+    <a href="#tests">Test Strategy</a>
+  </nav>
+</aside>
+
+<main>
+  <div class="feature-badge"><span class="badge badge-violet">Feature 08</span> MVP · Go Backend + PostgreSQL</div>
+  <h1>Dashboard</h1>
+  <p class="subtitle">The ops manager's command centre. At a glance: total cases, what's overdue, who's overloaded, AI activity, and SLA health — all refreshed every 30 seconds. Purpose-built for investigation team leads, not generic analytics.</p>
+
+  <h2 id="overview">Feature Overview</h2>
+  <p>The dashboard answers the questions an ops manager asks every morning: "How many cases are open? Who has too many? Are we breaching SLAs? Does anything need my attention right now?" It is deliberately simple and action-oriented — clicking any widget navigates to the filtered case list.</p>
+  <div class="callout">
+    <div class="callout-title">Performance Architecture</div>
+    All dashboard data is served from PostgreSQL materialized views refreshed every 5 minutes by a River background job. API responses include <span class="inline-code">Cache-Control: max-age=30</span>. Zero live aggregate queries on the critical path.
+  </div>
+
+  <h2 id="widgets">Dashboard Widgets</h2>
+
+  <h3>Case Summary Cards</h3>
+  <div class="grid-4">
+    <div class="metric-card">
+      <div class="metric-val">142</div>
+      <div class="metric-label">Total Open Cases</div>
+      <div class="metric-trend trend-up">↑ 12 vs last week</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--amber)">23</div>
+      <div class="metric-label">In Progress</div>
+      <div class="metric-trend" style="color:var(--muted)">→ unchanged</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--red)">8</div>
+      <div class="metric-label">Overdue</div>
+      <div class="metric-trend trend-up">↑ 3 vs yesterday</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--green)">31</div>
+      <div class="metric-label">Closed This Week</div>
+      <div class="metric-trend trend-down">↑ 6 vs last week</div>
+    </div>
+  </div>
+
+  <h3>SLA Health Widget</h3>
+  <div class="card">
+    <div class="card-title">SLA Compliance</div>
+    <div class="sla-ring-wrap">
+      <div class="sla-ring">
+        <svg width="80" height="80" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#334155" stroke-width="10"/>
+          <circle cx="40" cy="40" r="32" fill="none" stroke="#10b981" stroke-width="10"
+            stroke-dasharray="201" stroke-dashoffset="36" stroke-linecap="round"/>
+        </svg>
+        <div class="sla-ring-val">82%</div>
+      </div>
+      <div>
+        <table style="margin: 0;">
+          <tr><th>Priority</th><th>In SLA</th><th>Breached</th></tr>
+          <tr><td><span style="color:var(--red)">● Critical</span></td><td>4</td><td style="color:var(--red)">2</td></tr>
+          <tr><td><span style="color:var(--amber)">● High</span></td><td>18</td><td style="color:var(--amber)">3</td></tr>
+          <tr><td><span style="color:var(--blue)">● Medium</span></td><td>62</td><td>0</td></tr>
+          <tr><td><span style="color:var(--muted)">● Low</span></td><td>53</td><td>0</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <h3>Team Workload</h3>
+  <div class="card">
+    <div class="card-title">Open Cases per Analyst</div>
+    <div style="margin-top: 12px;">
+      <div class="workload-bar">
+        <div class="workload-name">Priya S.</div>
+        <div class="bar-bg"><div class="bar-fill" style="width: 100%; background: var(--red);"></div></div>
+        <span style="font-size: 12px; color: var(--red); width: 30px;">14</span>
+      </div>
+      <div class="workload-bar">
+        <div class="workload-name">Arjun K.</div>
+        <div class="bar-bg"><div class="bar-fill" style="width: 64%; background: var(--amber);"></div></div>
+        <span style="font-size: 12px; color: var(--amber); width: 30px;">9</span>
+      </div>
+      <div class="workload-bar">
+        <div class="workload-name">Meera R.</div>
+        <div class="bar-bg"><div class="bar-fill" style="width: 35%; background: var(--green);"></div></div>
+        <span style="font-size: 12px; color: var(--green); width: 30px;">5</span>
+      </div>
+      <div class="workload-bar">
+        <div class="workload-name">Dev T.</div>
+        <div class="bar-bg"><div class="bar-fill" style="width: 21%; background: var(--green);"></div></div>
+        <span style="font-size: 12px; color: var(--green); width: 30px;">3</span>
+      </div>
+    </div>
+    <p style="font-size: 12px; margin-top: 8px;">Red &gt;10 (overloaded) · Amber 5–10 · Green &lt;5 (available)</p>
+  </div>
+
+  <h3>AI Activity Stats</h3>
+  <div class="grid-3">
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--violet-light)">47</div>
+      <div class="metric-label">AI Queries Today</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--cyan)">12</div>
+      <div class="metric-label">Documents Processed</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-val" style="color:var(--amber)">6</div>
+      <div class="metric-label">Pending AI Reviews</div>
+    </div>
+  </div>
+
+  <h3>Case Age Distribution</h3>
+  <div class="card">
+    <div class="card-title">Open Cases by Age</div>
+    <div style="margin-top: 12px;">
+      <div class="workload-bar"><div class="workload-name">&lt; 1 day</div><div class="bar-bg"><div class="bar-fill" style="width: 20%; background: var(--green);"></div></div><span style="font-size:12px;color:var(--muted);width:30px;">28</span></div>
+      <div class="workload-bar"><div class="workload-name">1–3 days</div><div class="bar-bg"><div class="bar-fill" style="width: 35%; background: var(--cyan);"></div></div><span style="font-size:12px;color:var(--muted);width:30px;">49</span></div>
+      <div class="workload-bar"><div class="workload-name">3–7 days</div><div class="bar-bg"><div class="bar-fill" style="width: 25%; background: var(--amber);"></div></div><span style="font-size:12px;color:var(--muted);width:30px;">35</span></div>
+      <div class="workload-bar"><div class="workload-name">7–30 days</div><div class="bar-bg"><div class="bar-fill" style="width: 18%; background: var(--red);"></div></div><span style="font-size:12px;color:var(--muted);width:30px;">25</span></div>
+      <div class="workload-bar"><div class="workload-name">&gt; 30 days</div><div class="bar-bg"><div class="bar-fill" style="width: 4%; background: var(--red);"></div></div><span style="font-size:12px;color:var(--muted);width:30px;">5</span></div>
+    </div>
+  </div>
+
+  <h2 id="roles">Role-Based Views</h2>
+  <table>
+    <tr><th>Widget</th><th>Analyst</th><th>Manager</th><th>Admin</th></tr>
+    <tr><td>Case Summary Cards</td><td>My cases only</td><td>All org cases</td><td>All org cases</td></tr>
+    <tr><td>SLA Health</td><td>My cases</td><td>All</td><td>All</td></tr>
+    <tr><td>My Tasks Widget</td><td>✅ Yes</td><td>✅ Yes</td><td>✅ Yes</td></tr>
+    <tr><td>Team Workload</td><td>❌ Hidden</td><td>✅ Yes</td><td>✅ Yes</td></tr>
+    <tr><td>AI Activity Stats</td><td>My queries only</td><td>All team</td><td>All org</td></tr>
+    <tr><td>Recent Activity Feed</td><td>My cases only</td><td>All org</td><td>All org</td></tr>
+    <tr><td>Case Age Distribution</td><td>My cases</td><td>All</td><td>All</td></tr>
+  </table>
+
+  <h2 id="matviews">Materialized Views</h2>
+
+  <pre><code>-- Case summary counts
+CREATE MATERIALIZED VIEW mv_case_summary AS
+SELECT
+  status,
+  priority,
+  COUNT(*) AS total,
+  COUNT(*) FILTER (WHERE due_date < NOW() AND status NOT IN ('closed','cancelled')) AS overdue,
+  COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days') AS created_this_week,
+  COUNT(*) FILTER (WHERE updated_at >= NOW() - INTERVAL '7 days' AND status = 'closed') AS closed_this_week
+FROM cases
+WHERE deleted_at IS NULL
+GROUP BY status, priority;
+
+CREATE UNIQUE INDEX ON mv_case_summary(status, priority);
+
+-- Team workload
+CREATE MATERIALIZED VIEW mv_team_workload AS
+SELECT
+  u.id AS user_id,
+  u.full_name,
+  COUNT(c.id) AS open_case_count
+FROM users u
+LEFT JOIN cases c ON c.assigned_to = u.id
+  AND c.status NOT IN ('closed','cancelled')
+  AND c.deleted_at IS NULL
+WHERE u.is_active = true
+GROUP BY u.id, u.full_name;
+
+CREATE UNIQUE INDEX ON mv_team_workload(user_id);
+
+-- SLA health
+CREATE MATERIALIZED VIEW mv_sla_health AS
+SELECT
+  priority,
+  COUNT(*) AS total,
+  COUNT(*) FILTER (WHERE sla_breach_at > NOW()) AS within_sla,
+  COUNT(*) FILTER (WHERE sla_breach_at <= NOW()) AS breached,
+  ROUND(
+    COUNT(*) FILTER (WHERE sla_breach_at > NOW()) * 100.0 / NULLIF(COUNT(*), 0), 1
+  ) AS compliance_pct
+FROM cases
+WHERE status NOT IN ('closed','cancelled')
+  AND deleted_at IS NULL
+GROUP BY priority;
+
+CREATE UNIQUE INDEX ON mv_sla_health(priority);
+
+-- AI activity daily
+CREATE MATERIALIZED VIEW mv_ai_activity_daily AS
+SELECT
+  DATE(created_at) AS activity_date,
+  COUNT(*) AS total_queries,
+  COUNT(*) FILTER (WHERE human_review_status = 'pending') AS pending_reviews,
+  SUM(tokens_input + tokens_output) AS total_tokens
+FROM ai_logs
+WHERE created_at >= NOW() - INTERVAL '30 days'
+GROUP BY DATE(created_at);
+
+CREATE UNIQUE INDEX ON mv_ai_activity_daily(activity_date);</code></pre>
+
+  <h3>Refresh Job (River)</h3>
+  <pre><code>// River job — runs every 5 minutes
+type RefreshMaterializedViewsArgs struct{}
+
+func (w *MVRefreshWorker) Work(ctx context.Context, job *river.Job[RefreshMaterializedViewsArgs]) error {
+    views := []string{
+        "mv_case_summary",
+        "mv_team_workload",
+        "mv_sla_health",
+    }
+    for _, view := range views {
+        _, err := w.db.Exec(ctx,
+            fmt.Sprintf("REFRESH MATERIALIZED VIEW CONCURRENTLY %s", view))
+        if err != nil {
+            return fmt.Errorf("refresh %s: %w", view, err)
+        }
+    }
+    return nil
+}</code></pre>
+
+  <h2 id="api">API Endpoints</h2>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/summary</span></div>
+    <div class="ep-desc">Case counts by status and priority from mv_case_summary. Cache-Control: max-age=30.</div>
+    <pre><code>// Response
+{
+  "data": {
+    "total_open": 142,
+    "in_progress": 23,
+    "pending_review": 11,
+    "overdue": 8,
+    "closed_this_week": 31,
+    "by_priority": { "critical": 6, "high": 21, "medium": 89, "low": 26 }
+  }
+}</code></pre>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/sla-health</span></div>
+    <div class="ep-desc">SLA compliance breakdown from mv_sla_health. Cache-Control: max-age=30.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/team-workload</span></div>
+    <div class="ep-desc">Open case count per analyst. Manager/Admin only. From mv_team_workload.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/ai-activity</span></div>
+    <div class="ep-desc">AI queries today, documents processed, pending reviews. From mv_ai_activity_daily + live pending count.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/recent-activity</span></div>
+    <div class="ep-desc">Last 20 timeline events across all accessible cases. Live query (not materialized — small result set). Filtered by role.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/my-summary</span></div>
+    <div class="ep-desc">Current user: my open cases, my tasks due today, my pending AI reviews, my mentions unread. Any role.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/case-age</span></div>
+    <div class="ep-desc">Age distribution of open cases in buckets: &lt;1d, 1–3d, 3–7d, 7–30d, &gt;30d. Cache-Control: max-age=60.</div>
+  </div>
+
+  <div class="endpoint">
+    <div class="ep-header"><span class="method get">GET</span><span class="ep-path">/api/v1/dashboard/stream</span></div>
+    <div class="ep-desc">SSE endpoint. Pushes <span class="inline-code">dashboard_update</span> event when case counts change (status change, new case, closure). Client refetches summary widgets on receive.</div>
+  </div>
+
+  <h2 id="caching">Caching Strategy</h2>
+  <table>
+    <tr><th>Data Source</th><th>Refresh</th><th>API Cache-Control</th><th>TanStack Query</th></tr>
+    <tr><td>mv_case_summary</td><td>Every 5 min (River)</td><td>max-age=30</td><td>staleTime: 30s, refetchInterval: 60s</td></tr>
+    <tr><td>mv_sla_health</td><td>Every 5 min</td><td>max-age=30</td><td>staleTime: 30s</td></tr>
+    <tr><td>mv_team_workload</td><td>Every 5 min</td><td>max-age=30</td><td>staleTime: 30s</td></tr>
+    <tr><td>mv_ai_activity_daily</td><td>Every 1 hour</td><td>max-age=300</td><td>staleTime: 5min</td></tr>
+    <tr><td>recent_activity</td><td>Live query</td><td>max-age=5</td><td>SSE invalidation</td></tr>
+    <tr><td>case_age</td><td>mv-backed</td><td>max-age=60</td><td>staleTime: 60s</td></tr>
+  </table>
+
+  <h2 id="realtime">Real-time Updates</h2>
+  <p>Dashboard widgets don't need millisecond freshness — 30-second cache is acceptable for an operations dashboard. Real-time mechanism is lightweight:</p>
+  <ol style="color: var(--muted); padding-left: 20px; line-height: 2;">
+    <li>Client connects to SSE stream at <span class="inline-code">/api/v1/dashboard/stream</span></li>
+    <li>When a case status changes anywhere in the system → Go publishes <span class="inline-code">dashboard_update</span> SSE event</li>
+    <li>Client receives event → TanStack Query invalidates dashboard queries → refetch triggered</li>
+    <li>Widgets update with fresh data from materialized views (data may be up to 5 min old)</li>
+  </ol>
+
+  <h2 id="modules">Module Structure</h2>
+  <pre><code>apps/api/internal/dashboard/
+├── handler.go        # HTTP handlers for all /dashboard/* endpoints
+├── service.go        # Business logic, materialized view queries, role filtering
+├── mv_refresh_job.go # River job: REFRESH MATERIALIZED VIEW CONCURRENTLY every 5min
+└── sse_handler.go    # SSE stream: broadcast dashboard_update events</code></pre>
+
+  <h2 id="frontend">Frontend Components</h2>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">MetricCard</div>
+      <div class="card-desc">Props: label, value, trend ('up'|'down'|'neutral'), delta, color, onClick (navigates to filtered case list). Skeleton loading state.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">SLARingChart</div>
+      <div class="card-desc">SVG circle with stroke-dasharray for percentage. Props: compliance_pct, breached_count. CSS-only — no chart library dependency.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">WorkloadBar</div>
+      <div class="card-desc">Horizontal bar per analyst. Color: green &lt;5, amber 5–10, red &gt;10. Click analyst → filter case list by assignee.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">ActivityFeedItem</div>
+      <div class="card-desc">Icon per event type, actor avatar, case name link, relative time. Virtualized list (react-window) for performance on large feeds.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">CaseAgeBucket</div>
+      <div class="card-desc">Horizontal bar chart, click any bucket → navigates to case list filtered by age range. CSS bars only.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">DashboardLayout</div>
+      <div class="card-desc">CSS Grid: 4-col on desktop → 2-col on medium → 1-col on mobile. TanStack Query with SSE invalidation. Date range picker for filters (Today / This Week / This Month / Custom).</div>
+    </div>
+  </div>
+
+  <h2 id="performance">Performance Strategy</h2>
+  <div class="grid-3">
+    <div class="card">
+      <div class="card-title">Materialized Views</div>
+      <div class="card-desc">Aggregations computed offline every 5 min. Dashboard queries are simple SELECTs on pre-computed tables — sub-millisecond response regardless of case volume.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">30s Client Cache</div>
+      <div class="card-desc">Acceptable for ops dashboard. Avoids hammering DB on every page visit. SSE invalidation ensures important changes (new overdue case) propagate quickly.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">Phase 2 Upgrade</div>
+      <div class="card-desc">Add Redis cache in front of materialized view queries when dashboard latency &gt;200ms consistently. Trigger: measured production bottleneck — not preemptive.</div>
+    </div>
+  </div>
+
+  <h2 id="tests">Test Strategy</h2>
+  <table>
+    <tr><th>Test Case</th><th>Type</th></tr>
+    <tr><td>mv_case_summary counts match live case table</td><td>Integration</td></tr>
+    <tr><td>mv_team_workload refresh on case assignment</td><td>Integration</td></tr>
+    <tr><td>Analyst role sees only own cases in summary</td><td>Integration</td></tr>
+    <tr><td>Manager role sees all org cases</td><td>Integration</td></tr>
+    <tr><td>SSE dashboard_update triggers on case status change</td><td>Integration</td></tr>
+    <tr><td>River refresh job executes CONCURRENTLY without locking</td><td>Integration</td></tr>
+    <tr><td>Cache-Control header present on all dashboard endpoints</td><td>Unit</td></tr>
+    <tr><td>case-age bucket counts sum to total open cases</td><td>Unit</td></tr>
+  </table>
+
+  <footer>
+    <p>OpsOwl AI — Internal Documentation · Feature 08: Dashboard · May 2026</p>
+    <p style="margin-top: 6px;"><a href="INDEX.html" style="color: var(--cyan); text-decoration: none;">← Back to Documentation Index</a></p>
+  </footer>
+</main>
+</body>
+</html>

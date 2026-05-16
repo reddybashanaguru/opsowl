@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "opsowl-ai-service"
+version = "1.0.0"
+requires-python = ">=3.9"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "--cov=app --cov-report=term-missing --cov-fail-under=90"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/__init__.py", "*/tests/*"]

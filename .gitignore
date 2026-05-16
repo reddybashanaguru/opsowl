@@ -1,0 +1,47 @@
+# ── Secrets & env ─────────────────────────────────────────────────────────────
+.env
+.env.local
+.env.production
+*.pem
+keys/
+
+# ── Go ────────────────────────────────────────────────────────────────────────
+apps/api/bin/
+apps/api/coverage.out
+apps/api/coverage.html
+apps/api/internal/db/generated/  # sqlc generated — rebuilt from schema
+
+# ── Node / Next.js ────────────────────────────────────────────────────────────
+node_modules/
+.next/
+apps/web/.next/
+apps/web/out/
+packages/shared-types/dist/
+
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+apps/ai-service/.venv/
+apps/ai-service/venv/
+
+# ── Docker ────────────────────────────────────────────────────────────────────
+# (docker-compose.yml is committed, but override files are local)
+infra/docker/docker-compose.override.yml
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── MinIO data (local dev) ───────────────────────────────────────────────────
+infra/docker/minio-data/

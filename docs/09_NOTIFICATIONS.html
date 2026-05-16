@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>09 · Notifications — OpsOwl AI Spec</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0f172a;
+      --surface:     #1e293b;
+      --surface-2:   #263348;
+      --border:      #334155;
+      --border-light:#3d526b;
+      --text:        #e2e8f0;
+      --text-muted:  #94a3b8;
+      --text-dim:    #64748b;
+      --cyan:        #22d3ee;
+      --cyan-dim:    #0891b2;
+      --cyan-glow:   rgba(34,211,238,0.12);
+      --violet:      #a78bfa;
+      --violet-dim:  #7c3aed;
+      --violet-glow: rgba(167,139,250,0.12);
+      --green:       #34d399;
+      --green-glow:  rgba(52,211,153,0.12);
+      --amber:       #fbbf24;
+      --amber-glow:  rgba(251,191,36,0.12);
+      --red:         #f87171;
+      --red-glow:    rgba(248,113,113,0.12);
+      --blue:        #60a5fa;
+      --blue-glow:   rgba(96,165,250,0.12);
+      --pink:        #f472b6;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 15px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    /* ── Header ── */
+    .site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(15,23,42,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+    .header-brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--cyan);
+      text-decoration: none;
+      letter-spacing: -0.02em;
+    }
+    .header-brand .owl-icon {
+      width: 32px; height: 32px;
+      background: linear-gradient(135deg, var(--cyan-dim), var(--violet-dim));
+      border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+    }
+    .back-link {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: var(--cyan); }
+    .doc-badge {
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      padding: 2px 10px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* ── Layout ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      max-width: 1400px;
+      margin: 0 auto;
+      min-height: calc(100vh - 60px);
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      position: sticky;
+      top: 60px;
+      height: calc(100vh - 60px);
+      overflow-y: auto;
+      padding: 2rem 1.25rem;
+      border-right: 1px solid var(--border);
+    }
+    .sidebar::-webkit-scrollbar { width: 4px; }
+    .sidebar::-webkit-scrollbar-track { background: transparent; }
+    .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    .sidebar-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+      padding-left: 0.5rem;
+    }
+    .sidebar-nav { list-style: none; }
+    .sidebar-nav li { margin-bottom: 2px; }
+    .sidebar-nav a {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      padding: 0.45rem 0.75rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.15s;
+    }
+    .sidebar-nav a:hover { background: var(--surface); color: var(--text); }
+    .sidebar-nav a .sec-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--text-dim);
+      min-width: 1.5rem;
+    }
+
+    /* ── Main Content ── */
+    .main-content {
+      padding: 3rem 3.5rem;
+      max-width: 980px;
+    }
+
+    /* ── Hero ── */
+    .page-hero {
+      margin-bottom: 3.5rem;
+      padding-bottom: 2.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .feature-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      color: var(--cyan);
+      padding: 4px 12px;
+      border-radius: 100px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      margin-bottom: 1.25rem;
+    }
+    .page-title {
+      font-size: 2.6rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.1;
+      margin-bottom: 0.75rem;
+      background: linear-gradient(135deg, #e2e8f0 0%, var(--cyan) 60%, var(--violet) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .page-subtitle {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      max-width: 640px;
+      line-height: 1.65;
+      margin-bottom: 1.5rem;
+    }
+    .meta-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .meta-pill {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 3px 10px;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* ── Sections ── */
+    .section {
+      margin-bottom: 4rem;
+      scroll-margin-top: 80px;
+    }
+    .section-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .section-number {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: var(--cyan);
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      padding: 3px 9px;
+      border-radius: 6px;
+      white-space: nowrap;
+    }
+    .section-title {
+      font-size: 1.45rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .section-divider {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(to right, var(--border), transparent);
+    }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-sm {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 0.5rem;
+    }
+    .card-highlight {
+      background: var(--surface-2);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-cyan {
+      background: var(--cyan-glow);
+      border: 1px solid var(--cyan-dim);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-violet {
+      background: var(--violet-glow);
+      border: 1px solid var(--violet-dim);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+    .card-amber {
+      background: var(--amber-glow);
+      border: 1px solid #92400e;
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Typography ── */
+    p { margin-bottom: 1rem; color: var(--text-muted); line-height: 1.75; }
+    p:last-child { margin-bottom: 0; }
+    strong { color: var(--text); font-weight: 600; }
+    .lead { font-size: 1.05rem; color: var(--text); }
+
+    h3 {
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      margin-top: 1.5rem;
+    }
+    h3:first-child { margin-top: 0; }
+    h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+      margin-top: 1.25rem;
+    }
+
+    /* ── Code ── */
+    pre {
+      background: #080f1e;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.5rem;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+    pre::-webkit-scrollbar { height: 4px; }
+    pre::-webkit-scrollbar-track { background: transparent; }
+    pre::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+    code {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+    }
+    .inline-code {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--cyan);
+      padding: 1px 6px;
+      border-radius: 4px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82em;
+    }
+
+    /* Syntax highlight colors */
+    .kw  { color: #c084fc; }
+    .ty  { color: #67e8f9; }
+    .st  { color: #86efac; }
+    .cm  { color: #475569; font-style: italic; }
+    .num { color: #fb923c; }
+    .fn  { color: #fbbf24; }
+    .op  { color: #94a3b8; }
+    .at  { color: #f472b6; }
+
+    /* ── Tables ── */
+    .table-wrap {
+      overflow-x: auto;
+      margin-bottom: 1.5rem;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+    }
+    thead {
+      background: var(--surface-2);
+      border-bottom: 1px solid var(--border);
+    }
+    th {
+      padding: 0.75rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+    td {
+      padding: 0.7rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-muted);
+      vertical-align: top;
+    }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    td strong { color: var(--text); }
+    td code { color: var(--cyan); font-size: 0.8rem; }
+
+    /* ── Tags / Chips ── */
+    .chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      margin: 1px;
+    }
+    .chip-cyan   { background: var(--cyan-glow); border: 1px solid var(--cyan-dim); color: var(--cyan); }
+    .chip-violet { background: var(--violet-glow); border: 1px solid var(--violet-dim); color: var(--violet); }
+    .chip-green  { background: var(--green-glow); border: 1px solid #065f46; color: var(--green); }
+    .chip-amber  { background: var(--amber-glow); border: 1px solid #92400e; color: var(--amber); }
+    .chip-red    { background: var(--red-glow); border: 1px solid #991b1b; color: var(--red); }
+    .chip-blue   { background: var(--blue-glow); border: 1px solid #1d4ed8; color: var(--blue); }
+
+    /* ── Grid layouts ── */
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+
+    /* ── Notification type card ── */
+    .notif-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.1rem 1.25rem;
+      margin-bottom: 0.6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      transition: border-color 0.2s;
+    }
+    .notif-card:hover { border-color: var(--border-light); }
+    .notif-card-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .notif-type-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--cyan);
+    }
+    .notif-desc { font-size: 0.88rem; color: var(--text-muted); }
+    .notif-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+      align-items: center;
+      margin-top: 0.25rem;
+    }
+    .notif-meta-label { font-weight: 600; color: var(--text-muted); }
+
+    /* ── Channel pill ── */
+    .channel-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      padding: 2px 8px;
+      border-radius: 100px;
+      font-size: 0.72rem;
+      font-weight: 600;
+    }
+    .channel-inapp { background: var(--cyan-glow); color: var(--cyan); border: 1px solid var(--cyan-dim); }
+    .channel-email { background: var(--violet-glow); color: var(--violet); border: 1px solid var(--violet-dim); }
+    .channel-future { background: rgba(100,116,139,0.12); color: var(--text-dim); border: 1px solid #334155; }
+
+    /* ── API endpoint rows ── */
+    .endpoint-row {
+      display: flex;
+      align-items: baseline;
+      gap: 0.75rem;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      margin-bottom: 0.5rem;
+    }
+    .method-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 4px;
+      min-width: 46px;
+      text-align: center;
+      letter-spacing: 0.04em;
+    }
+    .method-get    { background: var(--green-glow); color: var(--green); border: 1px solid #065f46; }
+    .method-post   { background: var(--blue-glow); color: var(--blue); border: 1px solid #1d4ed8; }
+    .method-put    { background: var(--amber-glow); color: var(--amber); border: 1px solid #92400e; }
+    .method-delete { background: var(--red-glow); color: var(--red); border: 1px solid #991b1b; }
+    .endpoint-path {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.83rem;
+      color: var(--text);
+      flex: 1;
+    }
+    .endpoint-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+    }
+
+    /* ── Component cards ── */
+    .component-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .component-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--cyan), var(--violet));
+    }
+    .component-name {
+      font-weight: 600;
+      font-size: 0.95rem;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .component-file {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+      margin-bottom: 0.75rem;
+    }
+    .component-desc { font-size: 0.85rem; color: var(--text-muted); }
+
+    /* ── Alert boxes ── */
+    .alert {
+      display: flex;
+      gap: 0.75rem;
+      padding: 0.9rem 1.1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.88rem;
+    }
+    .alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: 0.1rem; }
+    .alert-info { background: var(--blue-glow); border: 1px solid #1d4ed8; color: var(--blue); }
+    .alert-warn { background: var(--amber-glow); border: 1px solid #92400e; color: var(--amber); }
+    .alert-success { background: var(--green-glow); border: 1px solid #065f46; color: var(--green); }
+    .alert-info p, .alert-warn p, .alert-success p { color: inherit; margin: 0; }
+
+    /* ── UL lists ── */
+    ul.styled { list-style: none; padding: 0; margin-bottom: 1rem; }
+    ul.styled li {
+      padding: 0.3rem 0 0.3rem 1.25rem;
+      position: relative;
+      font-size: 0.88rem;
+      color: var(--text-muted);
+    }
+    ul.styled li::before {
+      content: '▸';
+      position: absolute;
+      left: 0;
+      color: var(--cyan);
+      font-size: 0.7rem;
+      top: 0.45rem;
+    }
+
+    /* ── Footer ── */
+    .site-footer {
+      border-top: 1px solid var(--border);
+      padding: 1.5rem 3.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: var(--text-dim);
+      font-size: 0.8rem;
+      margin-left: 260px;
+    }
+    .footer-brand { color: var(--text-muted); font-weight: 500; }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--border-light); }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { display: none; }
+      .main-content { padding: 2rem 1.25rem; }
+      .site-footer { margin-left: 0; padding: 1.25rem; }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════ HEADER ═══════════════════════════════ -->
+<header class="site-header">
+  <a href="INDEX.html" class="header-brand">
+    <div class="owl-icon">🦉</div>
+    OpsOwl AI
+  </a>
+  <nav class="header-nav">
+    <a href="INDEX.html" class="back-link">
+      ← Back to Index
+    </a>
+    <span class="doc-badge">FEATURE 09</span>
+  </nav>
+</header>
+
+<div class="layout">
+
+  <!-- ═══════════════════════════ SIDEBAR ═══════════════════════════════ -->
+  <aside class="sidebar">
+    <div class="sidebar-label">On This Page</div>
+    <ul class="sidebar-nav">
+      <li><a href="#overview"><span class="sec-num">01</span>Feature Overview</a></li>
+      <li><a href="#types"><span class="sec-num">02</span>Notification Types Matrix</a></li>
+      <li><a href="#channels"><span class="sec-num">03</span>Delivery Channels</a></li>
+      <li><a href="#schema"><span class="sec-num">04</span>Database Schema</a></li>
+      <li><a href="#triggers"><span class="sec-num">05</span>Notification Triggers</a></li>
+      <li><a href="#river"><span class="sec-num">06</span>River Job Design</a></li>
+      <li><a href="#email"><span class="sec-num">07</span>Email Design</a></li>
+      <li><a href="#sse"><span class="sec-num">08</span>SSE Delivery</a></li>
+      <li><a href="#api"><span class="sec-num">09</span>API Endpoints</a></li>
+      <li><a href="#frontend"><span class="sec-num">10</span>Frontend Components</a></li>
+      <li><a href="#grouping"><span class="sec-num">11</span>Notification Grouping</a></li>
+      <li><a href="#testing"><span class="sec-num">12</span>Test Strategy</a></li>
+    </ul>
+  </aside>
+
+  <!-- ═══════════════════════════ MAIN ═══════════════════════════════════ -->
+  <main class="main-content">
+
+    <!-- Hero -->
+    <div class="page-hero">
+      <div class="feature-tag">📣 FEATURE · 09</div>
+      <h1 class="page-title">Notifications</h1>
+      <p class="page-subtitle lead">
+        The async collaboration glue of OpsOwl AI. Investigators must know the moment
+        they're assigned a case, when an SLA is about to breach, when someone @mentions
+        them, or when AI processing completes — in real-time, without polling.
+      </p>
+      <div class="meta-pills">
+        <span class="meta-pill">Go 1.26</span>
+        <span class="meta-pill">River (job queue)</span>
+        <span class="meta-pill">SSE</span>
+        <span class="meta-pill">Resend</span>
+        <span class="meta-pill">PostgreSQL 18.4</span>
+        <span class="meta-pill">Next.js 16</span>
+        <span class="meta-pill">Zustand</span>
+        <span class="meta-pill">TanStack Query v5</span>
+      </div>
+    </div>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 01 · OVERVIEW -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="overview">
+      <div class="section-header">
+        <span class="section-number">01</span>
+        <h2 class="section-title">Feature Overview</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p class="lead">Notifications are the connective tissue of async investigation workflows. Without them, investigators must manually refresh dashboards, miss SLA deadlines, and lose context across distributed teams.</p>
+
+      <div class="grid-2">
+        <div class="card-cyan">
+          <h3>Why It Matters</h3>
+          <ul class="styled">
+            <li>Case assignment arrives instantly — no email delays</li>
+            <li>SLA breach warnings fire <strong>2 hours early</strong> — time to act</li>
+            <li>@mentions surface the right investigator to the right thread</li>
+            <li>AI review requests route to humans immediately</li>
+            <li>Document processing completion closes the async loop</li>
+          </ul>
+        </div>
+        <div class="card-violet">
+          <h3>Design Principles</h3>
+          <ul class="styled">
+            <li><strong>Real-time first</strong> — SSE for zero-latency in-app delivery</li>
+            <li><strong>User-controlled</strong> — every type configurable per user</li>
+            <li><strong>Non-invasive</strong> — intelligent grouping prevents fatigue</li>
+            <li><strong>Async-safe</strong> — River jobs ensure no notification is lost</li>
+            <li><strong>Multi-channel</strong> — in-app + email; Slack/Teams in Phase 2</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ</span>
+        <p><strong>Architecture pattern:</strong> All notifications flow through a single <code>notification.Service</code> interface. Any Go module (cases, tasks, AI, documents) calls <code>notif.Enqueue(ctx, NotificationJob{...})</code> which pushes a River job. The job handles fan-out to SSE + Resend. No module directly sends emails or writes to the SSE stream.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 02 · NOTIFICATION TYPES -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="types">
+      <div class="section-header">
+        <span class="section-number">02</span>
+        <h2 class="section-title">Notification Types Matrix</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Eleven notification types cover the complete lifecycle of cases, tasks, AI operations, and documents. Each type has a defined trigger source, recipient set, and default channel configuration.</p>
+
+      <!-- Case types -->
+      <h3>Case Notifications</h3>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-cyan">CASE</span>
+          <span class="notif-type-name">case_assigned</span>
+          <span class="chip chip-red">HIGH PRIORITY</span>
+        </div>
+        <div class="notif-desc">You were assigned as the primary investigator on a case.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Case create or reassign (cases module)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Newly assigned investigator
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-cyan">CASE</span>
+          <span class="notif-type-name">case_status_changed</span>
+          <span class="chip chip-amber">MEDIUM</span>
+        </div>
+        <div class="notif-desc">A case you are watching has moved to a new status (e.g., Open → Under Review → Closed).</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Status transition in cases module
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> All case watchers (assigned investigator + explicit watchers)
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (configurable)</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-red">SLA</span>
+          <span class="notif-type-name">case_sla_warning</span>
+          <span class="chip chip-red">HIGH PRIORITY</span>
+        </div>
+        <div class="notif-desc">A case SLA deadline is less than 2 hours away — action required immediately.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Scheduled River job (SLA monitor, runs every 15 min)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Assigned investigator + team lead
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-red">SLA</span>
+          <span class="notif-type-name">case_sla_breached</span>
+          <span class="chip chip-red">CRITICAL</span>
+        </div>
+        <div class="notif-desc">A case SLA has been breached. Escalation is automatic.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Scheduled River job (SLA monitor)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Assigned investigator + team lead + admin
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (always-on)</span>
+        </div>
+      </div>
+
+      <!-- Task types -->
+      <h3 style="margin-top:1.75rem;">Task Notifications</h3>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-violet">TASK</span>
+          <span class="notif-type-name">task_assigned</span>
+          <span class="chip chip-amber">MEDIUM</span>
+        </div>
+        <div class="notif-desc">A task within a case has been assigned to you.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Task create/reassign (tasks module)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Task assignee
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (configurable)</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-violet">TASK</span>
+          <span class="notif-type-name">task_due_soon</span>
+          <span class="chip chip-amber">MEDIUM</span>
+        </div>
+        <div class="notif-desc">A task assigned to you is due in less than 24 hours.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Scheduled River job (task due monitor, runs hourly)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Task assignee
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (configurable)</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-violet">TASK</span>
+          <span class="notif-type-name">task_overdue</span>
+          <span class="chip chip-red">HIGH PRIORITY</span>
+        </div>
+        <div class="notif-desc">A task assigned to you has passed its due date without completion.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Scheduled River job (task due monitor)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Task assignee + case investigator
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email</span>
+        </div>
+      </div>
+
+      <!-- Collaboration types -->
+      <h3 style="margin-top:1.75rem;">Collaboration Notifications</h3>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-blue">COLLAB</span>
+          <span class="notif-type-name">mention</span>
+          <span class="chip chip-amber">MEDIUM</span>
+        </div>
+        <div class="notif-desc">Someone @mentioned you in a note, comment, or case update.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Note/comment created or edited (notes module, @mention parser)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Mentioned users (parsed from content)
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email</span>
+        </div>
+      </div>
+
+      <!-- AI types -->
+      <h3 style="margin-top:1.75rem;">AI &amp; Document Notifications</h3>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-green">AI</span>
+          <span class="notif-type-name">ai_review_required</span>
+          <span class="chip chip-amber">MEDIUM</span>
+        </div>
+        <div class="notif-desc">The AI has completed analysis but its output requires human review before action.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> AI module on low-confidence result
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Assigned investigator
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (configurable)</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-green">DOC</span>
+          <span class="notif-type-name">document_processed</span>
+          <span class="chip chip-blue">LOW</span>
+        </div>
+        <div class="notif-desc">A document you uploaded has been processed and its extracted data is available.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Document pipeline completion (documents module)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Document uploader
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email (configurable)</span>
+        </div>
+      </div>
+
+      <div class="notif-card">
+        <div class="notif-card-header">
+          <span class="chip chip-red">DOC</span>
+          <span class="notif-type-name">document_failed</span>
+          <span class="chip chip-red">HIGH PRIORITY</span>
+        </div>
+        <div class="notif-desc">Document processing failed — the uploader must re-upload or investigate the failure.</div>
+        <div class="notif-meta">
+          <span class="notif-meta-label">Triggered by:</span> Document pipeline failure (documents module)
+          <span style="color:var(--border)">·</span>
+          <span class="notif-meta-label">Recipients:</span> Document uploader
+          <span style="color:var(--border)">·</span>
+          <span class="channel-pill channel-inapp">In-App</span>
+          <span class="channel-pill channel-email">Email</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 03 · DELIVERY CHANNELS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="channels">
+      <div class="section-header">
+        <span class="section-number">03</span>
+        <h2 class="section-title">Delivery Channels</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-3">
+        <div class="card-highlight">
+          <h3 style="color:var(--cyan);">In-App (SSE)</h3>
+          <div class="chip chip-green" style="margin-bottom:0.75rem;">ALWAYS ON</div>
+          <p style="font-size:0.85rem;">Server-Sent Events stream per authenticated session. Zero-latency push. No polling. Client reconnects on disconnect with <code>Last-Event-ID</code> to replay missed events.</p>
+          <div class="meta-pill" style="font-size:0.72rem;display:inline-block;margin-top:0.25rem;">GET /api/v1/notifications/stream</div>
+        </div>
+        <div class="card-highlight">
+          <h3 style="color:var(--violet);">Email (Resend)</h3>
+          <div class="chip chip-violet" style="margin-bottom:0.75rem;">CONFIGURABLE</div>
+          <p style="font-size:0.85rem;">Transactional emails via Resend SDK. Per-user, per-type toggle in preferences. HTML templates embedded in Go binary via <code>embed.FS</code>. Sent from <code>alerts@opsowl.ai</code>.</p>
+          <div class="meta-pill" style="font-size:0.72rem;display:inline-block;margin-top:0.25rem;">Resend Go SDK</div>
+        </div>
+        <div class="card-highlight">
+          <h3 style="color:var(--text-dim);">Slack / Teams</h3>
+          <div class="chip chip-blue" style="margin-bottom:0.75rem;">PHASE 2</div>
+          <p style="font-size:0.85rem;">Webhook-based delivery to Slack channels and Microsoft Teams. Architecture is designed to support additional channels via the <code>NotificationSender</code> interface without schema changes.</p>
+          <div class="meta-pill" style="font-size:0.72rem;display:inline-block;margin-top:0.25rem;">Deferred</div>
+        </div>
+      </div>
+
+      <div class="alert alert-warn">
+        <span class="alert-icon">⚠</span>
+        <p><strong>SLA breached notifications</strong> bypass user preferences and are always delivered via both in-app and email — this cannot be disabled. Regulatory context requires guaranteed delivery for SLA breach events.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 04 · DATABASE SCHEMA -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="schema">
+      <div class="section-header">
+        <span class="section-number">04</span>
+        <h2 class="section-title">Database Schema</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Two tables: <code class="inline-code">notifications</code> stores each notification instance; <code class="inline-code">notification_preferences</code> stores per-user channel configuration per type.</p>
+
+      <pre><span class="cm">-- ─────────────────────────────────────────────────────────
+-- Enum: notification_type
+-- ─────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TYPE</span> <span class="ty">notification_type</span> <span class="kw">AS ENUM</span> (
+    <span class="st">'case_assigned'</span>,
+    <span class="st">'case_status_changed'</span>,
+    <span class="st">'case_sla_warning'</span>,
+    <span class="st">'case_sla_breached'</span>,
+    <span class="st">'task_assigned'</span>,
+    <span class="st">'task_due_soon'</span>,
+    <span class="st">'task_overdue'</span>,
+    <span class="st">'mention'</span>,
+    <span class="st">'ai_review_required'</span>,
+    <span class="st">'document_processed'</span>,
+    <span class="st">'document_failed'</span>
+);
+
+<span class="cm">-- ─────────────────────────────────────────────────────────
+-- Table: notifications
+-- ─────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">notifications</span> (
+    <span class="at">id</span>             UUID                     <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="at">recipient_id</span>   UUID                     <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(<span class="at">id</span>) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="at">type</span>           <span class="ty">notification_type</span>        <span class="kw">NOT NULL</span>,
+    <span class="at">title</span>          TEXT                     <span class="kw">NOT NULL</span>,
+    <span class="at">message</span>        TEXT                     <span class="kw">NOT NULL</span>,
+    <span class="at">link_url</span>       TEXT,                    <span class="cm">-- deep link: /cases/:id, /tasks/:id, etc.</span>
+    <span class="at">is_read</span>        BOOLEAN                  <span class="kw">NOT NULL DEFAULT</span> <span class="kw">FALSE</span>,
+    <span class="at">read_at</span>        TIMESTAMPTZ,
+    <span class="at">case_id</span>        UUID                     <span class="kw">REFERENCES</span> <span class="ty">cases</span>(<span class="at">id</span>) <span class="kw">ON DELETE SET NULL</span>,
+    <span class="at">task_id</span>        UUID                     <span class="kw">REFERENCES</span> <span class="ty">tasks</span>(<span class="at">id</span>) <span class="kw">ON DELETE SET NULL</span>,
+    <span class="at">created_at</span>     TIMESTAMPTZ              <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">updated_at</span>     TIMESTAMPTZ              <span class="kw">NOT NULL DEFAULT NOW</span>()
+);
+
+<span class="cm">-- Indexes</span>
+<span class="kw">CREATE INDEX</span> idx_notifications_recipient_unread
+    <span class="kw">ON</span> <span class="ty">notifications</span> (<span class="at">recipient_id</span>, <span class="at">is_read</span>, <span class="at">created_at</span> <span class="kw">DESC</span>);
+
+<span class="kw">CREATE INDEX</span> idx_notifications_recipient_created
+    <span class="kw">ON</span> <span class="ty">notifications</span> (<span class="at">recipient_id</span>, <span class="at">created_at</span> <span class="kw">DESC</span>);
+
+<span class="kw">CREATE INDEX</span> idx_notifications_case
+    <span class="kw">ON</span> <span class="ty">notifications</span> (<span class="at">case_id</span>) <span class="kw">WHERE</span> <span class="at">case_id</span> <span class="kw">IS NOT NULL</span>;
+
+<span class="cm">-- ─────────────────────────────────────────────────────────
+-- Table: notification_preferences
+-- ─────────────────────────────────────────────────────────</span>
+<span class="kw">CREATE TABLE</span> <span class="ty">notification_preferences</span> (
+    <span class="at">id</span>                UUID               <span class="kw">PRIMARY KEY DEFAULT</span> <span class="fn">gen_random_uuid</span>(),
+    <span class="at">user_id</span>           UUID               <span class="kw">NOT NULL REFERENCES</span> <span class="ty">users</span>(<span class="at">id</span>) <span class="kw">ON DELETE CASCADE</span>,
+    <span class="at">notification_type</span> <span class="ty">notification_type</span>  <span class="kw">NOT NULL</span>,
+    <span class="at">in_app_enabled</span>    BOOLEAN            <span class="kw">NOT NULL DEFAULT TRUE</span>,
+    <span class="at">email_enabled</span>     BOOLEAN            <span class="kw">NOT NULL DEFAULT TRUE</span>,
+    <span class="at">created_at</span>        TIMESTAMPTZ        <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="at">updated_at</span>        TIMESTAMPTZ        <span class="kw">NOT NULL DEFAULT NOW</span>(),
+    <span class="kw">UNIQUE</span> (<span class="at">user_id</span>, <span class="at">notification_type</span>)
+);
+
+<span class="cm">-- Index for fast preference lookup on notification send</span>
+<span class="kw">CREATE INDEX</span> idx_notification_prefs_user
+    <span class="kw">ON</span> <span class="ty">notification_preferences</span> (<span class="at">user_id</span>);
+
+<span class="cm">-- Trigger: auto-update updated_at</span>
+<span class="kw">CREATE TRIGGER</span> set_notification_preferences_updated_at
+    <span class="kw">BEFORE UPDATE ON</span> <span class="ty">notification_preferences</span>
+    <span class="kw">FOR EACH ROW EXECUTE FUNCTION</span> <span class="fn">set_updated_at</span>();</pre>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ</span>
+        <p><strong>Default preferences:</strong> Rows are created on-demand when a user first customises a preference. If no row exists, the system defaults to <strong>in_app=true, email=true</strong> for all types. This avoids pre-populating 11 rows per user on account creation.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 05 · TRIGGERS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="triggers">
+      <div class="section-header">
+        <span class="section-number">05</span>
+        <h2 class="section-title">Notification Triggers</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Every notification originates from a system event. The mapping below shows the complete chain from event → notification type → River job → recipient set.</p>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>System Event</th>
+              <th>Notification Type</th>
+              <th>River Job</th>
+              <th>Recipients</th>
+              <th>Trigger Mechanism</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Case created / reassigned</strong></td>
+              <td><code>case_assigned</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>New assignee</td>
+              <td>cases.Service after DB write</td>
+            </tr>
+            <tr>
+              <td><strong>Case status transition</strong></td>
+              <td><code>case_status_changed</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Watchers list</td>
+              <td>cases.Service on UpdateStatus</td>
+            </tr>
+            <tr>
+              <td><strong>SLA &lt; 2 hours</strong></td>
+              <td><code>case_sla_warning</code></td>
+              <td><code>SLAMonitorJob</code></td>
+              <td>Assignee + team lead</td>
+              <td>Cron: every 15 min</td>
+            </tr>
+            <tr>
+              <td><strong>SLA deadline passed</strong></td>
+              <td><code>case_sla_breached</code></td>
+              <td><code>SLAMonitorJob</code></td>
+              <td>Assignee + lead + admin</td>
+              <td>Cron: every 15 min</td>
+            </tr>
+            <tr>
+              <td><strong>Task created / reassigned</strong></td>
+              <td><code>task_assigned</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Task assignee</td>
+              <td>tasks.Service after DB write</td>
+            </tr>
+            <tr>
+              <td><strong>Task due in &lt; 24h</strong></td>
+              <td><code>task_due_soon</code></td>
+              <td><code>TaskDueMonitorJob</code></td>
+              <td>Task assignee</td>
+              <td>Cron: hourly</td>
+            </tr>
+            <tr>
+              <td><strong>Task due date passed</strong></td>
+              <td><code>task_overdue</code></td>
+              <td><code>TaskDueMonitorJob</code></td>
+              <td>Assignee + investigator</td>
+              <td>Cron: hourly</td>
+            </tr>
+            <tr>
+              <td><strong>@mention in note/comment</strong></td>
+              <td><code>mention</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Mentioned users</td>
+              <td>notes.Service, @mention parser</td>
+            </tr>
+            <tr>
+              <td><strong>AI result low-confidence</strong></td>
+              <td><code>ai_review_required</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Assigned investigator</td>
+              <td>ai.Service on completion</td>
+            </tr>
+            <tr>
+              <td><strong>Document pipeline done</strong></td>
+              <td><code>document_processed</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Uploader</td>
+              <td>documents.Service on success</td>
+            </tr>
+            <tr>
+              <td><strong>Document pipeline error</strong></td>
+              <td><code>document_failed</code></td>
+              <td><code>NotificationJob</code></td>
+              <td>Uploader</td>
+              <td>documents.Service on failure</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="alert alert-info">
+        <span class="alert-icon">ℹ</span>
+        <p><strong>Idempotency:</strong> Scheduled jobs (SLA monitor, task due monitor) use a <code>GROUP BY</code> query to find cases/tasks in the relevant state. Before enqueueing, they check if a notification of that type was already sent within the last N hours using a <code>DISTINCT ON (case_id, type)</code> guard query — preventing duplicate SLA warnings on every cron tick.</p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 06 · RIVER JOB DESIGN -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="river">
+      <div class="section-header">
+        <span class="section-number">06</span>
+        <h2 class="section-title">River Job Design</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>All notification delivery is handled asynchronously through <strong>River</strong> — a Postgres-backed job queue. This guarantees at-least-once delivery even if the server restarts mid-request.</p>
+
+      <pre><span class="cm">// internal/notification/jobs.go</span>
+
+<span class="kw">package</span> <span class="ty">notification</span>
+
+<span class="cm">// NotificationJobArgs is the River job payload for a single notification event.</span>
+<span class="cm">// All fields needed to create DB rows and send emails are included here</span>
+<span class="cm">// so the job is fully self-contained — no additional DB reads required.</span>
+<span class="kw">type</span> <span class="ty">NotificationJobArgs</span> <span class="kw">struct</span> {
+    <span class="at">RecipientIDs</span>  []<span class="ty">string</span> <span class="st">`json:"recipient_ids"`</span>
+    <span class="at">Type</span>          <span class="ty">string</span>   <span class="st">`json:"type"`</span>
+    <span class="at">Title</span>         <span class="ty">string</span>   <span class="st">`json:"title"`</span>
+    <span class="at">Message</span>       <span class="ty">string</span>   <span class="st">`json:"message"`</span>
+    <span class="at">LinkURL</span>       <span class="ty">string</span>   <span class="st">`json:"link_url,omitempty"`</span>
+    <span class="at">CaseID</span>        <span class="ty">string</span>   <span class="st">`json:"case_id,omitempty"`</span>
+    <span class="at">TaskID</span>        <span class="ty">string</span>   <span class="st">`json:"task_id,omitempty"`</span>
+    <span class="at">ActorName</span>     <span class="ty">string</span>   <span class="st">`json:"actor_name,omitempty"`</span>  <span class="cm">// for personalised messages</span>
+}
+
+<span class="cm">// Kind returns the River job kind string (used for routing to the correct worker).</span>
+<span class="kw">func</span> (<span class="ty">NotificationJobArgs</span>) <span class="fn">Kind</span>() <span class="ty">string</span> { <span class="kw">return</span> <span class="st">"notification"</span> }
+
+<span class="cm">// ─────────────────────────────────────────────────────────</span>
+<span class="cm">// internal/notification/worker.go</span>
+
+<span class="kw">type</span> <span class="ty">NotificationWorker</span> <span class="kw">struct</span> {
+    river.<span class="ty">WorkerDefaults</span>[<span class="ty">NotificationJobArgs</span>]
+    <span class="at">db</span>     <span class="op">*</span><span class="ty">pgxpool.Pool</span>
+    <span class="at">resend</span> <span class="op">*</span><span class="ty">resend.Client</span>
+    <span class="at">sse</span>    <span class="op">*</span><span class="ty">SSEHub</span>
+    <span class="at">prefs</span>  <span class="ty">PreferenceStore</span>
+    <span class="at">tmpl</span>   <span class="op">*</span><span class="ty">template.Template</span>  <span class="cm">// embedded Go email templates</span>
+}
+
+<span class="kw">func</span> (<span class="at">w</span> <span class="op">*</span><span class="ty">NotificationWorker</span>) <span class="fn">Work</span>(<span class="at">ctx</span> <span class="ty">context.Context</span>, <span class="at">job</span> <span class="op">*</span>river.<span class="ty">Job</span>[<span class="ty">NotificationJobArgs</span>]) <span class="ty">error</span> {
+    <span class="at">args</span> := <span class="at">job</span>.<span class="at">Args</span>
+
+    <span class="kw">for</span> _, <span class="at">recipientID</span> := <span class="kw">range</span> <span class="at">args</span>.<span class="at">RecipientIDs</span> {
+        <span class="cm">// 1. Load user preferences</span>
+        <span class="at">pref</span>, _ := <span class="at">w</span>.<span class="at">prefs</span>.<span class="fn">Get</span>(<span class="at">ctx</span>, <span class="at">recipientID</span>, <span class="at">args</span>.<span class="at">Type</span>)
+
+        <span class="cm">// 2. Write notification row to DB (always)</span>
+        <span class="at">notifID</span>, <span class="at">err</span> := <span class="at">w</span>.<span class="fn">insertNotification</span>(<span class="at">ctx</span>, <span class="at">recipientID</span>, <span class="at">args</span>)
+        <span class="kw">if</span> <span class="at">err</span> != <span class="kw">nil</span> { <span class="kw">return</span> <span class="at">err</span> }
+
+        <span class="cm">// 3. Push via SSE if user has an active session and in-app is enabled</span>
+        <span class="kw">if</span> <span class="at">pref</span>.<span class="at">InAppEnabled</span> {
+            <span class="at">w</span>.<span class="at">sse</span>.<span class="fn">Publish</span>(<span class="at">recipientID</span>, <span class="ty">SSEEvent</span>{
+                <span class="at">ID</span>:   <span class="at">notifID</span>,
+                <span class="at">Type</span>: <span class="at">args</span>.<span class="at">Type</span>,
+                <span class="at">Data</span>: <span class="at">args</span>,
+            })
+        }
+
+        <span class="cm">// 4. Send email if enabled (or if SLA breached — always send)</span>
+        <span class="at">alwaysSendEmail</span> := <span class="at">args</span>.<span class="at">Type</span> == <span class="st">"case_sla_breached"</span>
+        <span class="kw">if</span> <span class="at">pref</span>.<span class="at">EmailEnabled</span> || <span class="at">alwaysSendEmail</span> {
+            <span class="kw">if</span> <span class="at">err</span> := <span class="at">w</span>.<span class="fn">sendEmail</span>(<span class="at">ctx</span>, <span class="at">recipientID</span>, <span class="at">args</span>); <span class="at">err</span> != <span class="kw">nil</span> {
+                <span class="cm">// Log but don't fail the job — SSE already delivered</span>
+                <span class="at">w</span>.<span class="at">log</span>.<span class="fn">Error</span>(<span class="st">"email send failed"</span>, <span class="fn">zap.Error</span>(<span class="at">err</span>))
+            }
+        }
+    }
+    <span class="kw">return nil</span>
+}</pre>
+
+      <div class="grid-2">
+        <div class="card-sm">
+          <h3>River Job Configuration</h3>
+          <ul class="styled">
+            <li><strong>Queue:</strong> <code>notifications</code> (dedicated queue)</li>
+            <li><strong>Concurrency:</strong> 10 workers</li>
+            <li><strong>Max attempts:</strong> 5</li>
+            <li><strong>Backoff:</strong> Exponential with jitter</li>
+          </ul>
+        </div>
+        <div class="card-sm">
+          <h3>Enqueue Pattern</h3>
+          <ul class="styled">
+            <li>Any module calls <code>notification.Service.Enqueue()</code></li>
+            <li>Service validates args and calls <code>riverClient.Insert()</code></li>
+            <li>River persists job atomically in same Postgres transaction</li>
+            <li>Worker picks up job and executes delivery</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 07 · EMAIL DESIGN -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="email">
+      <div class="section-header">
+        <span class="section-number">07</span>
+        <h2 class="section-title">Email Design (Resend)</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Transactional emails are sent via <strong>Resend</strong>. HTML email templates are stored as <code>.gohtml</code> files and embedded into the Go binary via <code>embed.FS</code> — no runtime file system access required.</p>
+
+      <div class="card-highlight">
+        <h3>Template Strategy</h3>
+        <pre style="margin-bottom:0;"><span class="cm">// internal/notification/templates/</span>
+<span class="cm">//   base.gohtml         — shared layout (header, footer, branding)</span>
+<span class="cm">//   case_assigned.gohtml</span>
+<span class="cm">//   case_sla_warning.gohtml</span>
+<span class="cm">//   case_sla_breached.gohtml</span>
+<span class="cm">//   task_assigned.gohtml</span>
+<span class="cm">//   task_overdue.gohtml</span>
+<span class="cm">//   mention.gohtml</span>
+<span class="cm">//   ai_review_required.gohtml</span>
+<span class="cm">//   document_processed.gohtml</span>
+<span class="cm">//   document_failed.gohtml</span>
+
+<span class="cm">// Embed at package init</span>
+<span class="cm">//go:embed templates</span>
+<span class="kw">var</span> <span class="at">emailTemplates</span> <span class="ty">embed.FS</span></pre>
+      </div>
+
+      <div class="card-highlight">
+        <h3>Resend Integration</h3>
+        <pre style="margin-bottom:0;"><span class="kw">func</span> (<span class="at">w</span> <span class="op">*</span><span class="ty">NotificationWorker</span>) <span class="fn">sendEmail</span>(
+    <span class="at">ctx</span> <span class="ty">context.Context</span>,
+    <span class="at">recipientID</span> <span class="ty">string</span>,
+    <span class="at">args</span> <span class="ty">NotificationJobArgs</span>,
+) <span class="ty">error</span> {
+    <span class="at">user</span>, _ := <span class="at">w</span>.<span class="fn">getUser</span>(<span class="at">ctx</span>, <span class="at">recipientID</span>)
+
+    <span class="cm">// Render HTML from embedded template</span>
+    <span class="at">htmlBody</span>, _ := <span class="at">w</span>.<span class="fn">renderTemplate</span>(<span class="at">args</span>.<span class="at">Type</span>, <span class="ty">EmailData</span>{
+        <span class="at">RecipientName</span>: <span class="at">user</span>.<span class="at">FullName</span>,
+        <span class="at">Title</span>:         <span class="at">args</span>.<span class="at">Title</span>,
+        <span class="at">Message</span>:       <span class="at">args</span>.<span class="at">Message</span>,
+        <span class="at">ActionURL</span>:     <span class="fn">buildDeepLink</span>(<span class="at">args</span>.<span class="at">LinkURL</span>),
+        <span class="at">Year</span>:          <span class="at">time</span>.<span class="fn">Now</span>().<span class="fn">Year</span>(),
+    })
+
+    _, <span class="at">err</span> := <span class="at">w</span>.<span class="at">resend</span>.<span class="at">Emails</span>.<span class="fn">Send</span>(<span class="op">&amp;</span><span class="ty">resend.SendEmailRequest</span>{
+        <span class="at">From</span>:    <span class="st">"OpsOwl Alerts &lt;alerts@opsowl.ai&gt;"</span>,
+        <span class="at">To</span>:      []<span class="ty">string</span>{<span class="at">user</span>.<span class="at">Email</span>},
+        <span class="at">Subject</span>: <span class="at">args</span>.<span class="at">Title</span>,
+        <span class="at">Html</span>:    <span class="at">htmlBody</span>,
+        <span class="at">Tags</span>: []<span class="ty">resend.Tag</span>{
+            {<span class="at">Name</span>: <span class="st">"type"</span>, <span class="at">Value</span>: <span class="at">args</span>.<span class="at">Type</span>},
+        },
+    })
+    <span class="kw">return</span> <span class="at">err</span>
+}</pre>
+      </div>
+
+      <h3>Email Examples</h3>
+      <div class="grid-2">
+        <div class="card-sm">
+          <div class="chip chip-cyan" style="margin-bottom:0.5rem;">case_assigned</div>
+          <p style="font-size:0.82rem;"><strong>Subject:</strong> "Case OWL-2026-00042 assigned to you"<br>
+          <strong>Body:</strong> Case title, priority, SLA deadline, CTA button → Open Case</p>
+        </div>
+        <div class="card-sm">
+          <div class="chip chip-red" style="margin-bottom:0.5rem;">case_sla_breached</div>
+          <p style="font-size:0.82rem;"><strong>Subject:</strong> "⚠ SLA Breached: OWL-2026-00042"<br>
+          <strong>Body:</strong> Red banner, breach time, escalation notice, CTA → View Case</p>
+        </div>
+        <div class="card-sm">
+          <div class="chip chip-violet" style="margin-bottom:0.5rem;">mention</div>
+          <p style="font-size:0.82rem;"><strong>Subject:</strong> "Priya mentioned you in Case OWL-2026-00042"<br>
+          <strong>Body:</strong> Note excerpt, case context, CTA → View Comment</p>
+        </div>
+        <div class="card-sm">
+          <div class="chip chip-green" style="margin-bottom:0.5rem;">document_processed</div>
+          <p style="font-size:0.82rem;"><strong>Subject:</strong> "Document 'kyc_form.pdf' is ready"<br>
+          <strong>Body:</strong> File name, page count, extracted fields summary, CTA → View Document</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 08 · SSE DELIVERY -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="sse">
+      <div class="section-header">
+        <span class="section-number">08</span>
+        <h2 class="section-title">SSE Delivery (In-App Real-Time)</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Server-Sent Events provides a persistent, one-way HTTP connection from server to browser. Each authenticated user gets a dedicated SSE stream. Notifications are pushed immediately when the River job executes.</p>
+
+      <div class="card-highlight">
+        <h3>SSE Hub Architecture</h3>
+        <pre style="margin-bottom:0;"><span class="cm">// internal/notification/sse.go</span>
+
+<span class="kw">type</span> <span class="ty">SSEHub</span> <span class="kw">struct</span> {
+    <span class="at">mu</span>      sync.<span class="ty">RWMutex</span>
+    <span class="at">clients</span> <span class="kw">map</span>[<span class="ty">string</span>][]<span class="kw">chan</span> <span class="ty">SSEEvent</span>  <span class="cm">// userID → []channels (multi-tab support)</span>
+}
+
+<span class="cm">// Publish sends an event to ALL active sessions for a user.</span>
+<span class="kw">func</span> (<span class="at">h</span> <span class="op">*</span><span class="ty">SSEHub</span>) <span class="fn">Publish</span>(<span class="at">userID</span> <span class="ty">string</span>, <span class="at">event</span> <span class="ty">SSEEvent</span>) {
+    <span class="at">h</span>.<span class="at">mu</span>.<span class="fn">RLock</span>()
+    <span class="kw">defer</span> <span class="at">h</span>.<span class="at">mu</span>.<span class="fn">RUnlock</span>()
+    <span class="kw">for</span> _, <span class="at">ch</span> := <span class="kw">range</span> <span class="at">h</span>.<span class="at">clients</span>[<span class="at">userID</span>] {
+        <span class="kw">select</span> {
+        <span class="kw">case</span> <span class="at">ch</span> &lt;- <span class="at">event</span>:
+        <span class="kw">default</span>: <span class="cm">// client buffer full — skip (client will catch up via poll)</span>
+        }
+    }
+}
+
+<span class="cm">// SSEHandler handles GET /api/v1/notifications/stream</span>
+<span class="kw">func</span> (<span class="at">h</span> <span class="op">*</span><span class="ty">SSEHub</span>) <span class="fn">SSEHandler</span>(<span class="at">w</span> <span class="ty">http.ResponseWriter</span>, <span class="at">r</span> <span class="op">*</span><span class="ty">http.Request</span>) {
+    <span class="at">userID</span> := <span class="fn">userIDFromCtx</span>(<span class="at">r</span>.<span class="at">Context</span>())
+
+    <span class="cm">// SSE headers</span>
+    <span class="at">w</span>.<span class="fn">Header</span>().<span class="fn">Set</span>(<span class="st">"Content-Type"</span>, <span class="st">"text/event-stream"</span>)
+    <span class="at">w</span>.<span class="fn">Header</span>().<span class="fn">Set</span>(<span class="st">"Cache-Control"</span>, <span class="st">"no-cache"</span>)
+    <span class="at">w</span>.<span class="fn">Header</span>().<span class="fn">Set</span>(<span class="st">"Connection"</span>, <span class="st">"keep-alive"</span>)
+    <span class="at">w</span>.<span class="fn">Header</span>().<span class="fn">Set</span>(<span class="st">"X-Accel-Buffering"</span>, <span class="st">"no"</span>)  <span class="cm">// disable Nginx buffering</span>
+
+    <span class="at">ch</span> := <span class="at">h</span>.<span class="fn">subscribe</span>(<span class="at">userID</span>)
+    <span class="kw">defer</span> <span class="at">h</span>.<span class="fn">unsubscribe</span>(<span class="at">userID</span>, <span class="at">ch</span>)
+
+    <span class="at">flusher</span> := <span class="at">w</span>.(<span class="ty">http.Flusher</span>)
+
+    <span class="cm">// Send ping every 30s to keep connection alive through proxies</span>
+    <span class="at">ticker</span> := <span class="at">time</span>.<span class="fn">NewTicker</span>(<span class="num">30</span> <span class="op">*</span> <span class="at">time</span>.<span class="ty">Second</span>)
+    <span class="kw">defer</span> <span class="at">ticker</span>.<span class="fn">Stop</span>()
+
+    <span class="kw">for</span> {
+        <span class="kw">select</span> {
+        <span class="kw">case</span> <span class="at">event</span> := &lt;-<span class="at">ch</span>:
+            <span class="fn">fmt.Fprintf</span>(<span class="at">w</span>, <span class="st">"id: %s\nevent: %s\ndata: %s\n\n"</span>,
+                <span class="at">event</span>.<span class="at">ID</span>, <span class="at">event</span>.<span class="at">Type</span>, <span class="fn">mustJSON</span>(<span class="at">event</span>.<span class="at">Data</span>))
+            <span class="at">flusher</span>.<span class="fn">Flush</span>()
+        <span class="kw">case</span> &lt;-<span class="at">ticker</span>.<span class="at">C</span>:
+            <span class="fn">fmt.Fprintf</span>(<span class="at">w</span>, <span class="st">": ping\n\n"</span>)
+            <span class="at">flusher</span>.<span class="fn">Flush</span>()
+        <span class="kw">case</span> &lt;-<span class="at">r</span>.<span class="fn">Context</span>().<span class="fn">Done</span>():
+            <span class="kw">return</span>
+        }
+    }
+}</pre>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-sm">
+          <h3>Client-Side (Next.js)</h3>
+          <pre style="font-size:0.75rem;margin-bottom:0;"><span class="cm">// hooks/useNotificationStream.ts</span>
+<span class="kw">const</span> <span class="fn">useNotificationStream</span> = () => {
+  <span class="fn">useEffect</span>(() => {
+    <span class="kw">const</span> es = <span class="kw">new</span> <span class="ty">EventSource</span>(
+      <span class="st">'/api/v1/notifications/stream'</span>,
+      { withCredentials: <span class="kw">true</span> }
+    );
+    es.addEventListener(<span class="st">'notification'</span>, (e) => {
+      <span class="kw">const</span> data = <span class="ty">JSON</span>.<span class="fn">parse</span>(e.data);
+      useNotifStore.<span class="fn">getState</span>().<span class="fn">addNotification</span>(data);
+      <span class="fn">toast</span>(data.title);
+    });
+    <span class="kw">return</span> () => es.<span class="fn">close</span>();
+  }, []);
+};</pre>
+        </div>
+        <div class="card-sm">
+          <h3>Reconnect Strategy</h3>
+          <ul class="styled">
+            <li>Browser automatically reconnects on disconnect</li>
+            <li>Client sends <code>Last-Event-ID</code> header on reconnect</li>
+            <li>Server replays notifications created after that ID</li>
+            <li>Multi-tab: each tab opens its own SSE connection</li>
+            <li>SSEHub supports N connections per userID</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 09 · API ENDPOINTS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="api">
+      <div class="section-header">
+        <span class="section-number">09</span>
+        <h2 class="section-title">API Endpoints</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>All endpoints follow the <code class="inline-code">{data, meta, error}</code> envelope. Pagination uses cursor-based strategy. All timestamps are ISO 8601 UTC.</p>
+
+      <div class="endpoint-row">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/api/v1/notifications</span>
+        <span class="endpoint-desc">Paginated notification list. Query: <code>?unread_only=true&cursor=&limit=20</code></span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-put">PUT</span>
+        <span class="endpoint-path">/api/v1/notifications/:id/read</span>
+        <span class="endpoint-desc">Mark a single notification as read. Sets <code>is_read=true</code>, <code>read_at=NOW()</code></span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-put">PUT</span>
+        <span class="endpoint-path">/api/v1/notifications/read-all</span>
+        <span class="endpoint-desc">Mark all unread notifications as read for the authenticated user</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/api/v1/notifications/count</span>
+        <span class="endpoint-desc">Returns <code>{"data":{"unread_count":5}}</code> — used for bell badge. Cheap query</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/api/v1/notifications/stream</span>
+        <span class="endpoint-desc">SSE stream. Returns <code>text/event-stream</code>. Auth required. Persistent connection</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-get">GET</span>
+        <span class="endpoint-path">/api/v1/notification-preferences</span>
+        <span class="endpoint-desc">Returns all preference settings for the authenticated user (defaults if not set)</span>
+      </div>
+      <div class="endpoint-row">
+        <span class="method-badge method-put">PUT</span>
+        <span class="endpoint-path">/api/v1/notification-preferences</span>
+        <span class="endpoint-desc">Upsert preferences. Body: <code>[{type, in_app_enabled, email_enabled}]</code></span>
+      </div>
+
+      <div class="card-highlight" style="margin-top:1.5rem;">
+        <h3>Response Shape — GET /api/v1/notifications</h3>
+        <pre style="margin-bottom:0;"><span class="op">{</span>
+  <span class="st">"data"</span><span class="op">:</span> [
+    <span class="op">{</span>
+      <span class="st">"id"</span><span class="op">:</span>         <span class="st">"018f2c3d-0000-7000-8000-000000000001"</span>,
+      <span class="st">"type"</span><span class="op">:</span>       <span class="st">"case_assigned"</span>,
+      <span class="st">"title"</span><span class="op">:</span>      <span class="st">"Case OWL-2026-00042 assigned to you"</span>,
+      <span class="st">"message"</span><span class="op">:</span>    <span class="st">"Priya Kumar assigned you as the lead investigator."</span>,
+      <span class="st">"link_url"</span><span class="op">:</span>   <span class="st">"/cases/018f2c3d-0000-7000-8000-000000000042"</span>,
+      <span class="st">"is_read"</span><span class="op">:</span>    <span class="kw">false</span>,
+      <span class="st">"read_at"</span><span class="op">:</span>    <span class="kw">null</span>,
+      <span class="st">"case_id"</span><span class="op">:</span>    <span class="st">"018f2c3d-0000-7000-8000-000000000042"</span>,
+      <span class="st">"created_at"</span><span class="op">:</span> <span class="st">"2026-05-16T08:32:00Z"</span>
+    <span class="op">}</span>
+  ],
+  <span class="st">"meta"</span><span class="op">:</span> <span class="op">{</span>
+    <span class="st">"cursor"</span><span class="op">:</span>      <span class="st">"018f2c3d-0000-7000-8000-000000000001"</span>,
+    <span class="st">"has_more"</span><span class="op">:</span>    <span class="kw">true</span>,
+    <span class="st">"unread_count"</span><span class="op">:</span> <span class="num">12</span>
+  <span class="op">}</span>
+<span class="op">}</span></pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 10 · FRONTEND COMPONENTS -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="frontend">
+      <div class="section-header">
+        <span class="section-number">10</span>
+        <h2 class="section-title">Frontend Components</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>Four core UI components handle notification delivery, presentation, and configuration in the Next.js frontend.</p>
+
+      <div class="grid-2">
+        <div class="component-card">
+          <div class="component-name">NotificationBell</div>
+          <div class="component-file">components/notifications/NotificationBell.tsx</div>
+          <div class="component-desc">Icon button in the top nav. Shows unread count badge (red dot if &gt;0). Fetches count via <code>GET /count</code> (TanStack Query, 30s stale time). Opens NotificationPanel on click.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">NotificationPanel</div>
+          <div class="component-file">components/notifications/NotificationPanel.tsx</div>
+          <div class="component-desc">Dropdown panel showing last 20 notifications. Groups by date. Each row shows type icon, title, timestamp (relative), unread indicator. Buttons: "Mark all read", "View all". Virtualized list via <code>@tanstack/react-virtual</code>.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">NotificationToast</div>
+          <div class="component-file">components/notifications/NotificationToast.tsx</div>
+          <div class="component-desc">Triggered by the SSE stream hook. Uses <code>sonner</code> toast library. Shows type-specific icon (🔔 case, ⏰ SLA, 🤖 AI). Auto-dismisses in 5s. Clicking navigates to <code>link_url</code>.</div>
+        </div>
+        <div class="component-card">
+          <div class="component-name">NotificationPreferences</div>
+          <div class="component-file">app/settings/notifications/page.tsx</div>
+          <div class="component-desc">Full settings page. Table of 11 notification types × 2 channels (In-App / Email). Toggle switches per cell. Saves via <code>PUT /api/v1/notification-preferences</code>. Uses Zustand for optimistic updates.</div>
+        </div>
+      </div>
+
+      <div class="card-highlight">
+        <h3>State Management (Zustand)</h3>
+        <pre style="margin-bottom:0;"><span class="cm">// store/notificationStore.ts</span>
+<span class="kw">interface</span> <span class="ty">NotificationStore</span> {
+  <span class="at">notifications</span>: <span class="ty">Notification</span>[];
+  <span class="at">unreadCount</span>:   <span class="ty">number</span>;
+  <span class="fn">addNotification</span>:  (<span class="at">n</span>: <span class="ty">Notification</span>) => <span class="ty">void</span>;  <span class="cm">// called by SSE hook</span>
+  <span class="fn">markRead</span>:         (<span class="at">id</span>: <span class="ty">string</span>) => <span class="ty">void</span>;
+  <span class="fn">markAllRead</span>:      () => <span class="ty">void</span>;
+  <span class="fn">setUnreadCount</span>:   (<span class="at">n</span>: <span class="ty">number</span>) => <span class="ty">void</span>;
+}</pre>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 11 · GROUPING -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="grouping">
+      <div class="section-header">
+        <span class="section-number">11</span>
+        <h2 class="section-title">Notification Grouping</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <p>When multiple similar notifications fire rapidly (e.g., 8 comments on the same case), displaying them individually creates notification fatigue. Grouping collapses them into a single actionable summary.</p>
+
+      <div class="card-highlight">
+        <h3>Grouping Rules</h3>
+        <div class="table-wrap" style="margin-bottom:0;">
+          <table>
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Individual</th>
+                <th>Grouped (after 3+)</th>
+                <th>Grouping Window</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Multiple @mentions, same case</td>
+                <td>"Priya mentioned you"</td>
+                <td>"5 new mentions in Case OWL-2026-00042"</td>
+                <td>15 minutes</td>
+              </tr>
+              <tr>
+                <td>Multiple task assignments</td>
+                <td>"Task X assigned to you"</td>
+                <td>"3 tasks assigned to you"</td>
+                <td>5 minutes</td>
+              </tr>
+              <tr>
+                <td>Document batch processing</td>
+                <td>"kyc_form.pdf processed"</td>
+                <td>"4 documents processed successfully"</td>
+                <td>10 minutes</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:1rem;">
+        <div class="card-sm">
+          <h3>Implementation</h3>
+          <p style="font-size:0.85rem;">The <code>NotificationWorker</code> checks a Redis-backed <code>GroupingBuffer</code> (key: <code>notif:group:{userID}:{type}:{resourceID}</code>, TTL = window). If buffer count &gt;= 3, it upserts a grouped notification row rather than inserting a new one.</p>
+        </div>
+        <div class="card-sm">
+          <h3>SLA Exceptions</h3>
+          <p style="font-size:0.85rem;">SLA warning and breach notifications are <strong>never grouped</strong>. Each case gets its own notification row regardless of how many cases breach simultaneously. Safety-critical events require individual visibility.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <!-- SECTION 12 · TEST STRATEGY -->
+    <!-- ─────────────────────────────────────────────────────────────────── -->
+    <section class="section" id="testing">
+      <div class="section-header">
+        <span class="section-number">12</span>
+        <h2 class="section-title">Test Strategy</h2>
+        <div class="section-divider"></div>
+      </div>
+
+      <div class="grid-2">
+        <div class="card-sm">
+          <h3>River Job Delivery Tests</h3>
+          <ul class="styled">
+            <li>Unit test <code>NotificationWorker.Work()</code> with mock DB, SSE hub, and Resend client</li>
+            <li>Verify correct notification type → correct template selected</li>
+            <li>Test preference-gating: email suppressed when <code>email_enabled=false</code></li>
+            <li>Test SLA breach bypasses preference gating</li>
+            <li>Integration test: enqueue River job in test Postgres, verify notification row inserted</li>
+            <li>Test idempotency: duplicate SLA warning jobs should not create duplicate rows</li>
+          </ul>
+        </div>
+        <div class="card-sm">
+          <h3>SSE Push Tests</h3>
+          <ul class="styled">
+            <li>Unit test <code>SSEHub.Publish()</code> fan-out to multiple channels for same user</li>
+            <li>Test graceful handling of full client buffer (non-blocking send)</li>
+            <li>Test subscribe/unsubscribe lifecycle (no goroutine leaks)</li>
+            <li>Integration test: HTTP test server, connect SSE client, trigger notification, assert event received within 500ms</li>
+            <li>Test ping event is sent every 30s</li>
+          </ul>
+        </div>
+        <div class="card-sm">
+          <h3>Email Template Tests</h3>
+          <ul class="styled">
+            <li>Render all 10 email templates with sample data — assert no template errors</li>
+            <li>Assert required fields present in rendered HTML (title, CTA link, recipient name)</li>
+            <li>Validate HTML structure (no unclosed tags) using <code>golang.org/x/net/html</code></li>
+            <li>Snapshot test to catch unintentional template regressions</li>
+          </ul>
+        </div>
+        <div class="card-sm">
+          <h3>API Endpoint Tests</h3>
+          <ul class="styled">
+            <li>Test <code>GET /notifications</code> pagination: cursor-based, correct ordering</li>
+            <li>Test <code>PUT /notifications/:id/read</code> — 404 on non-existent, 403 on other user's notification</li>
+            <li>Test <code>GET /notifications/count</code> accuracy after mark-read operations</li>
+            <li>Test <code>PUT /notification-preferences</code> upsert logic (create + update)</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<!-- ═══════════════════════════════ FOOTER ═══════════════════════════════ -->
+<footer class="site-footer">
+  <span class="footer-brand">OpsOwl AI — Feature Specification</span>
+  <span>Feature 09 · Notifications · Generated 2026-05-16</span>
+</footer>
+
+</body>
+</html>
