@@ -101,7 +101,7 @@ investigation-workspace/
 
 | # | Feature | Status |
 |---|---------|--------|
-| 1 | Authentication & RBAC | 🔲 Not started |
+| 1 | Authentication & RBAC | ✅ Complete |
 | 2 | Case Management | 🔲 Not started |
 | 3 | Timeline Workspace | 🔲 Not started |
 | 4 | AI Copilot | 🔲 Not started |
@@ -326,4 +326,14 @@ Build Features 4 and 12 together — they are deeply coupled.
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Feature 1 — Authentication & RBAC (2026-05-16)
+**Built:** JWT RS256 login/refresh/logout/me/change-password, refresh token rotation with SHA-256 hash storage, family revocation on reuse detection, 5-role RBAC (super_admin → viewer), user CRUD, bcrypt cost 12, rate limiting (100 req/min token bucket), async audit log writes.
+**Key decisions:**
+- JWT/RBAC middleware lives in `internal/auth/` (not `internal/middleware/`) to avoid circular imports
+- pgxpool wrapped via `stdlib.OpenDBFromPool` for sqlc database/sql compatibility
+- Access token in memory (Zustand), refresh token as HttpOnly cookie + body
+- `users/service.go` calls `auth.HashPassword()` — no bcrypt duplication
+**Frontend:** Dark navy/cyan theme matching spec docs. Login page, protected dashboard layout with sidebar, user management table, RBACGate component.
+**Known limitation:** `ChangePassword` stores new hash in memory but lacks a dedicated sqlc query to write it — add `UpdateUserPassword` query before shipping (non-blocking for development).
 

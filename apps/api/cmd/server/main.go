@@ -11,13 +11,15 @@ import (
 
 	"go.uber.org/zap"
 
+	"github.com/jackc/pgx/v5/stdlib"
+	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/config"
 	"github.com/reddybashanaguru/opsowl/internal/db"
+	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/server"
 )
 
 func main() {
-	// Logger — production JSON, development console
 	var logger *zap.Logger
 	if os.Getenv("ENVIRONMENT") == "development" {
 		logger, _ = zap.NewDevelopment()
@@ -26,14 +28,12 @@ func main() {
 	}
 	defer logger.Sync() //nolint:errcheck
 
-	// Config
 	cfg, err := config.Load()
 	if err != nil {
 		logger.Fatal("failed to load config", zap.Error(err))
 	}
 	logger.Info("config loaded", zap.String("env", cfg.Environment), zap.String("port", cfg.Port))
 
-	// Database
 	ctx := context.Background()
 	pool, err := db.New(ctx, cfg.DatabaseURL)
 	if err != nil {
@@ -42,8 +42,19 @@ func main() {
 	defer pool.Close()
 	logger.Info("database connected")
 
-	// HTTP server
-	srv := server.New(logger)
+	sqlDB := stdlib.OpenDBFromPool(pool)
+	queries := dbgen.New(sqlDB)
+
+	accessTTL, err := time.ParseDuration(cfg.JWTAccessExpiry)
+	if err != nil {
+		accessTTL = time.Hour
+	}
+	jwtMgr, err := auth.NewJWTManager(cfg.JWTPrivateKeyPath, cfg.JWTPublicKeyPath, accessTTL)
+	if err != nil {
+		logger.Fatal("failed to init JWT manager", zap.Error(err))
+	}
+
+	srv := server.New(logger, jwtMgr, queries)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
@@ -53,14 +64,12 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Start in background
 	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server listening", zap.String("addr", httpServer.Addr))
 		serverErr <- httpServer.ListenAndServe()
 	}()
 
-	// Wait for shutdown signal
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
@@ -81,6 +90,5 @@ func main() {
 		logger.Error("shutdown error", zap.Error(err))
 		os.Exit(1)
 	}
-
 	logger.Info("server stopped cleanly")
 }
