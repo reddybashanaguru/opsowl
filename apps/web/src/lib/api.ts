@@ -19,7 +19,10 @@ export class APIError extends Error {
 
 function getAuthHeader(): Record<string, string> {
   if (typeof window === "undefined") return {};
-  const token = localStorage.getItem("access_token");
+  // Import lazily to avoid circular deps — Zustand store is a singleton
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { useAuthStore } = require("@/lib/stores/auth.store");
+  const token: string | null = useAuthStore.getState().accessToken;
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -31,6 +34,7 @@ async function request<T>(
 
   const response = await fetch(url, {
     ...options,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeader(),

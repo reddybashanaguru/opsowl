@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -183,14 +184,18 @@ func tokenFromCookieOrBody(r *http.Request) string {
 	return body.RefreshToken
 }
 
+func isSecureEnv() bool {
+	return os.Getenv("ENVIRONMENT") == "production"
+}
+
 func refreshCookie(token string, maxAge int) *http.Cookie {
 	return &http.Cookie{
 		Name:     "refresh_token",
 		Value:    token,
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   isSecureEnv(),
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   maxAge,
 	}
 }
@@ -201,8 +206,8 @@ func expireRefreshCookie() *http.Cookie {
 		Value:    "",
 		Path:     "/api/v1/auth",
 		HttpOnly: true,
-		Secure:   true,
-		SameSite: http.SameSiteStrictMode,
+		Secure:   isSecureEnv(),
+		SameSite: http.SameSiteLaxMode,
 		MaxAge:   -1,
 	}
 }
