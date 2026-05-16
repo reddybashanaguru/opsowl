@@ -11,20 +11,36 @@ import (
 )
 
 type Querier interface {
+	AddCaseWatcher(ctx context.Context, arg AddCaseWatcherParams) error
+	CloseLastAssignment(ctx context.Context, caseID uuid.UUID) error
+	CountCases(ctx context.Context, arg CountCasesParams) (int64, error)
 	CountUsers(ctx context.Context, role NullUserRole) (int64, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
+	CreateCaseActivity(ctx context.Context, arg CreateCaseActivityParams) (CaseActivity, error)
+	CreateCaseAssignment(ctx context.Context, arg CreateCaseAssignmentParams) (CaseAssignment, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error)
+	GetCaseWatchers(ctx context.Context, caseID uuid.UUID) ([]GetCaseWatchersRow, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	ListCaseActivities(ctx context.Context, arg ListCaseActivitiesParams) ([]ListCaseActivitiesRow, error)
+	ListCases(ctx context.Context, arg ListCasesParams) ([]ListCasesRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
+	SoftDeleteCase(ctx context.Context, id uuid.UUID) (Case, error)
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) (SoftDeleteUserRow, error)
+	UpdateCase(ctx context.Context, arg UpdateCaseParams) (Case, error)
+	UpdateCaseAssignment(ctx context.Context, arg UpdateCaseAssignmentParams) (Case, error)
+	UpdateCaseStatus(ctx context.Context, arg UpdateCaseStatusParams) (Case, error)
+	UpdateCaseTags(ctx context.Context, arg UpdateCaseTagsParams) (Case, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
+	UpsertCaseTag(ctx context.Context, name string) (CaseTag, error)
 }
 
 var _ Querier = (*Queries)(nil)

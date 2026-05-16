@@ -15,6 +15,96 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+type CasePriority string
+
+const (
+	CasePriorityCritical CasePriority = "critical"
+	CasePriorityHigh     CasePriority = "high"
+	CasePriorityMedium   CasePriority = "medium"
+	CasePriorityLow      CasePriority = "low"
+)
+
+func (e *CasePriority) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = CasePriority(s)
+	case string:
+		*e = CasePriority(s)
+	default:
+		return fmt.Errorf("unsupported scan type for CasePriority: %T", src)
+	}
+	return nil
+}
+
+type NullCasePriority struct {
+	CasePriority CasePriority `json:"case_priority"`
+	Valid        bool         `json:"valid"` // Valid is true if CasePriority is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCasePriority) Scan(value interface{}) error {
+	if value == nil {
+		ns.CasePriority, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.CasePriority.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCasePriority) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.CasePriority), nil
+}
+
+type CaseStatus string
+
+const (
+	CaseStatusDraft         CaseStatus = "draft"
+	CaseStatusOpen          CaseStatus = "open"
+	CaseStatusInProgress    CaseStatus = "in_progress"
+	CaseStatusPendingReview CaseStatus = "pending_review"
+	CaseStatusClosed        CaseStatus = "closed"
+	CaseStatusEscalated     CaseStatus = "escalated"
+)
+
+func (e *CaseStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = CaseStatus(s)
+	case string:
+		*e = CaseStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for CaseStatus: %T", src)
+	}
+	return nil
+}
+
+type NullCaseStatus struct {
+	CaseStatus CaseStatus `json:"case_status"`
+	Valid      bool       `json:"valid"` // Valid is true if CaseStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCaseStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.CaseStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.CaseStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCaseStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.CaseStatus), nil
+}
+
 type UserRole string
 
 const (
@@ -70,6 +160,56 @@ type AuditLog struct {
 	Metadata     json.RawMessage `json:"metadata"`
 	Severity     string          `json:"severity"`
 	CreatedAt    time.Time       `json:"created_at"`
+}
+
+type Case struct {
+	ID             uuid.UUID     `json:"id"`
+	CaseNumber     string        `json:"case_number"`
+	Title          string        `json:"title"`
+	Description    string        `json:"description"`
+	Status         CaseStatus    `json:"status"`
+	Priority       CasePriority  `json:"priority"`
+	AssignedTo     uuid.NullUUID `json:"assigned_to"`
+	CreatedBy      uuid.UUID     `json:"created_by"`
+	OrganizationID uuid.UUID     `json:"organization_id"`
+	DueDate        sql.NullTime  `json:"due_date"`
+	SlaBreachAt    sql.NullTime  `json:"sla_breach_at"`
+	SlaBreached    bool          `json:"sla_breached"`
+	Tags           []string      `json:"tags"`
+	CreatedAt      time.Time     `json:"created_at"`
+	UpdatedAt      time.Time     `json:"updated_at"`
+	DeletedAt      sql.NullTime  `json:"deleted_at"`
+}
+
+type CaseActivity struct {
+	ID        uuid.UUID       `json:"id"`
+	CaseID    uuid.UUID       `json:"case_id"`
+	ActorID   uuid.UUID       `json:"actor_id"`
+	EventType string          `json:"event_type"`
+	Payload   json.RawMessage `json:"payload"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
+type CaseAssignment struct {
+	ID           uuid.UUID    `json:"id"`
+	CaseID       uuid.UUID    `json:"case_id"`
+	AssignedTo   uuid.UUID    `json:"assigned_to"`
+	AssignedBy   uuid.UUID    `json:"assigned_by"`
+	AssignedAt   time.Time    `json:"assigned_at"`
+	UnassignedAt sql.NullTime `json:"unassigned_at"`
+}
+
+type CaseTag struct {
+	ID        uuid.UUID `json:"id"`
+	Name      string    `json:"name"`
+	ColorHex  string    `json:"color_hex"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type CaseWatcher struct {
+	CaseID    uuid.UUID `json:"case_id"`
+	UserID    uuid.UUID `json:"user_id"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type RefreshToken struct {

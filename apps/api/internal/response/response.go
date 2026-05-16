@@ -29,6 +29,16 @@ func JSON(w http.ResponseWriter, status int, data any) {
 	write(w, status, envelope{Data: data})
 }
 
+func JSONWithMeta(w http.ResponseWriter, status int, data any, meta any) {
+	type freeEnvelope struct {
+		Data any `json:"data,omitempty"`
+		Meta any `json:"meta,omitempty"`
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_ = json.NewEncoder(w).Encode(freeEnvelope{Data: data, Meta: meta})
+}
+
 func Paged(w http.ResponseWriter, status int, data any, cursor string, hasMore bool) {
 	write(w, status, envelope{
 		Data: data,

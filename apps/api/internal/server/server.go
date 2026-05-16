@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
+	"github.com/reddybashanaguru/opsowl/internal/cases"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/response"
@@ -64,6 +65,12 @@ func (s *Server) setupRoutes() {
 		usersSvc := users.NewService(usersRepo, authSvc)
 		usersHandler := users.NewHandler(usersSvc)
 		users.RegisterRoutes(r, usersHandler, s.jwtMgr)
+
+		// Cases module
+		casesRepo := cases.NewRepository(s.queries)
+		casesSvc := cases.NewService(casesRepo)
+		casesHandler := cases.NewHandler(casesSvc)
+		cases.RegisterRoutes(r, casesHandler, s.jwtMgr)
 	})
 }
 
