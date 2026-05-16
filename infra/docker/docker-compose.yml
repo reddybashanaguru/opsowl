@@ -59,6 +59,8 @@ services:
       STORAGE_BUCKET: opsowl
       STORAGE_USE_SSL: "false"
       AI_SERVICE_URL: http://ai-service:8000
+    volumes:
+      - ../../apps/api/keys:/app/keys:ro
     depends_on:
       postgres:
         condition: service_healthy
