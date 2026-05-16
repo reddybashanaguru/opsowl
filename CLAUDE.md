@@ -102,12 +102,12 @@ investigation-workspace/
 | # | Feature | Status |
 |---|---------|--------|
 | 1 | Authentication & RBAC | ✅ Complete |
-| 2 | Case Management | 🔲 Not started |
-| 3 | Timeline Workspace | 🔲 Not started |
+| 2 | Case Management | ✅ Complete |
+| 3 | Timeline Workspace | ✅ Complete |
 | 4 | AI Copilot | 🔲 Not started |
 | 5 | Document Upload & Intelligence | 🔲 Not started |
 | 6 | Notes & Collaboration | 🔲 Not started |
-| 7 | Task Management | 🔲 Not started |
+| 7 | Task Management | ✅ Complete |
 | 8 | Dashboard | 🔲 Not started |
 | 9 | Notifications | 🔲 Not started |
 | 10 | Audit Logging | 🔲 Not started |
@@ -326,6 +326,36 @@ Build Features 4 and 12 together — they are deeply coupled.
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Feature 7 — Task Management (2026-05-16)
+**Built:** Full task CRUD with state machine (todo→in_progress→done/cancelled), cursor pagination, overdue detection (synchronous on create/update — no River job for MVP), task comments (CRUD + pagination), `My Tasks` cross-case view grouped by urgency. Timeline events emitted on `task_created` and `task_completed`. RBAC: analysts can create/update own tasks, manager+ can update any.
+**Key decisions:**
+- `is_overdue` computed synchronously at create/update time (due_date < now), cleared immediately on complete — no River job needed for MVP correctness
+- Cursor pagination uses `id < cursor_id` (UUID comparison) — works for display purposes but not perfectly ordered with `sort_order ASC`; acceptable for MVP, fix with UUIDv7 in Phase 2
+- `claims.FullName` doesn't exist on `auth.Claims` — creator name fetched via `GetByID` join in response builders
+- `nullStr` helper was dead code — removed to maintain clean codebase
+**BE tests:** 92.5% coverage (39 tests: 16 service + 23 handler)
+**FE tests:** 27 tests (TaskCard 16, TaskStatusBadge 5, TaskPriorityBadge 6)
+**Frontend:** Case tasks page at `/cases/[id]/tasks`, task detail with comments at `/cases/[id]/tasks/[taskId]`, My Tasks cross-case page at `/tasks` grouped (Overdue→Today→This Week→Later→Done)
+**Known limitation:** Cursor pagination for tasks uses UUID byte comparison vs sort_order ordering — page boundaries aren't perfectly stable. Fix in Phase 2 with UUIDv7 or composite cursor.
+
+### ✅ Feature 3 — Timeline Workspace (2026-05-16)
+**Built:** SSE real-time timeline hub with auth via `?token=` query param (EventSource can't set headers), base64 JSON cursor pagination (occurred_at + id), 20+ event types with color-coded icons, backdated flag (|occurred_at - created_at| > 1 hour), filter by source/event_type. Timeline emitted from cases (create/status-change/assign/tag) and tasks (create/complete).
+**Key decisions:**
+- `db.NullTime` doesn't exist — use `sql.NullTime` from standard library
+- `jwtMgr.Verify()` is the correct method name (not Validate)
+- SSE hub uses buffered channels (size 64) with non-blocking publish to drop slow consumers
+**BE tests:** 14 tests (service + handler), all pass
+**FE tests:** 13 tests for TimelineEventCard
+**Known limitation:** SSE reconnect doesn't replay missed events between disconnect and reconnect — track `lastEventId` but server-side replay not implemented for MVP.
+
+### ✅ Feature 2 — Case Management (2026-05-16)
+**Built:** Full case CRUD with status state machine (draft→open→in_progress→pending_review→closed/escalated), cursor pagination, SLA breach tracking, watchers, tags, assignee, activity log. Role-based access: viewers can read, analysts can create/update own cases, managers can manage all.
+**Key decisions:**
+- `organization_id` is hardcoded to `00000000-0000-0000-0000-000000000001` for MVP (no multi-tenancy)
+- SLA deadline computed at create time based on priority: critical=4h, high=24h, medium=72h, low=168h
+- Watchers stored as UUID array in postgres (not a join table) for simplicity
+**FE:** Dark navy/cyan design system matching spec. Cases list with filter/sort, case detail with status transitions, activity feed, SLA countdown.
 
 ### ✅ Feature 1 — Authentication & RBAC (2026-05-16)
 **Built:** JWT RS256 login/refresh/logout/me/change-password, refresh token rotation with SHA-256 hash storage, family revocation on reuse detection, 5-role RBAC (super_admin → viewer), user CRUD, bcrypt cost 12, rate limiting (100 req/min token bucket), async audit log writes.

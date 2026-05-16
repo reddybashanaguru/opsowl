@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 var (
@@ -23,11 +24,12 @@ var (
 var DefaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 type Service struct {
-	repo *Repository
+	repo    *Repository
+	emitter timeline.Emitter
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, emitter timeline.Emitter) *Service {
+	return &Service{repo: repo, emitter: emitter}
 }
 
 func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCaseRequest) (*CaseResponse, error) {
@@ -71,6 +73,18 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	go s.repo.CreateActivity(context.Background(), c.ID, creatorID, "case_created", map[string]interface{}{
 		"title":    c.Title,
 		"priority": c.Priority,
+	})
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:    c.ID,
+		EventType: db.TimelineEventTypeCaseCreated,
+		Source:    db.TimelineEventSourceUser,
+		ActorID:   &creatorID,
+		OccurredAt: c.CreatedAt,
+		Payload: map[string]any{
+			"case_number": c.CaseNumber,
+			"title":       c.Title,
+			"priority":    string(c.Priority),
+		},
 	})
 
 	return s.toCaseResponse(c, "", claims.Email, nil, nil, nil), nil
@@ -194,6 +208,18 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 		"to":     string(req.Status),
 		"reason": req.Reason,
 	})
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:    id,
+		EventType: db.TimelineEventTypeCaseStatusChanged,
+		Source:    db.TimelineEventSourceUser,
+		ActorID:   &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"from":   string(existing.Status),
+			"to":     string(req.Status),
+			"reason": req.Reason,
+		},
+	})
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
 }
@@ -225,6 +251,17 @@ func (s *Service) Assign(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 	go s.repo.CreateActivity(context.Background(), id, actorID, "assigned", map[string]interface{}{
 		"to":   req.UserID.String(),
 		"note": req.Note,
+	})
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:    id,
+		EventType: db.TimelineEventTypeCaseAssigned,
+		Source:    db.TimelineEventSourceUser,
+		ActorID:   &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"assigned_to": req.UserID.String(),
+			"note":        req.Note,
+		},
 	})
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
@@ -266,6 +303,17 @@ func (s *Service) UpdateTags(ctx context.Context, claims *auth.Claims, id uuid.U
 	go s.repo.CreateActivity(context.Background(), id, actorID, "tags_updated", map[string]interface{}{
 		"add":    req.Add,
 		"remove": req.Remove,
+	})
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:    id,
+		EventType: db.TimelineEventTypeCaseTagged,
+		Source:    db.TimelineEventSourceUser,
+		ActorID:   &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"add":    req.Add,
+			"remove": req.Remove,
+		},
 	})
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
@@ -358,6 +406,9 @@ func (s *Service) toCaseResponse(c db.Case, creatorName, creatorEmail string, as
 	}
 	if r.Tags == nil {
 		r.Tags = []string{}
+	}
+	if r.Watchers == nil {
+		r.Watchers = []UserRef{}
 	}
 	return r
 }

@@ -105,6 +105,198 @@ func (ns NullCaseStatus) Value() (driver.Value, error) {
 	return string(ns.CaseStatus), nil
 }
 
+type TaskPriority string
+
+const (
+	TaskPriorityCritical TaskPriority = "critical"
+	TaskPriorityHigh     TaskPriority = "high"
+	TaskPriorityMedium   TaskPriority = "medium"
+	TaskPriorityLow      TaskPriority = "low"
+)
+
+func (e *TaskPriority) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TaskPriority(s)
+	case string:
+		*e = TaskPriority(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TaskPriority: %T", src)
+	}
+	return nil
+}
+
+type NullTaskPriority struct {
+	TaskPriority TaskPriority `json:"task_priority"`
+	Valid        bool         `json:"valid"` // Valid is true if TaskPriority is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTaskPriority) Scan(value interface{}) error {
+	if value == nil {
+		ns.TaskPriority, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TaskPriority.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTaskPriority) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TaskPriority), nil
+}
+
+type TaskStatus string
+
+const (
+	TaskStatusTodo       TaskStatus = "todo"
+	TaskStatusInProgress TaskStatus = "in_progress"
+	TaskStatusDone       TaskStatus = "done"
+	TaskStatusCancelled  TaskStatus = "cancelled"
+)
+
+func (e *TaskStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TaskStatus(s)
+	case string:
+		*e = TaskStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TaskStatus: %T", src)
+	}
+	return nil
+}
+
+type NullTaskStatus struct {
+	TaskStatus TaskStatus `json:"task_status"`
+	Valid      bool       `json:"valid"` // Valid is true if TaskStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTaskStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.TaskStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TaskStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTaskStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TaskStatus), nil
+}
+
+type TimelineEventSource string
+
+const (
+	TimelineEventSourceSystem TimelineEventSource = "system"
+	TimelineEventSourceUser   TimelineEventSource = "user"
+	TimelineEventSourceAi     TimelineEventSource = "ai"
+)
+
+func (e *TimelineEventSource) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TimelineEventSource(s)
+	case string:
+		*e = TimelineEventSource(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TimelineEventSource: %T", src)
+	}
+	return nil
+}
+
+type NullTimelineEventSource struct {
+	TimelineEventSource TimelineEventSource `json:"timeline_event_source"`
+	Valid               bool                `json:"valid"` // Valid is true if TimelineEventSource is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTimelineEventSource) Scan(value interface{}) error {
+	if value == nil {
+		ns.TimelineEventSource, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TimelineEventSource.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTimelineEventSource) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TimelineEventSource), nil
+}
+
+type TimelineEventType string
+
+const (
+	TimelineEventTypeCaseCreated        TimelineEventType = "case_created"
+	TimelineEventTypeCaseStatusChanged  TimelineEventType = "case_status_changed"
+	TimelineEventTypeCaseAssigned       TimelineEventType = "case_assigned"
+	TimelineEventTypeCaseTagged         TimelineEventType = "case_tagged"
+	TimelineEventTypeDocumentUploaded   TimelineEventType = "document_uploaded"
+	TimelineEventTypeDocumentProcessed  TimelineEventType = "document_processed"
+	TimelineEventTypeDocumentAiAnalyzed TimelineEventType = "document_ai_analyzed"
+	TimelineEventTypeNoteAdded          TimelineEventType = "note_added"
+	TimelineEventTypeNoteEdited         TimelineEventType = "note_edited"
+	TimelineEventTypeCommentAdded       TimelineEventType = "comment_added"
+	TimelineEventTypeTaskCreated        TimelineEventType = "task_created"
+	TimelineEventTypeTaskCompleted      TimelineEventType = "task_completed"
+	TimelineEventTypeTaskOverdue        TimelineEventType = "task_overdue"
+	TimelineEventTypeAiQuery            TimelineEventType = "ai_query"
+	TimelineEventTypeAiSummaryGenerated TimelineEventType = "ai_summary_generated"
+	TimelineEventTypeAiActionSuggested  TimelineEventType = "ai_action_suggested"
+	TimelineEventTypeUserLogin          TimelineEventType = "user_login"
+	TimelineEventTypeUserAction         TimelineEventType = "user_action"
+	TimelineEventTypeSlaWarning         TimelineEventType = "sla_warning"
+	TimelineEventTypeSlaBreached        TimelineEventType = "sla_breached"
+	TimelineEventTypeNotificationSent   TimelineEventType = "notification_sent"
+)
+
+func (e *TimelineEventType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TimelineEventType(s)
+	case string:
+		*e = TimelineEventType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TimelineEventType: %T", src)
+	}
+	return nil
+}
+
+type NullTimelineEventType struct {
+	TimelineEventType TimelineEventType `json:"timeline_event_type"`
+	Valid             bool              `json:"valid"` // Valid is true if TimelineEventType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullTimelineEventType) Scan(value interface{}) error {
+	if value == nil {
+		ns.TimelineEventType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.TimelineEventType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullTimelineEventType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.TimelineEventType), nil
+}
+
 type UserRole string
 
 const (
@@ -228,6 +420,50 @@ type Session struct {
 	UserAgent    string      `json:"user_agent"`
 	CreatedAt    time.Time   `json:"created_at"`
 	LastActiveAt time.Time   `json:"last_active_at"`
+}
+
+type Task struct {
+	ID              uuid.UUID      `json:"id"`
+	CaseID          uuid.UUID      `json:"case_id"`
+	CreatedBy       uuid.UUID      `json:"created_by"`
+	AssignedTo      uuid.NullUUID  `json:"assigned_to"`
+	TimelineEventID uuid.NullUUID  `json:"timeline_event_id"`
+	Title           string         `json:"title"`
+	Description     sql.NullString `json:"description"`
+	Status          TaskStatus     `json:"status"`
+	Priority        TaskPriority   `json:"priority"`
+	DueDate         sql.NullTime   `json:"due_date"`
+	CompletedAt     sql.NullTime   `json:"completed_at"`
+	IsOverdue       bool           `json:"is_overdue"`
+	IsAiSuggested   bool           `json:"is_ai_suggested"`
+	SortOrder       int32          `json:"sort_order"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	DeletedAt       sql.NullTime   `json:"deleted_at"`
+}
+
+type TaskComment struct {
+	ID        uuid.UUID    `json:"id"`
+	TaskID    uuid.UUID    `json:"task_id"`
+	AuthorID  uuid.UUID    `json:"author_id"`
+	Content   string       `json:"content"`
+	CreatedAt time.Time    `json:"created_at"`
+	UpdatedAt time.Time    `json:"updated_at"`
+	DeletedAt sql.NullTime `json:"deleted_at"`
+}
+
+type TimelineEvent struct {
+	ID         uuid.UUID           `json:"id"`
+	CreatedAt  time.Time           `json:"created_at"`
+	UpdatedAt  time.Time           `json:"updated_at"`
+	DeletedAt  sql.NullTime        `json:"deleted_at"`
+	CaseID     uuid.UUID           `json:"case_id"`
+	EventType  TimelineEventType   `json:"event_type"`
+	Source     TimelineEventSource `json:"source"`
+	ActorID    uuid.NullUUID       `json:"actor_id"`
+	OccurredAt time.Time           `json:"occurred_at"`
+	Payload    json.RawMessage     `json:"payload"`
+	Metadata   json.RawMessage     `json:"metadata"`
 }
 
 type User struct {

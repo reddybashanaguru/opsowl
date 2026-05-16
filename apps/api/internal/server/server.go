@@ -13,6 +13,8 @@ import (
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/tasks"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 	"github.com/reddybashanaguru/opsowl/internal/users"
 )
 
@@ -66,11 +68,25 @@ func (s *Server) setupRoutes() {
 		usersHandler := users.NewHandler(usersSvc)
 		users.RegisterRoutes(r, usersHandler, s.jwtMgr)
 
+		// Timeline module (hub + emitter shared across modules)
+		timelineHub := timeline.NewHub()
+		timelineRepo := timeline.NewRepository(s.queries)
+		timelineEmitter := timeline.NewEmitter(s.queries, timelineHub)
+		timelineSvc := timeline.NewService(timelineRepo, timelineEmitter)
+		timelineHandler := timeline.NewHandler(timelineSvc, timelineHub, s.jwtMgr)
+		timeline.RegisterRoutes(r, timelineHandler, s.jwtMgr)
+
 		// Cases module
 		casesRepo := cases.NewRepository(s.queries)
-		casesSvc := cases.NewService(casesRepo)
+		casesSvc := cases.NewService(casesRepo, timelineEmitter)
 		casesHandler := cases.NewHandler(casesSvc)
 		cases.RegisterRoutes(r, casesHandler, s.jwtMgr)
+
+		// Tasks module
+		tasksRepo := tasks.NewRepository(s.queries)
+		tasksSvc := tasks.NewService(tasksRepo, timelineEmitter)
+		tasksHandler := tasks.NewHandler(tasksSvc)
+		tasks.RegisterRoutes(r, tasksHandler, s.jwtMgr)
 	})
 }
 

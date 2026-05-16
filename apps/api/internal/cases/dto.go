@@ -60,7 +60,7 @@ type CaseResponse struct {
 	SLABreachAt    *time.Time      `json:"sla_breach_at"`
 	SLABreached    bool            `json:"sla_breached"`
 	Tags           []string        `json:"tags"`
-	Watchers       []UserRef       `json:"watchers,omitempty"`
+	Watchers       []UserRef       `json:"watchers"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
 }

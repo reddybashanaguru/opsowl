@@ -60,9 +60,48 @@ async function request<T>(
   return envelope.data as T;
 }
 
+// For endpoints that return {"data":[...],"meta":{...}} — returns the full {data, meta} shape.
+async function requestList<TItem, TMeta = Record<string, unknown>>(
+  path: string,
+  options: RequestInit = {},
+): Promise<{ data: TItem[]; meta: TMeta }> {
+  const url = `${API_BASE}${path}`;
+
+  const response = await fetch(url, {
+    ...options,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeader(),
+      ...options.headers,
+    },
+  });
+
+  const envelope = await response.json() as {
+    data?: TItem[];
+    meta?: TMeta;
+    error?: { code: string; message: string; details?: unknown };
+  };
+
+  if (!response.ok || envelope.error) {
+    throw new APIError(
+      envelope.error?.code ?? "UNKNOWN",
+      envelope.error?.message ?? "An unexpected error occurred",
+      response.status,
+      envelope.error?.details,
+    );
+  }
+
+  return { data: envelope.data ?? [], meta: envelope.meta as TMeta };
+}
+
 export const api = {
   get: <T>(path: string, init?: RequestInit) =>
     request<T>(path, { method: "GET", ...init }),
+
+  // Use for list endpoints that return {data:[...], meta:{...}}
+  getList: <TItem, TMeta = Record<string, unknown>>(path: string, init?: RequestInit) =>
+    requestList<TItem, TMeta>(path, { method: "GET", ...init }),
 
   post: <T>(path: string, body: unknown, init?: RequestInit) =>
     request<T>(path, {

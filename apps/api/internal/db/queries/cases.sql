@@ -3,7 +3,7 @@ INSERT INTO cases (
   case_number, title, description, status, priority,
   assigned_to, created_by, organization_id, due_date, sla_breach_at, tags
 ) VALUES (
-  FORMAT('OWL-%s-%05d', EXTRACT(YEAR FROM NOW())::TEXT, nextval('case_number_seq')),
+  'OWL-' || EXTRACT(YEAR FROM NOW())::TEXT || '-' || LPAD(nextval('case_number_seq')::TEXT, 5, '0'),
   @title, @description, @status, @priority,
   @assigned_to, @created_by, @organization_id, @due_date, @sla_breach_at, @tags
 )

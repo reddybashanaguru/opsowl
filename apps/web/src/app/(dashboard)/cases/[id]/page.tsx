@@ -22,7 +22,7 @@ interface CaseDetail {
   sla_breached: boolean;
   due_date: string | null;
   tags: string[];
-  watchers: { id: string; full_name: string }[];
+  watchers: { id: string; full_name: string }[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -61,7 +61,7 @@ function ActivityItem({ a }: { a: Activity }) {
   return (
     <div className="flex gap-3 py-3 border-b border-slate-700/50 last:border-0">
       <div className="w-7 h-7 rounded-full bg-slate-700 flex items-center justify-center text-xs text-slate-300 flex-shrink-0 mt-0.5">
-        {a.actor.full_name.charAt(0).toUpperCase()}
+        {(a.actor?.full_name ?? "?").charAt(0).toUpperCase()}
       </div>
       <div>
         <span className="text-white text-sm font-medium">{a.actor.full_name}</span>
@@ -93,7 +93,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const { data: activityData } = useQuery<{ data: Activity[] }>({
     queryKey: ["case-activity", id],
-    queryFn: () => api.get<{ data: Activity[] }>(`/api/v1/cases/${id}/activity?limit=20`),
+    queryFn: () => api.getList<Activity>(`/api/v1/cases/${id}/activity?limit=20`),
     enabled: !!id,
   });
 
@@ -124,13 +124,29 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Back */}
-      <button
-        onClick={() => router.push("/cases")}
-        className="text-slate-400 hover:text-slate-200 text-sm mb-4 flex items-center gap-1"
-      >
-        ← Cases
-      </button>
+      {/* Nav */}
+      <div className="flex items-center gap-4 mb-4">
+        <button
+          onClick={() => router.push("/cases")}
+          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
+        >
+          ← Cases
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
+          onClick={() => router.push(`/cases/${id}/tasks`)}
+          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+        >
+          Tasks →
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
+          onClick={() => router.push(`/cases/${id}/timeline`)}
+          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+        >
+          Timeline →
+        </button>
+      </div>
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
@@ -174,11 +190,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Activity */}
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
             <h2 className="text-slate-300 text-sm font-semibold mb-4 uppercase tracking-wide">Activity</h2>
-            {activityData?.data.length === 0 ? (
+            {!activityData || activityData.data.length === 0 ? (
               <p className="text-slate-600 text-sm italic">No activity yet.</p>
             ) : (
               <div>
-                {activityData?.data.map((a) => <ActivityItem key={a.id} a={a} />)}
+                {activityData.data.map((a) => <ActivityItem key={a.id} a={a} />)}
               </div>
             )}
           </div>
@@ -196,7 +212,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created By</div>
-              <div className="text-slate-200 text-sm">{c.created_by.full_name || "—"}</div>
+              <div className="text-slate-200 text-sm">{c.created_by?.full_name || "—"}</div>
             </div>
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created</div>
@@ -217,11 +233,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Tags */}
-          {c.tags.length > 0 && (
+          {(c.tags?.length ?? 0) > 0 && (
             <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-3">Tags</div>
               <div className="flex flex-wrap gap-1.5">
-                {c.tags.map((t) => (
+                {(c.tags ?? []).map((t) => (
                   <span key={t} className="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded">
                     {t}
                   </span>
@@ -231,11 +247,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           )}
 
           {/* Watchers */}
-          {c.watchers.length > 0 && (
+          {(c.watchers?.length ?? 0) > 0 && (
             <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-3">Watchers</div>
               <div className="space-y-1">
-                {c.watchers.map((w) => (
+                {(c.watchers ?? []).map((w) => (
                   <div key={w.id} className="text-slate-300 text-sm">{w.full_name}</div>
                 ))}
               </div>

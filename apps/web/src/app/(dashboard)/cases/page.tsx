@@ -23,9 +23,10 @@ interface CaseRow {
   created_at: string;
 }
 
-interface ListResponse {
-  data: CaseRow[];
-  meta: { next_cursor: string | null; has_more: boolean; total_count: number };
+interface ListMeta {
+  next_cursor: string | null;
+  has_more: boolean;
+  total_count: number;
 }
 
 const STATUSES = ["", "draft", "open", "in_progress", "pending_review", "closed", "escalated"];
@@ -43,9 +44,9 @@ function CasesContent() {
   if (priority) params.set("priority", priority);
   params.set("limit", "20");
 
-  const { data, isLoading, error } = useQuery<ListResponse>({
+  const { data, isLoading, error } = useQuery<{ data: CaseRow[]; meta: ListMeta }>({
     queryKey: ["cases", status, priority],
-    queryFn: () => api.get<ListResponse>(`/api/v1/cases?${params.toString()}`),
+    queryFn: () => api.getList<CaseRow, ListMeta>(`/api/v1/cases?${params.toString()}`),
   });
 
   const cases = data?.data ?? [];
@@ -128,9 +129,9 @@ function CasesContent() {
                   <td className="px-4 py-3">
                     <div className="font-mono text-xs text-cyan-400 mb-0.5">{c.case_number}</div>
                     <div className="text-white font-medium truncate max-w-xs">{c.title}</div>
-                    {c.tags.length > 0 && (
+                    {(c.tags?.length ?? 0) > 0 && (
                       <div className="flex gap-1 mt-1 flex-wrap">
-                        {c.tags.slice(0, 3).map((t) => (
+                        {(c.tags ?? []).slice(0, 3).map((t) => (
                           <span key={t} className="text-xs bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">
                             {t}
                           </span>
