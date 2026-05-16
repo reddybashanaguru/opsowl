@@ -1,8 +1,12 @@
-.PHONY: help up down logs build test check migrate gen-keys setup
+.PHONY: help up infra down logs build test check migrate gen-keys setup
 
 ## Show available commands
 help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
+
+## Start only infrastructure (postgres + minio) — use this for local dev
+infra: ## Start only postgres + minio (run app services locally)
+	docker compose -f infra/docker/docker-compose.yml up -d postgres minio
 
 ## Start all services in Docker
 up: ## Start all Docker services (postgres, minio, api, web, ai-service)
