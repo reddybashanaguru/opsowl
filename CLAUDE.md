@@ -105,7 +105,7 @@ investigation-workspace/
 | 2 | Case Management | ✅ Complete |
 | 3 | Timeline Workspace | ✅ Complete |
 | 4 | AI Copilot | 🔲 Not started |
-| 5 | Document Upload & Intelligence | 🔲 Not started |
+| 5 | Document Upload & Intelligence | ✅ Complete |
 | 6 | Notes & Collaboration | 🔲 Not started |
 | 7 | Task Management | ✅ Complete |
 | 8 | Dashboard | 🔲 Not started |
@@ -326,6 +326,20 @@ Build Features 4 and 12 together — they are deeply coupled.
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Feature 5 — Document Upload & Intelligence (2026-05-17)
+**Built:** Full document lifecycle — multipart upload to MinIO, async processing via Python AI service goroutine, cursor-paginated list with status filter, soft delete with RBAC. Storage abstraction (`storage.Client` interface) with MinIO implementation. MIME validation via magic bytes (`net/http.DetectContentType`) + extension fallback for `application/octet-stream`. Python AI service: PyMuPDF + Tesseract OCR extraction, boundary-aware chunking (~2000 chars / 200-char overlap), OpenAI `text-embedding-3-small` embeddings stored in `document_chunks` via pgvector/psycopg3.
+**Key decisions:**
+- Goroutine for async AI processing (no River job for MVP — avoids River table/worker complexity)
+- No ClamAV antivirus scanning — stubbed; add in Phase 2 before production
+- No PDF.js inline preview — 1-hour presigned MinIO URL for download; viewer in Phase 2
+- `prefixReader` re-injects first 512B (consumed by MIME detection) so MinIO receives the full stream
+- Explicit UUID pre-generated before DB insert so storage key (`case/{caseId}/doc/{docId}/{filename}`) is known before upload
+- `resolveByExtension()` fallback for OOXML types (`docx`, `xlsx`, `doc`, `xls`) which are ZIP files that `DetectContentType` returns as `application/zip`
+**BE tests:** 91% coverage, 40+ tests (shared testcontainers-go `TestMain` pattern to avoid per-test Docker container overhead)
+**FE tests:** 30 component tests (DocumentCard 15, DocumentUploadZone 8, DocumentProcessingBadge 7)
+**Frontend:** `/cases/[id]/documents` page with infinite scroll, status filter dropdown, drag-and-drop upload zone, document cards with processing status badge. "Documents →" nav added to case detail page.
+**Known limitation:** Processor goroutine has no retry on AI service transient failure — marks document `failed` on first error. Add retry with exponential backoff in Phase 2.
 
 ### ✅ Feature 7 — Task Management (2026-05-16)
 **Built:** Full task CRUD with state machine (todo→in_progress→done/cancelled), cursor pagination, overdue detection (synchronous on create/update — no River job for MVP), task comments (CRUD + pagination), `My Tasks` cross-case view grouped by urgency. Timeline events emitted on `task_created` and `task_completed`. RBAC: analysts can create/update own tasks, manager+ can update any.
