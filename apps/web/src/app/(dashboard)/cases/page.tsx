@@ -85,7 +85,14 @@ function CasesContent() {
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
     });
 
-  const allCases = useMemo(() => data?.pages.flatMap((p) => p.data) ?? [], [data]);
+  const allCases = useMemo(() => {
+    const seen = new Set<string>();
+    return (data?.pages.flatMap((p) => p.data) ?? []).filter((c) => {
+      if (seen.has(c.id)) return false;
+      seen.add(c.id);
+      return true;
+    });
+  }, [data]);
   const total = data?.pages[0]?.meta.total_count ?? 0;
 
   // Client-side search over already-loaded cases

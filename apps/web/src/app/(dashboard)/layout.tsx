@@ -33,9 +33,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-[#0f172a] flex">
-        {/* Sidebar */}
-        <aside className="w-60 min-w-60 bg-[#1e293b] border-r border-slate-700 flex flex-col">
+      <div className="h-screen bg-[#0f172a] flex overflow-hidden">
+        {/* Sidebar — fixed height, independent scroll */}
+        <aside className="w-60 min-w-60 bg-[#1e293b] border-r border-slate-700 flex flex-col overflow-y-auto flex-shrink-0">
           {/* Brand */}
           <div className="px-5 py-5 border-b border-slate-700">
             <div className="text-cyan-400 font-bold text-lg tracking-tight">OpsOwl AI</div>
