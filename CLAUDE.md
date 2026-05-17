@@ -137,6 +137,137 @@ Do NOT build these regardless of how good they sound:
 
 ---
 
+## Phase 2 — Client-Ready Features (6 features, priority order)
+
+**Goal:** Move from "serious prototype" → "client signs a contract."
+**Theme:** Every feature either (a) serves a regulator directly, (b) makes AI useful to an investigator, or (c) removes a workflow gap that breaks the daily ops loop.
+**AI Rule:** Every feature where AI can add value MUST use AI — summaries, risk scoring, entity extraction, recommendations. Not optional.
+
+### Phase 2 Feature Table
+
+| # | Feature | Client Pain Solved | AI Used? | Status |
+|---|---------|-------------------|----------|--------|
+| P2-1 | **PDF Case Report** | Regulators need a closure report. Zero workaround exists today. | ✅ AI writes the executive summary section | ⬜ Todo |
+| P2-2 | **AI Risk Scoring & Insights Panel** | AI is in the product name but invisible in the case view. Investigators need to see what the AI found without opening a chat panel. | ✅ Core — risk score, entity extraction, auto-flagged anomalies | ⬜ Todo |
+| P2-3 | **SLA Policy Engine** | Boolean `sla_breached` is not SLA management. Ops managers need configurable windows, warning alerts at 80%, and resolution-time trends. | ✅ AI predicts breach likelihood from case velocity | ⬜ Todo |
+| P2-4 | **Communication Log** | Investigators email customers, call banks, send notices — none of it is in the case today. The tool becomes an island. | ✅ AI extracts entities and action items from logged call notes | ⬜ Todo |
+| P2-5 | **Team Workload View** | Managers are blind to analyst capacity. They assign work by intuition, not data. | ✅ AI surfaces overloaded analysts and suggests rebalancing | ⬜ Todo |
+| P2-6 | **Document Retry + Processing UX** | 9/72 documents are "failed" with no recovery path. Ops teams upload evidence constantly — silent failure erodes trust. | ✅ AI auto-categorises document type on successful retry | ⬜ Todo |
+
+---
+
+### P2-1: PDF Case Report
+
+**What:** One-click "Export Report" button on any case. Generates a formatted PDF with:
+- Cover page: case number, title, status, priority, dates, assigned team
+- Executive summary (AI-written — 3-4 sentences summarising what happened and outcome)
+- Timeline section: chronological events
+- Evidence section: document table (filename, type, size, processing status)
+- Task completion summary
+- Notes section: formal notes only (note_type = 'formal')
+- Audit trail footer: who touched the case and when
+
+**BE:** New `GET /api/v1/cases/:id/report` endpoint → calls Python AI service for executive summary → assembles PDF using `github.com/signintech/gopdf` or `unidoc/unipdf` → streams as `application/pdf`.
+**AI:** `POST /report/summary` on Python service — takes case data JSON, returns 3-4 sentence executive summary with confidence score.
+**FE:** "Export PDF Report" button in case detail header → triggers download. Loading state with progress indicator.
+
+---
+
+### P2-2: AI Risk Scoring & Insights Panel
+
+**What:** Every case gets a live AI risk score (0–100) shown as a badge in the case list and case header. Case detail gets a persistent "AI Insights" section (not a chat panel — always visible) showing:
+- Risk score with colour band (green/amber/red)
+- Top 3 risk factors (extracted by AI from case context)
+- Key entities extracted: persons, companies, account numbers, amounts
+- Flagged anomalies: patterns the AI noticed (e.g., "3 wire transfers in 4 hours to same beneficiary")
+- Recommended next actions (3 bullet points)
+
+**BE:** New `POST /api/v1/cases/:id/ai-analyse` endpoint — triggers full AI analysis, stores result in new `case_ai_insights` table. Background refresh on every document processed or note added.
+**AI (Python):** `/analyse/case` — RAG over all case documents + notes + timeline events. Extracts: risk score (0–100 numeric), risk_factors[], entities{}, anomalies[], recommended_actions[]. All with citations + confidence.
+**DB:** `case_ai_insights` table — `case_id`, `risk_score NUMERIC(5,2)`, `risk_factors JSONB`, `entities JSONB`, `anomalies JSONB`, `recommended_actions JSONB`, `model_used`, `confidence`, `created_at`.
+**FE:** Risk score badge on every case card in list (colour-coded). "AI Insights" expandable section in case detail — always rendered (not a slide-over). Refresh button. "Last analysed X ago" timestamp.
+
+---
+
+### P2-3: SLA Policy Engine
+
+**What:** Replace hardcoded SLA durations with configurable policies. Add warning notifications. Add trend chart.
+- Admin can set SLA hours per priority per case type (admin UI settings page)
+- Cases show: elapsed %, time remaining countdown, status band (green/amber/red)
+- Warning notification fired at 80% elapsed (new notification type: `case_sla_warning`)
+- Dashboard gets a "SLA Health" chart: resolution time trend (7-day rolling avg per priority)
+- AI predicts breach likelihood ("72% likely to breach in next 4 hours") based on case activity velocity
+
+**BE:** New `sla_policies` table (priority, hours, warn_threshold_pct). `sla_breach_at` recalculated on policy change. River job: `SLAWatcherJob` — runs every 15 min, fires `case_sla_warning` notifications. New `GET /api/v1/analytics/sla-trends` endpoint.
+**AI:** Python `POST /predict/sla-breach` — inputs: case age, activity count, last_activity_at, priority. Returns breach probability + confidence.
+**FE:** SLA settings page under admin. Case detail: SLA progress bar with countdown. Dashboard: resolution time chart (7-day SVG line chart). Case list: SLA urgency column with colour bands.
+
+---
+
+### P2-4: Communication Log
+
+**What:** Investigators log every outbound communication against a case — email, phone call, field visit, letter, WhatsApp. Each log entry has: channel, direction (outbound/inbound), contact name, contact detail, subject/summary, outcome, timestamp, attachments.
+- AI extracts named entities and action items from free-text call notes
+- Communications appear in the case timeline
+- Exportable in the case PDF report
+
+**BE:** New module `internal/comms`. `communication_logs` table: `case_id`, `channel ENUM(email|call|field_visit|letter|whatsapp)`, `direction ENUM(inbound|outbound)`, `contact_name`, `contact_detail`, `subject`, `body`, `outcome`, `attachments UUID[]`, `logged_by`, `occurred_at`. CRUD endpoints.
+**AI:** On `POST /api/v1/cases/:id/comms` — async call to Python `POST /extract/comms-entities` — returns entities (persons, orgs, amounts, dates) + action_items[]. Stored in `comm_ai_extractions` table alongside the log entry.
+**FE:** "Communications" tab in case detail. Log form with channel selector. Each log card shows channel icon, contact, summary, AI-extracted entities chip strip, action items checklist. Timeline integration (shows as `comm_logged` event type).
+
+---
+
+### P2-5: Team Workload View
+
+**What:** Manager/admin-only page at `/workload`. Shows:
+- Per-analyst: active case count, open task count, overdue task count, avg case age
+- Capacity indicator: green (< 5 active cases), amber (5–8), red (> 8)
+- Task distribution chart: who has what
+- AI recommendation: "Sneha Patel is overloaded (9 cases, 3 overdue). Consider reassigning OWL-2026-00012 to Arjun Mehta who has capacity."
+- One-click reassign from the workload view
+
+**BE:** New `GET /api/v1/analytics/workload` endpoint — aggregates across cases + tasks per analyst in single SQL query. New `POST /api/v1/analytics/workload/ai-suggest` — returns AI rebalancing suggestion.
+**AI:** Python `POST /analyse/workload` — inputs workload JSON, returns natural language suggestion with specific case_id recommendations.
+**FE:** `/workload` page. Analyst cards in a grid (avatar, stats, capacity bar). Assignment modal. RBAC gate (manager+ only). SVG bar chart for task distribution. AI suggestion banner at top of page.
+
+---
+
+### P2-6: Document Retry + Processing UX
+
+**What:** Failed documents are dead ends today. Add recovery and better UX:
+- "Retry Processing" button on failed documents
+- Progress indicator during processing (polling or SSE)
+- Better error messages (not just "unsupported binary format")
+- AI auto-categorises successfully processed documents (contract/invoice/identity/evidence/other)
+- Document type label shown on document card
+
+**BE:** New `POST /api/v1/cases/:id/documents/:docId/retry` endpoint — re-triggers async processing goroutine. Update error handling in Python processor to return specific error codes. New `doc_category` column on `documents` table.
+**AI:** Python processor — after successful extraction, call `/categorise/document` → returns category + confidence. Stored in `doc_category`.
+**FE:** Retry button on failed document cards (spinner during processing). Processing progress SSE event (`document.processing`) displayed as animated progress bar. Category chip on document cards. Better empty states.
+
+---
+
+### Phase 2 Build Order
+
+Build in this order (dependencies matter):
+
+1. **P2-6: Document Retry** — small, quick win, builds trust in the upload pipeline
+2. **P2-2: AI Risk Scoring** — highest client impact; makes "AI-Native" real in the UI
+3. **P2-4: Communication Log** — fills the biggest workflow gap
+4. **P2-1: PDF Case Report** — needs communication log data to be complete
+5. **P2-3: SLA Policy Engine** — needs working notification system (already built)
+6. **P2-5: Team Workload View** — pure analytics, no new domain entities needed
+
+### Phase 2 Dev Workflow (same as MVP)
+1. Build BE schema + service + handler + tests
+2. Build AI service endpoint if needed
+3. Build FE page/component
+4. Test as end user — find gaps, fix them
+5. Commit with structured message
+6. Update this CLAUDE.md — mark feature ✅ complete
+
+---
+
 ## Development Workflow (Follow Every Time)
 
 ### For each feature:
