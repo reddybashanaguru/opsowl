@@ -148,11 +148,11 @@ Do NOT build these regardless of how good they sound:
 | # | Feature | Client Pain Solved | AI Used? | Status |
 |---|---------|-------------------|----------|--------|
 | P2-1 | **PDF Case Report** | Regulators need a closure report. Zero workaround exists today. | ✅ AI writes the executive summary section | ⬜ Todo |
-| P2-2 | **AI Risk Scoring & Insights Panel** | AI is in the product name but invisible in the case view. Investigators need to see what the AI found without opening a chat panel. | ✅ Core — risk score, entity extraction, auto-flagged anomalies | ⬜ Todo |
-| P2-3 | **SLA Policy Engine** | Boolean `sla_breached` is not SLA management. Ops managers need configurable windows, warning alerts at 80%, and resolution-time trends. | ✅ AI predicts breach likelihood from case velocity | ⬜ Todo |
-| P2-4 | **Communication Log** | Investigators email customers, call banks, send notices — none of it is in the case today. The tool becomes an island. | ✅ AI extracts entities and action items from logged call notes | ⬜ Todo |
-| P2-5 | **Team Workload View** | Managers are blind to analyst capacity. They assign work by intuition, not data. | ✅ AI surfaces overloaded analysts and suggests rebalancing | ⬜ Todo |
-| P2-6 | **Document Retry + Processing UX** | 9/72 documents are "failed" with no recovery path. Ops teams upload evidence constantly — silent failure erodes trust. | ✅ AI auto-categorises document type on successful retry | ⬜ Todo |
+| P2-2 | **AI Risk Scoring & Insights Panel** | AI is in the product name but invisible in the case view. Investigators need to see what the AI found without opening a chat panel. | ✅ Core — risk score, entity extraction, auto-flagged anomalies | ✅ Done (2026-05-17) |
+| P2-3 | **SLA Policy Engine** | Boolean `sla_breached` is not SLA management. Ops managers need configurable windows, warning alerts at 80%, and resolution-time trends. | ✅ AI predicts breach likelihood from case velocity | ✅ Done (2026-05-17) |
+| P2-4 | **Communication Log** | Investigators email customers, call banks, send notices — none of it is in the case today. The tool becomes an island. | ✅ AI extracts entities and action items from logged call notes | ✅ Done (2026-05-17) |
+| P2-5 | **Team Workload View** | Managers are blind to analyst capacity. They assign work by intuition, not data. | ✅ AI surfaces overloaded analysts and suggests rebalancing | ✅ Done (2026-05-17) |
+| P2-6 | **Document Retry + Processing UX** | 9/72 documents are "failed" with no recovery path. Ops teams upload evidence constantly — silent failure erodes trust. | ✅ AI auto-categorises document type on successful retry | ✅ Done (2026-05-17) |
 
 ---
 
