@@ -30,7 +30,7 @@ type StatusRequest struct {
 }
 
 type AssignRequest struct {
-	UserID uuid.UUID `json:"user_id"`
+	UserID uuid.UUID `json:"assigned_to"`
 	Note   string    `json:"note"`
 }
 

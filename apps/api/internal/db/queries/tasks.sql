@@ -48,7 +48,7 @@ FROM tasks t
 JOIN cases c ON c.id = t.case_id AND c.deleted_at IS NULL
 JOIN users u_creator ON u_creator.id = t.created_by
 LEFT JOIN users u_assign ON u_assign.id = t.assigned_to
-WHERE t.assigned_to = $1
+WHERE (t.assigned_to = $1 OR t.created_by = $1)
   AND t.deleted_at IS NULL
   AND (sqlc.narg('status')::task_status IS NULL OR t.status = sqlc.narg('status'))
   AND (sqlc.narg('overdue_only')::boolean IS NULL OR sqlc.narg('overdue_only') = FALSE OR t.is_overdue = TRUE)

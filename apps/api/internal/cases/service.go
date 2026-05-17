@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
@@ -24,12 +25,18 @@ var (
 var DefaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 type Service struct {
-	repo    *Repository
-	emitter timeline.Emitter
+	repo     *Repository
+	emitter  timeline.Emitter
+	notifSvc *notifications.Service
 }
 
 func NewService(repo *Repository, emitter timeline.Emitter) *Service {
 	return &Service{repo: repo, emitter: emitter}
+}
+
+func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
+	s.notifSvc = notifSvc
+	return s
 }
 
 func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCaseRequest) (*CaseResponse, error) {
@@ -221,6 +228,20 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 		},
 	})
 
+	// Notify assigned investigator of status change
+	if s.notifSvc != nil && existing.AssignedTo.Valid && existing.AssignedTo.UUID != claims.UserID {
+		assigneeID := existing.AssignedTo.UUID
+		s.notifSvc.NotifyAsync(context.Background(), notifications.NotifyInput{
+			RecipientID: assigneeID,
+			Type:        db.NotificationTypeCaseStatusChanged,
+			Priority:    db.NotificationPriorityMedium,
+			Title:       "Case status updated",
+			Message:     "Case " + existing.CaseNumber + " moved to " + string(req.Status),
+			LinkURL:     "/cases/" + id.String(),
+			CaseID:      &id,
+		})
+	}
+
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
 }
 
@@ -263,6 +284,18 @@ func (s *Service) Assign(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 			"note":        req.Note,
 		},
 	})
+
+	if s.notifSvc != nil {
+		s.notifSvc.NotifyAsync(context.Background(), notifications.NotifyInput{
+			RecipientID: req.UserID,
+			Type:        db.NotificationTypeCaseAssigned,
+			Priority:    db.NotificationPriorityHigh,
+			Title:       "Case assigned to you",
+			Message:     "You have been assigned as investigator on case " + c.CaseNumber,
+			LinkURL:     "/cases/" + id.String(),
+			CaseID:      &id,
+		})
+	}
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
 }

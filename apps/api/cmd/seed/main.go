@@ -68,6 +68,7 @@ func main() {
 	seedDocuments(ctx, q, cases, u)
 	seedAILogs(ctx, q, cases, u)
 	seedAuditLogs(ctx, q, u, cases)
+	seedNotes(ctx, q, cases, u)
 	fmt.Println("✅ Done.")
 	fmt.Println("   Login:   admin@opsowl.dev / OpsOwl@2024")
 	fmt.Printf("   Cases:   %d total\n", len(cases))
@@ -77,7 +78,7 @@ func main() {
 
 func truncate(db *sql.DB) {
 	stmts := []string{
-		"TRUNCATE audit_logs, ai_logs, document_chunks, documents, task_comments, tasks, timeline_events, case_activities, case_watchers, case_assignments, cases, refresh_tokens, sessions, users CASCADE",
+		"TRUNCATE mentions, comments, notes, audit_logs, ai_logs, document_chunks, documents, task_comments, tasks, timeline_events, case_activities, case_watchers, case_assignments, cases, refresh_tokens, sessions, users CASCADE",
 		"ALTER SEQUENCE case_number_seq RESTART WITH 1",
 	}
 	for _, s := range stmts {
@@ -940,4 +941,108 @@ func seedAuditLogs(ctx context.Context, q *dbgen.Queries, u userSet, cases []dbg
 		map[string]any{"method": "POST", "status": 413, "error": "file_too_large", "size_bytes": 52428800})
 
 	fmt.Println("  🔍 35 audit log entries created")
+}
+
+// ── Notes & Comments ──────────────────────────────────────────────────────────
+
+func seedNotes(ctx context.Context, q *dbgen.Queries, cases []dbgen.Case, u userSet) {
+	type noteSpec struct {
+		caseIdx     int
+		author      dbgen.CreateUserRow
+		title       string
+		content     string
+		contentText string
+		noteType    dbgen.NoteTypeEnum
+		isPinned    bool
+		aiGenerated bool
+	}
+
+	notes := []noteSpec{
+		{0, u.analyst1, "Initial Investigation Findings",
+			`<p>Transaction analysis complete. Key findings:</p><ul><li>Account compromised between <strong>23:41–23:59 IST</strong> on the breach date</li><li>Three rapid ATM withdrawals totalling ₹29,800 from geographically dispersed locations</li><li>Device fingerprint mismatch — new device not previously linked to customer</li></ul><p>Recommend immediate card block and outreach to customer.</p>`,
+			"Transaction analysis complete. Account compromised between 23:41–23:59 IST.",
+			dbgen.NoteTypeEnumInternal, true, false},
+		{0, u.manager, "Escalation Justification",
+			`<p>Escalating to Cyber Fraud desk based on:</p><ol><li>Confirmed device fingerprint mismatch</li><li>SIM swap event detected 4 hours prior</li><li>Customer confirmed she did not initiate these transactions</li></ol><p>Filing STR is mandatory under PMLA Sec 12. Target: <strong>48 hours</strong>.</p>`,
+			"Escalating to Cyber Fraud desk. SIM swap event confirmed. STR mandatory.",
+			dbgen.NoteTypeEnumFormal, true, false},
+		{1, u.analyst2, "ATM Skimming Device Confirmed",
+			`<p>Physical inspection confirms skimmer device at Sector 12 ATM. Evidence collected:</p><ul><li>Miniature camera installed above PIN pad (recovered)</li><li>Card reader overlay on slot (recovered)</li><li>Evidence tagged as <strong>EV-2024-0412-001</strong> and <strong>EV-2024-0412-002</strong></li></ul>`,
+			"Physical inspection confirms skimmer device. Evidence tagged EV-2024-0412-001 and EV-2024-0412-002.",
+			dbgen.NoteTypeEnumInternal, false, false},
+		{1, u.manager, "Formal Investigation Report — Draft",
+			`<h3>Case Summary</h3><p>This formal note documents the confirmed ATM skimming operation at Sector 12, Bengaluru. Seven customer accounts were compromised over a 72-hour window. Total fraud exposure: <strong>₹4,12,000</strong>.</p><h3>Evidence Chain</h3><p>Device recovered intact. Forensics sent to CERT-In for fingerprint analysis. CCTV footage preserved from ATM vendor.</p>`,
+			"Formal investigation report for ATM skimming at Sector 12. Total exposure ₹4,12,000.",
+			dbgen.NoteTypeEnumFormal, false, false},
+		{2, u.analyst3, "KYC Document Forensics",
+			`<p>Preliminary forensic review of submitted KYC documents:</p><ul><li>Aadhaar: Font inconsistency on page 2 — likely Photoshop composite</li><li>PAN: QR code scan returns mismatch with printed number</li><li>Address proof: Building visible on Google Maps but listed as "commercial only"</li></ul><p><em>Sending to UIDAI verification portal and income tax e-filing portal for cross-check.</em></p>`,
+			"KYC documents show forensic anomalies. Sending to UIDAI for verification.",
+			dbgen.NoteTypeEnumInternal, false, false},
+		{4, u.analyst1, "NACH Mandate Analysis",
+			`<p>Deep dive on the fraudulent NACH mandates:</p><ul><li>All 12 mandates share the same account number at a cooperative bank</li><li>Mandate approvals pushed through during a <strong>3-minute window</strong> — likely automated</li><li>Total exposure if all mandates execute: ₹8,40,000</li></ul><p>Blocking all mandates pending bank verification.</p>`,
+			"NACH mandates analysis complete. 12 fraudulent mandates share same beneficiary.",
+			dbgen.NoteTypeEnumInternal, false, false},
+		{5, u.manager, "ATO Response Plan",
+			`<h3>Account Takeover Response</h3><p>Immediate actions taken:</p><ol><li>Account frozen at T+0</li><li>All active sessions invalidated</li><li>Customer notified via registered mobile</li><li>New device binding requires branch visit</li></ol><p>Estimated recovery timeline: <strong>5-7 business days</strong> pending customer documentation.</p>`,
+			"Account takeover response. Account frozen. Customer notified.",
+			dbgen.NoteTypeEnumFormal, false, false},
+		{6, u.analyst2, "Insider Threat — AI-Assisted Analysis",
+			`<p><em>Note: Pre-filled by AI Copilot. Review before saving.</em></p><p>Pattern analysis across 847 transactions reviewed by Relationship Manager identifies:</p><ul><li>Systematic data access outside normal working hours (02:00–04:00 IST)</li><li>87 accounts queried with no corresponding customer interaction logged</li><li>Export events correlated with personal device USB connections</li></ul>`,
+			"Insider threat AI analysis. 87 accounts queried outside business hours.",
+			dbgen.NoteTypeEnumInternal, false, true},
+	}
+
+	created := make([]dbgen.CreateNoteRow, 0, len(notes))
+	for _, ns := range notes {
+		if ns.caseIdx >= len(cases) {
+			continue
+		}
+		n, err := q.CreateNote(ctx, dbgen.CreateNoteParams{
+			CaseID:      cases[ns.caseIdx].ID,
+			AuthorID:    ns.author.ID,
+			Title:       ns.title,
+			Content:     ns.content,
+			ContentText: ns.contentText,
+			NoteType:    ns.noteType,
+			IsPinned:    ns.isPinned,
+			AiGenerated: ns.aiGenerated,
+		})
+		if err != nil {
+			fmt.Println("  warn: note seed error:", err)
+			continue
+		}
+		created = append(created, n)
+	}
+
+	// Seed a few comments
+	type commentSpec struct {
+		noteIdx  int
+		author   dbgen.CreateUserRow
+		content  string
+	}
+	commentSpecs := []commentSpec{
+		{0, u.manager, "Confirmed — card block has been applied. Please coordinate with the customer contact centre for the callback."},
+		{0, u.analyst2, "I've also flagged this for the SIM swap team. They're checking Airtel records."},
+		{1, u.analyst1, "STR draft is in the shared folder. Needs manager sign-off before submission to FIU-IND."},
+		{2, u.manager, "Excellent work. Send evidence chain to the cyber cell. Copy me on the FIR filing."},
+		{4, u.analyst2, "I've contacted the cooperative bank's nodal officer. They will freeze the beneficiary account by EOD."},
+		{6, u.manager, "Review and edit before finalising. The USB correlation needs IT security sign-off."},
+	}
+	commentCount := 0
+	for _, cs := range commentSpecs {
+		if cs.noteIdx >= len(created) {
+			continue
+		}
+		_, err := q.CreateComment(ctx, dbgen.CreateCommentParams{
+			CaseID:   created[cs.noteIdx].CaseID,
+			NoteID:   uuid.NullUUID{UUID: created[cs.noteIdx].ID, Valid: true},
+			AuthorID: cs.author.ID,
+			Content:  cs.content,
+		})
+		if err == nil {
+			commentCount++
+		}
+	}
+
+	fmt.Printf("  📝 %d notes · %d comments seeded\n", len(created), commentCount)
 }

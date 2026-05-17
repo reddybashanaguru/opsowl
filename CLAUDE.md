@@ -106,12 +106,12 @@ investigation-workspace/
 | 3 | Timeline Workspace | ✅ Complete |
 | 4 | AI Copilot | ✅ Complete |
 | 5 | Document Upload & Intelligence | ✅ Complete |
-| 6 | Notes & Collaboration | 🔲 Not started |
+| 6 | Notes & Collaboration | ✅ Complete |
 | 7 | Task Management | ✅ Complete |
-| 8 | Dashboard | 🔲 Not started |
-| 9 | Notifications | 🔲 Not started |
-| 10 | Audit Logging | 🔲 Not started |
-| 11 | Search | 🔲 Not started |
+| 8 | Dashboard | ✅ Complete |
+| 9 | Notifications | ✅ Complete |
+| 10 | Audit Logging | ✅ Complete |
+| 11 | Search | ✅ Complete |
 | 12 | AI Logging & Explainability | ✅ Complete |
 
 **Update this table as each feature completes.**
@@ -326,6 +326,49 @@ Build Features 4 and 12 together — they are deeply coupled.
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Feature 11 — Search (2026-05-17)
+**Built:** Full-text search across all entities — cases, notes, tasks, documents — using PostgreSQL `tsvector` with `websearch_to_tsquery`. Migration adds `search_vector` columns + GIN indexes + trigger-based maintenance + backfill. Parallel fan-out in Go (4 goroutines, `sync.WaitGroup`) for sub-100ms response on filtered or global queries.
+**BE (Go — `internal/search`):** Migration `00010_search.sql` — trigger functions per table (`update_cases_search`, `update_notes_search`, `update_tasks_search`, `update_documents_search`). Weighted tsvectors: A=title/case_number, B=description/content_text, C=tags. Document filenames tokenized via `regexp_replace` (underscores/hyphens/dots → spaces). sqlc queries: `SearchCases`, `SearchNotes`, `SearchTasks`, `SearchDocuments` with `ts_rank` scoring. `GET /api/v1/search?q=&filter=&limit=` — filter param accepts `cases|notes|tasks|documents|""` to scope results.
+**FE (Next.js):** `/search` page — debounced input (350ms), filter tabs per entity type, inline `<HL>` component for keyword highlighting via `dangerouslySetInnerHTML` with mark-tag CSS, skeleton loading (5 animated rows), empty state, section grouping by entity type with count badges. Each result card links directly to the relevant entity.
+**Key decisions:**
+- Trigger-based maintenance vs generated columns: `to_tsvector` is STABLE not IMMUTABLE in PostgreSQL, so generated columns are not allowed. Triggers are the correct approach.
+- `websearch_to_tsquery` chosen over `plainto_tsquery` — handles natural language (AND, OR, NOT, phrases) without requiring users to know tsquery syntax
+- Document search on filename only (not chunk content) — chunk content is handled by AI RAG pipeline, not keyword FTS
+- Parallel goroutine fan-out with shared mutex for result accumulation — avoids sequential N×DB calls
+
+### ✅ Feature 10 — Audit Logging UI (2026-05-17)
+**Built:** Admin-only audit log viewer with server-side cursor pagination, severity filter tabs, event_code keyword filter (debounced 400ms), inline JSON metadata popover, CSV export. Middleware was built in Phase 1 (`internal/middleware/audit.go`) — this phase adds the viewer endpoint and frontend page.
+**BE (Go — `internal/audit`):** Two new sqlc queries added to `auth.sql`: `ListAuditLogs` (cursor-paginated, filterable by severity/event_code/actor_id) and `CountAuditLogs`. `GET /api/v1/audit` — admin+ only via `RequireRole`. `GET /api/v1/audit/export` — streams CSV via `encoding/csv`. `GET /api/v1/audit/stats` — total count.
+**FE (Next.js):** `/audit` page — `useInfiniteQuery` cursor pagination, table layout with columns: timestamp, event_code (monospace cyan), actor (name + email), severity pill with colored dot, resource type + truncated UUID, metadata popover. `RBACGate` wrapper shows lock state for non-admins. `TableSkeleton` with 10 animated rows.
+**Key decisions:**
+- Metadata rendered as raw JSON in a popover (not parsed per-event-type) — generic approach handles all future event types without schema changes
+- CSV export hits the API directly from browser anchor click — no client-side CSV generation needed
+- `event_code` uses `ILIKE '%...%'` for substring match — acceptable for admin tool; no performance concern at audit log scale
+
+### ✅ Feature 9 — Notifications (2026-05-17)
+**Built:** Real-time per-user notification system — in-app bell with unread badge, dropdown with last 15 notifications, mark-read/mark-all-read, SSE stream for instant delivery. Notifications fired on: case_assigned, case_status_changed, task_assigned. Notification preferences table for future per-type toggling.
+**BE (Go — `internal/notifications`):** Migration `00009_notifications.sql` — `notification_type` ENUM (11 values), `notification_priority` ENUM (4 values), `notifications` table, `notification_preferences` table. `UserBroker` — per-user SSE channel broker. `Service.NotifyAsync()` — goroutine-based fire-and-forget for non-blocking notification delivery from case/task handlers. `WithNotifications(notifSvc)` injection pattern in cases and tasks services — avoids constructor signature changes and circular import risk.
+**FE (Next.js):** `NotificationBell` component in sidebar — TanStack Query polling (30s) for unread count, dropdown with `useQuery(enabled: open)` lazy-loads list, SSE listener auto-invalidates on new events. Notification type icons + priority colors. `timeAgo()` helper. Outside-click close via `mousedown` listener.
+**Key decisions:**
+- `WithNotifications()` injection post-construction so notifSvc (created after cases/tasks) can be wired in server.go without restructuring module init order
+- SSE auth via `?token=` query param — EventSource API cannot set Authorization headers
+- `NotifyAsync` fires goroutine and returns immediately — notification failures don't block case/task mutations
+- Seed data does NOT create notifications (no case assign/task assign calls during seeding) — expected behavior
+
+### ✅ Feature 6 — Notes & Collaboration (2026-05-17)
+**Built:** Rich-text notes per case (Tiptap v3 with StarterKit, Bold/Italic/Strike/Lists/Code/Blockquote, @mention extension), threaded comments, mentions tracking, SSE real-time push, cursor-paginated feed with type filter (internal/formal), pin-to-top, AI-generated/AI-assisted badge lifecycle, soft delete, formal note designation for PDF export (Phase 2).
+**BE (Go — `internal/notes`):** Migration `00008_notes.sql` — `notes`, `comments`, `mentions` tables. sqlc queries for all CRUD. SSE broker (`NotesBroker`) — generic JSON channel broker, separate from timeline hub. Service handles mention insertion atomically with note/comment save. `GET /api/v1/cases/:id/notes/stream` uses `?token=` query param auth (EventSource cannot set headers).
+**FE (Next.js):** `/cases/[id]/notes` page — `useInfiniteQuery` with cursor pagination, skeleton loading, SSE listener (`EventSource`) for real-time invalidation, Tiptap `NoteEditor` with toolbar, `NoteCard` with inline comment thread (Enter to send), pin/edit/delete actions, AI badge rendering.
+**Key decisions:**
+- @mentions send `mentioned_user_ids[]` from frontend (extracted from Tiptap state) rather than re-parsing HTML in Go — simpler and correct
+- SSE broker is separate from timeline hub (different payload shape — JSON map vs typed `db.TimelineEvent`)
+- `is_human_edit` param in UpdateNote triggers `ai_generated→false, ai_assisted→true` transition in DB (badge downgrade)
+- Comments are plain text for MVP (no Tiptap in comment boxes) — reduces complexity without losing value
+**Seed:** 8 notes (spanning UPI fraud, card skimming, KYC, insider threat cases) · 6 threaded comments
+
+### ✅ Feature 8 — Dashboard (2026-05-17)
+**Built:** Real-data dashboard with pure-SVG donut chart (case status breakdown), horizontal bar chart (priority distribution), 4 stat cards (Open Cases, Pending Tasks, AI Queries Today, SLA Breached), attention panel (SLA-breached cases, escalated, pending AI reviews). Backend: `GetDashboardStats` sqlc query with 14 fields (status/priority breakdowns). No chart library — all SVG written by hand.
 
 ### ✅ Features 4 & 12 — AI Copilot + AI Logging & Explainability (2026-05-17)
 **Built together** (deeply coupled — both rely on `ai_logs` table).

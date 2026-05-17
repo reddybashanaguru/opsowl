@@ -19,7 +19,7 @@ UPDATE tasks SET
     completed_at = NOW(),
     is_overdue   = FALSE
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at
+RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at, search_vector
 `
 
 func (q *Queries) CompleteTask(ctx context.Context, id uuid.UUID) (Task, error) {
@@ -43,6 +43,7 @@ func (q *Queries) CompleteTask(ctx context.Context, id uuid.UUID) (Task, error) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -80,7 +81,7 @@ const createTask = `-- name: CreateTask :one
 INSERT INTO tasks (case_id, created_by, assigned_to, timeline_event_id, title, description, priority, due_date, is_ai_suggested, sort_order)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
     COALESCE((SELECT MAX(sort_order) + 1 FROM tasks WHERE case_id = $1 AND deleted_at IS NULL), 0))
-RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at
+RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at, search_vector
 `
 
 type CreateTaskParams struct {
@@ -126,6 +127,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -203,7 +205,7 @@ func (q *Queries) FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, 
 
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector,
     u_creator.full_name AS created_by_name,
     u_creator.email     AS created_by_email,
     u_assign.full_name  AS assigned_to_name,
@@ -233,6 +235,7 @@ type GetTaskByIDRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+	SearchVector    interface{}    `json:"search_vector"`
 	CreatedByName   string         `json:"created_by_name"`
 	CreatedByEmail  string         `json:"created_by_email"`
 	AssignedToName  sql.NullString `json:"assigned_to_name"`
@@ -261,6 +264,7 @@ func (q *Queries) GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 		&i.CreatedByName,
 		&i.CreatedByEmail,
 		&i.AssignedToName,
@@ -272,7 +276,7 @@ func (q *Queries) GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow
 
 const listMyTasks = `-- name: ListMyTasks :many
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector,
     c.case_number,
     c.title AS case_title,
     u_creator.full_name AS created_by_name,
@@ -282,7 +286,7 @@ FROM tasks t
 JOIN cases c ON c.id = t.case_id AND c.deleted_at IS NULL
 JOIN users u_creator ON u_creator.id = t.created_by
 LEFT JOIN users u_assign ON u_assign.id = t.assigned_to
-WHERE t.assigned_to = $1
+WHERE (t.assigned_to = $1 OR t.created_by = $1)
   AND t.deleted_at IS NULL
   AND ($2::task_status IS NULL OR t.status = $2)
   AND ($3::boolean IS NULL OR $3 = FALSE OR t.is_overdue = TRUE)
@@ -318,6 +322,7 @@ type ListMyTasksRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+	SearchVector    interface{}    `json:"search_vector"`
 	CaseNumber      string         `json:"case_number"`
 	CaseTitle       string         `json:"case_title"`
 	CreatedByName   string         `json:"created_by_name"`
@@ -357,6 +362,7 @@ func (q *Queries) ListMyTasks(ctx context.Context, arg ListMyTasksParams) ([]Lis
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.SearchVector,
 			&i.CaseNumber,
 			&i.CaseTitle,
 			&i.CreatedByName,
@@ -442,7 +448,7 @@ func (q *Queries) ListTaskComments(ctx context.Context, arg ListTaskCommentsPara
 
 const listTasksByCase = `-- name: ListTasksByCase :many
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector,
     u_creator.full_name AS created_by_name,
     u_assign.full_name  AS assigned_to_name,
     u_assign.email      AS assigned_to_email
@@ -488,6 +494,7 @@ type ListTasksByCaseRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+	SearchVector    interface{}    `json:"search_vector"`
 	CreatedByName   string         `json:"created_by_name"`
 	AssignedToName  sql.NullString `json:"assigned_to_name"`
 	AssignedToEmail sql.NullString `json:"assigned_to_email"`
@@ -528,6 +535,7 @@ func (q *Queries) ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.SearchVector,
 			&i.CreatedByName,
 			&i.AssignedToName,
 			&i.AssignedToEmail,
@@ -572,7 +580,7 @@ UPDATE tasks SET
     is_overdue      = COALESCE($11::boolean, is_overdue),
     sort_order      = COALESCE($12::integer,  sort_order)
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at
+RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateTaskParams struct {
@@ -624,6 +632,7 @@ func (q *Queries) UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }

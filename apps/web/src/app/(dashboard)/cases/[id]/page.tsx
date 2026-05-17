@@ -135,33 +135,23 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           ← Cases
         </button>
         <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${id}/tasks`)}
-          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-        >
-          Tasks →
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${id}/documents`)}
-          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-        >
-          Documents →
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${id}/timeline`)}
-          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-        >
-          Timeline →
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${id}/ai-logs`)}
-          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-        >
-          AI Logs →
-        </button>
+        {[
+          { label: "Notes →", href: `/cases/${id}/notes` },
+          { label: "Tasks →", href: `/cases/${id}/tasks` },
+          { label: "Documents →", href: `/cases/${id}/documents` },
+          { label: "Timeline →", href: `/cases/${id}/timeline` },
+          { label: "AI Logs →", href: `/cases/${id}/ai-logs` },
+        ].map(({ label, href }) => (
+          <span key={href} className="flex items-center gap-4">
+            <div className="h-4 border-l border-slate-700" />
+            <button
+              onClick={() => router.push(href)}
+              className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+            >
+              {label}
+            </button>
+          </span>
+        ))}
         <div className="h-4 border-l border-slate-700" />
         <button
           onClick={() => setCopilotOpen(true)}

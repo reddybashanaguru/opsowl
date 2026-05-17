@@ -81,7 +81,7 @@ INSERT INTO cases (
   $1, $2, $3, $4,
   $5, $6, $7, $8, $9, $10
 )
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type CreateCaseParams struct {
@@ -128,6 +128,7 @@ func (q *Queries) CreateCase(ctx context.Context, arg CreateCaseParams) (Case, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -192,7 +193,7 @@ func (q *Queries) CreateCaseAssignment(ctx context.Context, arg CreateCaseAssign
 
 const getCaseByID = `-- name: GetCaseByID :one
 SELECT
-  c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at,
+  c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at, c.search_vector,
   creator.full_name  AS created_by_name,
   creator.email      AS created_by_email,
   assignee.full_name AS assigned_to_name,
@@ -221,6 +222,7 @@ type GetCaseByIDRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+	SearchVector    interface{}    `json:"search_vector"`
 	CreatedByName   string         `json:"created_by_name"`
 	CreatedByEmail  string         `json:"created_by_email"`
 	AssignedToName  sql.NullString `json:"assigned_to_name"`
@@ -248,6 +250,7 @@ func (q *Queries) GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 		&i.CreatedByName,
 		&i.CreatedByEmail,
 		&i.AssignedToName,
@@ -357,7 +360,7 @@ func (q *Queries) ListCaseActivities(ctx context.Context, arg ListCaseActivities
 
 const listCases = `-- name: ListCases :many
 SELECT
-  c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at,
+  c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at, c.search_vector,
   creator.full_name  AS created_by_name,
   assignee.full_name AS assigned_to_name
 FROM cases c
@@ -405,6 +408,7 @@ type ListCasesRow struct {
 	CreatedAt      time.Time      `json:"created_at"`
 	UpdatedAt      time.Time      `json:"updated_at"`
 	DeletedAt      sql.NullTime   `json:"deleted_at"`
+	SearchVector   interface{}    `json:"search_vector"`
 	CreatedByName  string         `json:"created_by_name"`
 	AssignedToName sql.NullString `json:"assigned_to_name"`
 }
@@ -445,6 +449,7 @@ func (q *Queries) ListCases(ctx context.Context, arg ListCasesParams) ([]ListCas
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.SearchVector,
 			&i.CreatedByName,
 			&i.AssignedToName,
 		); err != nil {
@@ -466,7 +471,7 @@ UPDATE cases SET
   deleted_at = NOW(),
   updated_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 func (q *Queries) SoftDeleteCase(ctx context.Context, id uuid.UUID) (Case, error) {
@@ -489,6 +494,7 @@ func (q *Queries) SoftDeleteCase(ctx context.Context, id uuid.UUID) (Case, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -501,7 +507,7 @@ UPDATE cases SET
   due_date    = COALESCE($5, due_date),
   updated_at  = NOW()
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateCaseParams struct {
@@ -538,6 +544,7 @@ func (q *Queries) UpdateCase(ctx context.Context, arg UpdateCaseParams) (Case, e
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -547,7 +554,7 @@ UPDATE cases SET
   assigned_to = $1,
   updated_at  = NOW()
 WHERE id = $2 AND deleted_at IS NULL
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateCaseAssignmentParams struct {
@@ -575,6 +582,7 @@ func (q *Queries) UpdateCaseAssignment(ctx context.Context, arg UpdateCaseAssign
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -586,7 +594,7 @@ UPDATE cases SET
   sla_breached  = COALESCE($3, sla_breached),
   updated_at    = NOW()
 WHERE id = $4 AND deleted_at IS NULL
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateCaseStatusParams struct {
@@ -621,6 +629,7 @@ func (q *Queries) UpdateCaseStatus(ctx context.Context, arg UpdateCaseStatusPara
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -630,7 +639,7 @@ UPDATE cases SET
   tags       = $1,
   updated_at = NOW()
 WHERE id = $2 AND deleted_at IS NULL
-RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at
+RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateCaseTagsParams struct {
@@ -658,6 +667,7 @@ func (q *Queries) UpdateCaseTags(ctx context.Context, arg UpdateCaseTagsParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }

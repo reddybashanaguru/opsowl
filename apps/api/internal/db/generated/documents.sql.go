@@ -13,6 +13,19 @@ import (
 	"github.com/google/uuid"
 )
 
+const countAllDocuments = `-- name: CountAllDocuments :one
+SELECT COUNT(*) FROM documents
+WHERE deleted_at IS NULL
+  AND ($1::document_processing_status IS NULL OR processing_status = $1)
+`
+
+func (q *Queries) CountAllDocuments(ctx context.Context, status NullDocumentProcessingStatus) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAllDocuments, status)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countDocumentsByCase = `-- name: CountDocumentsByCase :one
 SELECT COUNT(*) FROM documents
 WHERE case_id = $1 AND deleted_at IS NULL
@@ -28,7 +41,7 @@ func (q *Queries) CountDocumentsByCase(ctx context.Context, caseID uuid.UUID) (i
 const createDocument = `-- name: CreateDocument :one
 INSERT INTO documents (id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
 `
 
 type CreateDocumentParams struct {
@@ -70,13 +83,14 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
 
 const getDocumentByID = `-- name: GetDocumentByID :one
 SELECT
-    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at,
+    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector,
     u.full_name  AS uploaded_by_name,
     u.email      AS uploaded_by_email
 FROM documents d
@@ -100,6 +114,7 @@ type GetDocumentByIDRow struct {
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
+	SearchVector     interface{}              `json:"search_vector"`
 	UploadedByName   string                   `json:"uploaded_by_name"`
 	UploadedByEmail  string                   `json:"uploaded_by_email"`
 }
@@ -123,15 +138,112 @@ func (q *Queries) GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumen
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 		&i.UploadedByName,
 		&i.UploadedByEmail,
 	)
 	return i, err
 }
 
+const listAllDocuments = `-- name: ListAllDocuments :many
+SELECT
+    d.id,
+    d.case_id,
+    c.case_number,
+    c.title        AS case_title,
+    d.original_filename,
+    d.file_type,
+    d.mime_type,
+    d.file_size_bytes,
+    d.processing_status,
+    d.page_count,
+    d.chunk_count,
+    d.error_message,
+    u.id           AS uploaded_by_id,
+    u.full_name    AS uploaded_by_name,
+    u.email        AS uploaded_by_email,
+    d.created_at,
+    d.updated_at
+FROM documents d
+JOIN cases c ON c.id = d.case_id
+JOIN users u ON u.id = d.uploaded_by
+WHERE d.deleted_at IS NULL
+  AND ($1::document_processing_status IS NULL OR d.processing_status = $1)
+  AND ($2::uuid IS NULL OR d.id < $2)
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT $3
+`
+
+type ListAllDocumentsParams struct {
+	Status   NullDocumentProcessingStatus `json:"status"`
+	CursorID uuid.NullUUID                `json:"cursor_id"`
+	RowLimit int32                        `json:"row_limit"`
+}
+
+type ListAllDocumentsRow struct {
+	ID               uuid.UUID                `json:"id"`
+	CaseID           uuid.UUID                `json:"case_id"`
+	CaseNumber       string                   `json:"case_number"`
+	CaseTitle        string                   `json:"case_title"`
+	OriginalFilename string                   `json:"original_filename"`
+	FileType         string                   `json:"file_type"`
+	MimeType         string                   `json:"mime_type"`
+	FileSizeBytes    int64                    `json:"file_size_bytes"`
+	ProcessingStatus DocumentProcessingStatus `json:"processing_status"`
+	PageCount        sql.NullInt32            `json:"page_count"`
+	ChunkCount       sql.NullInt32            `json:"chunk_count"`
+	ErrorMessage     sql.NullString           `json:"error_message"`
+	UploadedByID     uuid.UUID                `json:"uploaded_by_id"`
+	UploadedByName   string                   `json:"uploaded_by_name"`
+	UploadedByEmail  string                   `json:"uploaded_by_email"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
+}
+
+func (q *Queries) ListAllDocuments(ctx context.Context, arg ListAllDocumentsParams) ([]ListAllDocumentsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllDocuments, arg.Status, arg.CursorID, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAllDocumentsRow{}
+	for rows.Next() {
+		var i ListAllDocumentsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CaseID,
+			&i.CaseNumber,
+			&i.CaseTitle,
+			&i.OriginalFilename,
+			&i.FileType,
+			&i.MimeType,
+			&i.FileSizeBytes,
+			&i.ProcessingStatus,
+			&i.PageCount,
+			&i.ChunkCount,
+			&i.ErrorMessage,
+			&i.UploadedByID,
+			&i.UploadedByName,
+			&i.UploadedByEmail,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDocumentsByCase = `-- name: ListDocumentsByCase :many
 SELECT
-    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at,
+    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector,
     u.full_name  AS uploaded_by_name,
     u.email      AS uploaded_by_email
 FROM documents d
@@ -167,6 +279,7 @@ type ListDocumentsByCaseRow struct {
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
+	SearchVector     interface{}              `json:"search_vector"`
 	UploadedByName   string                   `json:"uploaded_by_name"`
 	UploadedByEmail  string                   `json:"uploaded_by_email"`
 }
@@ -201,6 +314,7 @@ func (q *Queries) ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCa
 			&i.CreatedAt,
 			&i.UpdatedAt,
 			&i.DeletedAt,
+			&i.SearchVector,
 			&i.UploadedByName,
 			&i.UploadedByEmail,
 		); err != nil {
@@ -237,7 +351,7 @@ UPDATE documents SET
     chunk_count       = $4,
     error_message     = $5
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateDocumentProcessingResultParams struct {
@@ -273,6 +387,7 @@ func (q *Queries) UpdateDocumentProcessingResult(ctx context.Context, arg Update
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }
@@ -280,7 +395,7 @@ func (q *Queries) UpdateDocumentProcessingResult(ctx context.Context, arg Update
 const updateDocumentStatus = `-- name: UpdateDocumentStatus :one
 UPDATE documents SET processing_status = $2
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
 `
 
 type UpdateDocumentStatusParams struct {
@@ -307,6 +422,7 @@ func (q *Queries) UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentSt
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.SearchVector,
 	)
 	return i, err
 }

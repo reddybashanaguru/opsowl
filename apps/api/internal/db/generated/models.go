@@ -149,6 +149,143 @@ func (ns NullDocumentProcessingStatus) Value() (driver.Value, error) {
 	return string(ns.DocumentProcessingStatus), nil
 }
 
+type NoteTypeEnum string
+
+const (
+	NoteTypeEnumInternal NoteTypeEnum = "internal"
+	NoteTypeEnumFormal   NoteTypeEnum = "formal"
+)
+
+func (e *NoteTypeEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NoteTypeEnum(s)
+	case string:
+		*e = NoteTypeEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NoteTypeEnum: %T", src)
+	}
+	return nil
+}
+
+type NullNoteTypeEnum struct {
+	NoteTypeEnum NoteTypeEnum `json:"note_type_enum"`
+	Valid        bool         `json:"valid"` // Valid is true if NoteTypeEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNoteTypeEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.NoteTypeEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NoteTypeEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNoteTypeEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NoteTypeEnum), nil
+}
+
+type NotificationPriority string
+
+const (
+	NotificationPriorityLow      NotificationPriority = "low"
+	NotificationPriorityMedium   NotificationPriority = "medium"
+	NotificationPriorityHigh     NotificationPriority = "high"
+	NotificationPriorityCritical NotificationPriority = "critical"
+)
+
+func (e *NotificationPriority) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationPriority(s)
+	case string:
+		*e = NotificationPriority(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationPriority: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationPriority struct {
+	NotificationPriority NotificationPriority `json:"notification_priority"`
+	Valid                bool                 `json:"valid"` // Valid is true if NotificationPriority is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationPriority) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationPriority, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationPriority.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationPriority) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationPriority), nil
+}
+
+type NotificationType string
+
+const (
+	NotificationTypeCaseAssigned      NotificationType = "case_assigned"
+	NotificationTypeCaseStatusChanged NotificationType = "case_status_changed"
+	NotificationTypeCaseSlaWarning    NotificationType = "case_sla_warning"
+	NotificationTypeCaseSlaBreached   NotificationType = "case_sla_breached"
+	NotificationTypeTaskAssigned      NotificationType = "task_assigned"
+	NotificationTypeTaskDueSoon       NotificationType = "task_due_soon"
+	NotificationTypeTaskOverdue       NotificationType = "task_overdue"
+	NotificationTypeMention           NotificationType = "mention"
+	NotificationTypeAiReviewRequired  NotificationType = "ai_review_required"
+	NotificationTypeDocumentProcessed NotificationType = "document_processed"
+	NotificationTypeCommentAdded      NotificationType = "comment_added"
+)
+
+func (e *NotificationType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = NotificationType(s)
+	case string:
+		*e = NotificationType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for NotificationType: %T", src)
+	}
+	return nil
+}
+
+type NullNotificationType struct {
+	NotificationType NotificationType `json:"notification_type"`
+	Valid            bool             `json:"valid"` // Valid is true if NotificationType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullNotificationType) Scan(value interface{}) error {
+	if value == nil {
+		ns.NotificationType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.NotificationType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullNotificationType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.NotificationType), nil
+}
+
 type TaskPriority string
 
 const (
@@ -450,6 +587,7 @@ type Case struct {
 	CreatedAt      time.Time     `json:"created_at"`
 	UpdatedAt      time.Time     `json:"updated_at"`
 	DeletedAt      sql.NullTime  `json:"deleted_at"`
+	SearchVector   interface{}   `json:"search_vector"`
 }
 
 type CaseActivity struct {
@@ -483,6 +621,19 @@ type CaseWatcher struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type Comment struct {
+	ID              uuid.UUID     `json:"id"`
+	CaseID          uuid.UUID     `json:"case_id"`
+	TimelineEventID uuid.NullUUID `json:"timeline_event_id"`
+	NoteID          uuid.NullUUID `json:"note_id"`
+	AuthorID        uuid.UUID     `json:"author_id"`
+	ParentID        uuid.NullUUID `json:"parent_id"`
+	Content         string        `json:"content"`
+	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
+	DeletedAt       sql.NullTime  `json:"deleted_at"`
+}
+
 type Document struct {
 	ID               uuid.UUID                `json:"id"`
 	CaseID           uuid.UUID                `json:"case_id"`
@@ -499,6 +650,7 @@ type Document struct {
 	CreatedAt        time.Time                `json:"created_at"`
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
+	SearchVector     interface{}              `json:"search_vector"`
 }
 
 type DocumentChunk struct {
@@ -510,6 +662,60 @@ type DocumentChunk struct {
 	Embedding  interface{}   `json:"embedding"`
 	PageNumber sql.NullInt32 `json:"page_number"`
 	CreatedAt  time.Time     `json:"created_at"`
+}
+
+type Mention struct {
+	ID              uuid.UUID     `json:"id"`
+	CommentID       uuid.NullUUID `json:"comment_id"`
+	NoteID          uuid.NullUUID `json:"note_id"`
+	MentionedUserID uuid.UUID     `json:"mentioned_user_id"`
+	MentionedBy     uuid.UUID     `json:"mentioned_by"`
+	IsRead          bool          `json:"is_read"`
+	ReadAt          sql.NullTime  `json:"read_at"`
+	CreatedAt       time.Time     `json:"created_at"`
+}
+
+type Note struct {
+	ID           uuid.UUID    `json:"id"`
+	CaseID       uuid.UUID    `json:"case_id"`
+	AuthorID     uuid.UUID    `json:"author_id"`
+	Title        string       `json:"title"`
+	Content      string       `json:"content"`
+	ContentText  string       `json:"content_text"`
+	NoteType     NoteTypeEnum `json:"note_type"`
+	IsPinned     bool         `json:"is_pinned"`
+	AiGenerated  bool         `json:"ai_generated"`
+	AiAssisted   bool         `json:"ai_assisted"`
+	CreatedAt    time.Time    `json:"created_at"`
+	UpdatedAt    time.Time    `json:"updated_at"`
+	DeletedAt    sql.NullTime `json:"deleted_at"`
+	SearchVector interface{}  `json:"search_vector"`
+}
+
+type Notification struct {
+	ID          uuid.UUID            `json:"id"`
+	RecipientID uuid.UUID            `json:"recipient_id"`
+	Type        NotificationType     `json:"type"`
+	Priority    NotificationPriority `json:"priority"`
+	Title       string               `json:"title"`
+	Message     string               `json:"message"`
+	LinkUrl     sql.NullString       `json:"link_url"`
+	IsRead      bool                 `json:"is_read"`
+	ReadAt      sql.NullTime         `json:"read_at"`
+	CaseID      uuid.NullUUID        `json:"case_id"`
+	TaskID      uuid.NullUUID        `json:"task_id"`
+	CreatedAt   time.Time            `json:"created_at"`
+	UpdatedAt   time.Time            `json:"updated_at"`
+}
+
+type NotificationPreference struct {
+	ID               uuid.UUID        `json:"id"`
+	UserID           uuid.UUID        `json:"user_id"`
+	NotificationType NotificationType `json:"notification_type"`
+	InAppEnabled     bool             `json:"in_app_enabled"`
+	EmailEnabled     bool             `json:"email_enabled"`
+	CreatedAt        time.Time        `json:"created_at"`
+	UpdatedAt        time.Time        `json:"updated_at"`
 }
 
 type RefreshToken struct {
@@ -548,6 +754,7 @@ type Task struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
+	SearchVector    interface{}    `json:"search_vector"`
 }
 
 type TaskComment struct {

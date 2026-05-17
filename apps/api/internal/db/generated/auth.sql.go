@@ -15,6 +15,26 @@ import (
 	"github.com/sqlc-dev/pqtype"
 )
 
+const countAuditLogs = `-- name: CountAuditLogs :one
+SELECT COUNT(*) FROM audit_logs a
+WHERE ($1::text IS NULL OR a.severity = $1)
+  AND ($2::text IS NULL OR a.event_code ILIKE '%' || $2::text || '%')
+  AND ($3::uuid IS NULL OR a.actor_id = $3)
+`
+
+type CountAuditLogsParams struct {
+	Severity  sql.NullString `json:"severity"`
+	EventCode sql.NullString `json:"event_code"`
+	ActorID   uuid.NullUUID  `json:"actor_id"`
+}
+
+func (q *Queries) CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countAuditLogs, arg.Severity, arg.EventCode, arg.ActorID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createAuditLog = `-- name: CreateAuditLog :exec
 INSERT INTO audit_logs (event_code, actor_id, ip_address, resource_type, resource_id, metadata, severity)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -163,6 +183,98 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.DeletedAt,
 	)
 	return i, err
+}
+
+const listAuditLogs = `-- name: ListAuditLogs :many
+SELECT
+  a.id,
+  a.event_code,
+  a.actor_id,
+  u.full_name AS actor_name,
+  u.email     AS actor_email,
+  a.ip_address,
+  a.resource_type,
+  a.resource_id,
+  a.metadata,
+  a.severity,
+  a.created_at
+FROM audit_logs a
+LEFT JOIN users u ON u.id = a.actor_id
+WHERE ($1::text IS NULL OR a.severity = $1)
+  AND ($2::text IS NULL OR a.event_code ILIKE '%' || $2::text || '%')
+  AND ($3::uuid IS NULL OR a.actor_id = $3)
+  AND (
+    $4::timestamptz IS NULL
+    OR a.created_at < $4::timestamptz
+    OR (a.created_at = $4::timestamptz AND a.id < $5::uuid)
+  )
+ORDER BY a.created_at DESC, a.id DESC
+LIMIT $6
+`
+
+type ListAuditLogsParams struct {
+	Severity   sql.NullString `json:"severity"`
+	EventCode  sql.NullString `json:"event_code"`
+	ActorID    uuid.NullUUID  `json:"actor_id"`
+	CursorTime sql.NullTime   `json:"cursor_time"`
+	CursorID   uuid.NullUUID  `json:"cursor_id"`
+	RowLimit   int32          `json:"row_limit"`
+}
+
+type ListAuditLogsRow struct {
+	ID           uuid.UUID       `json:"id"`
+	EventCode    string          `json:"event_code"`
+	ActorID      uuid.NullUUID   `json:"actor_id"`
+	ActorName    sql.NullString  `json:"actor_name"`
+	ActorEmail   sql.NullString  `json:"actor_email"`
+	IpAddress    sql.NullString  `json:"ip_address"`
+	ResourceType sql.NullString  `json:"resource_type"`
+	ResourceID   uuid.NullUUID   `json:"resource_id"`
+	Metadata     json.RawMessage `json:"metadata"`
+	Severity     string          `json:"severity"`
+	CreatedAt    time.Time       `json:"created_at"`
+}
+
+func (q *Queries) ListAuditLogs(ctx context.Context, arg ListAuditLogsParams) ([]ListAuditLogsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditLogs,
+		arg.Severity,
+		arg.EventCode,
+		arg.ActorID,
+		arg.CursorTime,
+		arg.CursorID,
+		arg.RowLimit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListAuditLogsRow{}
+	for rows.Next() {
+		var i ListAuditLogsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.EventCode,
+			&i.ActorID,
+			&i.ActorName,
+			&i.ActorEmail,
+			&i.IpAddress,
+			&i.ResourceType,
+			&i.ResourceID,
+			&i.Metadata,
+			&i.Severity,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const revokeAllUserRefreshTokens = `-- name: RevokeAllUserRefreshTokens :exec

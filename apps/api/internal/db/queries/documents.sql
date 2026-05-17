@@ -30,6 +30,39 @@ LIMIT @row_limit;
 SELECT COUNT(*) FROM documents
 WHERE case_id = $1 AND deleted_at IS NULL;
 
+-- name: ListAllDocuments :many
+SELECT
+    d.id,
+    d.case_id,
+    c.case_number,
+    c.title        AS case_title,
+    d.original_filename,
+    d.file_type,
+    d.mime_type,
+    d.file_size_bytes,
+    d.processing_status,
+    d.page_count,
+    d.chunk_count,
+    d.error_message,
+    u.id           AS uploaded_by_id,
+    u.full_name    AS uploaded_by_name,
+    u.email        AS uploaded_by_email,
+    d.created_at,
+    d.updated_at
+FROM documents d
+JOIN cases c ON c.id = d.case_id
+JOIN users u ON u.id = d.uploaded_by
+WHERE d.deleted_at IS NULL
+  AND (sqlc.narg('status')::document_processing_status IS NULL OR d.processing_status = sqlc.narg('status'))
+  AND (sqlc.narg('cursor_id')::uuid IS NULL OR d.id < sqlc.narg('cursor_id'))
+ORDER BY d.created_at DESC, d.id DESC
+LIMIT @row_limit;
+
+-- name: CountAllDocuments :one
+SELECT COUNT(*) FROM documents
+WHERE deleted_at IS NULL
+  AND (sqlc.narg('status')::document_processing_status IS NULL OR processing_status = sqlc.narg('status'));
+
 -- name: UpdateDocumentStatus :one
 UPDATE documents SET processing_status = $2
 WHERE id = $1 AND deleted_at IS NULL

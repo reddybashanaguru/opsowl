@@ -9,12 +9,16 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
+	"github.com/reddybashanaguru/opsowl/internal/audit"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/documents"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
+	"github.com/reddybashanaguru/opsowl/internal/notes"
+	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/search"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
@@ -110,6 +114,31 @@ func (s *Server) setupRoutes() {
 		aiSvc := ai.NewService(aiRepo, timelineEmitter, s.logger, s.aiServiceURL)
 		aiHandler := ai.NewHandler(aiSvc)
 		ai.RegisterRoutes(r, aiHandler, s.jwtMgr)
+
+		// Notes & Collaboration module (Feature 6)
+		notesBroker := notes.NewBroker()
+		notesSvc := notes.NewService(s.queries, notesBroker)
+		notesHandler := notes.NewHandler(notesSvc, notesBroker, s.jwtMgr)
+		notes.RegisterRoutes(r, notesHandler, s.jwtMgr)
+
+		// Notifications module (Feature 9) — wire up AFTER other modules to inject back
+		notifBroker := notifications.NewBroker()
+		notifSvc := notifications.NewService(s.queries, notifBroker)
+		notifHandler := notifications.NewHandler(notifSvc, notifBroker, s.jwtMgr)
+		notifications.RegisterRoutes(r, notifHandler, s.jwtMgr)
+
+		// Inject notification service into modules that need it
+		casesSvc.WithNotifications(notifSvc)
+		tasksSvc.WithNotifications(notifSvc)
+
+		// Search module (Feature 11)
+		searchSvc := search.NewService(s.queries)
+		searchHandler := search.NewHandler(searchSvc)
+		search.RegisterRoutes(r, searchHandler, s.jwtMgr)
+
+		// Audit Logging UI module (Feature 10)
+		auditHandler := audit.NewHandler(s.queries)
+		audit.RegisterRoutes(r, auditHandler, s.jwtMgr)
 	})
 }
 

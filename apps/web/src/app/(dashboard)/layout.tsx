@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 
 const nav = [
   { label: "Dashboard", href: "/dashboard", icon: "▦" },
@@ -85,9 +86,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </RBACGate>
           </nav>
 
-          {/* User */}
+          {/* User + Notification Bell */}
           <div className="px-4 py-4 border-t border-slate-700">
-            <div className="text-slate-200 text-sm font-medium truncate">{user?.full_name}</div>
+            <div className="flex items-center justify-between mb-1">
+              <div className="text-slate-200 text-sm font-medium truncate flex-1 min-w-0">{user?.full_name}</div>
+              <NotificationBell />
+            </div>
             <div className={`text-xs mt-0.5 ${roleColor[user?.role ?? "viewer"] ?? "text-slate-400"}`}>
               {user?.role?.replace("_", " ")}
             </div>

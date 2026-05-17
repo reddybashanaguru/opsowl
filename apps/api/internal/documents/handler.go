@@ -141,6 +141,36 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusNoContent, nil)
 }
 
+// GET /api/v1/documents  — global document library across all cases
+func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
+	limit := int32(30)
+	if v := r.URL.Query().Get("limit"); v != "" {
+		var l int32
+		if _, err := parseIntParam(v, &l); err == nil && l > 0 && l <= 100 {
+			limit = l
+		}
+	}
+	var cursorID *uuid.UUID
+	if v := r.URL.Query().Get("cursor"); v != "" {
+		if id, err := uuid.Parse(v); err == nil {
+			cursorID = &id
+		}
+	}
+	var status *db.DocumentProcessingStatus
+	if v := r.URL.Query().Get("status"); v != "" {
+		s := db.DocumentProcessingStatus(v)
+		status = &s
+	}
+
+	docs, meta, err := h.svc.ListAll(r.Context(), status, cursorID, limit)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+
+	response.JSONWithMeta(w, http.StatusOK, docs, meta)
+}
+
 func parseIntParam(s string, out *int32) (int32, error) {
 	v, err := strconv.ParseInt(s, 10, 32)
 	if err != nil {

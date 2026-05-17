@@ -10,6 +10,9 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.Use(auth.JWTValidate(jwtMgr))
 
 		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
+			Get("/documents", h.ListAll)
+
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
 			Get("/cases/{caseId}/documents", h.List)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Post("/cases/{caseId}/documents", h.Upload)

@@ -56,6 +56,24 @@ type DocumentResponse struct {
 	UpdatedAt        time.Time                   `json:"updated_at"`
 }
 
+type GlobalDocumentResponse struct {
+	ID               uuid.UUID                   `json:"id"`
+	CaseID           uuid.UUID                   `json:"case_id"`
+	CaseNumber       string                      `json:"case_number"`
+	CaseTitle        string                      `json:"case_title"`
+	OriginalFilename string                      `json:"original_filename"`
+	FileType         string                      `json:"file_type"`
+	MimeType         string                      `json:"mime_type"`
+	FileSizeBytes    int64                       `json:"file_size_bytes"`
+	ProcessingStatus db.DocumentProcessingStatus `json:"processing_status"`
+	PageCount        *int32                      `json:"page_count"`
+	ChunkCount       *int32                      `json:"chunk_count"`
+	ErrorMessage     *string                     `json:"error_message"`
+	UploadedBy       UploaderRef                 `json:"uploaded_by"`
+	CreatedAt        time.Time                   `json:"created_at"`
+	UpdatedAt        time.Time                   `json:"updated_at"`
+}
+
 // ProcessingResult is sent from the Python AI service callback.
 type ProcessingResult struct {
 	DocumentID   uuid.UUID `json:"document_id"`

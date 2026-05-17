@@ -161,6 +161,65 @@ func (s *Service) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]
 	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
 
+func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStatus, cursorID *uuid.UUID, limit int32) ([]*GlobalDocumentResponse, ListMeta, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 30
+	}
+	var nullStatus db.NullDocumentProcessingStatus
+	if status != nil {
+		nullStatus = db.NullDocumentProcessingStatus{DocumentProcessingStatus: *status, Valid: true}
+	}
+
+	rows, err := s.repo.ListAll(ctx, db.ListAllDocumentsParams{
+		Status:   nullStatus,
+		CursorID: nullUUID(cursorID),
+		RowLimit: limit + 1,
+	})
+	if err != nil {
+		return nil, ListMeta{}, err
+	}
+
+	hasMore := len(rows) > int(limit)
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	total, _ := s.repo.CountAll(ctx, nullStatus)
+
+	var nextCursor *uuid.UUID
+	if hasMore && len(rows) > 0 {
+		last := rows[len(rows)-1].ID
+		nextCursor = &last
+	}
+
+	out := make([]*GlobalDocumentResponse, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, &GlobalDocumentResponse{
+			ID:               row.ID,
+			CaseID:           row.CaseID,
+			CaseNumber:       row.CaseNumber,
+			CaseTitle:        row.CaseTitle,
+			OriginalFilename: row.OriginalFilename,
+			FileType:         row.FileType,
+			MimeType:         row.MimeType,
+			FileSizeBytes:    row.FileSizeBytes,
+			ProcessingStatus: row.ProcessingStatus,
+			PageCount:        int32Ptr(row.PageCount),
+			ChunkCount:       int32Ptr(row.ChunkCount),
+			ErrorMessage:     strPtr(row.ErrorMessage),
+			UploadedBy: UploaderRef{
+				ID:       row.UploadedByID,
+				FullName: row.UploadedByName,
+				Email:    row.UploadedByEmail,
+			},
+			CreatedAt: row.CreatedAt,
+			UpdatedAt: row.UpdatedAt,
+		})
+	}
+
+	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
+}
+
 func (s *Service) Delete(ctx context.Context, claims *auth.Claims, id uuid.UUID) error {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {

@@ -51,6 +51,14 @@ func (r *Repository) UpdateProcessingResult(ctx context.Context, p db.UpdateDocu
 	return r.q.UpdateDocumentProcessingResult(ctx, p)
 }
 
+func (r *Repository) ListAll(ctx context.Context, p db.ListAllDocumentsParams) ([]db.ListAllDocumentsRow, error) {
+	return r.q.ListAllDocuments(ctx, p)
+}
+
+func (r *Repository) CountAll(ctx context.Context, status db.NullDocumentProcessingStatus) (int64, error) {
+	return r.q.CountAllDocuments(ctx, status)
+}
+
 func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.q.SoftDeleteDocument(ctx, id)
 	if err != nil {

@@ -8,16 +8,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 type Service struct {
-	repo    *Repository
-	emitter timeline.Emitter
+	repo     *Repository
+	emitter  timeline.Emitter
+	notifSvc *notifications.Service
 }
 
 func NewService(repo *Repository, emitter timeline.Emitter) *Service {
 	return &Service{repo: repo, emitter: emitter}
+}
+
+func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
+	s.notifSvc = notifSvc
+	return s
 }
 
 func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CreateTaskRequest) (*TaskResponse, error) {
@@ -71,6 +78,21 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 			"priority": string(t.Priority),
 		},
 	})
+
+	// Notify assignee if different from creator
+	if s.notifSvc != nil && t.AssignedTo.Valid && t.AssignedTo.UUID != claims.UserID {
+		assignee := t.AssignedTo.UUID
+		s.notifSvc.NotifyAsync(context.Background(), notifications.NotifyInput{
+			RecipientID: assignee,
+			Type:        db.NotificationTypeTaskAssigned,
+			Priority:    db.NotificationPriorityMedium,
+			Title:       "Task assigned to you",
+			Message:     t.Title,
+			LinkURL:     "/cases/" + caseID.String() + "/tasks/" + t.ID.String(),
+			CaseID:      &caseID,
+			TaskID:      &t.ID,
+		})
+	}
 
 	return s.toResponse(t, "", claims.Email, nil), nil
 }
