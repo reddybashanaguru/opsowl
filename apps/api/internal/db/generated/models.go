@@ -105,6 +105,50 @@ func (ns NullCaseStatus) Value() (driver.Value, error) {
 	return string(ns.CaseStatus), nil
 }
 
+type DocumentProcessingStatus string
+
+const (
+	DocumentProcessingStatusPending    DocumentProcessingStatus = "pending"
+	DocumentProcessingStatusProcessing DocumentProcessingStatus = "processing"
+	DocumentProcessingStatusCompleted  DocumentProcessingStatus = "completed"
+	DocumentProcessingStatusFailed     DocumentProcessingStatus = "failed"
+)
+
+func (e *DocumentProcessingStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DocumentProcessingStatus(s)
+	case string:
+		*e = DocumentProcessingStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DocumentProcessingStatus: %T", src)
+	}
+	return nil
+}
+
+type NullDocumentProcessingStatus struct {
+	DocumentProcessingStatus DocumentProcessingStatus `json:"document_processing_status"`
+	Valid                    bool                     `json:"valid"` // Valid is true if DocumentProcessingStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDocumentProcessingStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.DocumentProcessingStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DocumentProcessingStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDocumentProcessingStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DocumentProcessingStatus), nil
+}
+
 type TaskPriority string
 
 const (
@@ -402,6 +446,35 @@ type CaseWatcher struct {
 	CaseID    uuid.UUID `json:"case_id"`
 	UserID    uuid.UUID `json:"user_id"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+type Document struct {
+	ID               uuid.UUID                `json:"id"`
+	CaseID           uuid.UUID                `json:"case_id"`
+	UploadedBy       uuid.UUID                `json:"uploaded_by"`
+	OriginalFilename string                   `json:"original_filename"`
+	StoredPath       string                   `json:"stored_path"`
+	FileType         string                   `json:"file_type"`
+	MimeType         string                   `json:"mime_type"`
+	FileSizeBytes    int64                    `json:"file_size_bytes"`
+	ProcessingStatus DocumentProcessingStatus `json:"processing_status"`
+	PageCount        sql.NullInt32            `json:"page_count"`
+	ChunkCount       sql.NullInt32            `json:"chunk_count"`
+	ErrorMessage     sql.NullString           `json:"error_message"`
+	CreatedAt        time.Time                `json:"created_at"`
+	UpdatedAt        time.Time                `json:"updated_at"`
+	DeletedAt        sql.NullTime             `json:"deleted_at"`
+}
+
+type DocumentChunk struct {
+	ID         uuid.UUID     `json:"id"`
+	DocumentID uuid.UUID     `json:"document_id"`
+	CaseID     uuid.UUID     `json:"case_id"`
+	ChunkIndex int32         `json:"chunk_index"`
+	Content    string        `json:"content"`
+	Embedding  interface{}   `json:"embedding"`
+	PageNumber sql.NullInt32 `json:"page_number"`
+	CreatedAt  time.Time     `json:"created_at"`
 }
 
 type RefreshToken struct {

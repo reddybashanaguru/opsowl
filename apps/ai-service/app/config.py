@@ -10,8 +10,14 @@ class Settings(BaseSettings):
     default_provider: str = "anthropic"
     default_model: str = "claude-opus-4-5"
     embedding_model: str = "text-embedding-3-small"
-    max_chunk_size: int = 500
+    max_chunk_size: int = 2000
+    chunk_overlap: int = 200
     rag_top_k: int = 8
+    storage_endpoint: str = "localhost:9000"
+    storage_access_key: str = "minioadmin"
+    storage_secret_key: str = "minioadmin123"
+    storage_bucket: str = "opsowl"
+    storage_use_ssl: bool = False
 
     class Config:
         env_file = ".env"

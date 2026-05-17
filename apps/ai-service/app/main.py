@@ -34,8 +34,10 @@ app.add_middleware(
 
 app.include_router(health.router)
 
-# Feature routers registered here as features are built:
-# from app.routers import copilot, documents, internal_log
+from app.routers import documents  # noqa: E402
+app.include_router(documents.router)
+
+# Future routers:
+# from app.routers import copilot, internal_log
 # app.include_router(copilot.router, prefix="/copilot")
-# app.include_router(documents.router, prefix="/documents")
 # app.include_router(internal_log.router, prefix="/internal")

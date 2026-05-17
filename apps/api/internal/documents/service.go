@@ -1,0 +1,251 @@
+package documents
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/google/uuid"
+	"go.uber.org/zap"
+
+	"github.com/reddybashanaguru/opsowl/internal/auth"
+	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/storage"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
+)
+
+type Service struct {
+	repo         *Repository
+	store        storage.Client
+	emitter      timeline.Emitter
+	logger       *zap.Logger
+	httpClient   *http.Client
+	aiServiceURL string
+}
+
+func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter, logger *zap.Logger, aiServiceURL string) *Service {
+	return &Service{
+		repo:         repo,
+		store:        store,
+		emitter:      emitter,
+		logger:       logger,
+		httpClient:   &http.Client{Timeout: 30 * time.Second},
+		aiServiceURL: aiServiceURL,
+	}
+}
+
+// Upload validates, stores, and persists a document, then kicks off async processing.
+func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, filename string, reader io.Reader, totalSize int64) (*DocumentResponse, error) {
+	if totalSize > MaxFileSizeBytes {
+		return nil, ErrFileTooLarge
+	}
+
+	// Read first 512 bytes for MIME detection while retaining them for upload.
+	header := make([]byte, 512)
+	n, err := io.ReadAtLeast(reader, header, 1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file header: %w", err)
+	}
+	header = header[:n]
+
+	fi, err := Validate(filename, header)
+	if err != nil {
+		return nil, err
+	}
+
+	docID := uuid.New()
+	key := fmt.Sprintf("documents/%s/%s/%s", caseID.String(), docID.String(), filename)
+
+	combined := newPrefixReader(header, reader)
+	if err := s.store.Upload(ctx, key, combined, totalSize, fi.MIMEType); err != nil {
+		return nil, fmt.Errorf("storage upload: %w", err)
+	}
+
+	doc, err := s.repo.Create(ctx, db.CreateDocumentParams{
+		ID:               docID,
+		CaseID:           caseID,
+		UploadedBy:       claims.UserID,
+		OriginalFilename: filename,
+		StoredPath:       key,
+		FileType:         fi.FileType,
+		MimeType:         fi.MIMEType,
+		FileSizeBytes:    totalSize,
+	})
+	if err != nil {
+		_ = s.store.Delete(ctx, key)
+		return nil, err
+	}
+
+	s.emitTimeline(ctx, caseID, db.TimelineEventTypeDocumentUploaded, map[string]interface{}{
+		"document_id": docID.String(),
+		"filename":    filename,
+		"file_type":   fi.FileType,
+		"size_bytes":  totalSize,
+	})
+
+	go s.processAsync(doc.ID, caseID, key, filename, fi.FileType, fi.MIMEType)
+
+	url, _ := s.store.PresignedURL(ctx, key, PresignExpiry)
+	return &DocumentResponse{
+		ID:               doc.ID,
+		CaseID:           doc.CaseID,
+		OriginalFilename: doc.OriginalFilename,
+		FileType:         doc.FileType,
+		MimeType:         doc.MimeType,
+		FileSizeBytes:    doc.FileSizeBytes,
+		ProcessingStatus: doc.ProcessingStatus,
+		UploadedBy: UploaderRef{
+			ID:    doc.UploadedBy,
+			Email: claims.Email,
+		},
+		DownloadURL: url,
+		CreatedAt:   doc.CreatedAt,
+		UpdatedAt:   doc.UpdatedAt,
+	}, nil
+}
+
+func (s *Service) Get(ctx context.Context, id uuid.UUID) (*DocumentResponse, error) {
+	row, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	return s.buildResponse(ctx, row)
+}
+
+func (s *Service) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]*DocumentResponse, ListMeta, error) {
+	limit := f.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+
+	var nullStatus db.NullDocumentProcessingStatus
+	if f.Status != nil {
+		nullStatus = db.NullDocumentProcessingStatus{DocumentProcessingStatus: *f.Status, Valid: true}
+	}
+
+	rows, err := s.repo.ListByCase(ctx, db.ListDocumentsByCaseParams{
+		CaseID:   caseID,
+		Status:   nullStatus,
+		CursorID: nullUUID(f.CursorID),
+		RowLimit: limit + 1,
+	})
+	if err != nil {
+		return nil, ListMeta{}, err
+	}
+
+	hasMore := len(rows) > int(limit)
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	total, _ := s.repo.Count(ctx, caseID)
+
+	var nextCursor *uuid.UUID
+	if hasMore && len(rows) > 0 {
+		last := rows[len(rows)-1].ID
+		nextCursor = &last
+	}
+
+	out := make([]*DocumentResponse, 0, len(rows))
+	for _, row := range rows {
+		resp, err := s.buildResponse(ctx, rowToGetRow(row))
+		if err != nil {
+			s.logger.Warn("failed to build document response", zap.Error(err))
+			continue
+		}
+		out = append(out, resp)
+	}
+
+	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
+}
+
+func (s *Service) Delete(ctx context.Context, claims *auth.Claims, id uuid.UUID) error {
+	row, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if row.UploadedBy != claims.UserID &&
+		claims.Role != db.UserRoleManager &&
+		claims.Role != db.UserRoleAdmin &&
+		claims.Role != db.UserRoleSuperAdmin {
+		return ErrForbidden
+	}
+	storedPath := row.StoredPath
+	if err := s.repo.SoftDelete(ctx, id); err != nil {
+		return err
+	}
+	go func() { _ = s.store.Delete(context.Background(), storedPath) }()
+	return nil
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+func (s *Service) buildResponse(ctx context.Context, row db.GetDocumentByIDRow) (*DocumentResponse, error) {
+	url, err := s.store.PresignedURL(ctx, row.StoredPath, PresignExpiry)
+	if err != nil {
+		s.logger.Warn("failed to generate presigned URL", zap.Error(err))
+		url = ""
+	}
+	return &DocumentResponse{
+		ID:               row.ID,
+		CaseID:           row.CaseID,
+		OriginalFilename: row.OriginalFilename,
+		FileType:         row.FileType,
+		MimeType:         row.MimeType,
+		FileSizeBytes:    row.FileSizeBytes,
+		ProcessingStatus: row.ProcessingStatus,
+		PageCount:        int32Ptr(row.PageCount),
+		ChunkCount:       int32Ptr(row.ChunkCount),
+		ErrorMessage:     strPtr(row.ErrorMessage),
+		UploadedBy: UploaderRef{
+			ID:       row.UploadedBy,
+			FullName: row.UploadedByName,
+			Email:    row.UploadedByEmail,
+		},
+		DownloadURL: url,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+	}, nil
+}
+
+func (s *Service) emitTimeline(ctx context.Context, caseID uuid.UUID, evtType db.TimelineEventType, payload map[string]interface{}) {
+	if err := s.emitter.Emit(ctx, timeline.Event{
+		CaseID:     caseID,
+		EventType:  evtType,
+		Source:     db.TimelineEventSourceSystem,
+		OccurredAt: time.Now().UTC(),
+		Payload:    payload,
+	}); err != nil {
+		s.logger.Warn("failed to emit timeline event", zap.Error(err))
+	}
+}
+
+func nullUUID(id *uuid.UUID) uuid.NullUUID {
+	if id == nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: *id, Valid: true}
+}
+
+func rowToGetRow(r db.ListDocumentsByCaseRow) db.GetDocumentByIDRow {
+	return db.GetDocumentByIDRow{
+		ID:               r.ID,
+		CaseID:           r.CaseID,
+		UploadedBy:       r.UploadedBy,
+		OriginalFilename: r.OriginalFilename,
+		StoredPath:       r.StoredPath,
+		FileType:         r.FileType,
+		MimeType:         r.MimeType,
+		FileSizeBytes:    r.FileSizeBytes,
+		ProcessingStatus: r.ProcessingStatus,
+		PageCount:        r.PageCount,
+		ChunkCount:       r.ChunkCount,
+		ErrorMessage:     r.ErrorMessage,
+		CreatedAt:        r.CreatedAt,
+		UpdatedAt:        r.UpdatedAt,
+		UploadedByName:   r.UploadedByName,
+		UploadedByEmail:  r.UploadedByEmail,
+	}
+}

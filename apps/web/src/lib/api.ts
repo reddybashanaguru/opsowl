@@ -103,6 +103,31 @@ export const api = {
   getList: <TItem, TMeta = Record<string, unknown>>(path: string, init?: RequestInit) =>
     requestList<TItem, TMeta>(path, { method: "GET", ...init }),
 
+  // For multipart/form-data uploads — does NOT set Content-Type (browser sets boundary).
+  upload: <T>(path: string, formData: FormData): Promise<T> => {
+    const url = `${API_BASE}${path}`;
+    return fetch(url, {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+      headers: { ...getAuthHeader() },
+    }).then(async (resp) => {
+      const envelope = await resp.json() as {
+        data?: T;
+        error?: { code: string; message: string; details?: unknown };
+      };
+      if (!resp.ok || envelope.error) {
+        throw new APIError(
+          envelope.error?.code ?? "UNKNOWN",
+          envelope.error?.message ?? "Upload failed",
+          resp.status,
+          envelope.error?.details,
+        );
+      }
+      return envelope.data as T;
+    });
+  },
+
   post: <T>(path: string, body: unknown, init?: RequestInit) =>
     request<T>(path, {
       method: "POST",

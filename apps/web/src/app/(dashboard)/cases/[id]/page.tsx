@@ -141,6 +141,13 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         </button>
         <div className="h-4 border-l border-slate-700" />
         <button
+          onClick={() => router.push(`/cases/${id}/documents`)}
+          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+        >
+          Documents →
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
           onClick={() => router.push(`/cases/${id}/timeline`)}
           className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
         >

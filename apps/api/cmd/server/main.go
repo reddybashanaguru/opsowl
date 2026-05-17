@@ -17,6 +17,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/db"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/server"
+	"github.com/reddybashanaguru/opsowl/internal/storage"
 )
 
 func main() {
@@ -54,7 +55,16 @@ func main() {
 		logger.Fatal("failed to init JWT manager", zap.Error(err))
 	}
 
-	srv := server.New(logger, jwtMgr, queries)
+	minioClient, err := storage.NewMinIO(cfg.StorageEndpoint, cfg.StorageAccessKey, cfg.StorageSecretKey, cfg.StorageBucket, cfg.StorageUseSSL)
+	if err != nil {
+		logger.Fatal("failed to init MinIO client", zap.Error(err))
+	}
+	if err := minioClient.EnsureBucket(ctx); err != nil {
+		logger.Warn("failed to ensure MinIO bucket (will retry on first upload)", zap.Error(err))
+	}
+	logger.Info("storage client initialized")
+
+	srv := server.New(logger, jwtMgr, queries, minioClient, cfg.AIServiceURL)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

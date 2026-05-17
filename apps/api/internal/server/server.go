@@ -11,26 +11,32 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/documents"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 	"github.com/reddybashanaguru/opsowl/internal/users"
 )
 
 type Server struct {
-	router  *chi.Mux
-	logger  *zap.Logger
-	jwtMgr  *auth.JWTManager
-	queries *db.Queries
+	router       *chi.Mux
+	logger       *zap.Logger
+	jwtMgr       *auth.JWTManager
+	queries      *db.Queries
+	store        storage.Client
+	aiServiceURL string
 }
 
-func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries) *Server {
+func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, store storage.Client, aiServiceURL string) *Server {
 	s := &Server{
-		router:  chi.NewRouter(),
-		logger:  logger,
-		jwtMgr:  jwtMgr,
-		queries: queries,
+		router:       chi.NewRouter(),
+		logger:       logger,
+		jwtMgr:       jwtMgr,
+		queries:      queries,
+		store:        store,
+		aiServiceURL: aiServiceURL,
 	}
 	s.setupMiddleware()
 	s.setupRoutes()
@@ -87,6 +93,12 @@ func (s *Server) setupRoutes() {
 		tasksSvc := tasks.NewService(tasksRepo, timelineEmitter)
 		tasksHandler := tasks.NewHandler(tasksSvc)
 		tasks.RegisterRoutes(r, tasksHandler, s.jwtMgr)
+
+		// Documents module
+		docsRepo := documents.NewRepository(s.queries)
+		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL)
+		docsHandler := documents.NewHandler(docsSvc)
+		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)
 	})
 }
 

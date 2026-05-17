@@ -15,6 +15,7 @@ type Querier interface {
 	CloseLastAssignment(ctx context.Context, caseID uuid.UUID) error
 	CompleteTask(ctx context.Context, id uuid.UUID) (Task, error)
 	CountCases(ctx context.Context, arg CountCasesParams) (int64, error)
+	CountDocumentsByCase(ctx context.Context, caseID uuid.UUID) (int64, error)
 	CountTaskComments(ctx context.Context, taskID uuid.UUID) (int64, error)
 	CountTasksByCase(ctx context.Context, arg CountTasksByCaseParams) (int64, error)
 	CountTimelineEvents(ctx context.Context, arg CountTimelineEventsParams) (int64, error)
@@ -23,6 +24,7 @@ type Querier interface {
 	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
 	CreateCaseActivity(ctx context.Context, arg CreateCaseActivityParams) (CaseActivity, error)
 	CreateCaseAssignment(ctx context.Context, arg CreateCaseAssignmentParams) (CaseAssignment, error)
+	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
@@ -31,6 +33,7 @@ type Querier interface {
 	FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, error)
 	GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error)
 	GetCaseWatchers(ctx context.Context, caseID uuid.UUID) ([]GetCaseWatchersRow, error)
+	GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumentByIDRow, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
 	GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow, error)
 	GetTimelineEventByID(ctx context.Context, id uuid.UUID) (GetTimelineEventByIDRow, error)
@@ -39,6 +42,7 @@ type Querier interface {
 	InsertTimelineEvent(ctx context.Context, arg InsertTimelineEventParams) (TimelineEvent, error)
 	ListCaseActivities(ctx context.Context, arg ListCaseActivitiesParams) ([]ListCaseActivitiesRow, error)
 	ListCases(ctx context.Context, arg ListCasesParams) ([]ListCasesRow, error)
+	ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCaseParams) ([]ListDocumentsByCaseRow, error)
 	ListMyTasks(ctx context.Context, arg ListMyTasksParams) ([]ListMyTasksRow, error)
 	ListTaskComments(ctx context.Context, arg ListTaskCommentsParams) ([]ListTaskCommentsRow, error)
 	ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams) ([]ListTasksByCaseRow, error)
@@ -47,12 +51,15 @@ type Querier interface {
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SoftDeleteCase(ctx context.Context, id uuid.UUID) (Case, error)
+	SoftDeleteDocument(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	SoftDeleteTask(ctx context.Context, id uuid.UUID) (uuid.UUID, error)
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) (SoftDeleteUserRow, error)
 	UpdateCase(ctx context.Context, arg UpdateCaseParams) (Case, error)
 	UpdateCaseAssignment(ctx context.Context, arg UpdateCaseAssignmentParams) (Case, error)
 	UpdateCaseStatus(ctx context.Context, arg UpdateCaseStatusParams) (Case, error)
 	UpdateCaseTags(ctx context.Context, arg UpdateCaseTagsParams) (Case, error)
+	UpdateDocumentProcessingResult(ctx context.Context, arg UpdateDocumentProcessingResultParams) (Document, error)
+	UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentStatusParams) (Document, error)
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
