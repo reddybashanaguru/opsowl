@@ -70,6 +70,9 @@ func (s *Server) setupRoutes() {
 		authHandler := auth.NewHandler(authSvc)
 		auth.RegisterRoutes(r, authHandler, s.jwtMgr)
 
+		// Dashboard stats
+		r.With(auth.JWTValidate(s.jwtMgr)).Get("/dashboard/stats", s.handleDashboardStats)
+
 		// Users module
 		usersRepo := users.NewRepository(s.queries)
 		usersSvc := users.NewService(usersRepo, authSvc)
@@ -108,6 +111,15 @@ func (s *Server) setupRoutes() {
 		aiHandler := ai.NewHandler(aiSvc)
 		ai.RegisterRoutes(r, aiHandler, s.jwtMgr)
 	})
+}
+
+func (s *Server) handleDashboardStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := s.queries.GetDashboardStats(r.Context())
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load dashboard stats")
+		return
+	}
+	response.JSON(w, http.StatusOK, stats)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
