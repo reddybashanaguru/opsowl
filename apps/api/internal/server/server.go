@@ -56,6 +56,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(chimw.Compress(5))
 	s.router.Use(chimw.Timeout(30 * time.Second))
 	s.router.Use(rl.Middleware)
+	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger))
 }
 
 func (s *Server) setupRoutes() {
