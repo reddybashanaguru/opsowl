@@ -386,6 +386,41 @@ func (ns NullUserRole) Value() (driver.Value, error) {
 	return string(ns.UserRole), nil
 }
 
+type AiLog struct {
+	ID                  uuid.UUID       `json:"id"`
+	CaseID              uuid.UUID       `json:"case_id"`
+	TriggeredBy         uuid.UUID       `json:"triggered_by"`
+	ActionType          string          `json:"action_type"`
+	PromptText          string          `json:"prompt_text"`
+	ResponseText        string          `json:"response_text"`
+	ModelUsed           string          `json:"model_used"`
+	Provider            string          `json:"provider"`
+	TokensInput         int32           `json:"tokens_input"`
+	TokensOutput        int32           `json:"tokens_output"`
+	LatencyMs           int32           `json:"latency_ms"`
+	ConfidenceScore     sql.NullString  `json:"confidence_score"`
+	Citations           json.RawMessage `json:"citations"`
+	HumanReviewStatus   string          `json:"human_review_status"`
+	ReviewedBy          uuid.NullUUID   `json:"reviewed_by"`
+	ReviewedAt          sql.NullTime    `json:"reviewed_at"`
+	HumanEditedResponse sql.NullString  `json:"human_edited_response"`
+	CreatedAt           time.Time       `json:"created_at"`
+}
+
+type AiPrompt struct {
+	ID           uuid.UUID       `json:"id"`
+	Name         string          `json:"name"`
+	Slug         string          `json:"slug"`
+	Version      int32           `json:"version"`
+	Template     string          `json:"template"`
+	TaskType     string          `json:"task_type"`
+	Variables    json.RawMessage `json:"variables"`
+	IsActive     bool            `json:"is_active"`
+	AbTestWeight string          `json:"ab_test_weight"`
+	CreatedAt    time.Time       `json:"created_at"`
+	UpdatedAt    time.Time       `json:"updated_at"`
+}
+
 type AuditLog struct {
 	ID           uuid.UUID       `json:"id"`
 	EventCode    string          `json:"event_code"`

@@ -104,7 +104,7 @@ investigation-workspace/
 | 1 | Authentication & RBAC | ✅ Complete |
 | 2 | Case Management | ✅ Complete |
 | 3 | Timeline Workspace | ✅ Complete |
-| 4 | AI Copilot | 🔲 Not started |
+| 4 | AI Copilot | ✅ Complete |
 | 5 | Document Upload & Intelligence | ✅ Complete |
 | 6 | Notes & Collaboration | 🔲 Not started |
 | 7 | Task Management | ✅ Complete |
@@ -112,7 +112,7 @@ investigation-workspace/
 | 9 | Notifications | 🔲 Not started |
 | 10 | Audit Logging | 🔲 Not started |
 | 11 | Search | 🔲 Not started |
-| 12 | AI Logging & Explainability | 🔲 Not started |
+| 12 | AI Logging & Explainability | ✅ Complete |
 
 **Update this table as each feature completes.**
 
@@ -326,6 +326,20 @@ Build Features 4 and 12 together — they are deeply coupled.
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Features 4 & 12 — AI Copilot + AI Logging & Explainability (2026-05-17)
+**Built together** (deeply coupled — both rely on `ai_logs` table).
+**BE (Go — `internal/ai`):** Immutable `ai_logs` append-only table (no `updated_at`/`deleted_at`). Human review machine: `pending → approved | rejected | edited`. `ai_prompts` table for future versioned prompt registry. sqlc sentinel values (`$2 = ''` for no-status-filter, `uuid.Nil` for no-cursor) to avoid nullable param issues. 120-second timeout on AI routes via `chimw.Timeout` applied per-route group. HTTP client calls Python AI service for ask/summarize/generate-note/extract-actions.
+**AI Service (Python — `ai-service/app`):** RAG pipeline (`/copilot/ask`): PII masking (Presidio) → embed → pgvector cosine similarity (`<=>` operator) → augmented prompt → LLM → citations + confidence score. `INSUFFICIENT_CONTEXT` sentinel when avg similarity < 0.35. Prompt injection detection via regex patterns (`ignore previous instructions`, `you are now`, etc.) → HTTP 400. Confidence scoring from avg cosine similarity of top-k chunks.
+**FE (Next.js):** `CopilotPanel` — sliding side panel, Cmd+Shift+A keyboard shortcut, tabs for Ask/Summarize/Note/Actions. `AICard` — confidence bar (emerald ≥0.8, amber 0.5–0.79, red <0.5), citations toggle, approve/reject/edit inline actions. `AIReviewBadge` — color-coded status. `/cases/[id]/ai-logs` page — Feature 12 — cursor-paginated AI activity log with status filter and full review actions.
+**Key decisions:**
+- Sync AI calls (no River async jobs) — 120s timeout override, acceptable for MVP analyst workflows
+- `human_edited_response` field dual-purpose: stores rejection reason AND human edit text
+- Confidence score stored as `NUMERIC(3,2)` in DB, exposed as `*float64` in JSON
+- Prompt injection detection in Python only (trust boundary at Python service, not Go)
+- PII masking with Presidio applied before embedding AND before LLM call; masked text stored in `prompt_text`
+**BE tests:** 91.8% coverage, 63 tests (integration tests via shared testcontainers-go `TestMain` with pgvector/pgvector:pg17)
+**FE tests:** 48 component tests (AICard 21, AIReviewBadge 9, CitationCard 8, ConfidenceBar 10)
 
 ### ✅ Feature 5 — Document Upload & Intelligence (2026-05-17)
 **Built:** Full document lifecycle — multipart upload to MinIO, async processing via Python AI service goroutine, cursor-paginated list with status filter, soft delete with RBAC. Storage abstraction (`storage.Client` interface) with MinIO implementation. MIME validation via magic bytes (`net/http.DetectContentType`) + extension fallback for `application/octet-stream`. Python AI service: PyMuPDF + Tesseract OCR extraction, boundary-aware chunking (~2000 chars / 200-char overlap), OpenAI `text-embedding-3-small` embeddings stored in `document_chunks` via pgvector/psycopg3.

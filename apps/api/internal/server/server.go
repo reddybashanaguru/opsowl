@@ -8,6 +8,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"go.uber.org/zap"
 
+	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
@@ -99,6 +100,12 @@ func (s *Server) setupRoutes() {
 		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL)
 		docsHandler := documents.NewHandler(docsSvc)
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)
+
+		// AI Copilot + AI Logging module (Feature 4 + 12)
+		aiRepo := ai.NewRepository(s.queries)
+		aiSvc := ai.NewService(aiRepo, timelineEmitter, s.logger, s.aiServiceURL)
+		aiHandler := ai.NewHandler(aiSvc)
+		ai.RegisterRoutes(r, aiHandler, s.jwtMgr)
 	})
 }
 

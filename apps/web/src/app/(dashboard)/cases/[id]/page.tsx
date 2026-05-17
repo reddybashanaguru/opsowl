@@ -8,6 +8,7 @@ import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { CopilotPanel } from "@/components/ai/CopilotPanel";
 
 interface CaseDetail {
   id: string;
@@ -85,6 +86,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [targetStatus, setTargetStatus] = useState("");
   const [reason, setReason] = useState("");
   const [statusError, setStatusError] = useState("");
+  const [copilotOpen, setCopilotOpen] = useState(false);
 
   const { data: c, isLoading } = useQuery<CaseDetail>({
     queryKey: ["case", id],
@@ -152,6 +154,21 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
         >
           Timeline →
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
+          onClick={() => router.push(`/cases/${id}/ai-logs`)}
+          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
+        >
+          AI Logs →
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
+          onClick={() => setCopilotOpen(true)}
+          className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors"
+          title="AI Copilot (⌘⇧A)"
+        >
+          🤖 AI Copilot
         </button>
       </div>
 
@@ -307,6 +324,13 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
+
+      {/* AI Copilot drawer */}
+      <CopilotPanel
+        caseId={id}
+        open={copilotOpen}
+        onClose={() => setCopilotOpen(false)}
+      />
     </div>
   );
 }

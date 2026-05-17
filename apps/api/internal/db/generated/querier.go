@@ -12,14 +12,17 @@ import (
 
 type Querier interface {
 	AddCaseWatcher(ctx context.Context, arg AddCaseWatcherParams) error
+	ApproveAILog(ctx context.Context, arg ApproveAILogParams) (AiLog, error)
 	CloseLastAssignment(ctx context.Context, caseID uuid.UUID) error
 	CompleteTask(ctx context.Context, id uuid.UUID) (Task, error)
+	CountAILogsByCase(ctx context.Context, arg CountAILogsByCaseParams) (int64, error)
 	CountCases(ctx context.Context, arg CountCasesParams) (int64, error)
 	CountDocumentsByCase(ctx context.Context, caseID uuid.UUID) (int64, error)
 	CountTaskComments(ctx context.Context, taskID uuid.UUID) (int64, error)
 	CountTasksByCase(ctx context.Context, arg CountTasksByCaseParams) (int64, error)
 	CountTimelineEvents(ctx context.Context, arg CountTimelineEventsParams) (int64, error)
 	CountUsers(ctx context.Context, role NullUserRole) (int64, error)
+	CreateAILog(ctx context.Context, arg CreateAILogParams) (AiLog, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
 	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
 	CreateCaseActivity(ctx context.Context, arg CreateCaseActivityParams) (CaseActivity, error)
@@ -30,7 +33,9 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateTaskComment(ctx context.Context, arg CreateTaskCommentParams) (TaskComment, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	EditAILog(ctx context.Context, arg EditAILogParams) (AiLog, error)
 	FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, error)
+	GetAILog(ctx context.Context, id uuid.UUID) (GetAILogRow, error)
 	GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error)
 	GetCaseWatchers(ctx context.Context, caseID uuid.UUID) ([]GetCaseWatchersRow, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumentByIDRow, error)
@@ -40,14 +45,17 @@ type Querier interface {
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
 	InsertTimelineEvent(ctx context.Context, arg InsertTimelineEventParams) (TimelineEvent, error)
+	ListAILogsByCase(ctx context.Context, arg ListAILogsByCaseParams) ([]ListAILogsByCaseRow, error)
 	ListCaseActivities(ctx context.Context, arg ListCaseActivitiesParams) ([]ListCaseActivitiesRow, error)
 	ListCases(ctx context.Context, arg ListCasesParams) ([]ListCasesRow, error)
 	ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCaseParams) ([]ListDocumentsByCaseRow, error)
 	ListMyTasks(ctx context.Context, arg ListMyTasksParams) ([]ListMyTasksRow, error)
+	ListPendingAILogs(ctx context.Context, limit int32) ([]ListPendingAILogsRow, error)
 	ListTaskComments(ctx context.Context, arg ListTaskCommentsParams) ([]ListTaskCommentsRow, error)
 	ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams) ([]ListTasksByCaseRow, error)
 	ListTimelineEvents(ctx context.Context, arg ListTimelineEventsParams) ([]ListTimelineEventsRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
+	RejectAILog(ctx context.Context, arg RejectAILogParams) (AiLog, error)
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SoftDeleteCase(ctx context.Context, id uuid.UUID) (Case, error)
