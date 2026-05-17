@@ -22,6 +22,8 @@ export interface Document {
 interface Props {
   document: Document;
   onDelete?: (id: string) => void;
+  onRetry?: (id: string) => void;
+  retrying?: boolean;
 }
 
 function formatBytes(bytes: number): string {
@@ -42,7 +44,7 @@ const FILE_ICONS: Record<string, string> = {
   jpeg: "🖼️",
 };
 
-export function DocumentCard({ document: doc, onDelete }: Props) {
+export function DocumentCard({ document: doc, onDelete, onRetry, retrying }: Props) {
   const icon = FILE_ICONS[doc.file_type] ?? "📎";
 
   return (
@@ -83,6 +85,15 @@ export function DocumentCard({ document: doc, onDelete }: Props) {
             >
               Download
             </a>
+          )}
+          {onRetry && doc.processing_status === "failed" && (
+            <button
+              onClick={() => onRetry(doc.id)}
+              disabled={retrying}
+              className="text-xs text-amber-400 hover:text-amber-300 px-2 py-1 rounded border border-amber-500/30 hover:border-amber-400/60 transition-colors disabled:opacity-60"
+            >
+              {retrying ? "Retrying…" : "Retry"}
+            </button>
           )}
           {onDelete && (
             <button

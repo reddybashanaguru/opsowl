@@ -20,5 +20,7 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 			Get("/cases/{caseId}/documents/{docId}", h.Get)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Delete("/cases/{caseId}/documents/{docId}", h.Delete)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{caseId}/documents/{docId}/retry", h.Retry)
 	})
 }

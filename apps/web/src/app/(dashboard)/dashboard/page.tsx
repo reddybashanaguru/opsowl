@@ -123,6 +123,24 @@ function StatCard({
   );
 }
 
+interface RiskCase {
+  id: string;
+  case_number: string;
+  title: string;
+  status: string;
+  priority: string;
+  sla_breached: boolean;
+  risk_score: { String: string; Valid: boolean } | null;
+  risk_level: { String: string; Valid: boolean } | null;
+}
+
+const RISK_COLORS: Record<string, string> = {
+  high:    "text-red-400 bg-red-500/10",
+  medium:  "text-amber-400 bg-amber-500/10",
+  low:     "text-emerald-400 bg-emerald-500/10",
+  unknown: "text-slate-500 bg-slate-700/30",
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -131,6 +149,12 @@ export default function DashboardPage() {
     queryKey: ["dashboard-stats"],
     queryFn: () => api.get<DashboardStats>("/api/v1/dashboard/stats"),
     refetchInterval: 60_000,
+  });
+
+  const { data: riskCases } = useQuery<RiskCase[]>({
+    queryKey: ["risk-leaderboard"],
+    queryFn: () => api.get<RiskCase[]>("/api/v1/analytics/risk?limit=5"),
+    refetchInterval: 120_000,
   });
 
   const hour = new Date().getHours();
@@ -245,6 +269,33 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* AI Risk Leaderboard */}
+      {riskCases && riskCases.length > 0 && (
+        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">Top Cases by AI Risk Score</div>
+            <Link href="/cases" className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
+          </div>
+          <div className="space-y-2">
+            {riskCases.map((c) => {
+              const level = c.risk_level?.Valid ? c.risk_level.String : "unknown";
+              const score = c.risk_score?.Valid ? parseFloat(c.risk_score.String) : null;
+              const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
+              return (
+                <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
+                  <span className={`text-xs font-bold px-2 py-0.5 rounded min-w-[42px] text-center ${colorClass}`}>
+                    {score !== null ? Math.round(score) : "—"}
+                  </span>
+                  <span className="font-mono text-cyan-400 text-xs w-24 flex-shrink-0">{c.case_number}</span>
+                  <span className="text-slate-300 text-sm flex-1 truncate">{c.title}</span>
+                  <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${colorClass}`}>{level}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Quick-action cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link
@@ -272,6 +323,34 @@ export default function DashboardPage() {
           </div>
           <p className="text-slate-500 text-xs">
             Review and complete assigned investigation tasks. Monitor overdue items and priority work.
+          </p>
+        </Link>
+
+        <Link
+          href="/workload"
+          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-amber-500/40 transition-colors group"
+        >
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-xl">◑</span>
+            <h2 className="text-white font-semibold">Team Workload</h2>
+            <span className="ml-auto text-amber-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+          </div>
+          <p className="text-slate-500 text-xs">
+            Monitor analyst capacity — active cases, open tasks, overdue items and average case age across the team.
+          </p>
+        </Link>
+
+        <Link
+          href="/sla"
+          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-emerald-500/40 transition-colors group"
+        >
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-xl">◷</span>
+            <h2 className="text-white font-semibold">SLA Policies</h2>
+            <span className="ml-auto text-emerald-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+          </div>
+          <p className="text-slate-500 text-xs">
+            Configure breach and warning thresholds per case priority. Keep SLA compliance visible across operations.
           </p>
         </Link>
       </div>

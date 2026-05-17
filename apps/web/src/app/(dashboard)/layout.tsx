@@ -15,6 +15,11 @@ const nav = [
   { label: "Search", href: "/search", icon: "⌕" },
 ];
 
+const insightsNav = [
+  { label: "Workload", href: "/workload", icon: "◑", roles: ["manager", "admin", "super_admin"] },
+  { label: "SLA Policies", href: "/sla", icon: "◷", roles: ["viewer", "analyst", "manager", "admin", "super_admin"] },
+];
+
 const adminNav = [
   { label: "Users", href: "/users", icon: "◎" },
   { label: "Audit Logs", href: "/audit", icon: "◈" },
@@ -51,6 +56,25 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Workspace
             </div>
             {nav.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
+                  pathname.startsWith(item.href)
+                    ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
+                    : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
+                }`}
+              >
+                <span className="text-base">{item.icon}</span>
+                {item.label}
+              </Link>
+            ))}
+
+            {/* Intelligence section */}
+            <div className="px-4 mt-4 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+              Intelligence
+            </div>
+            {insightsNav.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}

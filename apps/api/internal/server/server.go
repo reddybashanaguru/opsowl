@@ -9,16 +9,20 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
+	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/audit"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
+	"github.com/reddybashanaguru/opsowl/internal/comms"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/documents"
+	"github.com/reddybashanaguru/opsowl/internal/insights"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/notes"
 	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/response"
 	"github.com/reddybashanaguru/opsowl/internal/search"
+	"github.com/reddybashanaguru/opsowl/internal/sla"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
@@ -139,6 +143,23 @@ func (s *Server) setupRoutes() {
 		// Audit Logging UI module (Feature 10)
 		auditHandler := audit.NewHandler(s.queries)
 		audit.RegisterRoutes(r, auditHandler, s.jwtMgr)
+
+		// AI Insights module (P2-2)
+		insightsHandler := insights.NewHandler(s.queries, s.aiServiceURL)
+		insights.RegisterRoutes(r, insightsHandler, s.jwtMgr)
+
+		// Communication Logs module (P2-4)
+		commsSvc := comms.NewService(s.queries, s.aiServiceURL, s.logger)
+		commsHandler := comms.NewHandler(commsSvc)
+		comms.RegisterRoutes(r, commsHandler, s.jwtMgr)
+
+		// SLA Policy Engine (P2-3)
+		slaHandler := sla.NewHandler(s.queries)
+		sla.RegisterRoutes(r, slaHandler, s.jwtMgr)
+
+		// Analytics & Workload (P2-5)
+		analyticsHandler := analytics.NewHandler(s.queries)
+		analytics.RegisterRoutes(r, analyticsHandler, s.jwtMgr)
 	})
 }
 

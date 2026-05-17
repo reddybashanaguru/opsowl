@@ -31,6 +31,8 @@ type Querier interface {
 	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
 	CreateCaseActivity(ctx context.Context, arg CreateCaseActivityParams) (CaseActivity, error)
 	CreateCaseAssignment(ctx context.Context, arg CreateCaseAssignmentParams) (CaseAssignment, error)
+	// ── P2-4: Communication logs ──────────────────────────────────────────────────
+	CreateCommLog(ctx context.Context, arg CreateCommLogParams) (CommunicationLog, error)
 	CreateComment(ctx context.Context, arg CreateCommentParams) (Comment, error)
 	CreateDocument(ctx context.Context, arg CreateDocumentParams) (Document, error)
 	CreateMention(ctx context.Context, arg CreateMentionParams) (Mention, error)
@@ -41,12 +43,18 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateTaskComment(ctx context.Context, arg CreateTaskCommentParams) (TaskComment, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteCommLog(ctx context.Context, arg DeleteCommLogParams) error
 	EditAILog(ctx context.Context, arg EditAILogParams) (AiLog, error)
 	FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, error)
 	GetAILog(ctx context.Context, id uuid.UUID) (GetAILogRow, error)
+	// ── P2-5: Workload analytics ──────────────────────────────────────────────────
+	GetAnalystWorkload(ctx context.Context) ([]GetAnalystWorkloadRow, error)
 	GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error)
 	GetCaseWatchers(ctx context.Context, caseID uuid.UUID) ([]GetCaseWatchersRow, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumentByIDRow, error)
+	// ── P2-6: Document retry ──────────────────────────────────────────────────────
+	GetDocumentForRetry(ctx context.Context, id uuid.UUID) (GetDocumentForRetryRow, error)
+	GetLatestCaseAIInsights(ctx context.Context, caseID uuid.UUID) (CaseAiInsight, error)
 	GetNoteByID(ctx context.Context, id uuid.UUID) (GetNoteByIDRow, error)
 	GetNotificationPreference(ctx context.Context, arg GetNotificationPreferenceParams) (GetNotificationPreferenceRow, error)
 	GetRefreshTokenByHash(ctx context.Context, tokenHash string) (RefreshToken, error)
@@ -55,6 +63,7 @@ type Querier interface {
 	GetUnreadMentionCount(ctx context.Context, mentionedUserID uuid.UUID) (int64, error)
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserByID(ctx context.Context, id uuid.UUID) (User, error)
+	IncrementDocumentRetry(ctx context.Context, id uuid.UUID) (IncrementDocumentRetryRow, error)
 	InsertTimelineEvent(ctx context.Context, arg InsertTimelineEventParams) (TimelineEvent, error)
 	ListAILogsByCase(ctx context.Context, arg ListAILogsByCaseParams) ([]ListAILogsByCaseRow, error)
 	ListAllDocuments(ctx context.Context, arg ListAllDocumentsParams) ([]ListAllDocumentsRow, error)
@@ -62,6 +71,8 @@ type Querier interface {
 	ListCaseActivities(ctx context.Context, arg ListCaseActivitiesParams) ([]ListCaseActivitiesRow, error)
 	ListCaseActivity(ctx context.Context, arg ListCaseActivityParams) ([]ListCaseActivityRow, error)
 	ListCases(ctx context.Context, arg ListCasesParams) ([]ListCasesRow, error)
+	ListCasesWithRiskScore(ctx context.Context, arg ListCasesWithRiskScoreParams) ([]ListCasesWithRiskScoreRow, error)
+	ListCommLogs(ctx context.Context, arg ListCommLogsParams) ([]ListCommLogsRow, error)
 	ListCommentsByNote(ctx context.Context, noteID uuid.NullUUID) ([]ListCommentsByNoteRow, error)
 	ListCommentsByTimelineEvent(ctx context.Context, timelineEventID uuid.NullUUID) ([]ListCommentsByTimelineEventRow, error)
 	ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCaseParams) ([]ListDocumentsByCaseRow, error)
@@ -70,6 +81,8 @@ type Querier interface {
 	ListNotificationPreferences(ctx context.Context, userID uuid.UUID) ([]ListNotificationPreferencesRow, error)
 	ListNotifications(ctx context.Context, arg ListNotificationsParams) ([]Notification, error)
 	ListPendingAILogs(ctx context.Context, limit int32) ([]ListPendingAILogsRow, error)
+	// ── P2-3: SLA policies ────────────────────────────────────────────────────────
+	ListSLAPolicies(ctx context.Context) ([]SlaPolicy, error)
 	ListTaskComments(ctx context.Context, arg ListTaskCommentsParams) ([]ListTaskCommentsRow, error)
 	ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams) ([]ListTasksByCaseRow, error)
 	ListTimelineEvents(ctx context.Context, arg ListTimelineEventsParams) ([]ListTimelineEventsRow, error)
@@ -94,14 +107,19 @@ type Querier interface {
 	UpdateCaseAssignment(ctx context.Context, arg UpdateCaseAssignmentParams) (Case, error)
 	UpdateCaseStatus(ctx context.Context, arg UpdateCaseStatusParams) (Case, error)
 	UpdateCaseTags(ctx context.Context, arg UpdateCaseTagsParams) (Case, error)
+	UpdateDocumentCategory(ctx context.Context, arg UpdateDocumentCategoryParams) (Document, error)
 	UpdateDocumentProcessingResult(ctx context.Context, arg UpdateDocumentProcessingResultParams) (Document, error)
 	UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentStatusParams) (Document, error)
 	UpdateNote(ctx context.Context, arg UpdateNoteParams) (UpdateNoteRow, error)
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
+	// ── P2-2: Case AI insights ────────────────────────────────────────────────────
+	UpsertCaseAIInsights(ctx context.Context, arg UpsertCaseAIInsightsParams) (CaseAiInsight, error)
 	UpsertCaseTag(ctx context.Context, name string) (CaseTag, error)
+	UpsertCommAIExtraction(ctx context.Context, arg UpsertCommAIExtractionParams) (CommAiExtraction, error)
 	UpsertNotificationPreference(ctx context.Context, arg UpsertNotificationPreferenceParams) (NotificationPreference, error)
+	UpsertSLAPolicy(ctx context.Context, arg UpsertSLAPolicyParams) (SlaPolicy, error)
 }
 
 var _ Querier = (*Queries)(nil)

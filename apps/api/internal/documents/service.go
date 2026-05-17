@@ -308,3 +308,26 @@ func rowToGetRow(r db.ListDocumentsByCaseRow) db.GetDocumentByIDRow {
 		UploadedByEmail:  r.UploadedByEmail,
 	}
 }
+
+// Retry re-triggers async processing for a failed document.
+func (s *Service) Retry(ctx context.Context, claims *auth.Claims, docID uuid.UUID) (*DocumentResponse, error) {
+	row, err := s.repo.q.GetDocumentForRetry(ctx, docID)
+	if err != nil {
+		return nil, ErrNotFound
+	}
+	if row.ProcessingStatus == db.DocumentProcessingStatusProcessing {
+		return nil, fmt.Errorf("document is already being processed")
+	}
+	if row.RetryCount >= 3 {
+		return nil, fmt.Errorf("maximum retry attempts reached")
+	}
+
+	updated, err := s.repo.q.IncrementDocumentRetry(ctx, docID)
+	if err != nil {
+		return nil, err
+	}
+
+	go s.processAsync(updated.ID, updated.CaseID, updated.StoredPath, updated.OriginalFilename, updated.FileType, updated.MimeType)
+
+	return s.Get(ctx, docID)
+}

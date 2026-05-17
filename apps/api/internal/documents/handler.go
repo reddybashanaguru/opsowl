@@ -141,6 +141,33 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusNoContent, nil)
 }
 
+// POST /api/v1/cases/{caseId}/documents/{docId}/retry
+func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+	docID, err := uuid.Parse(chi.URLParam(r, "docId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid document id")
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+	doc, err := h.svc.Retry(r.Context(), claims, docID)
+	if err != nil {
+		switch err.Error() {
+		case "document is already being processed":
+			response.Err(w, http.StatusConflict, "ALREADY_PROCESSING", err.Error())
+		case "maximum retry attempts reached":
+			response.Err(w, http.StatusUnprocessableEntity, "MAX_RETRIES", err.Error())
+		default:
+			if errors.Is(err, ErrNotFound) {
+				response.Err(w, http.StatusNotFound, "NOT_FOUND", "document not found")
+			} else {
+				response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			}
+		}
+		return
+	}
+	response.JSON(w, http.StatusAccepted, doc)
+}
+
 // GET /api/v1/documents  — global document library across all cases
 func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 	limit := int32(30)

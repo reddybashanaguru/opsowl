@@ -139,6 +139,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           { label: "Notes →", href: `/cases/${id}/notes` },
           { label: "Tasks →", href: `/cases/${id}/tasks` },
           { label: "Documents →", href: `/cases/${id}/documents` },
+          { label: "Comms →", href: `/cases/${id}/comms` },
+          { label: "AI Insights →", href: `/cases/${id}/insights` },
           { label: "Timeline →", href: `/cases/${id}/timeline` },
           { label: "AI Logs →", href: `/cases/${id}/ai-logs` },
         ].map(({ label, href }) => (

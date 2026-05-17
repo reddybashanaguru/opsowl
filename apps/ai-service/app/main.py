@@ -34,6 +34,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 
-from app.routers import documents, copilot  # noqa: E402
+from app.routers import documents, copilot, phase2  # noqa: E402
 app.include_router(documents.router)
 app.include_router(copilot.router)
+app.include_router(phase2.router)

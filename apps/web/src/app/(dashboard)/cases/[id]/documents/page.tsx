@@ -77,6 +77,15 @@ export default function CaseDocumentsPage({
     },
   });
 
+  // ── Retry ──────────────────────────────────────────────────────────────────
+  const retryMutation = useMutation({
+    mutationFn: (docId: string) =>
+      api.post(`/api/v1/cases/${id}/documents/${docId}/retry`, {}),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", id] });
+    },
+  });
+
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#0D1117] text-slate-100 p-6">
@@ -179,11 +188,9 @@ export default function CaseDocumentsPage({
               <DocumentCard
                 key={doc.id}
                 document={doc}
-                onDelete={
-                  canUpload
-                    ? (docId) => deleteMutation.mutate(docId)
-                    : undefined
-                }
+                onDelete={canUpload ? (docId) => deleteMutation.mutate(docId) : undefined}
+                onRetry={canUpload ? (docId) => retryMutation.mutate(docId) : undefined}
+                retrying={retryMutation.isPending && retryMutation.variables === doc.id}
               />
             ))}
 

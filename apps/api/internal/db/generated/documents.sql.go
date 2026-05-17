@@ -41,7 +41,7 @@ func (q *Queries) CountDocumentsByCase(ctx context.Context, caseID uuid.UUID) (i
 const createDocument = `-- name: CreateDocument :one
 INSERT INTO documents (id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector, doc_category, retry_count, last_error_code
 `
 
 type CreateDocumentParams struct {
@@ -84,13 +84,16 @@ func (q *Queries) CreateDocument(ctx context.Context, arg CreateDocumentParams) 
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.DocCategory,
+		&i.RetryCount,
+		&i.LastErrorCode,
 	)
 	return i, err
 }
 
 const getDocumentByID = `-- name: GetDocumentByID :one
 SELECT
-    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector,
+    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector, d.doc_category, d.retry_count, d.last_error_code,
     u.full_name  AS uploaded_by_name,
     u.email      AS uploaded_by_email
 FROM documents d
@@ -115,6 +118,9 @@ type GetDocumentByIDRow struct {
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
 	SearchVector     interface{}              `json:"search_vector"`
+	DocCategory      sql.NullString           `json:"doc_category"`
+	RetryCount       int32                    `json:"retry_count"`
+	LastErrorCode    sql.NullString           `json:"last_error_code"`
 	UploadedByName   string                   `json:"uploaded_by_name"`
 	UploadedByEmail  string                   `json:"uploaded_by_email"`
 }
@@ -139,6 +145,9 @@ func (q *Queries) GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumen
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.DocCategory,
+		&i.RetryCount,
+		&i.LastErrorCode,
 		&i.UploadedByName,
 		&i.UploadedByEmail,
 	)
@@ -243,7 +252,7 @@ func (q *Queries) ListAllDocuments(ctx context.Context, arg ListAllDocumentsPara
 
 const listDocumentsByCase = `-- name: ListDocumentsByCase :many
 SELECT
-    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector,
+    d.id, d.case_id, d.uploaded_by, d.original_filename, d.stored_path, d.file_type, d.mime_type, d.file_size_bytes, d.processing_status, d.page_count, d.chunk_count, d.error_message, d.created_at, d.updated_at, d.deleted_at, d.search_vector, d.doc_category, d.retry_count, d.last_error_code,
     u.full_name  AS uploaded_by_name,
     u.email      AS uploaded_by_email
 FROM documents d
@@ -280,6 +289,9 @@ type ListDocumentsByCaseRow struct {
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
 	SearchVector     interface{}              `json:"search_vector"`
+	DocCategory      sql.NullString           `json:"doc_category"`
+	RetryCount       int32                    `json:"retry_count"`
+	LastErrorCode    sql.NullString           `json:"last_error_code"`
 	UploadedByName   string                   `json:"uploaded_by_name"`
 	UploadedByEmail  string                   `json:"uploaded_by_email"`
 }
@@ -315,6 +327,9 @@ func (q *Queries) ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCa
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.DocCategory,
+			&i.RetryCount,
+			&i.LastErrorCode,
 			&i.UploadedByName,
 			&i.UploadedByEmail,
 		); err != nil {
@@ -351,7 +366,7 @@ UPDATE documents SET
     chunk_count       = $4,
     error_message     = $5
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector, doc_category, retry_count, last_error_code
 `
 
 type UpdateDocumentProcessingResultParams struct {
@@ -388,6 +403,9 @@ func (q *Queries) UpdateDocumentProcessingResult(ctx context.Context, arg Update
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.DocCategory,
+		&i.RetryCount,
+		&i.LastErrorCode,
 	)
 	return i, err
 }
@@ -395,7 +413,7 @@ func (q *Queries) UpdateDocumentProcessingResult(ctx context.Context, arg Update
 const updateDocumentStatus = `-- name: UpdateDocumentStatus :one
 UPDATE documents SET processing_status = $2
 WHERE id = $1 AND deleted_at IS NULL
-RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector
+RETURNING id, case_id, uploaded_by, original_filename, stored_path, file_type, mime_type, file_size_bytes, processing_status, page_count, chunk_count, error_message, created_at, updated_at, deleted_at, search_vector, doc_category, retry_count, last_error_code
 `
 
 type UpdateDocumentStatusParams struct {
@@ -423,6 +441,9 @@ func (q *Queries) UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentSt
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.DocCategory,
+		&i.RetryCount,
+		&i.LastErrorCode,
 	)
 	return i, err
 }

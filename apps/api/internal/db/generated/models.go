@@ -105,6 +105,95 @@ func (ns NullCaseStatus) Value() (driver.Value, error) {
 	return string(ns.CaseStatus), nil
 }
 
+type CommChannel string
+
+const (
+	CommChannelEmail      CommChannel = "email"
+	CommChannelCall       CommChannel = "call"
+	CommChannelFieldVisit CommChannel = "field_visit"
+	CommChannelLetter     CommChannel = "letter"
+	CommChannelWhatsapp   CommChannel = "whatsapp"
+	CommChannelSms        CommChannel = "sms"
+	CommChannelOther      CommChannel = "other"
+)
+
+func (e *CommChannel) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = CommChannel(s)
+	case string:
+		*e = CommChannel(s)
+	default:
+		return fmt.Errorf("unsupported scan type for CommChannel: %T", src)
+	}
+	return nil
+}
+
+type NullCommChannel struct {
+	CommChannel CommChannel `json:"comm_channel"`
+	Valid       bool        `json:"valid"` // Valid is true if CommChannel is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCommChannel) Scan(value interface{}) error {
+	if value == nil {
+		ns.CommChannel, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.CommChannel.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCommChannel) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.CommChannel), nil
+}
+
+type CommDirection string
+
+const (
+	CommDirectionInbound  CommDirection = "inbound"
+	CommDirectionOutbound CommDirection = "outbound"
+)
+
+func (e *CommDirection) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = CommDirection(s)
+	case string:
+		*e = CommDirection(s)
+	default:
+		return fmt.Errorf("unsupported scan type for CommDirection: %T", src)
+	}
+	return nil
+}
+
+type NullCommDirection struct {
+	CommDirection CommDirection `json:"comm_direction"`
+	Valid         bool          `json:"valid"` // Valid is true if CommDirection is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullCommDirection) Scan(value interface{}) error {
+	if value == nil {
+		ns.CommDirection, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.CommDirection.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullCommDirection) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.CommDirection), nil
+}
+
 type DocumentProcessingStatus string
 
 const (
@@ -599,6 +688,21 @@ type CaseActivity struct {
 	CreatedAt time.Time       `json:"created_at"`
 }
 
+type CaseAiInsight struct {
+	ID                 uuid.UUID       `json:"id"`
+	CaseID             uuid.UUID       `json:"case_id"`
+	RiskScore          sql.NullString  `json:"risk_score"`
+	RiskLevel          sql.NullString  `json:"risk_level"`
+	RiskFactors        json.RawMessage `json:"risk_factors"`
+	Entities           json.RawMessage `json:"entities"`
+	Anomalies          json.RawMessage `json:"anomalies"`
+	RecommendedActions json.RawMessage `json:"recommended_actions"`
+	ModelUsed          sql.NullString  `json:"model_used"`
+	Confidence         sql.NullString  `json:"confidence"`
+	AnalysedAt         time.Time       `json:"analysed_at"`
+	CreatedAt          time.Time       `json:"created_at"`
+}
+
 type CaseAssignment struct {
 	ID           uuid.UUID    `json:"id"`
 	CaseID       uuid.UUID    `json:"case_id"`
@@ -621,6 +725,16 @@ type CaseWatcher struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CommAiExtraction struct {
+	ID          uuid.UUID       `json:"id"`
+	CommLogID   uuid.UUID       `json:"comm_log_id"`
+	Entities    json.RawMessage `json:"entities"`
+	ActionItems json.RawMessage `json:"action_items"`
+	Sentiment   sql.NullString  `json:"sentiment"`
+	ModelUsed   sql.NullString  `json:"model_used"`
+	CreatedAt   time.Time       `json:"created_at"`
+}
+
 type Comment struct {
 	ID              uuid.UUID     `json:"id"`
 	CaseID          uuid.UUID     `json:"case_id"`
@@ -632,6 +746,22 @@ type Comment struct {
 	CreatedAt       time.Time     `json:"created_at"`
 	UpdatedAt       time.Time     `json:"updated_at"`
 	DeletedAt       sql.NullTime  `json:"deleted_at"`
+}
+
+type CommunicationLog struct {
+	ID            uuid.UUID      `json:"id"`
+	CaseID        uuid.UUID      `json:"case_id"`
+	Channel       CommChannel    `json:"channel"`
+	Direction     CommDirection  `json:"direction"`
+	ContactName   string         `json:"contact_name"`
+	ContactDetail sql.NullString `json:"contact_detail"`
+	Subject       sql.NullString `json:"subject"`
+	Body          string         `json:"body"`
+	Outcome       sql.NullString `json:"outcome"`
+	LoggedBy      uuid.UUID      `json:"logged_by"`
+	OccurredAt    time.Time      `json:"occurred_at"`
+	CreatedAt     time.Time      `json:"created_at"`
+	UpdatedAt     time.Time      `json:"updated_at"`
 }
 
 type Document struct {
@@ -651,6 +781,9 @@ type Document struct {
 	UpdatedAt        time.Time                `json:"updated_at"`
 	DeletedAt        sql.NullTime             `json:"deleted_at"`
 	SearchVector     interface{}              `json:"search_vector"`
+	DocCategory      sql.NullString           `json:"doc_category"`
+	RetryCount       int32                    `json:"retry_count"`
+	LastErrorCode    sql.NullString           `json:"last_error_code"`
 }
 
 type DocumentChunk struct {
@@ -734,6 +867,16 @@ type Session struct {
 	UserAgent    string      `json:"user_agent"`
 	CreatedAt    time.Time   `json:"created_at"`
 	LastActiveAt time.Time   `json:"last_active_at"`
+}
+
+type SlaPolicy struct {
+	ID           uuid.UUID `json:"id"`
+	Priority     string    `json:"priority"`
+	WarningHours int32     `json:"warning_hours"`
+	BreachHours  int32     `json:"breach_hours"`
+	WarnPct      int32     `json:"warn_pct"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
 
 type Task struct {
