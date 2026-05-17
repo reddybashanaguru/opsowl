@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -22,24 +22,43 @@ interface ListUsersResponse {
   total_count: number;
 }
 
-const ROLE_COLORS: Record<string, string> = {
-  super_admin: "bg-red-500/10 text-red-400 border-red-500/30",
-  admin: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  manager: "bg-violet-500/10 text-violet-400 border-violet-500/30",
-  analyst: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",
-  viewer: "bg-slate-500/10 text-slate-400 border-slate-600",
+const ROLE_COLORS: Record<string, { badge: string; dot: string }> = {
+  super_admin: { badge: "bg-red-500/10 text-red-400 border-red-500/30",    dot: "bg-red-400" },
+  admin:       { badge: "bg-amber-500/10 text-amber-400 border-amber-500/30", dot: "bg-amber-400" },
+  manager:     { badge: "bg-violet-500/10 text-violet-400 border-violet-500/30", dot: "bg-violet-400" },
+  analyst:     { badge: "bg-cyan-500/10 text-cyan-400 border-cyan-500/30",   dot: "bg-cyan-400" },
+  viewer:      { badge: "bg-slate-500/10 text-slate-400 border-slate-600",   dot: "bg-slate-500" },
 };
+
+const ROLES = ["", "super_admin", "admin", "manager", "analyst", "viewer"];
+const ROLE_LABELS: Record<string, string> = {
+  "": "All Roles", super_admin: "Super Admin", admin: "Admin",
+  manager: "Manager", analyst: "Analyst", viewer: "Viewer",
+};
+
+function Avatar({ name }: { name: string }) {
+  const initials = name.split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase();
+  const colors = ["bg-cyan-700", "bg-violet-700", "bg-amber-700", "bg-rose-700", "bg-emerald-700"];
+  const color = colors[name.charCodeAt(0) % colors.length];
+  return (
+    <span className={`w-8 h-8 rounded-full ${color} flex items-center justify-center text-xs font-bold text-white flex-shrink-0`}>
+      {initials}
+    </span>
+  );
+}
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState("");
+  const [search, setSearch] = useState("");
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
     queryFn: () =>
-      api.get<{ data: ListUsersResponse }>("/api/v1/users?limit=50").then(
-        (r) => (r as unknown as { data: ListUsersResponse }).data ?? r
+      api.get<{ data: ListUsersResponse }>("/api/v1/users?limit=200").then(
+        (r) => (r as unknown as { data: ListUsersResponse }).data ?? r,
       ),
   });
 
@@ -51,30 +70,92 @@ export default function UsersPage() {
     },
   });
 
-  const users: User[] = (data as unknown as ListUsersResponse)?.users ?? [];
-  const totalCount = (data as unknown as ListUsersResponse)?.total_count ?? 0;
+  const allUsers: User[] = (data as unknown as ListUsersResponse)?.users ?? [];
+
+  const filtered = useMemo(() => {
+    return allUsers.filter((u) => {
+      if (roleFilter && u.role !== roleFilter) return false;
+      if (search) {
+        const q = search.toLowerCase();
+        return u.full_name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [allUsers, roleFilter, search]);
+
+  // Role distribution for the summary bar
+  const roleCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    allUsers.forEach((u) => { counts[u.role] = (counts[u.role] ?? 0) + 1; });
+    return counts;
+  }, [allUsers]);
 
   return (
     <RBACGate
       allowedRoles={["admin", "super_admin"]}
       fallback={
-        <div className="p-8 text-slate-400">
-          You don&apos;t have permission to view this page.
-        </div>
+        <div className="p-8 text-slate-400">You don&apos;t have permission to view this page.</div>
       }
     >
-      <div className="p-8">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-6 max-w-5xl mx-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-5">
           <div>
             <h1 className="text-2xl font-bold text-white">User Management</h1>
             <p className="text-slate-400 text-sm mt-1">
-              {totalCount} {totalCount === 1 ? "user" : "users"} in your organisation
+              {filtered.length} of {allUsers.length} user{allUsers.length !== 1 ? "s" : ""}
+              {(roleFilter || search) && " (filtered)"}
             </p>
           </div>
         </div>
 
+        {/* Role distribution strip */}
+        {allUsers.length > 0 && !isLoading && (
+          <div className="flex gap-2 flex-wrap mb-5">
+            {Object.entries(roleCounts).map(([role, count]) => {
+              const cfg = ROLE_COLORS[role];
+              return (
+                <button
+                  key={role}
+                  onClick={() => setRoleFilter(roleFilter === role ? "" : role)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    roleFilter === role ? cfg.badge + " ring-1 ring-current" : "bg-slate-800 text-slate-400 border-slate-700 hover:border-slate-500"
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${cfg?.dot}`} />
+                  {ROLE_LABELS[role] ?? role} · {count}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Search + Filter */}
+        <div className="flex gap-2 mb-5">
+          <div className="relative">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">⌕</span>
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search name or email…"
+              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-3 py-2 w-60 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
+            />
+            {search && (
+              <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">✕</button>
+            )}
+          </div>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+          >
+            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          </select>
+        </div>
+
         {isLoading && (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl h-16 animate-pulse" />
             ))}
@@ -87,92 +168,71 @@ export default function UsersPage() {
           </div>
         )}
 
-        {!isLoading && !error && users.length === 0 && (
+        {!isLoading && !error && filtered.length === 0 && (
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-12 text-center">
-            <p className="text-slate-400 text-sm">No users found.</p>
+            <p className="text-slate-400 text-sm">No users match your filters.</p>
           </div>
         )}
 
-        {users.length > 0 && (
+        {filtered.length > 0 && (
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Role
-                  </th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                    Status
-                  </th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">User</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Role</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-left px-5 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wider">Joined</th>
                   <th className="px-5 py-3" />
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-slate-700/50 hover:bg-slate-700/20 transition-colors">
-                    <td className="px-5 py-4 text-white font-medium">{u.full_name}</td>
-                    <td className="px-5 py-4 text-slate-400">{u.email}</td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-semibold border ${
-                          ROLE_COLORS[u.role] ?? "bg-slate-700 text-slate-300"
-                        }`}
-                      >
-                        {u.role.replace("_", " ")}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span
-                        className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                          u.is_active ? "text-emerald-400" : "text-slate-500"
-                        }`}
-                      >
-                        <span
-                          className={`w-1.5 h-1.5 rounded-full ${
-                            u.is_active ? "bg-emerald-400" : "bg-slate-500"
-                          }`}
-                        />
-                        {u.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      {u.id !== currentUser?.id && (
-                        <>
-                          {deleteConfirm === u.id ? (
+                {filtered.map((u) => {
+                  const cfg = ROLE_COLORS[u.role] ?? { badge: "bg-slate-700 text-slate-300 border-slate-600", dot: "bg-slate-500" };
+                  return (
+                    <tr key={u.id} className="border-b border-slate-700/40 hover:bg-slate-700/15 transition-colors">
+                      <td className="px-5 py-3.5">
+                        <div className="flex items-center gap-3">
+                          <Avatar name={u.full_name} />
+                          <div>
+                            <div className="text-white font-medium text-sm">{u.full_name}</div>
+                            <div className="text-slate-500 text-xs">{u.email}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${cfg.badge}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+                          {ROLE_LABELS[u.role] ?? u.role}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${u.is_active ? "text-emerald-400" : "text-slate-500"}`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${u.is_active ? "bg-emerald-400" : "bg-slate-500"}`} />
+                          {u.is_active ? "Active" : "Inactive"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5 text-slate-500 text-xs tabular-nums">
+                        {new Date(u.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      </td>
+                      <td className="px-5 py-3.5 text-right">
+                        {u.id !== currentUser?.id && (
+                          deleteConfirm === u.id ? (
                             <div className="flex items-center gap-2 justify-end">
-                              <span className="text-xs text-slate-400">Confirm?</span>
-                              <button
-                                onClick={() => deleteMutation.mutate(u.id)}
-                                className="text-xs text-red-400 hover:text-red-300 font-medium"
-                              >
-                                Yes, deactivate
-                              </button>
-                              <button
-                                onClick={() => setDeleteConfirm(null)}
-                                className="text-xs text-slate-500 hover:text-slate-300"
-                              >
-                                Cancel
-                              </button>
+                              <span className="text-xs text-slate-400">Deactivate?</span>
+                              <button onClick={() => deleteMutation.mutate(u.id)} className="text-xs text-red-400 hover:text-red-300 font-medium">Yes</button>
+                              <button onClick={() => setDeleteConfirm(null)} className="text-xs text-slate-500 hover:text-slate-300">No</button>
                             </div>
                           ) : (
-                            <button
-                              onClick={() => setDeleteConfirm(u.id)}
-                              className="text-xs text-slate-500 hover:text-red-400 transition-colors"
-                            >
+                            <button onClick={() => setDeleteConfirm(u.id)} className="text-xs text-slate-600 hover:text-red-400 transition-colors">
                               Deactivate
                             </button>
-                          )}
-                        </>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                          )
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

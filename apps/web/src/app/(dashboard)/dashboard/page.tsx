@@ -9,33 +9,121 @@ interface DashboardStats {
   open_cases: number;
   pending_tasks: number;
   ai_queries_today: number;
+  status_open: number;
+  status_in_progress: number;
+  status_pending_review: number;
+  status_escalated: number;
+  status_closed: number;
+  prio_critical: number;
+  prio_high: number;
+  prio_medium: number;
+  prio_low: number;
+  sla_breached: number;
+  pending_ai_reviews: number;
 }
 
-function StatCard({
-  label,
-  value,
-  color,
-  href,
-}: {
-  label: string;
-  value: number | undefined;
+// ── Pure-SVG donut chart ──────────────────────────────────────────────────────
+interface DonutSlice {
+  value: number;
   color: string;
-  href: string;
+  label: string;
+}
+
+function DonutChart({ slices, size = 120 }: { slices: DonutSlice[]; size?: number }) {
+  const total = slices.reduce((s, d) => s + d.value, 0);
+  if (total === 0) return <div className="w-[120px] h-[120px] rounded-full bg-slate-800 flex items-center justify-center text-slate-600 text-xs">No data</div>;
+
+  const r = 40;
+  const cx = size / 2;
+  const cy = size / 2;
+  const circ = 2 * Math.PI * r;
+  const gap = 2; // gap between segments in pixels
+
+  let cumulative = 0;
+  const segments = slices.map((s) => {
+    const pct = s.value / total;
+    const dash = Math.max(0, pct * circ - gap);
+    const offset = circ - cumulative * circ;
+    cumulative += pct;
+    return { ...s, dash, offset };
+  });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      {segments.map((seg, i) => (
+        <circle
+          key={i}
+          cx={cx}
+          cy={cy}
+          r={r}
+          fill="none"
+          stroke={seg.color}
+          strokeWidth={16}
+          strokeDasharray={`${seg.dash} ${circ}`}
+          strokeDashoffset={seg.offset}
+          strokeLinecap="butt"
+          style={{ transform: `rotate(-90deg)`, transformOrigin: `${cx}px ${cy}px` }}
+        />
+      ))}
+      {/* Center text */}
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="monospace">Total</text>
+      <text x={cx} y={cy + 11} textAnchor="middle" fill="#f1f5f9" fontSize="16" fontWeight="bold" fontFamily="monospace">{total}</text>
+    </svg>
+  );
+}
+
+// ── Horizontal bar chart ──────────────────────────────────────────────────────
+interface BarItem {
+  label: string;
+  value: number;
+  color: string;
+  bg: string;
+}
+
+function HorizontalBars({ items }: { items: BarItem[] }) {
+  const max = Math.max(...items.map((i) => i.value), 1);
+  return (
+    <div className="space-y-2.5">
+      {items.map((item) => (
+        <div key={item.label}>
+          <div className="flex justify-between items-center mb-1">
+            <span className={`text-xs font-medium ${item.color}`}>{item.label}</span>
+            <span className="text-xs text-slate-400 tabular-nums">{item.value}</span>
+          </div>
+          <div className={`h-2 rounded-full ${item.bg} overflow-hidden`}>
+            <div
+              className={`h-full rounded-full ${item.color.replace("text-", "bg-")}`}
+              style={{ width: `${(item.value / max) * 100}%`, transition: "width 0.6s ease" }}
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Stat card ─────────────────────────────────────────────────────────────────
+function StatCard({
+  label, value, color, href, sub,
+}: {
+  label: string; value: number | undefined; color: string; href: string; sub?: string;
 }) {
   return (
-    <Link href={href} className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-500 transition-colors">
-      <div className="text-slate-400 text-sm mb-2">{label}</div>
-      <div className={`text-3xl font-bold ${color}`}>
+    <Link href={href} className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-500 transition-colors group">
+      <div className="text-slate-400 text-sm mb-1">{label}</div>
+      <div className={`text-3xl font-bold tabular-nums ${color}`}>
         {value === undefined ? (
-          <span className="inline-block w-12 h-8 bg-slate-700 animate-pulse rounded" />
+          <span className="inline-block w-14 h-8 bg-slate-700 animate-pulse rounded" />
         ) : (
           value.toLocaleString()
         )}
       </div>
+      {sub && <div className="text-slate-500 text-xs mt-1">{sub}</div>}
     </Link>
   );
 }
 
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
 
@@ -48,68 +136,164 @@ export default function DashboardPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
+  const statusSlices: DonutSlice[] = [
+    { label: "Open",           value: stats?.status_open          ?? 0, color: "#22d3ee" },
+    { label: "In Progress",    value: stats?.status_in_progress   ?? 0, color: "#818cf8" },
+    { label: "Pending Review", value: stats?.status_pending_review ?? 0, color: "#f59e0b" },
+    { label: "Escalated",      value: stats?.status_escalated     ?? 0, color: "#f87171" },
+    { label: "Closed",         value: stats?.status_closed        ?? 0, color: "#4ade80" },
+  ];
+
+  const priorityBars: BarItem[] = [
+    { label: "Critical", value: stats?.prio_critical ?? 0, color: "text-red-400",    bg: "bg-red-900/20" },
+    { label: "High",     value: stats?.prio_high     ?? 0, color: "text-orange-400", bg: "bg-orange-900/20" },
+    { label: "Medium",   value: stats?.prio_medium   ?? 0, color: "text-amber-400",  bg: "bg-amber-900/20" },
+    { label: "Low",      value: stats?.prio_low      ?? 0, color: "text-slate-400",  bg: "bg-slate-800" },
+  ];
+
   return (
-    <div className="p-8">
-      <div className="mb-8">
+    <div className="p-6 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="mb-6">
         <h1 className="text-2xl font-bold text-white">
           {greeting},{" "}
           <span className="text-cyan-400">{user?.full_name?.split(" ")[0]}</span>
         </h1>
         <p className="text-slate-400 mt-1 text-sm">
-          Here&apos;s what&apos;s happening across your investigation workspace today.
+          Operations intelligence workspace — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <StatCard
-          label="Active Cases"
-          value={stats?.open_cases}
-          color="text-cyan-400"
-          href="/cases"
-        />
-        <StatCard
-          label="Pending Tasks"
-          value={stats?.pending_tasks}
-          color="text-violet-400"
-          href="/tasks"
-        />
-        <StatCard
-          label="AI Queries Today"
-          value={stats?.ai_queries_today}
-          color="text-amber-400"
-          href="/cases"
-        />
+      {/* Top stat cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <StatCard label="Active Cases"    value={stats?.open_cases}       color="text-cyan-400"   href="/cases"   sub="open + in-progress" />
+        <StatCard label="Pending Tasks"   value={stats?.pending_tasks}     color="text-violet-400" href="/tasks"   sub="todo + in-progress" />
+        <StatCard label="AI Queries Today" value={stats?.ai_queries_today} color="text-amber-400"  href="/cases"   sub="across all cases" />
+        <StatCard label="SLA Breached"    value={stats?.sla_breached}      color={stats?.sla_breached ? "text-red-400" : "text-emerald-400"} href="/cases?priority=critical" sub="active cases" />
       </div>
 
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 gap-5">
+      {/* Charts row */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* Donut — case status */}
+        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Case Status Breakdown</div>
+          <div className="flex items-center gap-5">
+            <DonutChart slices={statusSlices} size={120} />
+            <div className="space-y-1.5 flex-1 min-w-0">
+              {statusSlices.map((s) => (
+                <div key={s.label} className="flex items-center gap-2 min-w-0">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                  <span className="text-slate-400 text-xs truncate flex-1">{s.label}</span>
+                  <span className="text-slate-200 text-xs tabular-nums font-medium">{s.value}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Horizontal bars — priority */}
+        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Active Cases by Priority</div>
+          {stats ? (
+            <HorizontalBars items={priorityBars} />
+          ) : (
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-6 bg-slate-800 animate-pulse rounded" />)}
+            </div>
+          )}
+        </div>
+
+        {/* Alert panel */}
+        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Attention Required</div>
+          <div className="space-y-3">
+            {stats ? (
+              <>
+                <AlertRow
+                  icon="🔴"
+                  label="SLA Breaches"
+                  value={stats.sla_breached}
+                  href="/cases"
+                  critical={stats.sla_breached > 0}
+                />
+                <AlertRow
+                  icon="⚠️"
+                  label="Escalated Cases"
+                  value={stats.status_escalated}
+                  href="/cases?status=escalated"
+                  critical={stats.status_escalated > 0}
+                />
+                <AlertRow
+                  icon="🤖"
+                  label="Pending AI Reviews"
+                  value={stats.pending_ai_reviews}
+                  href="/cases"
+                  critical={false}
+                />
+                <AlertRow
+                  icon="📋"
+                  label="Pending Review Cases"
+                  value={stats.status_pending_review}
+                  href="/cases?status=pending_review"
+                  critical={false}
+                />
+              </>
+            ) : (
+              [...Array(4)].map((_, i) => <div key={i} className="h-8 bg-slate-800 animate-pulse rounded" />)
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Quick-action cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Link
           href="/cases"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 hover:border-slate-500 transition-colors group"
+          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-cyan-500/40 transition-colors group"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">⬡</span>
-            <h2 className="text-white font-semibold text-lg">Investigation Cases</h2>
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-xl">⬡</span>
+            <h2 className="text-white font-semibold">Investigation Cases</h2>
+            <span className="ml-auto text-cyan-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-500 text-xs">
             View, create and manage fraud investigation cases. Track SLA breaches, escalations and resolutions.
           </p>
-          <div className="mt-3 text-cyan-400 text-sm group-hover:underline">View all cases →</div>
         </Link>
 
         <Link
           href="/tasks"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 hover:border-slate-500 transition-colors group"
+          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-violet-500/40 transition-colors group"
         >
-          <div className="flex items-center gap-3 mb-2">
-            <span className="text-2xl">✓</span>
-            <h2 className="text-white font-semibold text-lg">Task Queue</h2>
+          <div className="flex items-center gap-3 mb-1.5">
+            <span className="text-xl">✓</span>
+            <h2 className="text-white font-semibold">Task Queue</h2>
+            <span className="ml-auto text-violet-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-500 text-xs">
             Review and complete assigned investigation tasks. Monitor overdue items and priority work.
           </p>
-          <div className="mt-3 text-violet-400 text-sm group-hover:underline">View my tasks →</div>
         </Link>
       </div>
     </div>
+  );
+}
+
+function AlertRow({
+  icon, label, value, href, critical,
+}: {
+  icon: string; label: string; value: number; href: string; critical: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-3 py-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/20 -mx-1 px-1 rounded transition-colors"
+    >
+      <span className="text-sm">{icon}</span>
+      <span className="text-slate-300 text-sm flex-1">{label}</span>
+      <span className={`text-sm font-bold tabular-nums ${critical && value > 0 ? "text-red-400" : "text-slate-300"}`}>
+        {value}
+      </span>
+    </Link>
   );
 }
