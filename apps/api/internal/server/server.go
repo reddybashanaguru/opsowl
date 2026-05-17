@@ -11,6 +11,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/audit"
+	"github.com/reddybashanaguru/opsowl/internal/report"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	"github.com/reddybashanaguru/opsowl/internal/comms"
@@ -160,6 +161,10 @@ func (s *Server) setupRoutes() {
 		// Analytics & Workload (P2-5)
 		analyticsHandler := analytics.NewHandler(s.queries)
 		analytics.RegisterRoutes(r, analyticsHandler, s.jwtMgr)
+
+		// PDF Case Report (P2-1)
+		reportHandler := report.NewHandler(s.queries, s.aiServiceURL, s.logger)
+		report.RegisterRoutes(r, reportHandler, s.jwtMgr)
 	})
 }
 

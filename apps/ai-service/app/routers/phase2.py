@@ -1,4 +1,4 @@
-"""Phase 2 AI endpoints — case risk analysis, comm entity extraction."""
+"""Phase 2 AI endpoints — case risk analysis, comm entity extraction, report summary."""
 from __future__ import annotations
 
 import logging
@@ -38,6 +38,21 @@ class ExtractCommsResponse(BaseModel):
     entities: dict[str, Any]
     action_items: list[str]
     sentiment: str
+    model_used: str
+
+
+class ReportSummaryRequest(BaseModel):
+    case_number: str
+    title: str
+    status: str
+    priority: str
+    description: str = ""
+    task_count: int = 0
+    document_count: int = 0
+
+
+class ReportSummaryResponse(BaseModel):
+    summary: str
     model_used: str
 
 
@@ -158,3 +173,50 @@ async def extract_comms_entities(req: ExtractCommsRequest) -> ExtractCommsRespon
             sentiment="neutral",
             model_used="unavailable",
         )
+
+
+# ── Report Executive Summary ──────────────────────────────────────────────────
+
+@router.post("/report/summary", response_model=ReportSummaryResponse)
+async def report_summary(req: ReportSummaryRequest) -> ReportSummaryResponse:
+    """
+    Generate a 3-4 sentence executive summary for a case report.
+    Falls back to a structured template if LLM is unavailable.
+    """
+    try:
+        prompt = (
+            f"Write a concise executive summary (3-4 sentences, professional tone) for a "
+            f"financial investigation case report. Use only these facts:\n\n"
+            f"Case: {req.case_number} — {req.title}\n"
+            f"Status: {req.status}\n"
+            f"Priority: {req.priority}\n"
+            f"Description: {req.description or 'Not provided'}\n"
+            f"Tasks: {req.task_count} tasks\n"
+            f"Documents: {req.document_count} documents collected\n\n"
+            "Write in third person. Start with 'Case [case_number]...' or 'This investigation...' "
+            "Do not use headers or bullet points. Plain paragraphs only."
+        )
+        system = (
+            "You are a financial crime compliance officer writing formal investigation reports. "
+            "Be concise, factual, and professional. No speculation."
+        )
+        messages = [{"role": "user", "content": prompt}]
+        answer, model, _, _ = await llm_router.complete(messages, system=system, max_tokens=300)
+
+        summary = answer.strip()
+        if len(summary) < 20:
+            raise ValueError("summary too short")
+
+        return ReportSummaryResponse(summary=summary, model_used=model)
+
+    except Exception as e:
+        logger.warning("report summary AI failed: %s", e)
+        summary = (
+            f"Case {req.case_number} ({req.title}) is an investigation of {req.priority} priority "
+            f"currently in {req.status.replace('_', ' ')} status. "
+            f"The investigation has collected {req.document_count} document(s) and generated "
+            f"{req.task_count} task(s). "
+            f"This report provides a comprehensive record of all investigation activities, "
+            f"evidence, communications, and findings to date."
+        )
+        return ReportSummaryResponse(summary=summary, model_used="template")

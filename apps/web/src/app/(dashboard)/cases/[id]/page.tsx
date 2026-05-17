@@ -87,6 +87,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [reason, setReason] = useState("");
   const [statusError, setStatusError] = useState("");
   const [copilotOpen, setCopilotOpen] = useState(false);
+  const [exportingPDF, setExportingPDF] = useState(false);
 
   const { data: c, isLoading } = useQuery<CaseDetail>({
     queryKey: ["case", id],
@@ -161,6 +162,43 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           title="AI Copilot (⌘⇧A)"
         >
           🤖 AI Copilot
+        </button>
+        <div className="h-4 border-l border-slate-700" />
+        <button
+          onClick={async () => {
+            setExportingPDF(true);
+            try {
+              const accessToken = useAuthStore.getState().accessToken;
+              const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+              const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
+                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+              });
+              if (!res.ok) throw new Error("Failed to generate report");
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${c?.case_number ?? id}-report.pdf`;
+              document.body.appendChild(a);
+              a.click();
+              a.remove();
+              URL.revokeObjectURL(url);
+            } finally {
+              setExportingPDF(false);
+            }
+          }}
+          disabled={exportingPDF}
+          className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1.5"
+          title="Export PDF Report"
+        >
+          {exportingPDF ? (
+            <>
+              <div className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+              Generating…
+            </>
+          ) : (
+            "📄 Export PDF"
+          )}
         </button>
       </div>
 
