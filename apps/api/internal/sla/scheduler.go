@@ -38,7 +38,12 @@ func (s *Scheduler) Start(ctx context.Context) {
 	}
 }
 
-func (s *Scheduler) sweep(ctx context.Context) {
+func (s *Scheduler) sweep(_ context.Context) {
+	// Use an independent context for the DB call so cancelling the scheduler
+	// lifecycle does not abort an in-progress sweep mid-query.
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
 	n, err := s.queries.MarkBreachedCases(ctx)
 	if err != nil {
 		s.logger.Error("sla breach sweep failed", zap.Error(err))
