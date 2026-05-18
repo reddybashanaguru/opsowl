@@ -198,6 +198,14 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 
 	actorID := claims.UserID
 
+	// Maker-checker: prevent the same person from submitting and approving.
+	if req.Status == db.CaseStatusClosed && existing.Status == db.CaseStatusPendingReview {
+		submitterID, err := s.repo.GetLastPendingReviewActor(ctx, id)
+		if err == nil && submitterID == actorID {
+			return nil, ErrSamePersonApproval
+		}
+	}
+
 	p := db.UpdateCaseStatusParams{ID: id, Status: req.Status}
 	if req.Status == db.CaseStatusOpen {
 		breach := slaBreachAt(existing.Priority, time.Now())

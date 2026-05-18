@@ -111,6 +111,19 @@ func seedUser(t *testing.T, db *sql.DB, email, password string, active bool) {
 	}
 }
 
+// mustLogin is a test helper that unwraps LoginResult.Pair and fails if MFA is required or an error occurs.
+func mustLogin(t *testing.T, svc *auth.Service, email, password string) *auth.TokenPair {
+	t.Helper()
+	result, err := svc.Login(context.Background(), email, password, "127.0.0.1", "go-test")
+	if err != nil {
+		t.Fatalf("login failed: %v", err)
+	}
+	if result.Pair == nil {
+		t.Fatal("expected token pair, got MFA required")
+	}
+	return result.Pair
+}
+
 func TestLogin(t *testing.T) {
 	db, cleanup := testDB(t)
 	defer cleanup()
@@ -133,7 +146,7 @@ func TestLogin(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			pair, err := svc.Login(context.Background(), tc.email, tc.pass, "127.0.0.1", "go-test")
+			result, err := svc.Login(context.Background(), tc.email, tc.pass, "127.0.0.1", "go-test")
 			if tc.wantErr != nil {
 				if err == nil {
 					t.Fatalf("expected error %v, got nil", tc.wantErr)
@@ -143,10 +156,13 @@ func TestLogin(t *testing.T) {
 			if err != nil {
 				t.Fatalf("unexpected error: %v", err)
 			}
-			if pair.AccessToken == "" {
+			if result.Pair == nil {
+				t.Fatal("expected token pair, got MFA required")
+			}
+			if result.Pair.AccessToken == "" {
 				t.Fatal("expected access token")
 			}
-			if !strings.HasPrefix(pair.RefreshToken, "rt_") {
+			if !strings.HasPrefix(result.Pair.RefreshToken, "rt_") {
 				t.Fatal("expected refresh token with rt_ prefix")
 			}
 		})
@@ -159,10 +175,7 @@ func TestRefresh(t *testing.T) {
 	svc, _ := newTestService(t, db)
 
 	seedUser(t, db, "refresh@test.com", "SecureP@ss1", true)
-	pair, err := svc.Login(context.Background(), "refresh@test.com", "SecureP@ss1", "127.0.0.1", "go-test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "refresh@test.com", "SecureP@ss1")
 
 	t.Run("valid refresh token rotates", func(t *testing.T) {
 		newPair, err := svc.Refresh(context.Background(), pair.RefreshToken, "127.0.0.1")
@@ -184,7 +197,7 @@ func TestRefresh(t *testing.T) {
 
 	t.Run("revoked token triggers family revocation", func(t *testing.T) {
 		// Login fresh
-		p2, _ := svc.Login(context.Background(), "refresh@test.com", "SecureP@ss1", "127.0.0.1", "go-test")
+		p2 := mustLogin(t, svc, "refresh@test.com", "SecureP@ss1")
 		// Use once to rotate
 		p3, _ := svc.Refresh(context.Background(), p2.RefreshToken, "127.0.0.1")
 		// Present old (revoked) token — should trigger reuse detection
@@ -208,7 +221,7 @@ func TestJWTValidateMiddleware(t *testing.T) {
 	svc, jwtMgr := newTestService(t, db)
 
 	seedUser(t, db, "jwt@test.com", "SecureP@ss1", true)
-	pair, _ := svc.Login(context.Background(), "jwt@test.com", "SecureP@ss1", "127.0.0.1", "go-test")
+	pair := mustLogin(t, svc, "jwt@test.com", "SecureP@ss1")
 
 	mw := auth.JWTValidate(jwtMgr)
 
@@ -257,7 +270,7 @@ func TestRBACMiddleware(t *testing.T) {
 	svc, jwtMgr := newTestService(t, db)
 
 	seedUser(t, db, "viewer@test.com", "SecureP@ss1", true)
-	pair, _ := svc.Login(context.Background(), "viewer@test.com", "SecureP@ss1", "127.0.0.1", "go-test")
+	pair := mustLogin(t, svc, "viewer@test.com", "SecureP@ss1")
 
 	t.Run("viewer denied admin route", func(t *testing.T) {
 		jwtMW := auth.JWTValidate(jwtMgr)
@@ -283,7 +296,7 @@ func TestChangePassword(t *testing.T) {
 	svc, _ := newTestService(t, db)
 
 	seedUser(t, db, "pwd@test.com", "SecureP@ss1", true)
-	pair, _ := svc.Login(context.Background(), "pwd@test.com", "SecureP@ss1", "127.0.0.1", "go-test")
+	pair := mustLogin(t, svc, "pwd@test.com", "SecureP@ss1")
 
 	t.Run("wrong current password", func(t *testing.T) {
 		err := svc.ChangePassword(context.Background(), pair.User.ID, "wrongpass", "NewSecureP@ss2", "127.0.0.1")
@@ -398,10 +411,7 @@ func TestHandlerMe(t *testing.T) {
 	})
 
 	seedUser(t, db, "me@handler.com", "SecureP@ss1", true)
-	pair, err := svc.Login(context.Background(), "me@handler.com", "SecureP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "me@handler.com", "SecureP@ss1")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
 	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
@@ -450,10 +460,7 @@ func TestHandlerLogout(t *testing.T) {
 	})
 
 	seedUser(t, db, "logout@handler.com", "SecureP@ss1", true)
-	pair, err := svc.Login(context.Background(), "logout@handler.com", "SecureP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "logout@handler.com", "SecureP@ss1")
 
 	body := strings.NewReader(fmt.Sprintf(`{"refresh_token":%q}`, pair.RefreshToken))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", body)
@@ -484,10 +491,7 @@ func TestHandlerHandlerRefresh(t *testing.T) {
 	})
 
 	seedUser(t, db, "refresh2@handler.com", "SecureP@ss1", true)
-	pair, err := svc.Login(context.Background(), "refresh2@handler.com", "SecureP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "refresh2@handler.com", "SecureP@ss1")
 
 	body := strings.NewReader(fmt.Sprintf(`{"refresh_token":%q}`, pair.RefreshToken))
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", body)
@@ -522,10 +526,7 @@ func TestHandlerChangePassword_Success(t *testing.T) {
 	})
 
 	seedUser(t, db, "chpwd@handler.com", "OldP@ss12", true)
-	pair, err := svc.Login(context.Background(), "chpwd@handler.com", "OldP@ss12", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "chpwd@handler.com", "OldP@ss12")
 
 	body := strings.NewReader(`{"current_password":"OldP@ss12","new_password":"NewP@ss99"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
@@ -550,10 +551,7 @@ func TestHandlerChangePassword_WrongCurrentPassword(t *testing.T) {
 	})
 
 	seedUser(t, db, "chpwd2@handler.com", "RealP@ss1", true)
-	pair, err := svc.Login(context.Background(), "chpwd2@handler.com", "RealP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "chpwd2@handler.com", "RealP@ss1")
 
 	body := strings.NewReader(`{"current_password":"WrongP@ss","new_password":"NewP@ss99"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
@@ -578,10 +576,7 @@ func TestHandlerChangePassword_TooShortNewPassword(t *testing.T) {
 	})
 
 	seedUser(t, db, "chpwd3@handler.com", "RealP@ss1", true)
-	pair, err := svc.Login(context.Background(), "chpwd3@handler.com", "RealP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "chpwd3@handler.com", "RealP@ss1")
 
 	body := strings.NewReader(`{"current_password":"RealP@ss1","new_password":"short"}`)
 	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
@@ -653,10 +648,7 @@ func TestServiceVerifyToken(t *testing.T) {
 
 	seedUser(t, db, "verify@test.com", "TestP@ss1", true)
 	// Login to get a valid access token for VerifyToken test
-	pair, loginErr := svc.Login(context.Background(), "verify@test.com", "TestP@ss1", "127.0.0.1", "test")
-	if loginErr != nil {
-		t.Fatalf("login: %v", loginErr)
-	}
+	pair := mustLogin(t, svc, "verify@test.com", "TestP@ss1")
 	userID := pair.User.ID
 
 	tok, err := jwtMgr.Sign(userID, "verify@test.com", dbgen.UserRoleAnalyst)
@@ -770,10 +762,7 @@ func TestWithLDAP_DisabledConfig(t *testing.T) {
 
 	// Login should still use local path
 	seedUser(t, db, "ldaptest@test.com", "TestP@ss1", true)
-	pair, err := svc.Login(context.Background(), "ldaptest@test.com", "TestP@ss1", "127.0.0.1", "test")
-	if err != nil {
-		t.Fatalf("expected local login to succeed: %v", err)
-	}
+	pair := mustLogin(t, svc, "ldaptest@test.com", "TestP@ss1")
 	if pair.AccessToken == "" {
 		t.Error("expected access token")
 	}
@@ -793,10 +782,7 @@ func TestHandlerMe_WithLastLogin(t *testing.T) {
 
 	seedUser(t, db, "me-ll@handler.com", "TestP@ss1", true)
 	// Login first so last_login_at is populated
-	pair, err := svc.Login(context.Background(), "me-ll@handler.com", "TestP@ss1", "127.0.0.1", "ua")
-	if err != nil {
-		t.Fatalf("login: %v", err)
-	}
+	pair := mustLogin(t, svc, "me-ll@handler.com", "TestP@ss1")
 
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
 	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)

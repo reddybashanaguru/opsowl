@@ -39,6 +39,15 @@ WHERE c.deleted_at IS NULL
   AND (sqlc.narg('from_time')::timestamptz IS NULL OR c.created_at >= sqlc.narg('from_time'))
   AND (sqlc.narg('to_time')::timestamptz IS NULL OR c.created_at <= sqlc.narg('to_time'))
   AND (sqlc.narg('cursor')::uuid IS NULL OR c.id < sqlc.narg('cursor'))
+  AND (
+    sqlc.narg('viewer_id')::uuid IS NULL
+    OR c.assigned_to   = sqlc.narg('viewer_id')
+    OR c.created_by    = sqlc.narg('viewer_id')
+    OR EXISTS (
+      SELECT 1 FROM case_watchers cw
+      WHERE cw.case_id = c.id AND cw.user_id = sqlc.narg('viewer_id')
+    )
+  )
 ORDER BY c.created_at DESC
 LIMIT @row_limit;
 
@@ -49,7 +58,16 @@ WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::case_status IS NULL OR status = sqlc.narg('status'))
   AND (sqlc.narg('priority')::case_priority IS NULL OR priority = sqlc.narg('priority'))
   AND (sqlc.narg('assigned_to')::uuid IS NULL OR assigned_to = sqlc.narg('assigned_to'))
-  AND (sqlc.narg('sla_breached')::boolean IS NULL OR sla_breached = sqlc.narg('sla_breached'));
+  AND (sqlc.narg('sla_breached')::boolean IS NULL OR sla_breached = sqlc.narg('sla_breached'))
+  AND (
+    sqlc.narg('viewer_id')::uuid IS NULL
+    OR assigned_to = sqlc.narg('viewer_id')
+    OR created_by  = sqlc.narg('viewer_id')
+    OR EXISTS (
+      SELECT 1 FROM case_watchers cw
+      WHERE cw.case_id = id AND cw.user_id = sqlc.narg('viewer_id')
+    )
+  );
 
 -- name: UpdateCase :one
 UPDATE cases SET
@@ -95,6 +113,14 @@ RETURNING *;
 INSERT INTO case_activities (case_id, actor_id, event_type, payload)
 VALUES (@case_id, @actor_id, @event_type, @payload)
 RETURNING *;
+
+-- name: GetLastPendingReviewActor :one
+SELECT actor_id FROM case_activities
+WHERE case_id = $1
+  AND event_type = 'status_changed'
+  AND payload->>'to' = 'pending_review'
+ORDER BY created_at DESC
+LIMIT 1;
 
 -- name: ListCaseActivities :many
 SELECT

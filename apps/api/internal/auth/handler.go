@@ -30,7 +30,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pair, err := h.svc.Login(r.Context(), req.Email, req.Password, realIP(r), r.UserAgent())
+	result, err := h.svc.Login(r.Context(), req.Email, req.Password, realIP(r), r.UserAgent())
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidCredentials):
@@ -43,6 +43,16 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// MFA step required — return partial response (no cookie).
+	if result.MFARequired {
+		response.JSON(w, http.StatusOK, MFALoginResponse{
+			MFARequired: true,
+			MFAToken:    result.MFAToken,
+		})
+		return
+	}
+
+	pair := result.Pair
 	http.SetCookie(w, refreshCookie(pair.RefreshToken, int(refreshTTL.Seconds())))
 
 	var lastLogin *string
@@ -179,6 +189,138 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	// Expire cookie — all sessions revoked
 	http.SetCookie(w, expireRefreshCookie())
 	response.JSON(w, http.StatusOK, map[string]string{"message": "password changed — please log in again"})
+}
+
+// MFAStatus returns whether the authenticated user has MFA active.
+func (h *Handler) MFAStatus(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		response.Err(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	active, err := h.svc.repo.HasActiveTOTP(r.Context(), claims.UserID)
+	if err != nil {
+		active = false
+	}
+	response.JSON(w, http.StatusOK, map[string]bool{"active": active})
+}
+
+// MFAChallenge validates the MFA token + TOTP code and returns a full token pair.
+func (h *Handler) MFAChallenge(w http.ResponseWriter, r *http.Request) {
+	var req MFAChallengeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.MFAToken == "" || req.Code == "" {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "mfa_token and code are required")
+		return
+	}
+
+	result, err := h.svc.VerifyMFAChallenge(r.Context(), req.MFAToken, req.Code, realIP(r))
+	if err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidMFACode), errors.Is(err, ErrInvalidCredentials):
+			response.Err(w, http.StatusUnauthorized, "INVALID_MFA_CODE", "invalid or expired code")
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "MFA challenge failed")
+		}
+		return
+	}
+
+	pair := result.Pair
+	http.SetCookie(w, refreshCookie(pair.RefreshToken, int(refreshTTL.Seconds())))
+
+	var lastLogin *string
+	if pair.User.LastLoginAt.Valid {
+		s := pair.User.LastLoginAt.Time.UTC().Format(time.RFC3339)
+		lastLogin = &s
+	}
+	response.JSON(w, http.StatusOK, LoginResponse{
+		AccessToken:  pair.AccessToken,
+		RefreshToken: pair.RefreshToken,
+		TokenType:    "Bearer",
+		ExpiresIn:    pair.ExpiresIn,
+		User: UserSummary{
+			ID:          pair.User.ID,
+			Email:       pair.User.Email,
+			FullName:    pair.User.FullName,
+			Role:        pair.User.Role,
+			LastLoginAt: lastLogin,
+		},
+	})
+}
+
+// MFAEnroll starts TOTP enrollment and returns QR URL + backup codes.
+func (h *Handler) MFAEnroll(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		response.Err(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+
+	resp, err := h.svc.EnrollMFA(r.Context(), claims.UserID, claims.Email)
+	if err != nil {
+		if errors.Is(err, ErrMFAAlreadyActive) {
+			response.Err(w, http.StatusConflict, "MFA_ALREADY_ACTIVE", "MFA is already enabled — disable it first")
+			return
+		}
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not start MFA enrollment")
+		return
+	}
+	response.JSON(w, http.StatusOK, resp)
+}
+
+// MFAVerifyEnroll confirms a TOTP code to complete enrollment.
+func (h *Handler) MFAVerifyEnroll(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		response.Err(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+
+	var req MFAVerifyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Code == "" {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "code is required")
+		return
+	}
+
+	if err := h.svc.VerifyMFAEnrollment(r.Context(), claims.UserID, req.Code); err != nil {
+		switch {
+		case errors.Is(err, ErrInvalidMFACode):
+			response.Err(w, http.StatusBadRequest, "INVALID_MFA_CODE", "code is incorrect — check your authenticator app")
+		case errors.Is(err, ErrMFAEnrollmentPending):
+			response.Err(w, http.StatusConflict, "NO_PENDING_ENROLLMENT", "start enrollment first")
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not activate MFA")
+		}
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"message": "MFA enabled successfully"})
+}
+
+// MFADisable disables TOTP after verifying the user's password.
+func (h *Handler) MFADisable(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		response.Err(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+
+	var req MFADisableRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Password == "" {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "password is required")
+		return
+	}
+
+	if err := h.svc.DisableMFA(r.Context(), claims.UserID, req.Password, realIP(r)); err != nil {
+		switch {
+		case errors.Is(err, ErrIncorrectPassword):
+			response.Err(w, http.StatusBadRequest, "INCORRECT_PASSWORD", "password is incorrect")
+		case errors.Is(err, ErrMFANotActive):
+			response.Err(w, http.StatusConflict, "MFA_NOT_ACTIVE", "MFA is not enabled")
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not disable MFA")
+		}
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"message": "MFA disabled"})
 }
 
 // helpers

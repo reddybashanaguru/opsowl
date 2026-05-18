@@ -6,9 +6,10 @@ import (
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
-var ErrInvalidTransition = errors.New("invalid state transition")
+var ErrInvalidTransition   = errors.New("invalid state transition")
 var ErrForbiddenTransition = errors.New("role not permitted for this transition")
-var ErrReasonRequired = errors.New("a reason is required for this transition")
+var ErrReasonRequired      = errors.New("a reason is required for this transition")
+var ErrSamePersonApproval  = errors.New("the person who submitted for review cannot also approve")
 
 type roleLevel int
 

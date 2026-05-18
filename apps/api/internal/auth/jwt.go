@@ -18,9 +18,10 @@ const (
 )
 
 type Claims struct {
-	UserID uuid.UUID   `json:"sub"`
-	Email  string      `json:"email"`
-	Role   db.UserRole `json:"role"`
+	UserID     uuid.UUID   `json:"sub"`
+	Email      string      `json:"email"`
+	Role       db.UserRole `json:"role"`
+	MFAPending bool        `json:"mfa_pending,omitempty"` // true only on MFA challenge tokens
 	jwt.RegisteredClaims
 }
 
@@ -67,6 +68,26 @@ func (m *JWTManager) Sign(userID uuid.UUID, email string, role db.UserRole) (str
 			Audience:  jwt.ClaimStrings{jwtAudience},
 			IssuedAt:  jwt.NewNumericDate(now),
 			ExpiresAt: jwt.NewNumericDate(now.Add(m.accessTTL)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(m.privateKey)
+}
+
+// SignMFAToken issues a short-lived (5min) partial token used only for the MFA challenge step.
+// The token carries MFAPending=true; it is rejected by JWTValidate for all other endpoints.
+func (m *JWTManager) SignMFAToken(userID uuid.UUID, email string, role db.UserRole) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		UserID:     userID,
+		Email:      email,
+		Role:       role,
+		MFAPending: true,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jwtIssuer,
+			Audience:  jwt.ClaimStrings{jwtAudience},
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(5 * time.Minute)),
 		},
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

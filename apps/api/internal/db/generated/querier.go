@@ -11,6 +11,7 @@ import (
 )
 
 type Querier interface {
+	ActivateTOTPSecret(ctx context.Context, id uuid.UUID) (TotpSecret, error)
 	AddCaseWatcher(ctx context.Context, arg AddCaseWatcherParams) error
 	ApproveAILog(ctx context.Context, arg ApproveAILogParams) (AiLog, error)
 	CloseLastAssignment(ctx context.Context, caseID uuid.UUID) error
@@ -28,6 +29,8 @@ type Querier interface {
 	CountUsers(ctx context.Context, role NullUserRole) (int64, error)
 	CreateAILog(ctx context.Context, arg CreateAILogParams) (AiLog, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	CreateMFABackupCodes(ctx context.Context, arg []CreateMFABackupCodesParams) (int64, error)
+	CreateTOTPSecret(ctx context.Context, arg CreateTOTPSecretParams) (TotpSecret, error)
 	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
 	CreateCaseActivity(ctx context.Context, arg CreateCaseActivityParams) (CaseActivity, error)
 	CreateCaseAssignment(ctx context.Context, arg CreateCaseAssignmentParams) (CaseAssignment, error)
@@ -43,13 +46,20 @@ type Querier interface {
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)
 	CreateTaskComment(ctx context.Context, arg CreateTaskCommentParams) (TaskComment, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (CreateUserRow, error)
+	DeleteAllBackupCodes(ctx context.Context, userID uuid.UUID) error
 	DeleteCommLog(ctx context.Context, arg DeleteCommLogParams) error
+	DeletePendingTOTPSecrets(ctx context.Context, userID uuid.UUID) error
 	EditAILog(ctx context.Context, arg EditAILogParams) (AiLog, error)
 	FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, error)
 	GetAILog(ctx context.Context, id uuid.UUID) (GetAILogRow, error)
 	// ── P2-5: Workload analytics ──────────────────────────────────────────────────
 	GetAnalystWorkload(ctx context.Context) ([]GetAnalystWorkloadRow, error)
+	GetActiveTOTPSecret(ctx context.Context, userID uuid.UUID) (TotpSecret, error)
 	GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error)
+	GetLastPendingReviewActor(ctx context.Context, caseID uuid.UUID) (uuid.UUID, error)
+	GetPendingTOTPSecret(ctx context.Context, userID uuid.UUID) (TotpSecret, error)
+	GetUnusedBackupCode(ctx context.Context, arg GetUnusedBackupCodeParams) (MfaBackupCode, error)
+	HasActiveTOTP(ctx context.Context, userID uuid.UUID) (bool, error)
 	GetCaseWatchers(ctx context.Context, caseID uuid.UUID) ([]GetCaseWatchersRow, error)
 	GetDocumentByID(ctx context.Context, id uuid.UUID) (GetDocumentByIDRow, error)
 	// ── P2-6: Document retry ──────────────────────────────────────────────────────
@@ -89,9 +99,11 @@ type Querier interface {
 	ListTimelineEvents(ctx context.Context, arg ListTimelineEventsParams) ([]ListTimelineEventsRow, error)
 	ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error)
 	MarkAllNotificationsRead(ctx context.Context, recipientID uuid.UUID) error
+	MarkBackupCodeUsed(ctx context.Context, id uuid.UUID) error
 	MarkMentionRead(ctx context.Context, arg MarkMentionReadParams) (uuid.UUID, error)
 	MarkNotificationRead(ctx context.Context, arg MarkNotificationReadParams) (uuid.UUID, error)
 	RejectAILog(ctx context.Context, arg RejectAILogParams) (AiLog, error)
+	RevokeTOTPSecret(ctx context.Context, userID uuid.UUID) error
 	RevokeAllUserRefreshTokens(ctx context.Context, userID uuid.UUID) error
 	RevokeRefreshToken(ctx context.Context, id uuid.UUID) error
 	SearchCases(ctx context.Context, arg SearchCasesParams) ([]SearchCasesRow, error)

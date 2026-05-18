@@ -105,6 +105,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	// Restrict analysts and viewers to cases they own, are assigned to, or watch.
+	claims := auth.ClaimsFromCtx(r.Context())
+	if claims.Role == db.UserRoleAnalyst || claims.Role == db.UserRoleViewer {
+		f.ViewerID = &claims.UserID
+	}
+
 	cases, meta, err := h.svc.List(r.Context(), f)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list cases")
@@ -183,6 +189,10 @@ func (h *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 		}
 		if errors.Is(err, ErrForbiddenTransition) {
 			response.Err(w, http.StatusForbidden, "FORBIDDEN", err.Error())
+			return
+		}
+		if errors.Is(err, ErrSamePersonApproval) {
+			response.Err(w, http.StatusForbidden, "MAKER_CHECKER_VIOLATION", err.Error())
 			return
 		}
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update status")

@@ -623,12 +623,15 @@ func loginToken(t *testing.T, db *sql.DB, jwtMgr *auth.JWTManager, email string,
 	q := dbgen.New(db)
 	repo := auth.NewRepository(q)
 	svc := auth.NewService(repo, jwtMgr)
-	pair, err := svc.Login(context.Background(), email, "TestP@ss1", "127.0.0.1", "test-agent")
+	result, err := svc.Login(context.Background(), email, "TestP@ss1", "127.0.0.1", "test-agent")
 	if err != nil {
 		t.Fatalf("login %s: %v", email, err)
 	}
+	if result.Pair == nil {
+		t.Fatalf("expected token pair for %s, got MFA required", email)
+	}
 	_ = userID
-	return pair.AccessToken
+	return result.Pair.AccessToken
 }
 
 func jsonBody(t *testing.T, v any) *bytes.Buffer {

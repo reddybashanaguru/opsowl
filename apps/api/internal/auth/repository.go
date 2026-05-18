@@ -107,6 +107,55 @@ func (r *Repository) ProvisionLDAPUser(ctx context.Context, email, fullName stri
 	}, nil
 }
 
+func (r *Repository) HasActiveTOTP(ctx context.Context, userID uuid.UUID) (bool, error) {
+	return r.q.HasActiveTOTP(ctx, userID)
+}
+
+func (r *Repository) GetActiveTOTPSecret(ctx context.Context, userID uuid.UUID) (db.TotpSecret, error) {
+	return r.q.GetActiveTOTPSecret(ctx, userID)
+}
+
+func (r *Repository) GetPendingTOTPSecret(ctx context.Context, userID uuid.UUID) (db.TotpSecret, error) {
+	return r.q.GetPendingTOTPSecret(ctx, userID)
+}
+
+func (r *Repository) CreateTOTPSecret(ctx context.Context, userID uuid.UUID, secret string) (db.TotpSecret, error) {
+	return r.q.CreateTOTPSecret(ctx, db.CreateTOTPSecretParams{UserID: userID, Secret: secret})
+}
+
+func (r *Repository) ActivateTOTPSecret(ctx context.Context, id uuid.UUID) (db.TotpSecret, error) {
+	return r.q.ActivateTOTPSecret(ctx, id)
+}
+
+func (r *Repository) RevokeTOTPSecret(ctx context.Context, userID uuid.UUID) error {
+	return r.q.RevokeTOTPSecret(ctx, userID)
+}
+
+func (r *Repository) DeletePendingTOTPSecrets(ctx context.Context, userID uuid.UUID) error {
+	return r.q.DeletePendingTOTPSecrets(ctx, userID)
+}
+
+func (r *Repository) CreateMFABackupCodes(ctx context.Context, userID uuid.UUID, codeHashes []string) error {
+	params := make([]db.CreateMFABackupCodesParams, len(codeHashes))
+	for i, h := range codeHashes {
+		params[i] = db.CreateMFABackupCodesParams{UserID: userID, CodeHash: h}
+	}
+	_, err := r.q.CreateMFABackupCodes(ctx, params)
+	return err
+}
+
+func (r *Repository) GetUnusedBackupCode(ctx context.Context, userID uuid.UUID, codeHash string) (db.MfaBackupCode, error) {
+	return r.q.GetUnusedBackupCode(ctx, db.GetUnusedBackupCodeParams{UserID: userID, CodeHash: codeHash})
+}
+
+func (r *Repository) MarkBackupCodeUsed(ctx context.Context, id uuid.UUID) error {
+	return r.q.MarkBackupCodeUsed(ctx, id)
+}
+
+func (r *Repository) DeleteAllBackupCodes(ctx context.Context, userID uuid.UUID) error {
+	return r.q.DeleteAllBackupCodes(ctx, userID)
+}
+
 func (r *Repository) CreateAuditLog(ctx context.Context, eventCode string, actorID *uuid.UUID, ipAddress, resourceType string, resourceID *uuid.UUID, metadata map[string]any, severity string) error {
 	metaJSON, err := json.Marshal(metadata)
 	if err != nil {

@@ -49,6 +49,15 @@ WHERE deleted_at IS NULL
   AND ($3::case_priority IS NULL OR priority = $3)
   AND ($4::uuid IS NULL OR assigned_to = $4)
   AND ($5::boolean IS NULL OR sla_breached = $5)
+  AND (
+    $6::uuid IS NULL
+    OR assigned_to = $6
+    OR created_by  = $6
+    OR EXISTS (
+      SELECT 1 FROM case_watchers cw
+      WHERE cw.case_id = id AND cw.user_id = $6
+    )
+  )
 `
 
 type CountCasesParams struct {
@@ -57,6 +66,7 @@ type CountCasesParams struct {
 	Priority       NullCasePriority `json:"priority"`
 	AssignedTo     uuid.NullUUID    `json:"assigned_to"`
 	SlaBreached    sql.NullBool     `json:"sla_breached"`
+	ViewerID       uuid.NullUUID    `json:"viewer_id"`
 }
 
 func (q *Queries) CountCases(ctx context.Context, arg CountCasesParams) (int64, error) {
@@ -66,6 +76,7 @@ func (q *Queries) CountCases(ctx context.Context, arg CountCasesParams) (int64, 
 		arg.Priority,
 		arg.AssignedTo,
 		arg.SlaBreached,
+		arg.ViewerID,
 	)
 	var count int64
 	err := row.Scan(&count)
@@ -375,8 +386,17 @@ WHERE c.deleted_at IS NULL
   AND ($6::timestamptz IS NULL OR c.created_at >= $6)
   AND ($7::timestamptz IS NULL OR c.created_at <= $7)
   AND ($8::uuid IS NULL OR c.id < $8)
+  AND (
+    $9::uuid IS NULL
+    OR c.assigned_to   = $9
+    OR c.created_by    = $9
+    OR EXISTS (
+      SELECT 1 FROM case_watchers cw
+      WHERE cw.case_id = c.id AND cw.user_id = $9
+    )
+  )
 ORDER BY c.created_at DESC
-LIMIT $9
+LIMIT $10
 `
 
 type ListCasesParams struct {
@@ -388,6 +408,7 @@ type ListCasesParams struct {
 	FromTime       sql.NullTime     `json:"from_time"`
 	ToTime         sql.NullTime     `json:"to_time"`
 	Cursor         uuid.NullUUID    `json:"cursor"`
+	ViewerID       uuid.NullUUID    `json:"viewer_id"`
 	RowLimit       int32            `json:"row_limit"`
 }
 
@@ -423,6 +444,7 @@ func (q *Queries) ListCases(ctx context.Context, arg ListCasesParams) ([]ListCas
 		arg.FromTime,
 		arg.ToTime,
 		arg.Cursor,
+		arg.ViewerID,
 		arg.RowLimit,
 	)
 	if err != nil {
@@ -708,4 +730,20 @@ func (q *Queries) MarkBreachedCases(ctx context.Context) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const getLastPendingReviewActor = `-- name: GetLastPendingReviewActor :one
+SELECT actor_id FROM case_activities
+WHERE case_id = $1
+  AND event_type = 'status_changed'
+  AND payload->>'to' = 'pending_review'
+ORDER BY created_at DESC
+LIMIT 1
+`
+
+func (q *Queries) GetLastPendingReviewActor(ctx context.Context, caseID uuid.UUID) (uuid.UUID, error) {
+	row := q.db.QueryRowContext(ctx, getLastPendingReviewActor, caseID)
+	var actorID uuid.UUID
+	err := row.Scan(&actorID)
+	return actorID, err
 }

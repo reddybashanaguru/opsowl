@@ -924,6 +924,46 @@ type TimelineEvent struct {
 	Metadata   json.RawMessage     `json:"metadata"`
 }
 
+type TotpStatus string
+
+const (
+	TotpStatusPending TotpStatus = "pending"
+	TotpStatusActive  TotpStatus = "active"
+	TotpStatusRevoked TotpStatus = "revoked"
+)
+
+func (e *TotpStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = TotpStatus(s)
+	case string:
+		*e = TotpStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for TotpStatus: %T", src)
+	}
+	return nil
+}
+
+func (e TotpStatus) Value() (driver.Value, error) { return string(e), nil }
+
+type TotpSecret struct {
+	ID         uuid.UUID    `json:"id"`
+	UserID     uuid.UUID    `json:"user_id"`
+	Secret     string       `json:"secret"`
+	Status     TotpStatus   `json:"status"`
+	VerifiedAt sql.NullTime `json:"verified_at"`
+	CreatedAt  time.Time    `json:"created_at"`
+	UpdatedAt  time.Time    `json:"updated_at"`
+}
+
+type MfaBackupCode struct {
+	ID        uuid.UUID    `json:"id"`
+	UserID    uuid.UUID    `json:"user_id"`
+	CodeHash  string       `json:"code_hash"`
+	UsedAt    sql.NullTime `json:"used_at"`
+	CreatedAt time.Time    `json:"created_at"`
+}
+
 type User struct {
 	ID           uuid.UUID    `json:"id"`
 	Email        string       `json:"email"`

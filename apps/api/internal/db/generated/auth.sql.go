@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"github.com/sqlc-dev/pqtype"
 )
 
@@ -319,5 +320,142 @@ type UpdateUserPasswordHashParams struct {
 
 func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error {
 	_, err := q.db.ExecContext(ctx, updateUserPasswordHash, arg.ID, arg.PasswordHash)
+	return err
+}
+
+const createTOTPSecret = `INSERT INTO totp_secrets (user_id, secret, status)
+VALUES ($1, $2, 'pending')
+RETURNING id, user_id, secret, status, verified_at, created_at, updated_at`
+
+type CreateTOTPSecretParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Secret string    `json:"secret"`
+}
+
+func (q *Queries) CreateTOTPSecret(ctx context.Context, arg CreateTOTPSecretParams) (TotpSecret, error) {
+	row := q.db.QueryRowContext(ctx, createTOTPSecret, arg.UserID, arg.Secret)
+	var ts TotpSecret
+	err := row.Scan(&ts.ID, &ts.UserID, &ts.Secret, &ts.Status, &ts.VerifiedAt, &ts.CreatedAt, &ts.UpdatedAt)
+	return ts, err
+}
+
+const getActiveTOTPSecret = `-- name: GetActiveTOTPSecret :one
+SELECT id, user_id, secret, status, verified_at, created_at, updated_at
+FROM totp_secrets WHERE user_id = $1 AND status = 'active' LIMIT 1`
+
+func (q *Queries) GetActiveTOTPSecret(ctx context.Context, userID uuid.UUID) (TotpSecret, error) {
+	row := q.db.QueryRowContext(ctx, getActiveTOTPSecret, userID)
+	var ts TotpSecret
+	err := row.Scan(&ts.ID, &ts.UserID, &ts.Secret, &ts.Status, &ts.VerifiedAt, &ts.CreatedAt, &ts.UpdatedAt)
+	return ts, err
+}
+
+const getPendingTOTPSecret = `-- name: GetPendingTOTPSecret :one
+SELECT id, user_id, secret, status, verified_at, created_at, updated_at
+FROM totp_secrets WHERE user_id = $1 AND status = 'pending'
+ORDER BY created_at DESC LIMIT 1`
+
+func (q *Queries) GetPendingTOTPSecret(ctx context.Context, userID uuid.UUID) (TotpSecret, error) {
+	row := q.db.QueryRowContext(ctx, getPendingTOTPSecret, userID)
+	var ts TotpSecret
+	err := row.Scan(&ts.ID, &ts.UserID, &ts.Secret, &ts.Status, &ts.VerifiedAt, &ts.CreatedAt, &ts.UpdatedAt)
+	return ts, err
+}
+
+const activateTOTPSecret = `-- name: ActivateTOTPSecret :one
+UPDATE totp_secrets
+SET status = 'active', verified_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING id, user_id, secret, status, verified_at, created_at, updated_at`
+
+func (q *Queries) ActivateTOTPSecret(ctx context.Context, id uuid.UUID) (TotpSecret, error) {
+	row := q.db.QueryRowContext(ctx, activateTOTPSecret, id)
+	var ts TotpSecret
+	err := row.Scan(&ts.ID, &ts.UserID, &ts.Secret, &ts.Status, &ts.VerifiedAt, &ts.CreatedAt, &ts.UpdatedAt)
+	return ts, err
+}
+
+const revokeTOTPSecret = `-- name: RevokeTOTPSecret :exec
+UPDATE totp_secrets SET status = 'revoked', updated_at = NOW()
+WHERE user_id = $1 AND status = 'active'`
+
+func (q *Queries) RevokeTOTPSecret(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, revokeTOTPSecret, userID)
+	return err
+}
+
+const deletePendingTOTPSecrets = `-- name: DeletePendingTOTPSecrets :exec
+DELETE FROM totp_secrets WHERE user_id = $1 AND status = 'pending'`
+
+func (q *Queries) DeletePendingTOTPSecrets(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deletePendingTOTPSecrets, userID)
+	return err
+}
+
+const hasActiveTOTP = `-- name: HasActiveTOTP :one
+SELECT EXISTS (SELECT 1 FROM totp_secrets WHERE user_id = $1 AND status = 'active') AS has_totp`
+
+func (q *Queries) HasActiveTOTP(ctx context.Context, userID uuid.UUID) (bool, error) {
+	row := q.db.QueryRowContext(ctx, hasActiveTOTP, userID)
+	var hasTotp bool
+	err := row.Scan(&hasTotp)
+	return hasTotp, err
+}
+
+type CreateMFABackupCodesParams struct {
+	UserID   uuid.UUID `json:"user_id"`
+	CodeHash string    `json:"code_hash"`
+}
+
+func (q *Queries) CreateMFABackupCodes(ctx context.Context, arg []CreateMFABackupCodesParams) (int64, error) {
+	if len(arg) == 0 {
+		return 0, nil
+	}
+	userIDs := make([]uuid.UUID, len(arg))
+	hashes := make([]string, len(arg))
+	for i, a := range arg {
+		userIDs[i] = a.UserID
+		hashes[i] = a.CodeHash
+	}
+	result, err := q.db.ExecContext(ctx,
+		`INSERT INTO mfa_backup_codes (user_id, code_hash)
+		 SELECT unnest($1::uuid[]), unnest($2::text[])`,
+		pq.Array(userIDs), pq.Array(hashes),
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+type GetUnusedBackupCodeParams struct {
+	UserID   uuid.UUID `json:"user_id"`
+	CodeHash string    `json:"code_hash"`
+}
+
+const getUnusedBackupCode = `-- name: GetUnusedBackupCode :one
+SELECT id, user_id, code_hash, used_at, created_at FROM mfa_backup_codes
+WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL LIMIT 1`
+
+func (q *Queries) GetUnusedBackupCode(ctx context.Context, arg GetUnusedBackupCodeParams) (MfaBackupCode, error) {
+	row := q.db.QueryRowContext(ctx, getUnusedBackupCode, arg.UserID, arg.CodeHash)
+	var bc MfaBackupCode
+	err := row.Scan(&bc.ID, &bc.UserID, &bc.CodeHash, &bc.UsedAt, &bc.CreatedAt)
+	return bc, err
+}
+
+const markBackupCodeUsed = `-- name: MarkBackupCodeUsed :exec
+UPDATE mfa_backup_codes SET used_at = NOW() WHERE id = $1`
+
+func (q *Queries) MarkBackupCodeUsed(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, markBackupCodeUsed, id)
+	return err
+}
+
+const deleteAllBackupCodes = `-- name: DeleteAllBackupCodes :exec
+DELETE FROM mfa_backup_codes WHERE user_id = $1`
+
+func (q *Queries) DeleteAllBackupCodes(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, deleteAllBackupCodes, userID)
 	return err
 }

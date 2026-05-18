@@ -57,6 +57,9 @@ func (r *Repository) List(ctx context.Context, f ListFilters, orgID uuid.UUID) (
 	if f.Cursor != nil {
 		p.Cursor = uuid.NullUUID{UUID: *f.Cursor, Valid: true}
 	}
+	if f.ViewerID != nil {
+		p.ViewerID = uuid.NullUUID{UUID: *f.ViewerID, Valid: true}
+	}
 	return r.q.ListCases(ctx, p)
 }
 
@@ -74,7 +77,14 @@ func (r *Repository) Count(ctx context.Context, f ListFilters, orgID uuid.UUID) 
 	if f.SLABreached != nil {
 		p.SlaBreached = sql.NullBool{Bool: *f.SLABreached, Valid: true}
 	}
+	if f.ViewerID != nil {
+		p.ViewerID = uuid.NullUUID{UUID: *f.ViewerID, Valid: true}
+	}
 	return r.q.CountCases(ctx, p)
+}
+
+func (r *Repository) GetLastPendingReviewActor(ctx context.Context, caseID uuid.UUID) (uuid.UUID, error) {
+	return r.q.GetLastPendingReviewActor(ctx, caseID)
 }
 
 func (r *Repository) Update(ctx context.Context, p db.UpdateCaseParams) (db.Case, error) {

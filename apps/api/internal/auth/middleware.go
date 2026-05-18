@@ -23,6 +23,11 @@ func JWTValidate(jwtMgr *JWTManager) func(http.Handler) http.Handler {
 				response.Err(w, http.StatusUnauthorized, "INVALID_TOKEN", "token is invalid or expired")
 				return
 			}
+			// Reject MFA partial tokens — they are only valid for the challenge endpoint.
+			if claims.MFAPending {
+				response.Err(w, http.StatusUnauthorized, "MFA_TOKEN_NOT_ACCEPTED", "complete MFA challenge first")
+				return
+			}
 			next.ServeHTTP(w, r.WithContext(ContextWithClaims(r.Context(), claims)))
 		})
 	}

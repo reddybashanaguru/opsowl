@@ -71,6 +71,57 @@ WHERE (sqlc.narg('severity')::text IS NULL OR a.severity = sqlc.narg('severity')
 ORDER BY a.created_at DESC, a.id DESC
 LIMIT @row_limit;
 
+-- name: CreateTOTPSecret :one
+INSERT INTO totp_secrets (user_id, secret, status)
+VALUES ($1, $2, 'pending')
+RETURNING *;
+
+-- name: GetActiveTOTPSecret :one
+SELECT * FROM totp_secrets
+WHERE user_id = $1 AND status = 'active'
+LIMIT 1;
+
+-- name: GetPendingTOTPSecret :one
+SELECT * FROM totp_secrets
+WHERE user_id = $1 AND status = 'pending'
+ORDER BY created_at DESC
+LIMIT 1;
+
+-- name: ActivateTOTPSecret :one
+UPDATE totp_secrets
+SET status = 'active', verified_at = NOW(), updated_at = NOW()
+WHERE id = $1
+RETURNING *;
+
+-- name: RevokeTOTPSecret :exec
+UPDATE totp_secrets
+SET status = 'revoked', updated_at = NOW()
+WHERE user_id = $1 AND status = 'active';
+
+-- name: DeletePendingTOTPSecrets :exec
+DELETE FROM totp_secrets
+WHERE user_id = $1 AND status = 'pending';
+
+-- name: HasActiveTOTP :one
+SELECT EXISTS (
+  SELECT 1 FROM totp_secrets WHERE user_id = $1 AND status = 'active'
+) AS has_totp;
+
+-- name: CreateMFABackupCodes :copyfrom
+INSERT INTO mfa_backup_codes (user_id, code_hash) VALUES ($1, $2);
+
+-- name: GetUnusedBackupCode :one
+SELECT * FROM mfa_backup_codes
+WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL
+LIMIT 1;
+
+-- name: MarkBackupCodeUsed :exec
+UPDATE mfa_backup_codes SET used_at = NOW()
+WHERE id = $1;
+
+-- name: DeleteAllBackupCodes :exec
+DELETE FROM mfa_backup_codes WHERE user_id = $1;
+
 -- name: CountAuditLogs :one
 SELECT COUNT(*) FROM audit_logs a
 WHERE (sqlc.narg('severity')::text IS NULL OR a.severity = sqlc.narg('severity'))
