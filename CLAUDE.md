@@ -533,11 +533,13 @@ opsowl-grafana      running   3003:3000
 |------|----------|---------|
 | Ollama Local LLM | Deferred — implement when first client requests it | Client asks for fully air-gapped deployment |
 | PII masking middleware (standalone) | Presidio already in AI service; standalone API gateway layer deferred | GDPR/audit requirement from client |
+| **Data Retention Pipeline** | Deferred — implement when client SLA/audit requirements demand it. Design: scheduled goose migration + soft-delete TTL worker + audit log archival. | First enterprise client with documented data retention policy |
+| **API Inbound Integrations** | Deferred — implement when a client needs to push alerts/events from their core banking / CRM. Design: webhook receiver with HMAC validation, event normalisation, auto-case-creation rules. | Client with CBS/Finacle integration request |
+| **Multi-tenancy** | Deferred — `organization_id` currently hardcoded to sentinel UUID. Real isolation (separate schemas or row-level security per org) needed when serving 2+ clients from one deployment. | Second client onboarded to shared deployment |
 
 ### Known Tech Debt (non-blocking)
 | File | Issue | Priority |
 |------|-------|----------|
-| `internal/auth/service.go` | `ChangePassword` has no dedicated `UpdateUserPassword` sqlc query | Low — add before prod |
 | `internal/tasks/` | Cursor pagination uses UUID byte comparison vs `sort_order` — page boundaries not perfectly stable | Low — fix with UUIDv7 in Phase 4 |
 | `internal/timeline/` | SSE reconnect doesn't replay missed events | Low — track `lastEventId` on server |
 | `internal/documents/` | No retry on AI service transient failure during async processing | Medium — add backoff in Phase 4 |
