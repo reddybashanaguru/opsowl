@@ -73,6 +73,26 @@ func (m *JWTManager) Sign(userID uuid.UUID, email string, role db.UserRole) (str
 	return token.SignedString(m.privateKey)
 }
 
+// SignSSETicket issues a short-lived (90s) token for SSE connections.
+// Using a dedicated short-lived token prevents the full 1-hour access token
+// from appearing in nginx/proxy access logs when establishing SSE streams.
+func (m *JWTManager) SignSSETicket(userID uuid.UUID, email string, role db.UserRole) (string, error) {
+	now := time.Now().UTC()
+	claims := Claims{
+		UserID: userID,
+		Email:  email,
+		Role:   role,
+		RegisteredClaims: jwt.RegisteredClaims{
+			Issuer:    jwtIssuer,
+			Audience:  jwt.ClaimStrings{jwtAudience},
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(90 * time.Second)),
+		},
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
+	return token.SignedString(m.privateKey)
+}
+
 func (m *JWTManager) Verify(tokenStr string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenStr, &Claims{}, func(t *jwt.Token) (any, error) {
 		if _, ok := t.Method.(*jwt.SigningMethodRSA); !ok {

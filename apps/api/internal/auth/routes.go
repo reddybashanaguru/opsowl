@@ -11,5 +11,6 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *JWTManager) {
 		r.Post("/auth/logout", h.Logout)
 		r.Get("/auth/me", h.Me)
 		r.Put("/auth/password", h.ChangePassword)
+		r.Post("/auth/sse-ticket", h.IssueSSETicket)
 	})
 }

@@ -2,6 +2,8 @@ package documents
 
 import (
 	"context"
+	"crypto/sha256"
+	"database/sql"
 	"fmt"
 	"io"
 	"net/http"
@@ -58,10 +60,13 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	docID := uuid.New()
 	key := fmt.Sprintf("documents/%s/%s/%s", caseID.String(), docID.String(), filename)
 
-	combined := newPrefixReader(header, reader)
+	// Compute SHA-256 while streaming to storage — no extra memory allocation.
+	hasher := sha256.New()
+	combined := newPrefixReader(header, io.TeeReader(reader, hasher))
 	if err := s.store.Upload(ctx, key, combined, totalSize, fi.MIMEType); err != nil {
 		return nil, fmt.Errorf("storage upload: %w", err)
 	}
+	fileHash := fmt.Sprintf("%x", hasher.Sum(nil))
 
 	doc, err := s.repo.Create(ctx, db.CreateDocumentParams{
 		ID:               docID,
@@ -77,6 +82,14 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		_ = s.store.Delete(ctx, key)
 		return nil, err
 	}
+
+	// Store SHA-256 for chain-of-custody verification.
+	go func() {
+		_ = s.repo.q.UpdateDocumentHash(context.Background(), db.UpdateDocumentHashParams{
+			ID:         doc.ID,
+			FileSha256: sql.NullString{String: fileHash, Valid: true},
+		})
+	}()
 
 	s.emitTimeline(ctx, caseID, db.TimelineEventTypeDocumentUploaded, map[string]interface{}{
 		"document_id": docID.String(),

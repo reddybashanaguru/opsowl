@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
 
@@ -21,13 +22,15 @@ type RateLimiter struct {
 	buckets map[string]*bucket
 	rate    float64 // tokens per second
 	burst   float64
+	jwtMgr  *auth.JWTManager
 }
 
-func NewRateLimiter(requestsPerMinute int) *RateLimiter {
+func NewRateLimiter(requestsPerMinute int, jwtMgr *auth.JWTManager) *RateLimiter {
 	rl := &RateLimiter{
 		buckets: make(map[string]*bucket),
 		rate:    float64(requestsPerMinute) / 60.0,
 		burst:   float64(requestsPerMinute),
+		jwtMgr:  jwtMgr,
 	}
 	go rl.cleanup()
 	return rl
@@ -75,9 +78,23 @@ func (rl *RateLimiter) allow(key string) (bool, float64) {
 	return true, 0
 }
 
+// rateLimitKey returns a per-user key when a valid JWT is present,
+// falling back to IP address. This prevents all users behind a corporate
+// proxy from sharing a single bucket (common in Indian enterprise networks).
+func (rl *RateLimiter) rateLimitKey(r *http.Request) string {
+	if rl.jwtMgr != nil {
+		if tok := extractBearer(r); tok != "" {
+			if claims, err := rl.jwtMgr.Verify(tok); err == nil {
+				return "user:" + claims.UserID.String()
+			}
+		}
+	}
+	return "ip:" + realIPFromRequest(r)
+}
+
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		key := realIPFromRequest(r)
+		key := rl.rateLimitKey(r)
 		ok, retryAfter := rl.allow(key)
 		if !ok {
 			w.Header().Set("Retry-After", fmt.Sprintf("%.0f", retryAfter))

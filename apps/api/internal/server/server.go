@@ -63,7 +63,7 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 }
 
 func (s *Server) setupMiddleware() {
-	rl := middleware.NewRateLimiter(100)
+	rl := middleware.NewRateLimiter(100, s.jwtMgr)
 
 	s.router.Use(chimw.RequestID)
 	s.router.Use(chimw.RealIP)

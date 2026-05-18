@@ -63,6 +63,10 @@ SELECT COUNT(*) FROM documents
 WHERE deleted_at IS NULL
   AND (sqlc.narg('status')::document_processing_status IS NULL OR processing_status = sqlc.narg('status'));
 
+-- name: UpdateDocumentHash :exec
+UPDATE documents SET file_sha256 = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL;
+
 -- name: UpdateDocumentStatus :one
 UPDATE documents SET processing_status = $2
 WHERE id = $1 AND deleted_at IS NULL

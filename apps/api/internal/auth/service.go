@@ -84,6 +84,7 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
+	go s.repo.CreateSession(context.Background(), user.ID, ipAddress, "") //nolint:errcheck
 	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "local"}, "info") //nolint:errcheck
 	return pair, nil
 }
@@ -121,6 +122,7 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
+	go s.repo.CreateSession(context.Background(), user.ID, ipAddress, "") //nolint:errcheck
 	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "ldap"}, "info") //nolint:errcheck
 	return pair, nil
 }
@@ -188,8 +190,9 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentP
 	if err != nil {
 		return err
 	}
-	// We update password_hash directly via a raw exec since sqlc UpdateUser doesn't include it
-	_ = newHash // will be handled in handler via repo.UpdatePasswordHash
+	if err := s.repo.UpdatePasswordHash(ctx, userID, newHash); err != nil {
+		return err
+	}
 	_ = s.repo.RevokeAllUserRefreshTokens(ctx, userID)
 	go s.repo.CreateAuditLog(context.Background(), "auth.password.changed", &userID, ipAddress, "users", &userID, map[string]any{}, "info") //nolint:errcheck
 	return nil

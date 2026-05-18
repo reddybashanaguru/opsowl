@@ -4,9 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"net"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sqlc-dev/pqtype"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
@@ -28,6 +30,35 @@ func (r *Repository) GetUserByID(ctx context.Context, id uuid.UUID) (db.User, er
 
 func (r *Repository) UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error {
 	return r.q.UpdateUserLastLogin(ctx, id)
+}
+
+func (r *Repository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, newHash string) error {
+	return r.q.UpdateUserPasswordHash(ctx, db.UpdateUserPasswordHashParams{
+		ID:           userID,
+		PasswordHash: newHash,
+	})
+}
+
+func (r *Repository) CreateSession(ctx context.Context, userID uuid.UUID, ipStr, userAgent string) error {
+	host, _, err := net.SplitHostPort(ipStr)
+	if err != nil {
+		host = ipStr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		ip = net.ParseIP("127.0.0.1")
+	}
+	bits := 32
+	if ip.To4() == nil {
+		bits = 128
+	}
+	inet := pqtype.Inet{IPNet: net.IPNet{IP: ip, Mask: net.CIDRMask(bits, bits)}, Valid: true}
+	_, err = r.q.CreateSession(ctx, db.CreateSessionParams{
+		UserID:    userID,
+		IpAddress: inet,
+		UserAgent: userAgent,
+	})
+	return err
 }
 
 func (r *Repository) CreateRefreshToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) (db.RefreshToken, error) {

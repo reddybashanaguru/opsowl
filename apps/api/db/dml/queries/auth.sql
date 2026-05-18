@@ -32,6 +32,10 @@ WHERE id = $1;
 UPDATE refresh_tokens SET revoked_at = NOW()
 WHERE user_id = $1 AND revoked_at IS NULL;
 
+-- name: UpdateUserPasswordHash :exec
+UPDATE users SET password_hash = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL;
+
 -- name: CreateSession :one
 INSERT INTO sessions (user_id, ip_address, user_agent)
 VALUES ($1, $2, $3)

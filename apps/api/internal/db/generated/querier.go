@@ -109,12 +109,14 @@ type Querier interface {
 	UpdateCaseStatus(ctx context.Context, arg UpdateCaseStatusParams) (Case, error)
 	UpdateCaseTags(ctx context.Context, arg UpdateCaseTagsParams) (Case, error)
 	UpdateDocumentCategory(ctx context.Context, arg UpdateDocumentCategoryParams) (Document, error)
+	UpdateDocumentHash(ctx context.Context, arg UpdateDocumentHashParams) error
 	UpdateDocumentProcessingResult(ctx context.Context, arg UpdateDocumentProcessingResultParams) (Document, error)
 	UpdateDocumentStatus(ctx context.Context, arg UpdateDocumentStatusParams) (Document, error)
 	UpdateNote(ctx context.Context, arg UpdateNoteParams) (UpdateNoteRow, error)
 	UpdateTask(ctx context.Context, arg UpdateTaskParams) (Task, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (UpdateUserRow, error)
 	UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error
+	UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error
 	// ── P2-2: Case AI insights ────────────────────────────────────────────────────
 	UpsertCaseAIInsights(ctx context.Context, arg UpsertCaseAIInsightsParams) (CaseAiInsight, error)
 	UpsertCaseTag(ctx context.Context, name string) (CaseTag, error)

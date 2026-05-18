@@ -131,6 +131,26 @@ func (h *Handler) Me(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// IssueSSETicket returns a short-lived (90s) JWT for SSE connections.
+// Clients call this endpoint first, then use the ticket as ?token= on SSE endpoints.
+// This keeps the full access token out of server access logs.
+func (h *Handler) IssueSSETicket(w http.ResponseWriter, r *http.Request) {
+	claims := ClaimsFromCtx(r.Context())
+	if claims == nil {
+		response.Err(w, http.StatusUnauthorized, "UNAUTHORIZED", "not authenticated")
+		return
+	}
+	ticket, err := h.svc.jwt.SignSSETicket(claims.UserID, claims.Email, claims.Role)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not issue SSE ticket")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]any{
+		"ticket":     ticket,
+		"expires_in": 90,
+	})
+}
+
 func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	claims := ClaimsFromCtx(r.Context())
 	if claims == nil {

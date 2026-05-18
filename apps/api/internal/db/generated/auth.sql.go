@@ -306,3 +306,18 @@ func (q *Queries) UpdateUserLastLogin(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, updateUserLastLogin, id)
 	return err
 }
+
+const updateUserPasswordHash = `-- name: UpdateUserPasswordHash :exec
+UPDATE users SET password_hash = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateUserPasswordHashParams struct {
+	ID           uuid.UUID `json:"id"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+func (q *Queries) UpdateUserPasswordHash(ctx context.Context, arg UpdateUserPasswordHashParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserPasswordHash, arg.ID, arg.PasswordHash)
+	return err
+}

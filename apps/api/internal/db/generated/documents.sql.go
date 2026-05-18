@@ -346,6 +346,21 @@ func (q *Queries) ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCa
 	return items, nil
 }
 
+const updateDocumentHash = `-- name: UpdateDocumentHash :exec
+UPDATE documents SET file_sha256 = $2, updated_at = NOW()
+WHERE id = $1 AND deleted_at IS NULL
+`
+
+type UpdateDocumentHashParams struct {
+	ID        uuid.UUID `json:"id"`
+	FileSha256 sql.NullString `json:"file_sha256"`
+}
+
+func (q *Queries) UpdateDocumentHash(ctx context.Context, arg UpdateDocumentHashParams) error {
+	_, err := q.db.ExecContext(ctx, updateDocumentHash, arg.ID, arg.FileSha256)
+	return err
+}
+
 const softDeleteDocument = `-- name: SoftDeleteDocument :one
 UPDATE documents SET deleted_at = NOW()
 WHERE id = $1 AND deleted_at IS NULL

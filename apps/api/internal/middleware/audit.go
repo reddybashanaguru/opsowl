@@ -28,19 +28,58 @@ func (s *statusRecorder) WriteHeader(code int) {
 
 var uuidPattern = regexp.MustCompile(`[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}`)
 
-// AuditLog writes a row to audit_logs for every non-GET, non-health request.
-// It parses the bearer token directly so it works regardless of JWT middleware ordering.
+// sensitiveReadPaths lists path substrings whose GET access must be audited for RBI compliance.
+// Every case, document, note, task, audit log, and AI log read generates a trail entry.
+var sensitiveReadPaths = []string{
+	"/cases/",
+	"/cases?",
+	"/documents",
+	"/notes",
+	"/ai-logs",
+	"/audit",
+	"/tasks/",
+	"/tasks?",
+	"/comms",
+}
+
+// isSensitiveRead returns true when a GET on this path must be audited.
+func isSensitiveRead(path string) bool {
+	// Never audit SSE streams — they are long-lived connections that would
+	// generate one entry per connection, not per data access.
+	if strings.HasSuffix(path, "/stream") {
+		return false
+	}
+	// Skip own profile — not sensitive enough to audit every page load.
+	if path == "/api/v1/auth/me" {
+		return false
+	}
+	for _, substr := range sensitiveReadPaths {
+		if strings.Contains(path, substr) {
+			return true
+		}
+	}
+	return false
+}
+
+// AuditLog writes a row to audit_logs for every mutating request AND every
+// GET on sensitive resources (cases, documents, notes, AI logs, audit viewer).
+// This satisfies RBI Cybersecurity Framework requirements for access logging.
 func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rec, r)
 
-			// Skip read-only methods and health endpoints.
-			if r.Method == http.MethodGet || r.Method == http.MethodHead || r.Method == http.MethodOptions {
+			// Skip health and infrastructure endpoints entirely.
+			if r.URL.Path == "/health" || r.URL.Path == "/ready" || r.URL.Path == "/metrics" {
 				return
 			}
-			if r.URL.Path == "/health" || r.URL.Path == "/ready" {
+			if r.Method == http.MethodOptions || r.Method == http.MethodHead {
+				return
+			}
+
+			// For GET/HEAD: only audit access to sensitive data paths.
+			if r.Method == http.MethodGet && !isSensitiveRead(r.URL.Path) {
 				return
 			}
 
