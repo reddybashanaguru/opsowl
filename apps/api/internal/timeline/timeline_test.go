@@ -63,7 +63,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -560,5 +560,192 @@ func TestHandlerStream_401_InvalidToken(t *testing.T) {
 
 	if rec.Code != http.StatusUnauthorized {
 		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestHandlerListTimeline_WithFilters(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	userID := seedUser(t, db, "filt1@test.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, userID)
+	now := time.Now().UTC()
+	seedEvent(t, db, caseID, userID, dbgen.TimelineEventTypeCaseCreated, now)
+	seedEvent(t, db, caseID, userID, dbgen.TimelineEventTypeNoteAdded, now.Add(time.Minute))
+
+	r, jwtMgr := setupRouter(t, db)
+	tok := makeToken(t, jwtMgr, userID, "filt1@test.com", dbgen.UserRoleAnalyst)
+
+	t.Run("filter by event_type", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet,
+			fmt.Sprintf("/api/v1/cases/%s/timeline?event_type=note_added", caseID), nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var env struct {
+			Data []map[string]any `json:"data"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(env.Data) != 1 {
+			t.Errorf("expected 1 note_added event, got %d", len(env.Data))
+		}
+	})
+
+	t.Run("filter by actor_id", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet,
+			fmt.Sprintf("/api/v1/cases/%s/timeline?actor_id=%s", caseID, userID), nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("with limit param", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet,
+			fmt.Sprintf("/api/v1/cases/%s/timeline?limit=1", caseID), nil)
+		req.Header.Set("Authorization", "Bearer "+tok)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var env struct {
+			Data []map[string]any `json:"data"`
+			Meta map[string]any   `json:"meta"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(env.Data) != 1 {
+			t.Errorf("expected 1 item with limit=1, got %d", len(env.Data))
+		}
+	})
+}
+
+func TestHandlerListTimeline_WithCursor(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	userID := seedUser(t, db, "cursor1@test.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, userID)
+	now := time.Now().UTC()
+	for i := 0; i < 3; i++ {
+		seedEvent(t, db, caseID, userID, dbgen.TimelineEventTypeNoteAdded, now.Add(time.Duration(i)*time.Minute))
+	}
+
+	r, jwtMgr := setupRouter(t, db)
+	tok := makeToken(t, jwtMgr, userID, "cursor1@test.com", dbgen.UserRoleAnalyst)
+
+	req := httptest.NewRequest(http.MethodGet,
+		fmt.Sprintf("/api/v1/cases/%s/timeline?limit=2", caseID), nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var env struct {
+		Data []map[string]any `json:"data"`
+		Meta map[string]any   `json:"meta"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	nextCursor, _ := env.Meta["next_cursor"].(string)
+	if nextCursor != "" {
+		cursorB64 := base64.StdEncoding.EncodeToString([]byte(nextCursor))
+		req2 := httptest.NewRequest(http.MethodGet,
+			fmt.Sprintf("/api/v1/cases/%s/timeline?cursor=%s", caseID, cursorB64), nil)
+		req2.Header.Set("Authorization", "Bearer "+tok)
+		rec2 := httptest.NewRecorder()
+		r.ServeHTTP(rec2, req2)
+		if rec2.Code != http.StatusOK {
+			t.Errorf("expected 200 for cursor page, got %d: %s", rec2.Code, rec2.Body.String())
+		}
+	}
+}
+
+// flusherRecorder wraps ResponseRecorder and implements http.Flusher
+type flusherRecorder struct {
+	*httptest.ResponseRecorder
+}
+
+func (f *flusherRecorder) Flush() {}
+
+func TestHandlerStream_200_ConnectAndDisconnect(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	userID := seedUser(t, db, "stream1@test.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, userID)
+	r, jwtMgr := setupRouter(t, db)
+	tok := makeToken(t, jwtMgr, userID, "stream1@test.com", dbgen.UserRoleAnalyst)
+
+	// Use a context that cancels immediately so the SSE loop exits
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before the request so the select exits on first iteration
+
+	req := httptest.NewRequestWithContext(ctx, http.MethodGet,
+		fmt.Sprintf("/api/v1/cases/%s/timeline/stream?token=%s", caseID, tok), nil)
+	rec := &flusherRecorder{httptest.NewRecorder()}
+	r.ServeHTTP(rec, req)
+
+	// Handler returns 200 and sets SSE headers before entering the loop
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	ct := rec.Header().Get("Content-Type")
+	if ct != "text/event-stream" {
+		t.Errorf("expected text/event-stream, got %s", ct)
+	}
+}
+
+func TestHandlerStream_400_BadCaseID(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	userID := seedUser(t, db, "stream2@test.com", dbgen.UserRoleAnalyst)
+	tok := makeToken(t, jwtMgr, userID, "stream2@test.com", dbgen.UserRoleAnalyst)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/cases/not-a-uuid/timeline/stream?token="+tok, nil)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandlerCreateEvent_400_InvalidCaseID(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	userID := seedUser(t, db, "baduuid@test.com", dbgen.UserRoleAnalyst)
+	tok := makeToken(t, jwtMgr, userID, "baduuid@test.com", dbgen.UserRoleAnalyst)
+
+	body, _ := json.Marshal(map[string]any{
+		"event_type":  "note_added",
+		"occurred_at": time.Now().UTC().Format(time.RFC3339),
+	})
+	req := httptest.NewRequest(http.MethodPost,
+		"/api/v1/cases/not-a-uuid/timeline/events",
+		bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for bad case UUID, got %d", rec.Code)
 	}
 }

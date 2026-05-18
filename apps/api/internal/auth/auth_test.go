@@ -3,6 +3,7 @@ package auth_test
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -10,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	chi "github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
@@ -57,7 +59,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -293,3 +295,526 @@ func TestChangePassword(t *testing.T) {
 
 // Compile-time check: db package used
 var _ = fmt.Sprintf
+
+// ── HTTP Handler tests ────────────────────────────────────────────────────────
+
+func setupHandler(t *testing.T, db *sql.DB) (http.Handler, *auth.JWTManager) {
+	t.Helper()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+	return r, jwtMgr
+}
+
+func TestHandlerLogin_Success(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+	seedUser(t, db, "login@handler.com", "SecureP@ss1", true)
+
+	body := strings.NewReader(`{"email":"login@handler.com","password":"SecureP@ss1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			AccessToken string `json:"access_token"`
+			User        struct {
+				Email string `json:"email"`
+			} `json:"user"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if env.Data.AccessToken == "" {
+		t.Error("expected access_token in response")
+	}
+	if env.Data.User.Email != "login@handler.com" {
+		t.Errorf("expected email login@handler.com, got %s", env.Data.User.Email)
+	}
+	// Verify refresh_token cookie was set
+	cookies := rec.Result().Cookies()
+	var found bool
+	for _, c := range cookies {
+		if c.Name == "refresh_token" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected refresh_token cookie to be set")
+	}
+}
+
+func TestHandlerLogin_InvalidCredentials(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+	seedUser(t, db, "creds@handler.com", "SecureP@ss1", true)
+
+	body := strings.NewReader(`{"email":"creds@handler.com","password":"wrong"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestHandlerLogin_MissingFields(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	body := strings.NewReader(`{"email":"only@handler.com"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandlerMe(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "me@handler.com", "SecureP@ss1", true)
+	pair, err := svc.Login(context.Background(), "me@handler.com", "SecureP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			Email string `json:"email"`
+			Role  string `json:"role"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if env.Data.Email != "me@handler.com" {
+		t.Errorf("expected me@handler.com, got %s", env.Data.Email)
+	}
+}
+
+func TestHandlerMe_Unauthorized(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+func TestHandlerLogout(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "logout@handler.com", "SecureP@ss1", true)
+	pair, err := svc.Login(context.Background(), "logout@handler.com", "SecureP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	body := strings.NewReader(fmt.Sprintf(`{"refresh_token":%q}`, pair.RefreshToken))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", body)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Errorf("expected 204, got %d: %s", rec.Code, rec.Body.String())
+	}
+	// Verify cookie is expired
+	for _, c := range rec.Result().Cookies() {
+		if c.Name == "refresh_token" && c.MaxAge >= 0 {
+			t.Error("expected refresh_token cookie to be expired (MaxAge < 0)")
+		}
+	}
+}
+
+func TestHandlerHandlerRefresh(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "refresh2@handler.com", "SecureP@ss1", true)
+	pair, err := svc.Login(context.Background(), "refresh2@handler.com", "SecureP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	body := strings.NewReader(fmt.Sprintf(`{"refresh_token":%q}`, pair.RefreshToken))
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data struct{ AccessToken string `json:"access_token"` } `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if env.Data.AccessToken == "" {
+		t.Error("expected new access_token")
+	}
+}
+
+// ── ChangePassword ────────────────────────────────────────────────────────────
+
+func TestHandlerChangePassword_Success(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "chpwd@handler.com", "OldP@ss12", true)
+	pair, err := svc.Login(context.Background(), "chpwd@handler.com", "OldP@ss12", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	body := strings.NewReader(`{"current_password":"OldP@ss12","new_password":"NewP@ss99"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerChangePassword_WrongCurrentPassword(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "chpwd2@handler.com", "RealP@ss1", true)
+	pair, err := svc.Login(context.Background(), "chpwd2@handler.com", "RealP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	body := strings.NewReader(`{"current_password":"WrongP@ss","new_password":"NewP@ss99"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for wrong current password, got %d", rec.Code)
+	}
+}
+
+func TestHandlerChangePassword_TooShortNewPassword(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "chpwd3@handler.com", "RealP@ss1", true)
+	pair, err := svc.Login(context.Background(), "chpwd3@handler.com", "RealP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	body := strings.NewReader(`{"current_password":"RealP@ss1","new_password":"short"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for short new password, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerChangePassword_Unauthorized(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	body := strings.NewReader(`{"current_password":"anything","new_password":"NewP@ss99"}`)
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/password", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+// ── Refresh error paths ───────────────────────────────────────────────────────
+
+func TestHandlerRefresh_MissingToken(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", strings.NewReader(`{}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerRefresh_InvalidToken(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	body := strings.NewReader(`{"refresh_token":"invalid.garbage.token"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// ── VerifyToken ───────────────────────────────────────────────────────────────
+
+func TestServiceVerifyToken(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+
+	seedUser(t, db, "verify@test.com", "TestP@ss1", true)
+	// Login to get a valid access token for VerifyToken test
+	pair, loginErr := svc.Login(context.Background(), "verify@test.com", "TestP@ss1", "127.0.0.1", "test")
+	if loginErr != nil {
+		t.Fatalf("login: %v", loginErr)
+	}
+	userID := pair.User.ID
+
+	tok, err := jwtMgr.Sign(userID, "verify@test.com", dbgen.UserRoleAnalyst)
+	if err != nil {
+		t.Fatalf("sign: %v", err)
+	}
+
+	claims, err := svc.VerifyToken(tok)
+	if err != nil {
+		t.Fatalf("VerifyToken: %v", err)
+	}
+	if claims.UserID != userID {
+		t.Errorf("expected user ID %s, got %s", userID, claims.UserID)
+	}
+
+	_, err = svc.VerifyToken("invalid.token")
+	if err == nil {
+		t.Error("expected error for invalid token")
+	}
+}
+
+// ── Login error paths ─────────────────────────────────────────────────────────
+
+func TestHandlerLogin_InvalidJSON(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login",
+		strings.NewReader(`not-json`))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandlerLogin_UserNotFound(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	h, _ := setupHandler(t, db)
+
+	body := strings.NewReader(`{"email":"nobody@test.com","password":"TestP@ss1"}`)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", body)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+// ── LDAP unit tests (no real server required) ─────────────────────────────────
+
+func TestLDAPConfig_Enabled(t *testing.T) {
+	var nilCfg *auth.LDAPConfig
+	if nilCfg.Enabled() {
+		t.Error("nil config should not be enabled")
+	}
+
+	empty := &auth.LDAPConfig{}
+	if empty.Enabled() {
+		t.Error("config with empty URL should not be enabled")
+	}
+
+	active := &auth.LDAPConfig{URL: "ldap://ldap.example.com:389"}
+	if !active.Enabled() {
+		t.Error("config with URL should be enabled")
+	}
+}
+
+func TestNewLDAPAuthenticator(t *testing.T) {
+	cfg := &auth.LDAPConfig{
+		URL:      "ldap://ldap.example.com:389",
+		BaseDN:   "dc=example,dc=com",
+		UserAttr: "uid",
+	}
+	a := auth.NewLDAPAuthenticator(cfg)
+	if a == nil {
+		t.Error("expected non-nil authenticator")
+	}
+}
+
+func TestLDAPAuthenticator_EmptyPassword(t *testing.T) {
+	cfg := &auth.LDAPConfig{
+		URL:      "ldap://localhost:389",
+		BaseDN:   "dc=test,dc=com",
+		UserAttr: "uid",
+	}
+	a := auth.NewLDAPAuthenticator(cfg)
+	_, err := a.Authenticate("user", "")
+	if err == nil {
+		t.Error("expected error for empty password")
+	}
+}
+
+func TestWithLDAP_DisabledConfig(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, _ := newTestService(t, db)
+
+	// Disabled config (empty URL) — should be a no-op
+	cfg := &auth.LDAPConfig{}
+	result := svc.WithLDAP(cfg)
+	if result == nil {
+		t.Error("WithLDAP should return the service")
+	}
+
+	// Login should still use local path
+	seedUser(t, db, "ldaptest@test.com", "TestP@ss1", true)
+	pair, err := svc.Login(context.Background(), "ldaptest@test.com", "TestP@ss1", "127.0.0.1", "test")
+	if err != nil {
+		t.Fatalf("expected local login to succeed: %v", err)
+	}
+	if pair.AccessToken == "" {
+		t.Error("expected access token")
+	}
+}
+
+// ── Me with last_login set ────────────────────────────────────────────────────
+
+func TestHandlerMe_WithLastLogin(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, jwtMgr := newTestService(t, db)
+	h := auth.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(r chi.Router) {
+		auth.RegisterRoutes(r, h, jwtMgr)
+	})
+
+	seedUser(t, db, "me-ll@handler.com", "TestP@ss1", true)
+	// Login first so last_login_at is populated
+	pair, err := svc.Login(context.Background(), "me-ll@handler.com", "TestP@ss1", "127.0.0.1", "ua")
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer "+pair.AccessToken)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data struct {
+			LastLoginAt *string `json:"last_login_at"`
+		} `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if env.Data.LastLoginAt == nil {
+		t.Error("expected last_login_at to be populated after login")
+	}
+}

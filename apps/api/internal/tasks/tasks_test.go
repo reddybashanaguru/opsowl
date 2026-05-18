@@ -60,7 +60,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	goose.SetBaseFS(nil)
 	_ = goose.SetDialect("postgres")
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 

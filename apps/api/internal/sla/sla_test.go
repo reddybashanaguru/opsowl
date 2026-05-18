@@ -62,7 +62,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -484,5 +484,63 @@ func TestScheduler_StartExitsOnContextCancel(t *testing.T) {
 	}
 	if !breached {
 		t.Error("expected initial sweep to have marked at least one case")
+	}
+}
+
+func TestUpsertSLAPolicy_400_InvalidJSON(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	adminID := seedUser(t, db, "admin3@sla.com", dbgen.UserRoleAdmin)
+	tok := makeToken(t, jwtMgr, adminID, "admin3@sla.com", dbgen.UserRoleAdmin)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/sla/policies",
+		bytes.NewBufferString(`not-json`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid JSON, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestUpsertSLAPolicy_400_ZeroBreachHours(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	adminID := seedUser(t, db, "admin4@sla.com", dbgen.UserRoleAdmin)
+	tok := makeToken(t, jwtMgr, adminID, "admin4@sla.com", dbgen.UserRoleAdmin)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/sla/policies",
+		bytes.NewBufferString(`{"priority":"low","breach_hours":0}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for zero breach_hours, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestListSLAPolicies_200_Manager(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgrID := seedUser(t, db, "mgr@sla.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgrID, "mgr@sla.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/sla/policies", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 }

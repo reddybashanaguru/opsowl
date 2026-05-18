@@ -1,0 +1,5 @@
+
+DROP TABLE IF EXISTS mentions;
+DROP TABLE IF EXISTS comments;
+DROP TABLE IF EXISTS notes;
+DROP TYPE IF EXISTS note_type_enum;

@@ -69,7 +69,7 @@ func TestMain(m *testing.M) {
 	sharedDB = stdlib.OpenDBFromPool(pool)
 	goose.SetBaseFS(nil)
 	_ = goose.SetDialect("postgres")
-	if err := goose.Up(sharedDB, "../../migrations"); err != nil {
+	if err := goose.Up(sharedDB, "../../db/migrations/incremental"); err != nil {
 		panic("run migrations: " + err.Error())
 	}
 
@@ -1528,4 +1528,112 @@ func TestHandlerUpload_FileTooLarge_413(t *testing.T) {
 	// triggered at handler level because multipart fh.Size reflects real data.
 	// Coverage for that branch is provided by TestServiceUpload_FileTooLarge.
 	t.Skip("413 via handler requires sending 50MB; covered by service-level test")
+}
+
+// ── ListAll handler ───────────────────────────────────────────────────────────
+
+func TestHandlerListAll_200(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	store := newMockStorage()
+	aiServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{"summary": "mock", "model_used": "test"})
+	}))
+	defer aiServer.Close()
+
+	userID := seedUser(t, db)
+	router, jwtMgr := setupRouter(t, db, store, aiServer.URL)
+	tok := makeToken(t, jwtMgr, makeAnalystClaims(userID))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/documents", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	var env struct {
+		Data []interface{} `json:"data"`
+	}
+	if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+}
+
+func TestHandlerListAll_WithStatusFilter(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	router, jwtMgr := setupRouter(t, db, newMockStorage(), "")
+	userID := seedUser(t, db)
+	tok := makeToken(t, jwtMgr, makeManagerClaims(userID))
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/documents?status=pending", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerListAll_Unauthorized(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	router, _ := setupRouter(t, db, newMockStorage(), "")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/documents", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rec.Code)
+	}
+}
+
+// ── Retry handler ─────────────────────────────────────────────────────────────
+
+func TestHandlerRetry_404_NonExistentDoc(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	router, jwtMgr := setupRouter(t, db, newMockStorage(), "")
+	userID := seedUser(t, db)
+	caseID := seedCase(t, db, userID)
+	tok := makeToken(t, jwtMgr, makeAnalystClaims(userID))
+
+	nonExistent := uuid.New()
+	req := httptest.NewRequest(http.MethodPost,
+		fmt.Sprintf("/api/v1/cases/%s/documents/%s/retry", caseID, nonExistent), nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNotFound && rec.Code != http.StatusInternalServerError {
+		t.Errorf("expected 404 or 500, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerRetry_400_InvalidDocID(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	router, jwtMgr := setupRouter(t, db, newMockStorage(), "")
+	userID := seedUser(t, db)
+	caseID := seedCase(t, db, userID)
+	tok := makeToken(t, jwtMgr, makeAnalystClaims(userID))
+
+	req := httptest.NewRequest(http.MethodPost,
+		fmt.Sprintf("/api/v1/cases/%s/documents/not-a-uuid/retry", caseID), nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid doc ID, got %d: %s", rec.Code, rec.Body.String())
+	}
 }

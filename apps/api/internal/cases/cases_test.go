@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -69,7 +70,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -866,6 +867,371 @@ func TestHandlerListCases(t *testing.T) {
 			t.Errorf("expected 0 open cases, got %d", len(resp.Data))
 		}
 	})
+}
+
+// ── Handler: Update, Delete, Assign, UpdateTags, ListActivity ─────────────────
+
+// createCaseViaAPI is a test helper that creates a case and returns its ID.
+func createCaseViaAPI(t *testing.T, r http.Handler, token string) string {
+	t.Helper()
+	body := jsonBody(t, map[string]any{"title": "Handler test case", "priority": "medium"})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/cases", body)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("createCaseViaAPI: expected 201, got %d: %s", rec.Code, rec.Body.String())
+	}
+	id, _ := decodeData(t, rec)["id"].(string)
+	if id == "" {
+		t.Fatal("createCaseViaAPI: no id in response")
+	}
+	return id
+}
+
+func TestHandlerUpdateCase(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	// Use manager so no assignment check is needed
+	token := loginToken(t, db, jwtMgr, "update-mgr@handler.com", dbgen.UserRoleManager)
+	caseID := createCaseViaAPI(t, r, token)
+
+	t.Run("200 updates title and priority", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"title": "Updated title", "priority": "high"})
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/cases/"+caseID, body)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		data := decodeData(t, rec)
+		if data["title"] != "Updated title" {
+			t.Errorf("expected title='Updated title', got %v", data["title"])
+		}
+	})
+
+	t.Run("404 for non-existent case", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"title": "Ghost"})
+		req := httptest.NewRequest(http.MethodPut, "/api/v1/cases/"+uuid.New().String(), body)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rec.Code)
+		}
+	})
+}
+
+func TestHandlerDeleteCase(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+
+	adminToken := loginToken(t, db, jwtMgr, "del-admin@handler.com", dbgen.UserRoleAdmin)
+	analystToken := loginToken(t, db, jwtMgr, "del-analyst@handler.com", dbgen.UserRoleAnalyst)
+	caseID := createCaseViaAPI(t, r, analystToken)
+
+	t.Run("403 when analyst tries to delete", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/cases/"+caseID, nil)
+		req.Header.Set("Authorization", "Bearer "+analystToken)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rec.Code)
+		}
+	})
+
+	t.Run("200 when admin deletes", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodDelete, "/api/v1/cases/"+caseID, nil)
+		req.Header.Set("Authorization", "Bearer "+adminToken)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		data := decodeData(t, rec)
+		if data["status"] != "deleted" {
+			t.Errorf("expected status=deleted, got %v", data["status"])
+		}
+	})
+}
+
+func TestHandlerAssignCase(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+
+	managerToken := loginToken(t, db, jwtMgr, "mgr@handler.com", dbgen.UserRoleManager)
+	analystToken := loginToken(t, db, jwtMgr, "assignee@handler.com", dbgen.UserRoleAnalyst)
+	analystID := seedUser(t, db, "assignee2@handler.com", dbgen.UserRoleAnalyst)
+	caseID := createCaseViaAPI(t, r, managerToken)
+
+	t.Run("200 manager assigns case", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"assigned_to": analystID.String()})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/assign", body)
+		req.Header.Set("Authorization", "Bearer "+managerToken)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("403 analyst cannot assign", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"assigned_to": analystID.String()})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/assign", body)
+		req.Header.Set("Authorization", "Bearer "+analystToken)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Errorf("expected 403, got %d", rec.Code)
+		}
+	})
+}
+
+func TestHandlerUpdateTags(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "tags@handler.com", dbgen.UserRoleAnalyst)
+	caseID := createCaseViaAPI(t, r, token)
+
+	t.Run("200 sets tags", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"tags": []string{"fraud", "upi", "kyc"}})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/tags", body)
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandlerListActivity(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "activity@handler.com", dbgen.UserRoleAnalyst)
+	caseID := createCaseViaAPI(t, r, token)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID+"/activity", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	rec := httptest.NewRecorder()
+	r.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlerChangeStatus(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "status-mgr@handler.com", dbgen.UserRoleManager)
+	caseID := createCaseViaAPI(t, r, token)
+
+	t.Run("200 draft->open transition", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]string{"status": "open"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/status", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("422 close without reason", func(t *testing.T) {
+		token2 := loginToken(t, db, jwtMgr, "status-mgr2@handler.com", dbgen.UserRoleAdmin)
+		caseID2 := createCaseViaAPI(t, r, token2)
+		body, _ := json.Marshal(map[string]string{"status": "closed"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID2+"/status", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token2)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity && rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 422/400, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandlerListCases_Filters(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "list-mgr@handler.com", dbgen.UserRoleManager)
+	createCaseViaAPI(t, r, token)
+	createCaseViaAPI(t, r, token)
+
+	t.Run("200 no filters", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var env struct {
+			Data []map[string]interface{} `json:"data"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&env); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(env.Data) < 2 {
+			t.Errorf("expected at least 2 cases, got %d", len(env.Data))
+		}
+	})
+
+	t.Run("200 filter by status=open", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("200 filter by sla_breached=true", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?sla_breached=true", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("200 with limit param", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?limit=1", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Errorf("expected 200, got %d", rec.Code)
+		}
+	})
+}
+
+func TestHandlerGetCase_ErrorPaths(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "get-case@handler.com", dbgen.UserRoleAnalyst)
+	caseID := createCaseViaAPI(t, r, token)
+
+	t.Run("200 existing case", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID, nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("404 non-existent case", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+uuid.New().String(), nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Errorf("expected 404, got %d", rec.Code)
+		}
+	})
+
+	t.Run("400 invalid uuid", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/not-a-uuid", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d", rec.Code)
+		}
+	})
+}
+
+func TestHandlerCreateCase_Validation(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "create-val@handler.com", dbgen.UserRoleAnalyst)
+
+	t.Run("400 title too short", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]string{"title": "hi", "priority": "medium"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("201 default priority when omitted", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]string{"title": "Test Case With Default Priority"})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases", bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Errorf("expected 201, got %d: %s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestHandlerInvalidIDPaths(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "invalid-id@handler.com", dbgen.UserRoleAdmin)
+
+	badID := "not-a-uuid"
+
+	tests := []struct {
+		name   string
+		method string
+		path   string
+		body   string
+	}{
+		{"update bad id", http.MethodPut, "/api/v1/cases/" + badID, `{"title":"Valid Title For Test"}`},
+		{"delete bad id", http.MethodDelete, "/api/v1/cases/" + badID, ""},
+		{"status bad id", http.MethodPost, "/api/v1/cases/" + badID + "/status", `{"status":"open"}`},
+		{"assign bad id", http.MethodPost, "/api/v1/cases/" + badID + "/assign", `{"assignee_id":"` + uuid.New().String() + `"}`},
+		{"tags bad id", http.MethodPost, "/api/v1/cases/" + badID + "/tags", `{"tags":[]}`},
+		{"activity bad id", http.MethodGet, "/api/v1/cases/" + badID + "/activity", ""},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var body io.Reader = http.NoBody
+			if tc.body != "" {
+				body = strings.NewReader(tc.body)
+			}
+			req := httptest.NewRequest(tc.method, tc.path, body)
+			req.Header.Set("Authorization", "Bearer "+token)
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+			r.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("%s: expected 400, got %d: %s", tc.name, rec.Code, rec.Body.String())
+			}
+		})
+	}
 }
 
 // compile check

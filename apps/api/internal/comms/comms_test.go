@@ -61,7 +61,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -330,6 +330,167 @@ func TestDeleteComm_Success(t *testing.T) {
 
 	if delRR.Code != http.StatusNoContent {
 		t.Errorf("expected 204, got %d: %s", delRR.Code, delRR.Body.String())
+	}
+}
+
+func TestListComms_WithData(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	ai := noopAIServer(t)
+	defer ai.Close()
+
+	r, jwtMgr := setupRouter(t, db, ai.URL)
+	analystID := seedUser(t, db, "listdata@comms.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "listdata@comms.com", dbgen.UserRoleAnalyst)
+
+	// Create two comms
+	for i, channel := range []string{"email", "call"} {
+		body, _ := json.Marshal(map[string]string{
+			"channel":      channel,
+			"direction":    "outbound",
+			"contact_name": fmt.Sprintf("Contact %d", i),
+			"body":         fmt.Sprintf("Message body %d for coverage", i),
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID.String()+"/comms",
+			bytes.NewReader(body))
+		req.Header.Set("Authorization", "Bearer "+tok)
+		req.Header.Set("Content-Type", "application/json")
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("create comm %d failed: %d %s", i, rec.Code, rec.Body.String())
+		}
+		// Wait briefly for async AI extraction to store results before listing
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	// List — exercises the rowToResponse path and potential AI results
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/comms", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var env struct {
+		Data []interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil {
+		t.Fatalf("parse body: %v", err)
+	}
+	if len(env.Data) < 2 {
+		t.Errorf("expected at least 2 comms, got %d", len(env.Data))
+	}
+}
+
+func TestListComms_WithAIExtraction(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	ai := noopAIServer(t)
+	defer ai.Close()
+
+	r, jwtMgr := setupRouter(t, db, ai.URL)
+	analystID := seedUser(t, db, "aiextract@comms.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "aiextract@comms.com", dbgen.UserRoleAnalyst)
+
+	// Create a comm log
+	bodyJSON, _ := json.Marshal(map[string]string{
+		"channel":      "email",
+		"direction":    "inbound",
+		"contact_name": "AI Test User",
+		"body":         "Wire transfer details for review",
+	})
+	createReq := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID.String()+"/comms",
+		bytes.NewReader(bodyJSON))
+	createReq.Header.Set("Authorization", "Bearer "+tok)
+	createReq.Header.Set("Content-Type", "application/json")
+	createRR := httptest.NewRecorder()
+	r.ServeHTTP(createRR, createReq)
+	if createRR.Code != http.StatusCreated {
+		t.Fatalf("create comm failed: %d %s", createRR.Code, createRR.Body.String())
+	}
+
+	var created struct {
+		Data struct{ ID string `json:"id"` } `json:"data"`
+	}
+	_ = json.Unmarshal(createRR.Body.Bytes(), &created)
+
+	// Directly insert AI extraction data into DB to exercise the List AI path
+	if created.Data.ID != "" {
+		_, _ = db.ExecContext(context.Background(),
+			`INSERT INTO comm_ai_extractions (comm_log_id, entities, action_items, sentiment, model_used)
+			 VALUES ($1::uuid, '{"person":"Alice"}', '["call back"]', 'neutral', 'mock')`,
+			created.Data.ID,
+		)
+	}
+
+	// List — should now exercise the AI result branch
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/comms", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var env struct {
+		Data []interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &env); err != nil {
+		t.Fatalf("parse body: %v", err)
+	}
+	if len(env.Data) < 1 {
+		t.Errorf("expected at least 1 comm, got %d", len(env.Data))
+	}
+}
+
+func TestListComms_WithLimitParam(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	ai := noopAIServer(t)
+	defer ai.Close()
+
+	r, jwtMgr := setupRouter(t, db, ai.URL)
+	analystID := seedUser(t, db, "listlimit@comms.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "listlimit@comms.com", dbgen.UserRoleAnalyst)
+
+	req := httptest.NewRequest(http.MethodGet,
+		"/api/v1/cases/"+caseID.String()+"/comms?limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200 with limit param, got %d", rr.Code)
+	}
+}
+
+func TestDeleteComm_InvalidID(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	ai := noopAIServer(t)
+	defer ai.Close()
+
+	r, jwtMgr := setupRouter(t, db, ai.URL)
+	analystID := seedUser(t, db, "delinvalid@comms.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "delinvalid@comms.com", dbgen.UserRoleAnalyst)
+
+	req := httptest.NewRequest(http.MethodDelete,
+		"/api/v1/cases/"+caseID.String()+"/comms/not-a-uuid", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for invalid comm ID, got %d", rr.Code)
 	}
 }
 

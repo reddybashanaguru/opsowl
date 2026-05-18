@@ -54,7 +54,7 @@ func TestMain(m *testing.M) {
 	pool, _ := pgxpool.New(ctx, connStr)
 	sharedDB = stdlib.OpenDBFromPool(pool)
 
-	if err := goose.Up(sharedDB, "../../migrations"); err != nil {
+	if err := goose.Up(sharedDB, "../../db/migrations/incremental"); err != nil {
 		panic("migrations failed: " + err.Error())
 	}
 

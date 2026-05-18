@@ -1,0 +1,10 @@
+-- +goose Up
+-- Enable required PostgreSQL extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS vector;
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
+
+-- +goose Down
+DROP EXTENSION IF EXISTS pg_trgm;
+DROP EXTENSION IF EXISTS vector;
+DROP EXTENSION IF EXISTS "uuid-ossp";

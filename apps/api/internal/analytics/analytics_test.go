@@ -59,7 +59,7 @@ func testDB(t *testing.T) (*sql.DB, func()) {
 	if err := goose.SetDialect("postgres"); err != nil {
 		t.Fatalf("goose dialect: %v", err)
 	}
-	if err := goose.Up(sqlDB, "../../migrations"); err != nil {
+	if err := goose.Up(sqlDB, "../../db/migrations/incremental"); err != nil {
 		t.Fatalf("run migrations: %v", err)
 	}
 
@@ -226,5 +226,41 @@ func TestRiskLeaderboard_403_ViewerForbidden(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Errorf("expected 403 for viewer, got %d", rr.Code)
+	}
+}
+
+func TestRiskLeaderboard_WithLimitParam(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgr := seedUser(t, db, "mgr-risk@analytics.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgr, "mgr-risk@analytics.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/risk?limit=5", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestWorkload_200_Manager(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgr := seedUser(t, db, "mgr-wl@analytics.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgr, "mgr-wl@analytics.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/workload", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
