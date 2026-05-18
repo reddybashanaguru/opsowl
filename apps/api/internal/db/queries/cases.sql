@@ -123,6 +123,17 @@ INSERT INTO case_tags (name) VALUES ($1)
 ON CONFLICT (name) DO UPDATE SET name = EXCLUDED.name
 RETURNING *;
 
+-- name: MarkBreachedCases :execrows
+UPDATE cases
+SET sla_breached = true,
+    updated_at   = NOW()
+FROM sla_policies
+WHERE sla_policies.priority = cases.priority::text
+  AND cases.sla_breached = false
+  AND cases.status NOT IN ('closed', 'draft')
+  AND cases.deleted_at IS NULL
+  AND cases.created_at + make_interval(hours => sla_policies.breach_hours) <= NOW();
+
 -- name: AddCaseWatcher :exec
 INSERT INTO case_watchers (case_id, user_id) VALUES (@case_id, @user_id)
 ON CONFLICT DO NOTHING;

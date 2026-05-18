@@ -75,7 +75,7 @@ func main() {
 		logger.Info("LDAP authentication enabled", zap.String("url", cfg.LDAPUrl))
 	}
 
-	srv := server.New(logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg)
+	srv := server.New(ctx, logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

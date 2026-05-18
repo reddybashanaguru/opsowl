@@ -83,6 +83,7 @@ type Querier interface {
 	ListPendingAILogs(ctx context.Context, limit int32) ([]ListPendingAILogsRow, error)
 	// ── P2-3: SLA policies ────────────────────────────────────────────────────────
 	ListSLAPolicies(ctx context.Context) ([]SlaPolicy, error)
+	MarkBreachedCases(ctx context.Context) (int64, error)
 	ListTaskComments(ctx context.Context, arg ListTaskCommentsParams) ([]ListTaskCommentsRow, error)
 	ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams) ([]ListTasksByCaseRow, error)
 	ListTimelineEvents(ctx context.Context, arg ListTimelineEventsParams) ([]ListTimelineEventsRow, error)

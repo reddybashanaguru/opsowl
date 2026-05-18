@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"database/sql"
 	"net/http"
 	"time"
@@ -44,7 +45,7 @@ type Server struct {
 	ldapCfg      *auth.LDAPConfig
 }
 
-func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig) *Server {
+func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig) *Server {
 	s := &Server{
 		router:       chi.NewRouter(),
 		logger:       logger,
@@ -57,6 +58,7 @@ func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB
 	}
 	s.setupMiddleware()
 	s.setupRoutes()
+	go sla.NewScheduler(queries, logger).Start(ctx)
 	return s
 }
 

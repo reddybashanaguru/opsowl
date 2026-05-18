@@ -689,3 +689,23 @@ func (q *Queries) UpsertCaseTag(ctx context.Context, name string) (CaseTag, erro
 	)
 	return i, err
 }
+
+const markBreachedCases = `-- name: MarkBreachedCases :execrows
+UPDATE cases
+SET sla_breached = true,
+    updated_at   = NOW()
+FROM sla_policies
+WHERE sla_policies.priority = cases.priority::text
+  AND cases.sla_breached = false
+  AND cases.status NOT IN ('closed', 'draft')
+  AND cases.deleted_at IS NULL
+  AND cases.created_at + make_interval(hours => sla_policies.breach_hours) <= NOW()
+`
+
+func (q *Queries) MarkBreachedCases(ctx context.Context) (int64, error) {
+	result, err := q.db.ExecContext(ctx, markBreachedCases)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
