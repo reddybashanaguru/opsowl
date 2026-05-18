@@ -190,6 +190,8 @@ func TestRefresh(t *testing.T) {
 		if err == nil {
 			t.Fatal("expected reuse detection error")
 		}
+		// Family revocation is async (goroutine) — wait for it to complete
+		time.Sleep(100 * time.Millisecond)
 		// New token should also be revoked now (family revocation)
 		_, err = svc.Refresh(context.Background(), p3.RefreshToken, "127.0.0.1")
 		if err == nil {

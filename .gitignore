@@ -45,3 +45,7 @@ logs/
 
 # ── MinIO data (local dev) ───────────────────────────────────────────────────
 infra/docker/minio-data/
+
+# TLS certificates (generated locally)
+infra/docker/nginx/ssl/
+backups/

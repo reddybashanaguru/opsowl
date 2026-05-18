@@ -50,6 +50,32 @@ func (r *Repository) RevokeAllUserRefreshTokens(ctx context.Context, userID uuid
 	return r.q.RevokeAllUserRefreshTokens(ctx, userID)
 }
 
+// ProvisionLDAPUser creates a user record on first successful LDAP login.
+// Role defaults to "analyst" — an admin must promote them if needed.
+func (r *Repository) ProvisionLDAPUser(ctx context.Context, email, fullName string) (db.User, error) {
+	row, err := r.q.CreateUser(ctx, db.CreateUserParams{
+		Email:        email,
+		FullName:     fullName,
+		PasswordHash: "$ldap$provisioned$no-local-login",
+		Role:         "analyst",
+	})
+	if err != nil {
+		return db.User{}, err
+	}
+	// Map CreateUserRow → User (same fields, different generated type)
+	return db.User{
+		ID:          row.ID,
+		Email:       row.Email,
+		FullName:    row.FullName,
+		Role:        row.Role,
+		IsActive:    row.IsActive,
+		LastLoginAt: row.LastLoginAt,
+		CreatedAt:   row.CreatedAt,
+		UpdatedAt:   row.UpdatedAt,
+		DeletedAt:   row.DeletedAt,
+	}, nil
+}
+
 func (r *Repository) CreateAuditLog(ctx context.Context, eventCode string, actorID *uuid.UUID, ipAddress, resourceType string, resourceID *uuid.UUID, metadata map[string]any, severity string) error {
 	metaJSON, err := json.Marshal(metadata)
 	if err != nil {

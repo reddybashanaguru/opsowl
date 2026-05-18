@@ -156,6 +156,25 @@ Do NOT build these regardless of how good they sound:
 
 ---
 
+## Phase 3 — On-Premise Production Hardening (2026-05-18)
+
+**Goal:** Make the product deployable on a client's own servers — no cloud dependency, no data leaving their network.
+**Context:** Target clients are fintechs/NBFCs/lending ops in India. They will NOT send sensitive financial/KYC data to cloud LLMs unless we can demonstrate complete control. On-premise = compliance pass.
+
+### Phase 3 Feature Table
+
+| # | Feature | Why Needed | Status |
+|---|---------|-----------|--------|
+| P3-1 | **Dynamic Config / Industry Labels** | Single codebase, multiple verticals — labels adapt without a redeploy | ✅ Done (2026-05-18) |
+| P3-2 | **Nginx + TLS (HTTPS)** | No enterprise will run a product over plain HTTP. TLS is table stakes. | ✅ Done (2026-05-18) |
+| P3-3 | **LDAP / Active Directory Auth** | Enterprise clients use AD for SSO. Custom user tables are a non-starter for IT teams. | ✅ Done (2026-05-18) |
+| P3-4 | **Secrets Management** | Credentials must never be in code or images — `.env` pattern with documented `.env.example` | ✅ Done (2026-05-18) |
+| P3-5 | **Prometheus + Grafana Observability** | Ops teams need to see request rates, latencies, and errors without SSH-ing into the box | ✅ Done (2026-05-18) |
+| P3-6 | **Backup / Restore Runbook** | Data loss = contract termination. RPO 24h, RTO 30 min must be documented and automated. | ✅ Done (2026-05-18) |
+| P3-7 | **Ollama Local LLM Support** | Fully air-gapped deployment — zero data leaves the network | ⏳ Deferred (on demand from client) |
+
+---
+
 ### P2-1: PDF Case Report
 
 **What:** One-click "Export Report" button on any case. Generates a formatted PDF with:
@@ -454,9 +473,118 @@ Build Features 4 and 12 together — they are deeply coupled.
 
 ---
 
+## Service Endpoints & Dev Credentials
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Web App** | http://localhost:3001 | admin@opsowl.dev / OpsOwl@2024 |
+| **API** | http://localhost:8080 | JWT Bearer (login via /api/v1/auth/login) |
+| **Nginx HTTPS** | https://localhost | Same as API (TLS terminates here in prod) |
+| **Prometheus** | http://localhost:9090 | No auth |
+| **Grafana** | http://localhost:3003 | admin / opsowl-grafana |
+| **MinIO Console** | http://localhost:9001 | minioadmin / minioadmin |
+| **PostgreSQL** | localhost:5433 | opsowl / opsowl_secret / db: opsowl |
+
+**Default admin account:** `admin@opsowl.dev` / `OpsOwl@2024` (role: `super_admin`)
+**Other seeded accounts:** see `apps/api/cmd/seed/main.go` — analyst, manager, viewer roles available.
+
+---
+
+## Current Infrastructure State (as of 2026-05-18)
+
+### Running Services (docker compose up)
+```
+opsowl-postgres     healthy   5433:5432
+opsowl-minio        healthy   9000-9001:9000-9001
+opsowl-api          healthy   8080:8080
+opsowl-ai           healthy   (internal only)
+opsowl-web          running   3001:3000
+opsowl-nginx        running   80:80, 443:443
+opsowl-prometheus   running   9090:9090
+opsowl-grafana      running   3003:3000
+```
+
+### Test Results (last full run 2026-05-18)
+- **Go tests:** 10/10 packages PASSED (coverage: ai 91.8%, tasks 91.6%, insights 88.7%, analytics 78.9%, sla 72.7%, documents 72.3%, comms 62.6%, timeline 57.7%, cases 54.8%, auth 37.5%)
+- **Frontend tests:** 145/145 PASSED (14 test files, 2.7s)
+
+### Database Migrations (applied)
+```
+00001_init.sql          — users, refresh_tokens, audit_logs
+00002_cases.sql         — cases, case_watchers, case_tags
+00003_timeline.sql      — timeline_events
+00004_tasks.sql         — tasks, task_comments
+00005_documents.sql     — documents, document_chunks (pgvector)
+00006_ai.sql            — ai_logs, ai_prompts
+00007_notifications.sql — notifications, notification_preferences
+00008_notes.sql         — notes, comments, mentions
+00009_notifications.sql — (notifications extension)
+00010_search.sql        — tsvector columns, GIN indexes, triggers
+00011_phase2.sql        — case_ai_insights, sla_policies, communication_logs, workload views
+00012_config.sql        — system_config (JSONB, single-row pattern)
+```
+
+---
+
+## What's Left / Known Gaps
+
+### Deferred (explicit user decision)
+| Item | Decision | Trigger |
+|------|----------|---------|
+| Ollama Local LLM | Deferred — implement when first client requests it | Client asks for fully air-gapped deployment |
+| PII masking middleware (standalone) | Presidio already in AI service; standalone API gateway layer deferred | GDPR/audit requirement from client |
+
+### Known Tech Debt (non-blocking)
+| File | Issue | Priority |
+|------|-------|----------|
+| `internal/auth/service.go` | `ChangePassword` has no dedicated `UpdateUserPassword` sqlc query | Low — add before prod |
+| `internal/tasks/` | Cursor pagination uses UUID byte comparison vs `sort_order` — page boundaries not perfectly stable | Low — fix with UUIDv7 in Phase 4 |
+| `internal/timeline/` | SSE reconnect doesn't replay missed events | Low — track `lastEventId` on server |
+| `internal/documents/` | No retry on AI service transient failure during async processing | Medium — add backoff in Phase 4 |
+| `apps/api` | No ClamAV virus scan on upload (stubbed) | Medium — add before enterprise prod |
+| `infra/docker/nginx/ssl/` | Self-signed dev cert — replace with CA-signed cert for production | High (before client demo) |
+
+### Phase 4 — When First Client Signs
+| Item | What |
+|------|------|
+| E2E tests (Playwright) | Golden paths: login, create case, upload doc, AI copilot, export PDF |
+| Ollama integration | Add `Provider.OLLAMA` to LLMRouter, nomic-embed-text for embeddings |
+| Multi-tenant isolation | `organization_id` is hardcoded to a sentinel UUID — real isolation needed per client |
+| UUIDv7 cursor fix | Replace cursor pagination UUIDs with time-ordered UUIDv7 |
+| ClamAV antivirus | Uncomment stub, add `clamav` container to docker-compose |
+| CA-signed TLS cert | Replace self-signed dev cert via Let's Encrypt / client's internal CA |
+| Rate limiting per-tenant | Current bucket is global — needs per-org limits |
+| River job monitoring | Add River UI dashboard for background job visibility |
+
+---
+
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ P3-6 — Backup / Restore Runbook (2026-05-18)
+**Built:** `infra/scripts/backup.sh` — reads `.env` automatically, `pg_dump --format=custom` via `docker exec`, `mc mirror` for MinIO documents, compresses both into `opsowl_YYYYMMDD_HHMMSS.tar.gz`, deletes archives older than `RETAIN_DAYS` (default 30). `infra/scripts/restore.sh` — prompts "yes" confirmation, stops API/AI containers, drops + recreates DB via `pg_restore`, mirrors documents back to MinIO, restarts services. `docs/BACKUP_RUNBOOK.md` — RPO 24h, RTO 15–30 min, cron line for 2am daily backup, manual steps, verify steps, incident response checklist.
+**Makefile targets:** `make backup` and `make setup` (calls gen-certs + copies .env.example).
+
+### ✅ P3-5 — Prometheus + Grafana Observability (2026-05-18)
+**Built:** `apps/api/internal/middleware/metrics.go` — 3 Prometheus instruments: `opsowl_http_requests_total` (counter, labels: method/route/status), `opsowl_http_request_duration_seconds` (histogram, default buckets), `opsowl_http_requests_in_flight` (gauge). Route label normalisation: UUIDs (36-char with hyphens) and pure-numeric segments collapsed to `{id}` to prevent label cardinality explosion. Middleware skips `/metrics`, `/health`, `/ready`. `GET /metrics` endpoint added via `promhttp.Handler()`. `infra/docker/prometheus/prometheus.yml` — scrapes `api:8080/metrics` every 10s, 30-day retention. `infra/docker/grafana/provisioning/datasources/prometheus.yml` — Prometheus auto-provisioned as default datasource. Both services added to docker-compose.
+**Ports:** Prometheus :9090, Grafana :3003 (moved from 3002 — conflict with local node process).
+**Key decisions:** Shared `statusRecorder` type with `audit.go` (same package) — metrics middleware renames its local variable to `metricsRec` to avoid redeclaration.
+
+### ✅ P3-4 — Secrets Management (2026-05-18)
+**Built:** `.env.example` — all credentials as `CHANGE_ME_*` placeholders with inline documentation for LDAP, TLS paths, CORS, AI API keys. `.env` — dev values (gitignored). `COMPOSE` variable in Makefile uses `--env-file .env`. `make up` checks for `.env` existence before starting (exits with helpful message if missing). Docker-compose reads all credentials exclusively from `.env` — no hardcoded values in any Docker file.
+
+### ✅ P3-3 — LDAP / Active Directory Authentication (2026-05-18)
+**Built:** `apps/api/internal/auth/ldap.go` — `LDAPConfig` struct (URL, BaseDN, UserAttr, BindDN, BindPassword), `Enabled()` guard (returns false when LDAP_URL is empty — zero impact when not configured). `LDAPAuthenticator.Authenticate()` — two-step bind: service account search for user DN → user credential bind to verify password. Email extracted from `mail` attribute, falls back to `userPrincipalName`, constructs from BaseDN if neither present. `auth.Service.WithLDAP()` — post-construction injection (avoids circular import / constructor changes). `loginWithLDAP()` — JIT user provisioning on first successful LDAP login (role defaults to `analyst`, sentinel password hash `$ldap$provisioned$no-local-login` prevents local login). Audit log records `"method":"ldap"` vs `"method":"local"`. Go module: `github.com/go-ldap/ldap/v3`.
+**Key decisions:** Completely opt-in — existing tests and local-login path are completely unchanged when `LDAP_URL=""`.
+
+### ✅ P3-2 — Nginx + TLS / HTTPS (2026-05-18)
+**Built:** `infra/docker/nginx/nginx.conf` — port 80 → 301 redirect to HTTPS, port 443 TLS 1.2/1.3 only with modern cipher suite, `ssl_session_cache shared:SSL:10m`, security headers (HSTS max-age=31536000, X-Frame-Options DENY, X-Content-Type-Options nosniff, X-XSS-Protection, Referrer-Policy), `/api/*` and `/health`/`/ready` proxied to `api:8080`, everything else to `web:3000`, WebSocket upgrade headers for SSE. `infra/scripts/gen-dev-certs.sh` — 4096-bit RSA, 3650-day self-signed cert, SAN includes `DNS:localhost,IP:127.0.0.1`. `Makefile gen-certs` target. `make setup` now calls `make gen-certs`.
+**Tested:** HTTP :80 → HTTPS :443 returns 301. `curl -sk https://localhost/health` returns `{"status":"ok"}` proxied through nginx.
+
+### ✅ P3-1 — Dynamic Config / Industry Label Switching (2026-05-18)
+**Built:** Migration `00012_config.sql` — `system_config` table (UUID pk, JSONB config, updated_at, updated_by). Seeded with 16 financial_services defaults. `apps/api/internal/config/` — `handler.go` (GET public / PUT admin+), `routes.go` (wired under `/api/v1/config`). 16 configurable fields: `app_name`, `industry`, and 14 label pairs (case/cases, task/tasks, document/documents, risk_score, risk_level, sla, comms, analyst, timeline, note/notes). `apps/web/src/lib/stores/config.store.ts` — Zustand store, `AppConfig` interface, `DEFAULT_CONFIG`, `INDUSTRY_PRESETS` map with 5 presets (financial_services, insurance, security_ops, legal, hr). `apps/web/src/lib/hooks/useConfig.ts` — fetches on first mount. Settings page at `/settings` — admin/super_admin only, 5 industry preset chips, 15 editable label fields, save + reset buttons. Dashboard layout sidebar uses config labels (`cfg.cases_label`, `cfg.tasks_label`, etc.) and `cfg.app_name` for brand name.
+**Tested:** GET returns defaults, PUT (admin JWT) switches to insurance preset (Claims/Policies/Investigators), GET confirms persistence. Unauthenticated GET works (public). Non-admin PUT returns 403.
 
 ### ✅ Feature 11 — Search (2026-05-17)
 **Built:** Full-text search across all entities — cases, notes, tasks, documents — using PostgreSQL `tsvector` with `websearch_to_tsquery`. Migration adds `search_vector` columns + GIN indexes + trigger-based maintenance + backfill. Parallel fan-out in Go (4 goroutines, `sync.WaitGroup`) for sub-100ms response on filtered or global queries.

@@ -25,10 +25,19 @@ var (
 type Service struct {
 	repo *Repository
 	jwt  *JWTManager
+	ldap *LDAPAuthenticator
 }
 
 func NewService(repo *Repository, jwt *JWTManager) *Service {
 	return &Service{repo: repo, jwt: jwt}
+}
+
+// WithLDAP enables LDAP/AD authentication as the primary auth path.
+func (s *Service) WithLDAP(cfg *LDAPConfig) *Service {
+	if cfg.Enabled() {
+		s.ldap = NewLDAPAuthenticator(cfg)
+	}
+	return s
 }
 
 type TokenPair struct {
@@ -40,10 +49,19 @@ type TokenPair struct {
 }
 
 func (s *Service) Login(ctx context.Context, email, password, ipAddress, userAgent string) (*TokenPair, error) {
+	// ── LDAP path ─────────────────────────────────────────────────────────────
+	if s.ldap != nil {
+		return s.loginWithLDAP(ctx, email, password, ipAddress)
+	}
+
+	// ── Local password path ───────────────────────────────────────────────────
+	return s.loginLocal(ctx, email, password, ipAddress)
+}
+
+func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress string) (*TokenPair, error) {
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			// same response as wrong password — no user enumeration
 			go s.repo.CreateAuditLog(context.Background(), "auth.login.failed", nil, ipAddress, "", nil, map[string]any{"email": email}, "warn") //nolint:errcheck
 			return nil, ErrInvalidCredentials
 		}
@@ -66,8 +84,44 @@ func (s *Service) Login(ctx context.Context, email, password, ipAddress, userAge
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
-	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID}, "info") //nolint:errcheck
+	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "local"}, "info") //nolint:errcheck
+	return pair, nil
+}
 
+func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddress string) (*TokenPair, error) {
+	// Verify credentials against LDAP/AD
+	resolvedEmail, err := s.ldap.Authenticate(username, password)
+	if err != nil {
+		go s.repo.CreateAuditLog(context.Background(), "auth.login.failed", nil, ipAddress, "", nil, map[string]any{"username": username, "method": "ldap"}, "warn") //nolint:errcheck
+		return nil, ErrInvalidCredentials
+	}
+
+	// Look up local user record (for roles) — JIT provision if first login
+	user, err := s.repo.GetUserByEmail(ctx, resolvedEmail)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			// First LDAP login — provision the user as analyst role by default
+			user, err = s.repo.ProvisionLDAPUser(ctx, resolvedEmail, username)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
+	}
+
+	if !user.IsActive {
+		go s.repo.CreateAuditLog(context.Background(), "auth.login.account_disabled", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
+		return nil, ErrAccountDisabled
+	}
+
+	pair, err := s.issueTokenPair(ctx, user, ipAddress)
+	if err != nil {
+		return nil, err
+	}
+
+	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
+	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "ldap"}, "info") //nolint:errcheck
 	return pair, nil
 }
 

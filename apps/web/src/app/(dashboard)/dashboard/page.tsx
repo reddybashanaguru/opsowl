@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { api } from "@/lib/api";
 import Link from "next/link";
 
@@ -144,6 +145,7 @@ const RISK_COLORS: Record<string, string> = {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
+  const cfg = useConfig();
 
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ["dashboard-stats"],
@@ -235,14 +237,14 @@ export default function DashboardPage() {
               <>
                 <AlertRow
                   icon="🔴"
-                  label="SLA Breaches"
+                  label={`${cfg.sla_label} Breaches`}
                   value={stats.sla_breached}
                   href="/cases"
                   critical={stats.sla_breached > 0}
                 />
                 <AlertRow
                   icon="⚠️"
-                  label="Escalated Cases"
+                  label={`Escalated ${cfg.cases_label}`}
                   value={stats.status_escalated}
                   href="/cases?status=escalated"
                   critical={stats.status_escalated > 0}
@@ -256,7 +258,7 @@ export default function DashboardPage() {
                 />
                 <AlertRow
                   icon="📋"
-                  label="Pending Review Cases"
+                  label={`Pending Review ${cfg.cases_label}`}
                   value={stats.status_pending_review}
                   href="/cases?status=pending_review"
                   critical={false}
@@ -304,11 +306,11 @@ export default function DashboardPage() {
         >
           <div className="flex items-center gap-3 mb-1.5">
             <span className="text-xl">⬡</span>
-            <h2 className="text-white font-semibold">Investigation Cases</h2>
+            <h2 className="text-white font-semibold">{cfg.cases_label}</h2>
             <span className="ml-auto text-cyan-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
           <p className="text-slate-500 text-xs">
-            View, create and manage fraud investigation cases. Track SLA breaches, escalations and resolutions.
+            View, create and manage {cfg.cases_label.toLowerCase()}. Track {cfg.sla_label} breaches, escalations and resolutions.
           </p>
         </Link>
 
@@ -318,11 +320,11 @@ export default function DashboardPage() {
         >
           <div className="flex items-center gap-3 mb-1.5">
             <span className="text-xl">✓</span>
-            <h2 className="text-white font-semibold">Task Queue</h2>
+            <h2 className="text-white font-semibold">{cfg.tasks_label} Queue</h2>
             <span className="ml-auto text-violet-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
           <p className="text-slate-500 text-xs">
-            Review and complete assigned investigation tasks. Monitor overdue items and priority work.
+            Review and complete assigned {cfg.tasks_label.toLowerCase()}. Monitor overdue items and priority work.
           </p>
         </Link>
 
@@ -336,7 +338,7 @@ export default function DashboardPage() {
             <span className="ml-auto text-amber-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
           <p className="text-slate-500 text-xs">
-            Monitor analyst capacity — active cases, open tasks, overdue items and average case age across the team.
+            Monitor {cfg.analyst_label.toLowerCase()} capacity — active {cfg.cases_label.toLowerCase()}, open {cfg.tasks_label.toLowerCase()}, overdue items and average {cfg.case_label.toLowerCase()} age across the team.
           </p>
         </Link>
 
@@ -346,11 +348,11 @@ export default function DashboardPage() {
         >
           <div className="flex items-center gap-3 mb-1.5">
             <span className="text-xl">◷</span>
-            <h2 className="text-white font-semibold">SLA Policies</h2>
+            <h2 className="text-white font-semibold">{cfg.sla_label} Policies</h2>
             <span className="ml-auto text-emerald-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
           </div>
           <p className="text-slate-500 text-xs">
-            Configure breach and warning thresholds per case priority. Keep SLA compliance visible across operations.
+            Configure breach and warning thresholds per {cfg.case_label.toLowerCase()} priority. Keep {cfg.sla_label} compliance visible across operations.
           </p>
         </Link>
       </div>

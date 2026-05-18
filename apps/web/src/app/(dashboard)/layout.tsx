@@ -5,29 +5,32 @@ import { usePathname } from "next/navigation";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useAuth } from "@/lib/hooks/useAuth";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-
-const nav = [
-  { label: "Dashboard", href: "/dashboard", icon: "▦" },
-  { label: "Cases", href: "/cases", icon: "⬡" },
-  { label: "Tasks", href: "/tasks", icon: "✓" },
-  { label: "Documents", href: "/documents", icon: "◻" },
-  { label: "Search", href: "/search", icon: "⌕" },
-];
-
-const insightsNav = [
-  { label: "Workload", href: "/workload", icon: "◑", roles: ["manager", "admin", "super_admin"] },
-  { label: "SLA Policies", href: "/sla", icon: "◷", roles: ["viewer", "analyst", "manager", "admin", "super_admin"] },
-];
-
-const adminNav = [
-  { label: "Users", href: "/users", icon: "◎" },
-  { label: "Audit Logs", href: "/audit", icon: "◈" },
-];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const cfg = useConfig();
+
+  const nav = [
+    { label: "Dashboard", href: "/dashboard", icon: "▦" },
+    { label: cfg.cases_label, href: "/cases", icon: "⬡" },
+    { label: cfg.tasks_label, href: "/tasks", icon: "✓" },
+    { label: cfg.documents_label, href: "/documents", icon: "◻" },
+    { label: "Search", href: "/search", icon: "⌕" },
+  ];
+
+  const insightsNav = [
+    { label: "Workload", href: "/workload", icon: "◑" },
+    { label: cfg.sla_label + " Policies", href: "/sla", icon: "◷" },
+  ];
+
+  const adminNav = [
+    { label: "Users", href: "/users", icon: "◎" },
+    { label: "Audit Logs", href: "/audit", icon: "◈" },
+    { label: "Settings", href: "/settings", icon: "⚙" },
+  ];
 
   const roleColor: Record<string, string> = {
     super_admin: "text-red-400",

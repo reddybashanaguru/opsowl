@@ -15,13 +15,6 @@ interface User {
   created_at: string;
 }
 
-interface ListUsersResponse {
-  users: User[];
-  next_cursor: string | null;
-  has_more: boolean;
-  total_count: number;
-}
-
 const ROLE_COLORS: Record<string, { badge: string; dot: string }> = {
   super_admin: { badge: "bg-red-500/10 text-red-400 border-red-500/30",    dot: "bg-red-400" },
   admin:       { badge: "bg-amber-500/10 text-amber-400 border-amber-500/30", dot: "bg-amber-400" },
@@ -56,10 +49,7 @@ export default function UsersPage() {
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
-    queryFn: () =>
-      api.get<{ data: ListUsersResponse }>("/api/v1/users?limit=200").then(
-        (r) => (r as unknown as { data: ListUsersResponse }).data ?? r,
-      ),
+    queryFn: () => api.getList<User>("/api/v1/users?limit=200"),
   });
 
   const deleteMutation = useMutation({
@@ -70,7 +60,7 @@ export default function UsersPage() {
     },
   });
 
-  const allUsers: User[] = (data as unknown as ListUsersResponse)?.users ?? [];
+  const allUsers: User[] = data?.data ?? [];
 
   const filtered = useMemo(() => {
     return allUsers.filter((u) => {

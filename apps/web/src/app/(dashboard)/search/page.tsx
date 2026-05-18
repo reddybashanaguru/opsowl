@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
+import { useConfig } from "@/lib/hooks/useConfig";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -296,13 +297,7 @@ function Section({ title, count, children }: { title: string; count: number; chi
 
 // ── Filter tab ─────────────────────────────────────────────────────────────────
 
-const FILTERS = [
-  { label: "All", value: "" },
-  { label: "Cases", value: "cases" },
-  { label: "Notes", value: "notes" },
-  { label: "Tasks", value: "tasks" },
-  { label: "Documents", value: "documents" },
-];
+// Built dynamically inside SearchPage using config labels
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
@@ -311,6 +306,15 @@ export default function SearchPage() {
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [filter, setFilter] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const cfg = useConfig();
+
+  const FILTERS = [
+    { label: "All", value: "" },
+    { label: cfg.cases_label, value: "cases" },
+    { label: cfg.notes_label, value: "notes" },
+    { label: cfg.tasks_label, value: "tasks" },
+    { label: cfg.documents_label, value: "documents" },
+  ];
 
   // Debounce input → query (350ms)
   useEffect(() => {
@@ -406,25 +410,25 @@ export default function SearchPage() {
 
       {hasResults && !showSkeleton && (
         <div className="space-y-8">
-          <Section title="Cases" count={data.cases.length}>
+          <Section title={cfg.cases_label} count={data.cases.length}>
             {data.cases.map((r) => (
               <CaseCard key={r.id} r={r} query={debouncedQuery} />
             ))}
           </Section>
 
-          <Section title="Notes" count={data.notes.length}>
+          <Section title={cfg.notes_label} count={data.notes.length}>
             {data.notes.map((r) => (
               <NoteCard key={r.id} r={r} query={debouncedQuery} />
             ))}
           </Section>
 
-          <Section title="Tasks" count={data.tasks.length}>
+          <Section title={cfg.tasks_label} count={data.tasks.length}>
             {data.tasks.map((r) => (
               <TaskCard key={r.id} r={r} query={debouncedQuery} />
             ))}
           </Section>
 
-          <Section title="Documents" count={data.documents.length}>
+          <Section title={cfg.documents_label} count={data.documents.length}>
             {data.documents.map((r) => (
               <DocumentCard key={r.id} r={r} query={debouncedQuery} />
             ))}

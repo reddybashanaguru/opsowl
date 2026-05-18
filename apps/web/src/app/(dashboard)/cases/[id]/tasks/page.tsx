@@ -10,6 +10,7 @@ import {
 } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { TaskCard, Task } from "@/components/tasks/TaskCard";
 
 interface ListMeta {
@@ -30,6 +31,7 @@ const STATUS_OPTIONS = ["todo", "in_progress", "done", "cancelled"] as const;
 export default function CaseTasksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const router = useRouter();
+  const cfg = useConfig();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
@@ -124,7 +126,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
           onClick={() => router.push("/cases")}
           className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
         >
-          ← Cases
+          ← {cfg.cases_label}
         </button>
         <div className="h-4 border-l border-slate-700" />
         <button
@@ -138,7 +140,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
           onClick={() => router.push(`/cases/${caseId}/timeline`)}
           className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
         >
-          Timeline →
+          {cfg.timeline_label} →
         </button>
       </div>
 

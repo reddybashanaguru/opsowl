@@ -182,7 +182,12 @@ export default function DocumentsPage() {
       initialPageParam: undefined,
     });
 
-  const allDocs = data?.pages.flatMap((p) => p.data) ?? [];
+  const seen = new Set<string>();
+  const allDocs = (data?.pages.flatMap((p) => p.data) ?? []).filter((doc) => {
+    if (seen.has(doc.id)) return false;
+    seen.add(doc.id);
+    return true;
+  });
 
   const filtered = debouncedFileType
     ? allDocs.filter((d) =>

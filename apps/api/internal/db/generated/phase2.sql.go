@@ -93,8 +93,8 @@ SELECT
     COUNT(DISTINCT c.id) FILTER (WHERE c.status NOT IN ('closed','draft')) AS active_cases,
     COUNT(DISTINCT t.id) FILTER (WHERE t.status IN ('todo','in_progress'))  AS open_tasks,
     COUNT(DISTINCT t.id) FILTER (WHERE t.is_overdue = TRUE AND t.status NOT IN ('done','cancelled')) AS overdue_tasks,
-    AVG(EXTRACT(EPOCH FROM (NOW() - c.created_at))/3600)
-        FILTER (WHERE c.status NOT IN ('closed','draft'))::NUMERIC(8,1) AS avg_case_age_hours
+    COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - c.created_at))/3600)
+        FILTER (WHERE c.status NOT IN ('closed','draft'))::NUMERIC(8,1), 0) AS avg_case_age_hours
 FROM users u
 LEFT JOIN cases c ON c.assigned_to = u.id AND c.deleted_at IS NULL
 LEFT JOIN tasks t ON t.assigned_to = u.id AND t.deleted_at IS NULL
@@ -277,7 +277,7 @@ type ListCasesWithRiskScoreRow struct {
 	SlaBreached bool           `json:"sla_breached"`
 	RiskScore   sql.NullString `json:"risk_score"`
 	RiskLevel   sql.NullString `json:"risk_level"`
-	AnalysedAt  time.Time      `json:"analysed_at"`
+	AnalysedAt  sql.NullTime   `json:"analysed_at"`
 }
 
 func (q *Queries) ListCasesWithRiskScore(ctx context.Context, arg ListCasesWithRiskScoreParams) ([]ListCasesWithRiskScoreRow, error) {

@@ -87,7 +87,7 @@ function MetaCell({ meta }: { meta: Record<string, unknown> }) {
         {entries.length} field{entries.length !== 1 ? "s" : ""}
       </button>
       {open && (
-        <div className="absolute z-50 left-0 bottom-6 w-72 bg-slate-900 border border-slate-600 rounded-lg p-3 shadow-2xl text-left">
+        <div className="absolute z-50 right-0 bottom-6 w-72 bg-slate-900 border border-slate-600 rounded-lg p-3 shadow-2xl text-left">
           <pre className="text-[10px] text-slate-300 font-mono overflow-auto max-h-40 whitespace-pre-wrap">
             {JSON.stringify(meta, null, 2)}
           </pre>
@@ -138,15 +138,23 @@ export default function AuditPage() {
     (window as unknown as Record<string, unknown>)._auditDebounce = setTimeout(() => setDebouncedEvent(val), 400);
   }
 
-  function handleExportCSV() {
-    const token = (window as unknown as { __authToken?: string }).__authToken;
-    const url = `/api/v1/audit/export`;
+  async function handleExportCSV() {
+    const { useAuthStore } = await import("@/lib/stores/auth.store");
+    const token = useAuthStore.getState().accessToken;
+    const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+    const res = await fetch(`${apiBase}/api/v1/audit/export`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) return;
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = `http://localhost:8080${url}`;
-    a.download = "audit_logs.csv";
+    a.href = url;
+    a.download = `audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
     document.body.appendChild(a);
     a.click();
-    document.body.removeChild(a);
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   return (

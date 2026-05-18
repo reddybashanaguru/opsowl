@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { DocumentCard, Document } from "@/components/documents/DocumentCard";
 import { DocumentUploadZone } from "@/components/documents/DocumentUploadZone";
 
@@ -25,6 +26,7 @@ export default function CaseDocumentsPage({
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const cfg = useConfig();
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -49,7 +51,12 @@ export default function CaseDocumentsPage({
         last.meta.has_more ? last.meta.next_cursor : undefined,
     });
 
-  const allDocs = data?.pages.flatMap((p) => p.data) ?? [];
+  const seen = new Set<string>();
+  const allDocs = (data?.pages.flatMap((p) => p.data) ?? []).filter((doc) => {
+    if (seen.has(doc.id)) return false;
+    seen.add(doc.id);
+    return true;
+  });
 
   // ── Upload ─────────────────────────────────────────────────────────────────
   const handleUpload = async (file: File) => {
@@ -96,36 +103,36 @@ export default function CaseDocumentsPage({
             onClick={() => router.push("/cases")}
             className="hover:text-cyan-400 transition-colors"
           >
-            ← Cases
+            ← {cfg.cases_label}
           </button>
           <div className="h-4 border-l border-slate-700" />
           <button
             onClick={() => router.push(`/cases/${id}`)}
             className="hover:text-cyan-400 transition-colors"
           >
-            Case
+            {cfg.case_label}
           </button>
           <div className="h-4 border-l border-slate-700" />
-          <span className="text-slate-300">Documents</span>
+          <span className="text-slate-300">{cfg.documents_label}</span>
           <div className="h-4 border-l border-slate-700" />
           <button
             onClick={() => router.push(`/cases/${id}/tasks`)}
             className="hover:text-cyan-400 transition-colors"
           >
-            Tasks →
+            {cfg.tasks_label} →
           </button>
           <div className="h-4 border-l border-slate-700" />
           <button
             onClick={() => router.push(`/cases/${id}/timeline`)}
             className="hover:text-cyan-400 transition-colors"
           >
-            Timeline →
+            {cfg.timeline_label} →
           </button>
         </div>
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">Documents</h1>
+          <h1 className="text-2xl font-bold text-slate-100">{cfg.documents_label}</h1>
           <p className="text-slate-400 text-sm mt-1">
             Upload files to extract intelligence and feed the AI copilot.
           </p>

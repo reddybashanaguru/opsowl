@@ -5,6 +5,7 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteCard, Note } from "@/components/notes/NoteCard";
 
@@ -39,6 +40,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const accessToken = useAuthStore((s) => s.accessToken);
+  const cfg = useConfig();
 
   const [showEditor, setShowEditor] = useState(false);
   const [filterType, setFilterType] = useState("");
@@ -109,12 +111,12 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
       {/* Nav */}
       <div className="flex items-center gap-3 mb-5 text-sm flex-wrap">
         <button onClick={() => router.push(`/cases/${id}`)} className="text-slate-400 hover:text-slate-200 flex items-center gap-1">
-          ← Case
+          ← {cfg.case_label}
         </button>
         {[
-          { label: "Timeline →", href: `/cases/${id}/timeline` },
-          { label: "Tasks →", href: `/cases/${id}/tasks` },
-          { label: "Documents →", href: `/cases/${id}/documents` },
+          { label: `${cfg.timeline_label} →`, href: `/cases/${id}/timeline` },
+          { label: `${cfg.tasks_label} →`, href: `/cases/${id}/tasks` },
+          { label: `${cfg.documents_label} →`, href: `/cases/${id}/documents` },
           { label: "AI Logs →", href: `/cases/${id}/ai-logs` },
         ].map(({ label, href }) => (
           <span key={href} className="flex items-center gap-3">
@@ -129,8 +131,8 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-white text-xl font-bold">Notes</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{total} note{total !== 1 ? "s" : ""}</p>
+          <h1 className="text-white text-xl font-bold">{cfg.notes_label}</h1>
+          <p className="text-slate-500 text-sm mt-0.5">{total} {total !== 1 ? cfg.notes_label.toLowerCase() : cfg.note_label.toLowerCase()}</p>
         </div>
         <div className="flex items-center gap-2">
           {/* Filter */}

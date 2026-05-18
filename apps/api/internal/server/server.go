@@ -1,11 +1,13 @@
 package server
 
 import (
+	"database/sql"
 	"net/http"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
@@ -15,6 +17,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	"github.com/reddybashanaguru/opsowl/internal/comms"
+	"github.com/reddybashanaguru/opsowl/internal/config"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/documents"
 	"github.com/reddybashanaguru/opsowl/internal/insights"
@@ -35,18 +38,22 @@ type Server struct {
 	logger       *zap.Logger
 	jwtMgr       *auth.JWTManager
 	queries      *db.Queries
+	sqlDB        *sql.DB
 	store        storage.Client
 	aiServiceURL string
+	ldapCfg      *auth.LDAPConfig
 }
 
-func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, store storage.Client, aiServiceURL string) *Server {
+func New(logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig) *Server {
 	s := &Server{
 		router:       chi.NewRouter(),
 		logger:       logger,
 		jwtMgr:       jwtMgr,
 		queries:      queries,
+		sqlDB:        sqlDB,
 		store:        store,
 		aiServiceURL: aiServiceURL,
+		ldapCfg:      ldapCfg,
 	}
 	s.setupMiddleware()
 	s.setupRoutes()
@@ -62,6 +69,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(chimw.CleanPath)
 	s.router.Use(chimw.StripSlashes)
 	s.router.Use(middleware.CORS)
+	s.router.Use(middleware.Metrics)
 	s.router.Use(chimw.Compress(5))
 	s.router.Use(chimw.Timeout(30 * time.Second))
 	s.router.Use(rl.Middleware)
@@ -71,11 +79,12 @@ func (s *Server) setupMiddleware() {
 func (s *Server) setupRoutes() {
 	s.router.Get("/health", s.handleHealth)
 	s.router.Get("/ready", s.handleReady)
+	s.router.Handle("/metrics", promhttp.Handler())
 
 	s.router.Route("/api/v1", func(r chi.Router) {
 		// Auth module
 		authRepo := auth.NewRepository(s.queries)
-		authSvc := auth.NewService(authRepo, s.jwtMgr)
+		authSvc := auth.NewService(authRepo, s.jwtMgr).WithLDAP(s.ldapCfg)
 		authHandler := auth.NewHandler(authSvc)
 		auth.RegisterRoutes(r, authHandler, s.jwtMgr)
 
@@ -165,6 +174,10 @@ func (s *Server) setupRoutes() {
 		// PDF Case Report (P2-1)
 		reportHandler := report.NewHandler(s.queries, s.aiServiceURL, s.logger)
 		report.RegisterRoutes(r, reportHandler, s.jwtMgr)
+
+		// Dynamic config (industry labels)
+		configHandler := config.NewHandler(s.sqlDB)
+		config.RegisterRoutes(r, configHandler, s.jwtMgr)
 	})
 }
 

@@ -107,4 +107,58 @@ describe("DocumentCard", () => {
     render(<DocumentCard document={makeDoc()} />);
     expect(screen.getByText(/Alice Smith/)).toBeInTheDocument();
   });
+
+  // ── Phase 2: retry button ──────────────────────────────────────────────────
+
+  it("shows Retry button when processing_status is failed and onRetry is provided", () => {
+    const onRetry = vi.fn();
+    render(
+      <DocumentCard
+        document={makeDoc({ processing_status: "failed" })}
+        onRetry={onRetry}
+      />,
+    );
+    expect(screen.getByText("Retry")).toBeInTheDocument();
+  });
+
+  it("does not show Retry button when processing_status is completed", () => {
+    const onRetry = vi.fn();
+    render(
+      <DocumentCard
+        document={makeDoc({ processing_status: "completed" })}
+        onRetry={onRetry}
+      />,
+    );
+    expect(screen.queryByText("Retry")).not.toBeInTheDocument();
+  });
+
+  it("does not show Retry button when onRetry is not provided even if failed", () => {
+    render(<DocumentCard document={makeDoc({ processing_status: "failed" })} />);
+    expect(screen.queryByText("Retry")).not.toBeInTheDocument();
+  });
+
+  it("calls onRetry with document id when Retry is clicked", () => {
+    const onRetry = vi.fn();
+    render(
+      <DocumentCard
+        document={makeDoc({ processing_status: "failed" })}
+        onRetry={onRetry}
+      />,
+    );
+    fireEvent.click(screen.getByText("Retry"));
+    expect(onRetry).toHaveBeenCalledWith("doc-001");
+  });
+
+  it("shows Retrying… text and disables button when retrying is true", () => {
+    const onRetry = vi.fn();
+    render(
+      <DocumentCard
+        document={makeDoc({ processing_status: "failed" })}
+        onRetry={onRetry}
+        retrying
+      />,
+    );
+    const btn = screen.getByText("Retrying…");
+    expect(btn).toBeDisabled();
+  });
 });

@@ -1,5 +1,8 @@
 name: opsowl
 
+# Load secrets from root .env — never hardcode credentials here
+# Copy .env.example → .env and fill in before running
+
 services:
   # ── Database ────────────────────────────────────────────────────────────────
   postgres:
@@ -9,13 +12,13 @@ services:
     ports:
       - "5433:5432"
     environment:
-      POSTGRES_DB: opsowl
-      POSTGRES_USER: opsowl
-      POSTGRES_PASSWORD: opsowldev
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opsowl -d opsowl"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -26,11 +29,11 @@ services:
     container_name: opsowl-minio
     restart: unless-stopped
     ports:
-      - "9000:9000"   # S3 API
-      - "9001:9001"   # Console UI
+      - "9000:9000"
+      - "9001:9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin123
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -48,17 +51,41 @@ services:
     container_name: opsowl-api
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "8080:8080"   # direct access for dev/debugging; nginx is primary in prod
     environment:
-      ENVIRONMENT: development
-      DATABASE_URL: postgres://opsowl:opsowldev@postgres:5432/opsowl?sslmode=disable
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
       PORT: "8080"
       STORAGE_ENDPOINT: minio:9000
-      STORAGE_ACCESS_KEY: minioadmin
-      STORAGE_SECRET_KEY: minioadmin123
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
       STORAGE_BUCKET: opsowl
       STORAGE_USE_SSL: "false"
       AI_SERVICE_URL: http://ai-service:8000
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LDAP_URL: ${LDAP_URL:-}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
+      LDAP_USER_ATTR: ${LDAP_USER_ATTR:-sAMAccountName}
+      LDAP_BIND_DN: ${LDAP_BIND_DN:-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://localhost}
+      # Workspace terminology — each client sets these in their .env
+      INDUSTRY: ${INDUSTRY:-financial_services}
+      CASE_LABEL: ${CASE_LABEL:-Case}
+      CASES_LABEL: ${CASES_LABEL:-Cases}
+      TASK_LABEL: ${TASK_LABEL:-Task}
+      TASKS_LABEL: ${TASKS_LABEL:-Tasks}
+      DOCUMENT_LABEL: ${DOCUMENT_LABEL:-Document}
+      DOCUMENTS_LABEL: ${DOCUMENTS_LABEL:-Documents}
+      RISK_SCORE_LABEL: ${RISK_SCORE_LABEL:-Risk Score}
+      RISK_LEVEL_LABEL: ${RISK_LEVEL_LABEL:-Risk Level}
+      SLA_LABEL: ${SLA_LABEL:-SLA}
+      COMMS_LABEL: ${COMMS_LABEL:-Communications}
+      ANALYST_LABEL: ${ANALYST_LABEL:-Analyst}
+      TIMELINE_LABEL: ${TIMELINE_LABEL:-Timeline}
+      NOTE_LABEL: ${NOTE_LABEL:-Note}
+      NOTES_LABEL: ${NOTES_LABEL:-Notes}
     volumes:
       - ../../apps/api/keys:/app/keys:ro
     depends_on:
@@ -79,14 +106,14 @@ services:
       dockerfile: Dockerfile
     container_name: opsowl-ai
     restart: unless-stopped
-    ports:
-      - "8000:8000"
+    expose:
+      - "8000"
     environment:
-      ENVIRONMENT: development
-      DATABASE_URL: postgres://opsowl:opsowldev@postgres:5432/opsowl
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       GO_API_URL: http://api:8080
-    env_file:
-      - ../../apps/ai-service/.env
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,13 +131,79 @@ services:
     container_name: opsowl-web
     restart: unless-stopped
     ports:
-      - "3001:3000"
+      - "3001:3000"   # direct access for dev/debugging; nginx is primary in prod
     environment:
-      NEXT_PUBLIC_API_URL: http://localhost:8080
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+
+  # ── Nginx (TLS termination + reverse proxy) ──────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: opsowl-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ── Prometheus ───────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: opsowl-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
     depends_on:
       api:
         condition: service_healthy
 
+  # ── Grafana ──────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: opsowl-grafana
+    restart: unless-stopped
+    ports:
+      - "3003:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD:-opsowl-grafana}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+
 volumes:
   postgres_data:
   minio_data:
+  prometheus_data:
+  grafana_data:

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { api } from "@/lib/api";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
@@ -63,6 +64,7 @@ function SkeletonRow() {
 function CasesContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const cfg = useConfig();
 
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [priority, setPriority] = useState(searchParams.get("priority") ?? "");
@@ -113,9 +115,9 @@ function CasesContent() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-white text-2xl font-bold">Cases</h1>
+          <h1 className="text-white text-2xl font-bold">{cfg.cases_label}</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {search ? `${filtered.length} of ${total}` : `${total}`} case{total !== 1 ? "s" : ""}
+            {search ? `${filtered.length} of ${total}` : `${total}`} {total !== 1 ? cfg.cases_label.toLowerCase() : cfg.case_label.toLowerCase()}
             {search && <span className="text-slate-500"> matching &ldquo;{search}&rdquo;</span>}
           </p>
         </div>
@@ -123,7 +125,7 @@ function CasesContent() {
           href="/cases/new"
           className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
         >
-          + New Case
+          + New {cfg.case_label}
         </Link>
       </div>
 
@@ -136,7 +138,7 @@ function CasesContent() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search cases, tags, assignee…"
+            placeholder={`Search ${cfg.cases_label.toLowerCase()}, tags, assignee…`}
             className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-3 py-2 w-64 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
           />
           {search && (

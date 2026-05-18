@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { TaskCard, Task } from "@/components/tasks/TaskCard";
 
 interface ListMeta {
@@ -64,6 +65,7 @@ export default function MyTasksPage() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const cfg = useConfig();
 
   const { data, isLoading, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
     queryKey: ["my-tasks"],
@@ -109,7 +111,7 @@ export default function MyTasksPage() {
       {/* Header with progress summary */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-bold">My Tasks</h1>
+          <h1 className="text-white text-xl font-bold">My {cfg.tasks_label}</h1>
           <p className="text-slate-500 text-sm mt-1">
             {active} active · {done} completed · {tasks.length} total
             {overdue > 0 && <span className="text-red-400 ml-2">· {overdue} overdue</span>}

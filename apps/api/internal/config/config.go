@@ -25,6 +25,13 @@ type Config struct {
 	AIServiceURL    string
 	AnthropicAPIKey string
 	OpenAIAPIKey    string
+
+	// LDAP / Active Directory (all optional — empty URL disables LDAP)
+	LDAPUrl          string
+	LDAPBaseDN       string
+	LDAPUserAttr     string
+	LDAPBindDN       string
+	LDAPBindPassword string
 }
 
 func Load() (*Config, error) {
@@ -49,6 +56,11 @@ func Load() (*Config, error) {
 		AIServiceURL:      getEnv("AI_SERVICE_URL", "http://localhost:8000"),
 		AnthropicAPIKey:   getEnv("ANTHROPIC_API_KEY", ""),
 		OpenAIAPIKey:      getEnv("OPENAI_API_KEY", ""),
+		LDAPUrl:           getEnv("LDAP_URL", ""),
+		LDAPBaseDN:        getEnv("LDAP_BASE_DN", ""),
+		LDAPUserAttr:      getEnv("LDAP_USER_ATTR", "sAMAccountName"),
+		LDAPBindDN:        getEnv("LDAP_BIND_DN", ""),
+		LDAPBindPassword:  getEnv("LDAP_BIND_PASSWORD", ""),
 	}, nil
 }
 

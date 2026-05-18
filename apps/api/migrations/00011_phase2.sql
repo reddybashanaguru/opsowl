@@ -1,5 +1,7 @@
 -- Phase 2 migrations
 
+-- +goose Up
+
 -- P2-6: Document category + retry tracking
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS doc_category TEXT;
 ALTER TABLE documents ADD COLUMN IF NOT EXISTS retry_count INT NOT NULL DEFAULT 0;

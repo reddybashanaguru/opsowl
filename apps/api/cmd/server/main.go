@@ -64,7 +64,18 @@ func main() {
 	}
 	logger.Info("storage client initialized")
 
-	srv := server.New(logger, jwtMgr, queries, minioClient, cfg.AIServiceURL)
+	ldapCfg := &auth.LDAPConfig{
+		URL:          cfg.LDAPUrl,
+		BaseDN:       cfg.LDAPBaseDN,
+		UserAttr:     cfg.LDAPUserAttr,
+		BindDN:       cfg.LDAPBindDN,
+		BindPassword: cfg.LDAPBindPassword,
+	}
+	if ldapCfg.Enabled() {
+		logger.Info("LDAP authentication enabled", zap.String("url", cfg.LDAPUrl))
+	}
+
+	srv := server.New(logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

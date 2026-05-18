@@ -31,7 +31,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
         const params = new URLSearchParams({ limit: "20" });
         if (pageParam) params.set("cursor", pageParam as string);
         if (statusFilter) params.set("status", statusFilter);
-        const res = await api.get<{ data: AILog[]; meta: ListMeta }>(`/api/v1/cases/${id}/ai/logs?${params}`);
+        const res = await api.getList<AILog, ListMeta>(`/api/v1/cases/${id}/ai/logs?${params}`);
         return res;
       },
       initialPageParam: null as string | null,

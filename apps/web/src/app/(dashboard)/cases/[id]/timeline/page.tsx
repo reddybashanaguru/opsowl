@@ -4,6 +4,7 @@ import { use, useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useConfig } from "@/lib/hooks/useConfig";
 import { useTimelineSSE, type TimelineEvent } from "@/lib/hooks/useTimelineSSE";
 import { TimelineEventCard } from "@/components/cases/TimelineEventCard";
 import { api } from "@/lib/api";
@@ -47,6 +48,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
   const { id } = use(params);
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
+  const cfg = useConfig();
 
   const [selectedSources, setSelectedSources] = useState<Set<Source>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
@@ -143,7 +145,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
             onClick={() => router.push(`/cases/${id}`)}
             className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
           >
-            ← Case
+            ← {cfg.case_label}
           </button>
           <div>
             <h1 className="text-white font-semibold text-lg">Timeline</h1>

@@ -1,9 +1,12 @@
 -- Feature 11: Full-text search via PostgreSQL tsvector
 -- Adds search_vector columns with trigger-based maintenance + GIN indexes
 
+-- +goose Up
+
 -- ─── Cases ────────────────────────────────────────────────────────────────────
 ALTER TABLE cases ADD COLUMN search_vector tsvector;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_cases_search() RETURNS trigger AS $$
 BEGIN
   NEW.search_vector :=
@@ -14,6 +17,7 @@ BEGIN
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER cases_search_vector_update
   BEFORE INSERT OR UPDATE ON cases
@@ -30,6 +34,7 @@ CREATE INDEX idx_cases_search ON cases USING GIN (search_vector) WHERE deleted_a
 -- ─── Notes ────────────────────────────────────────────────────────────────────
 ALTER TABLE notes ADD COLUMN search_vector tsvector;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_notes_search() RETURNS trigger AS $$
 BEGIN
   NEW.search_vector :=
@@ -38,6 +43,7 @@ BEGIN
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER notes_search_vector_update
   BEFORE INSERT OR UPDATE ON notes
@@ -52,6 +58,7 @@ CREATE INDEX idx_notes_search ON notes USING GIN (search_vector) WHERE deleted_a
 -- ─── Tasks ────────────────────────────────────────────────────────────────────
 ALTER TABLE tasks ADD COLUMN search_vector tsvector;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_tasks_search() RETURNS trigger AS $$
 BEGIN
   NEW.search_vector :=
@@ -60,6 +67,7 @@ BEGIN
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER tasks_search_vector_update
   BEFORE INSERT OR UPDATE ON tasks
@@ -74,6 +82,7 @@ CREATE INDEX idx_tasks_search ON tasks USING GIN (search_vector) WHERE deleted_a
 -- ─── Documents ────────────────────────────────────────────────────────────────
 ALTER TABLE documents ADD COLUMN search_vector tsvector;
 
+-- +goose StatementBegin
 CREATE OR REPLACE FUNCTION update_documents_search() RETURNS trigger AS $$
 BEGIN
   -- Replace underscores, hyphens, dots with spaces so "invoice_2024.pdf" hits "invoice"
@@ -84,6 +93,7 @@ BEGIN
   RETURN NEW;
 END
 $$ LANGUAGE plpgsql;
+-- +goose StatementEnd
 
 CREATE TRIGGER documents_search_vector_update
   BEFORE INSERT OR UPDATE ON documents
