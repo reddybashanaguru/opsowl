@@ -32,6 +32,9 @@ apps/ai-service/venv/
 # (docker-compose.yml is committed, but override files are local)
 infra/docker/docker-compose.override.yml
 
+# ── Claude Code ───────────────────────────────────────────────────────────────
+.claude/
+
 # ── IDE ───────────────────────────────────────────────────────────────────────
 .idea/
 .vscode/
