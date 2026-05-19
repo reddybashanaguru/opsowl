@@ -172,6 +172,10 @@ Do NOT build these regardless of how good they sound:
 | P3-5 | **Prometheus + Grafana Observability** | Ops teams need to see request rates, latencies, and errors without SSH-ing into the box | ✅ Done (2026-05-18) |
 | P3-6 | **Backup / Restore Runbook** | Data loss = contract termination. RPO 24h, RTO 30 min must be documented and automated. | ✅ Done (2026-05-18) |
 | P3-7 | **Ollama Local LLM Support** | Fully air-gapped deployment — zero data leaves the network | ⏳ Deferred (on demand from client) |
+| P3-8 | **Inbound Webhook Receiver** | External systems (CBS, monitoring tools) push events that auto-create cases | ✅ Done (2026-05-19) |
+| P3-9 | **Audit Goroutine → Worker Pool** | Unbounded goroutines under load silently dropped audit entries | ✅ Done (2026-05-19) |
+| P3-10 | **SSE Timeout Fix** | Global 30s Chi timeout killed SSE streams — real-time updates broken | ✅ Done (2026-05-19) |
+| P3-11 | **Password Complexity Enforcement** | ChangePassword only checked length; now enforces uppercase+lowercase+digit+special | ✅ Done (2026-05-19) |
 
 ---
 
@@ -563,6 +567,21 @@ opsowl-grafana      running   3003:3000
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ P3-8 through P3-11 — Enterprise Hardening Round 2 (2026-05-19)
+
+**P3-8: Inbound Webhook Receiver**
+Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMAC-SHA256 authenticated (no JWT), idempotency key deduplication. Admin CRUD for `inbound_sources` (name, slug, auto-generated signing secret, regenerate-secret endpoint). Rule engine: `inbound_rules` table with `event_type_pattern` (exact or wildcard `*` suffix), `sort_order`, `case_priority`, `title_template`, `description_template`, `auto_assign_user_id`. Template variables: `{{event_type}}`, `{{source_name}}`, `{{payload.field}}`, `{{payload}}`. 2 background worker goroutines + 512-entry channel queue for async case creation. Frontend admin page at `/settings/inbound` with source/rule management and live event log. Migration `00015_inbound.sql`. Sidebar: "Inbound" link added under Administration.
+**Key decisions:** HMAC uses `crypto/subtle.ConstantTimeCompare` (prevents timing attacks). Idempotency uses `ON CONFLICT DO NOTHING RETURNING id` — if no row returned, event is a duplicate. System-created cases are attributed to the source creator; falls back to any active super_admin.
+
+**P3-9: Audit Worker Pool**
+`middleware/audit.go`: replaced unbounded `go func()` per request with 4 fixed worker goroutines draining a 2048-entry buffered channel. Non-blocking send with explicit `logger.Warn` on channel full — no silent drops.
+
+**P3-10: SSE Timeout Fix**
+`server.go`: added `sseAwareTimeout()` wrapper that skips `chimw.Timeout(30s)` for any path ending in `/stream`. Replaces the previous global timeout that killed SSE connections every 30 seconds.
+
+**P3-11: Password Complexity**
+`auth/handler.go`: `validatePasswordComplexity()` added — enforces uppercase, lowercase, digit, and special character (in addition to min 8 chars). Applied to `ChangePassword` endpoint. User creation retains existing validation in `users/service.go`.
 
 ### ✅ P3-6 — Backup / Restore Runbook (2026-05-18)
 **Built:** `infra/scripts/backup.sh` — reads `.env` automatically, `pg_dump --format=custom` via `docker exec`, `mc mirror` for MinIO documents, compresses both into `opsowl_YYYYMMDD_HHMMSS.tar.gz`, deletes archives older than `RETAIN_DAYS` (default 30). `infra/scripts/restore.sh` — prompts "yes" confirmation, stops API/AI containers, drops + recreates DB via `pg_restore`, mirrors documents back to MinIO, restarts services. `docs/BACKUP_RUNBOOK.md` — RPO 24h, RTO 15–30 min, cron line for 2am daily backup, manual steps, verify steps, incident response checklist.
