@@ -3,13 +3,49 @@ package auth
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
+
+// validatePasswordComplexity enforces enterprise password policy:
+// min 8 chars, at least one uppercase, one lowercase, one digit, one special char.
+func validatePasswordComplexity(pw string) error {
+	if len(pw) < 8 {
+		return fmt.Errorf("password must be at least 8 characters")
+	}
+	var hasUpper, hasLower, hasDigit, hasSpecial bool
+	for _, c := range pw {
+		switch {
+		case unicode.IsUpper(c):
+			hasUpper = true
+		case unicode.IsLower(c):
+			hasLower = true
+		case unicode.IsDigit(c):
+			hasDigit = true
+		case unicode.IsPunct(c) || unicode.IsSymbol(c):
+			hasSpecial = true
+		}
+	}
+	if !hasUpper {
+		return fmt.Errorf("password must contain at least one uppercase letter")
+	}
+	if !hasLower {
+		return fmt.Errorf("password must contain at least one lowercase letter")
+	}
+	if !hasDigit {
+		return fmt.Errorf("password must contain at least one digit")
+	}
+	if !hasSpecial {
+		return fmt.Errorf("password must contain at least one special character")
+	}
+	return nil
+}
 
 type Handler struct {
 	svc *Service
@@ -172,8 +208,8 @@ func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
 		return
 	}
-	if len(req.NewPassword) < 8 {
-		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", "new password must be at least 8 characters")
+	if err := validatePasswordComplexity(req.NewPassword); err != nil {
+		response.Err(w, http.StatusBadRequest, "WEAK_PASSWORD", err.Error())
 		return
 	}
 

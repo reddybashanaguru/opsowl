@@ -68,10 +68,32 @@ func isSensitiveRead(path string) bool {
 	return false
 }
 
+type auditJob struct {
+	params db.CreateAuditLogParams
+}
+
 // AuditLog writes a row to audit_logs for every mutating request AND every
 // GET on sensitive resources (cases, documents, notes, AI logs, audit viewer).
 // This satisfies RBI Cybersecurity Framework requirements for access logging.
+//
+// Uses a fixed-size worker pool (4 goroutines, 2048-entry buffer) instead of
+// spawning a new goroutine per request — prevents goroutine explosion under
+// load and ensures the audit trail survives traffic spikes.
 func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger) func(http.Handler) http.Handler {
+	ch := make(chan auditJob, 2048)
+
+	for i := 0; i < 4; i++ {
+		go func() {
+			for job := range ch {
+				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := q.CreateAuditLog(ctx, job.params); err != nil {
+					logger.Warn("audit log write failed", zap.Error(err))
+				}
+				cancel()
+			}
+		}()
+	}
+
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
@@ -85,7 +107,7 @@ func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger) func(h
 				return
 			}
 
-			// For GET/HEAD: only audit access to sensitive data paths.
+			// For GET: only audit access to sensitive data paths.
 			if r.Method == http.MethodGet && !isSensitiveRead(r.URL.Path) {
 				return
 			}
@@ -114,19 +136,23 @@ func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger) func(h
 				"request_id": r.Header.Get("X-Request-Id"),
 			})
 
-			go func() {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				defer cancel()
-				if err := q.CreateAuditLog(ctx, db.CreateAuditLogParams{
-					EventCode: eventCode,
-					ActorID:   actorID,
-					IpAddress: sql.NullString{String: r.RemoteAddr, Valid: r.RemoteAddr != ""},
-					Metadata:  json.RawMessage(meta),
-					Severity:  severity,
-				}); err != nil {
-					logger.Warn("audit log write failed", zap.Error(err))
-				}
-			}()
+			job := auditJob{params: db.CreateAuditLogParams{
+				EventCode: eventCode,
+				ActorID:   actorID,
+				IpAddress: sql.NullString{String: r.RemoteAddr, Valid: r.RemoteAddr != ""},
+				Metadata:  json.RawMessage(meta),
+				Severity:  severity,
+			}}
+
+			// Non-blocking send — the channel buffer absorbs bursts.
+			// Warn (never silently drop) when the buffer is exhausted.
+			select {
+			case ch <- job:
+			default:
+				logger.Warn("audit log channel full — entry dropped",
+					zap.String("event_code", eventCode),
+					zap.String("path", r.URL.Path))
+			}
 		})
 	}
 }

@@ -29,6 +29,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const adminNav = [
     { label: "Users", href: "/users", icon: "◎" },
     { label: "Audit Logs", href: "/audit", icon: "◈" },
+    { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
     { label: "Settings", href: "/settings", icon: "⚙" },
   ];
 

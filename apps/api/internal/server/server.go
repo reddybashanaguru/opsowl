@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -21,6 +22,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/config"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/documents"
+	"github.com/reddybashanaguru/opsowl/internal/inbound"
 	"github.com/reddybashanaguru/opsowl/internal/insights"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/notes"
@@ -62,6 +64,22 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 	return s
 }
 
+// sseAwareTimeout applies a 30-second request timeout to all routes EXCEPT
+// SSE stream endpoints. SSE connections are long-lived by design; a 30-second
+// global timeout would silently kill them and break real-time updates.
+func sseAwareTimeout(d time.Duration) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		withTimeout := chimw.Timeout(d)(next)
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/stream") {
+				next.ServeHTTP(w, r)
+				return
+			}
+			withTimeout.ServeHTTP(w, r)
+		})
+	}
+}
+
 func (s *Server) setupMiddleware() {
 	rl := middleware.NewRateLimiter(100, s.jwtMgr)
 
@@ -73,7 +91,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.CORS)
 	s.router.Use(middleware.Metrics)
 	s.router.Use(chimw.Compress(5))
-	s.router.Use(chimw.Timeout(30 * time.Second))
+	s.router.Use(sseAwareTimeout(30 * time.Second))
 	s.router.Use(rl.Middleware)
 	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger))
 }
@@ -180,6 +198,11 @@ func (s *Server) setupRoutes() {
 		// Dynamic config (industry labels)
 		configHandler := config.NewHandler(s.sqlDB)
 		config.RegisterRoutes(r, configHandler, s.jwtMgr)
+
+		// Inbound webhook receiver
+		inboundSvc := inbound.NewService(s.sqlDB, casesSvc, s.logger)
+		inboundHandler := inbound.NewHandler(inboundSvc)
+		inbound.RegisterRoutes(r, inboundHandler, s.jwtMgr)
 	})
 }
 
