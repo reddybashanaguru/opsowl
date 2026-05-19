@@ -15,9 +15,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, accessToken, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-  // Always start as true so server and client initial renders both show the spinner.
-  // After mount, the effect immediately clears it if a token is already in session.
-  const [checking, setChecking] = useState(true);
+  const [checking, setChecking] = useState(!accessToken);
 
   useEffect(() => {
     if (accessToken) {

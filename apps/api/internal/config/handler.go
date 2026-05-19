@@ -117,13 +117,24 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 	raw, _ := json.Marshal(incoming)
 
-	_, err := h.db.ExecContext(r.Context(),
+	result, err := h.db.ExecContext(r.Context(),
 		`UPDATE system_config SET config = $1, updated_at = NOW(), updated_by = $2`,
 		raw, claims.UserID,
 	)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save config")
 		return
+	}
+
+	if n, _ := result.RowsAffected(); n == 0 {
+		_, err = h.db.ExecContext(r.Context(),
+			`INSERT INTO system_config (config, updated_at, updated_by) VALUES ($1, NOW(), $2)`,
+			raw, claims.UserID,
+		)
+		if err != nil {
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to save config")
+			return
+		}
 	}
 
 	response.JSON(w, http.StatusOK, incoming)
