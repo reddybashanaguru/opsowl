@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useConfig } from "@/lib/hooks/useConfig";
+import { useEffect, useRef, useState } from "react";
 import { useConfigStore, DEFAULT_CONFIG, type AppConfig } from "@/lib/stores/config.store";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -262,10 +261,25 @@ function MFASection() {
 }
 
 export default function SettingsPage() {
-  const current = useConfig();
-  const { setConfig, fetch: refreshConfig } = useConfigStore();
+  const { config, loaded, setConfig, fetch: refreshConfig } = useConfigStore();
 
-  const [form, setForm] = useState<AppConfig>(current);
+  const [form, setForm] = useState<AppConfig>(config);
+  const syncedRef = useRef(loaded);
+
+  // Trigger initial fetch if not yet loaded
+  useEffect(() => {
+    if (!loaded) refreshConfig();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sync form once when config first loads (handles the case where
+  // the store was empty at mount time)
+  useEffect(() => {
+    if (loaded && !syncedRef.current) {
+      syncedRef.current = true;
+      setForm(config);
+    }
+  }, [loaded, config]);
+
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);

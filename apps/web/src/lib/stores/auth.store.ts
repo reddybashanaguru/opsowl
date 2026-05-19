@@ -38,11 +38,19 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       return null;
     }
   })(),
-  accessToken: null,
+  accessToken: (() => {
+    if (typeof window === "undefined") return null;
+    try {
+      return sessionStorage.getItem("opsowl_token") ?? null;
+    } catch {
+      return null;
+    }
+  })(),
 
   setAuth: (user, accessToken) => {
     if (typeof window !== "undefined") {
       sessionStorage.setItem("opsowl_user", JSON.stringify(user));
+      sessionStorage.setItem("opsowl_token", accessToken);
     }
     set({ user, accessToken });
   },
@@ -50,6 +58,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   clearAuth: () => {
     if (typeof window !== "undefined") {
       sessionStorage.removeItem("opsowl_user");
+      sessionStorage.removeItem("opsowl_token");
     }
     set({ user: null, accessToken: null });
   },
