@@ -335,6 +335,8 @@ function CasesContent() {
         api.getList<CaseRow, ListMeta>(`/api/v1/cases?${buildParams(pageParam as string | undefined)}`),
       initialPageParam: undefined,
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
+      refetchOnWindowFocus: true,
+      staleTime: 30_000,
     });
 
   const allCases = useMemo(() => {

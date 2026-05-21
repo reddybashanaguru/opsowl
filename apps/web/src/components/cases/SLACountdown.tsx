@@ -24,8 +24,14 @@ export function SLACountdown({ breachAt, breached }: Props) {
     const target = new Date(breachAt).getTime();
     const tick = () => setRemaining(target - Date.now());
     tick();
-    const id = setInterval(tick, 60000);
-    return () => clearInterval(id);
+    const id = setInterval(tick, 30000);
+    // Re-sync immediately when the tab regains focus to correct any drift
+    const onVisible = () => { if (!document.hidden) tick(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [breachAt]);
 
   if (!breachAt) return <span className="text-slate-500 text-xs">No SLA</span>;
