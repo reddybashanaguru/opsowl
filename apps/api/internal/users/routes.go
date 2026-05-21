@@ -17,11 +17,13 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		// any authenticated user can view a specific user
 		r.Get("/users/{id}", h.GetByID)
 
-		// admin+ can create/delete
+		// admin+ can create/delete/unlock
 		r.With(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin)).
 			Post("/users", h.Create)
 		r.With(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin)).
 			Delete("/users/{id}", h.Delete)
+		r.With(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin)).
+			Post("/users/{id}/unlock", h.Unlock)
 
 		// self or admin+ can update
 		r.Put("/users/{id}", h.Update)

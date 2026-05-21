@@ -14,5 +14,6 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.Get("/audit", h.List)
 		r.Get("/audit/export", h.ExportCSV)
 		r.Get("/audit/stats", h.Stats)
+		r.Get("/audit/verify", h.Verify)
 	})
 }

@@ -551,22 +551,59 @@ opsowl-grafana      running   3003:3000
 | `infra/docker/nginx/ssl/` | Self-signed dev cert — replace with CA-signed cert for production | High (before client demo) |
 
 ### Phase 4 — When First Client Signs
-| Item | What |
-|------|------|
-| E2E tests (Playwright) | Golden paths: login, create case, upload doc, AI copilot, export PDF |
-| Ollama integration | Add `Provider.OLLAMA` to LLMRouter, nomic-embed-text for embeddings |
-| Multi-tenant isolation | `organization_id` is hardcoded to a sentinel UUID — real isolation needed per client |
-| UUIDv7 cursor fix | Replace cursor pagination UUIDs with time-ordered UUIDv7 |
-| ClamAV antivirus | Uncomment stub, add `clamav` container to docker-compose |
-| CA-signed TLS cert | Replace self-signed dev cert via Let's Encrypt / client's internal CA |
-| Rate limiting per-tenant | Current bucket is global — needs per-org limits |
-| River job monitoring | Add River UI dashboard for background job visibility |
+| Item | What | Status |
+|------|------|--------|
+| E2E tests (Playwright) | Golden paths: login, create case, upload doc, AI copilot, export PDF, API keys, bulk ops | Pending |
+| Ollama integration | Add `Provider.OLLAMA` to LLMRouter, nomic-embed-text for embeddings | Deferred |
+| Multi-tenant isolation | `organization_id` is hardcoded to a sentinel UUID — real isolation needed per client | Pending |
+| UUIDv7 cursor fix | Replace cursor pagination UUIDs with time-ordered UUIDv7 | Pending |
+| ClamAV antivirus | Uncomment stub, add `clamav` container to docker-compose | Pending |
+| CA-signed TLS cert | Replace self-signed dev cert via Let's Encrypt / client's internal CA | Pending |
+| Rate limiting per-tenant | Current bucket is global — needs per-org limits | Pending |
+| River job monitoring | Add River UI dashboard for background job visibility | Pending |
+| Frontend UI for new features | Account lockout admin, API key management page, assignment rules CRUD, bulk ops UI, retention policy admin, audit chain verify | Pending |
 
 ---
 
 ## Completed Features Log
 
 <!-- Append here after each feature completes -->
+
+### ✅ Phase 4 — Production Security Hardening (2026-05-21)
+
+Implemented 13 production-readiness gaps required before on-premise enterprise deployment.
+
+**Gap 1: Hash-Chain Audit Log** — `internal/auditchain/chain.go` — SHA-256(seq_num ∥ event_code ∥ actor_id ∥ severity ∥ metadata ∥ prev_hash) tamper-evident chain. Neutral `auditchain` package breaks the `auth↔audit` import cycle. `GET /api/v1/audit/verify` verifies chain integrity. Migration `00014_audit_chain.sql` (incremental dir: 00017).
+
+**Gap 2: Column-Level Encryption (AES-256-GCM)** — `internal/crypto/encrypt.go` — ENCRYPTION_KEY env var (base64 or raw 32B). pgcrypto extension enabled. Encrypted columns on cases, notes, communication_logs. Migration `00013_encryption.sql` (incremental dir: 00016). MinIO SSE via `MINIO_KMS_SECRET_KEY`.
+
+**Gap 3: Production Secrets Validation** — `internal/config/config.go` — `validateProductionSecrets()` fails startup in `ENVIRONMENT=production` if any of 8 known-weak secrets are detected. ENCRYPTION_KEY required in production.
+
+**Gap 4: SIEM Integration** — `internal/siem/forwarder.go` — non-blocking webhook forwarder with 512-entry buffer. JSON format (`@version`, `@type`, `@timestamp`) and CEF format (`CEF:0|OpsOwl|...`). ArcSight/QRadar/Splunk compatible. Configured via `SIEM_WEBHOOK_URL` + `SIEM_FORMAT` env vars.
+
+**Gap 5: Progressive Account Lockout** — `internal/auth/service.go` — `maxFailedAttempts=5`, `baseLockoutMins=30`, doubles each lockout, capped at 24h. `handleFailedAttempt()` async. `POST /api/v1/users/{id}/unlock` admin endpoint. Migration `00015_account_lockout.sql` (incremental dir: 00018).
+
+**Gap 6: Email Delivery via SMTP** — `internal/mail/sender.go` — TLS-capable SMTP sender. No-op when not configured. Wired into notifications service via `WithMailer()`. Supports STARTTLS and direct TLS. Configured via `SMTP_*` env vars.
+
+**Gap 7: Password Policy Enforcement** — `internal/auth/policy.go` — `PasswordPolicy{MinLength, ExpiryDays, HistoryCount, RequireUpper, RequireNumber}`. Wired into `ChangePassword()`. Password history checked via `GetPasswordHistory` query. `UpdatePasswordChangedAt` records expiry. Migration `00016_password_policy.sql` (incremental dir: 00019).
+
+**Gap 8: Concurrent Session Limits** — `internal/auth/repository.go` — `EnforceSessionLimit()` counts active sessions and revokes oldest via `RevokeOldestSessions`. Enforced on all 3 login paths. Configurable via `MAX_SESSIONS_PER_USER` env var (default 5). Migration `00017_session_limits.sql` (incremental dir: 00020).
+
+**Gap 9: Data Retention (DPDP Act 2023)** — `internal/retention/purge.go` — daily purge scheduler. Explicit table whitelist (prevents SQL injection via resource_type). Default policies: audit_logs 730d (no purge), cases 2555d (no purge), notifications 90d (purge), sessions 30d (purge). Admin endpoint `GET /api/v1/retention/policies`. Migration `00018_data_retention.sql` (incremental dir: 00021).
+
+**Gap 10: Case Assignment Rules Engine** — `internal/assignment/engine.go` — rule CRUD API (admin only). Engine evaluates active rules by priority_order, supports direct user assignment and role-based (least-loaded user). Auto-wired into case creation when no assignee specified. Migration `00019_assignment_rules.sql` (incremental dir: 00022).
+
+**Gap 11: Bulk Case Operations** — `cases/handler.go` — `POST /api/v1/cases/bulk/status` (manager+), `POST /api/v1/cases/bulk/assign` (manager+), `POST /api/v1/cases/bulk/delete` (admin+). 100-case cap per operation. Returns `{updated, failed}` counts.
+
+**Gap 12: API Key Management** — `internal/apikeys/handler.go` + `routes.go` — SHA-256 hashed keys, `opsowl_` prefix, scopes array, shown once on creation. `X-API-Key` middleware wired as global middleware (before JWT validation). Admin `GET/POST/DELETE /api/v1/api-keys`. Migration `00020_api_keys.sql` (incremental dir: 00023).
+
+**Gap 13: Regulatory Report Templates (STR/SAR/CTR)** — `internal/report/regulatory.go` — `GET /api/v1/regulatory/templates` returns FIU-IND/FinCEN template specs with required fields and deadlines. `POST /api/v1/cases/{id}/regulatory-report` generates structured JSON report with filing entity, subject details, transactions, narrative, evidence attachments.
+
+**Key architectural decisions:**
+- `auditchain` package is dependency-neutral — breaks `auth↔audit` import cycle. Both auth and audit import auditchain, neither imports the other.
+- `cases.AssignmentEngine` interface avoids direct `assignment` import in `cases` package. `assignEngineAdapter` in server.go bridges the two.
+- All 8 new migrations synced to `apps/api/db/migrations/incremental/` (numbered 00016–00023) for test database compatibility.
+- `ValidateKey` uses `context.Context` directly (no shim). API key middleware sets `Claims` with `analyst` role as default least-privilege for API callers.
 
 ### ✅ P3-8 through P3-11 — Enterprise Hardening Round 2 (2026-05-19)
 

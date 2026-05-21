@@ -9,14 +9,21 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/google/uuid"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
+	"github.com/reddybashanaguru/opsowl/internal/apikeys"
+	"github.com/reddybashanaguru/opsowl/internal/assignment"
 	"github.com/reddybashanaguru/opsowl/internal/audit"
+	"github.com/reddybashanaguru/opsowl/internal/auditchain"
 	"github.com/reddybashanaguru/opsowl/internal/report"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
+	"github.com/reddybashanaguru/opsowl/internal/mail"
+	"github.com/reddybashanaguru/opsowl/internal/retention"
+	"github.com/reddybashanaguru/opsowl/internal/siem"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	"github.com/reddybashanaguru/opsowl/internal/comms"
 	"github.com/reddybashanaguru/opsowl/internal/config"
@@ -45,9 +52,20 @@ type Server struct {
 	store        storage.Client
 	aiServiceURL string
 	ldapCfg      *auth.LDAPConfig
+	siemFwd      *siem.Forwarder
+	chain        *auditchain.ChainWriter
+	mailer       *mail.Sender
+	maxSessions  int
+	pwdPolicy    auth.PasswordPolicy
 }
 
-func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig) *Server {
+func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig, siemURL, siemFmt string, mailCfg mail.Config, maxSessions int, pwdPolicy auth.PasswordPolicy) *Server {
+	siemFwd := siem.New(siemURL, siemFmt, logger)
+	chain := auditchain.NewChainWriter(ctx, queries, logger).WithSIEM(siemFwd)
+
+	if maxSessions <= 0 {
+		maxSessions = 5
+	}
 	s := &Server{
 		router:       chi.NewRouter(),
 		logger:       logger,
@@ -57,10 +75,16 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 		store:        store,
 		aiServiceURL: aiServiceURL,
 		ldapCfg:      ldapCfg,
+		siemFwd:      siemFwd,
+		chain:        chain,
+		mailer:       mail.New(mailCfg),
+		maxSessions:  maxSessions,
+		pwdPolicy:    pwdPolicy,
 	}
 	s.setupMiddleware()
 	s.setupRoutes()
 	go sla.NewScheduler(queries, logger).Start(ctx)
+	go retention.NewScheduler(sqlDB, logger).Start(ctx)
 	return s
 }
 
@@ -92,8 +116,9 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.Metrics)
 	s.router.Use(chimw.Compress(5))
 	s.router.Use(sseAwareTimeout(30 * time.Second))
+	s.router.Use(apikeys.APIKeyMiddleware(s.sqlDB))
 	s.router.Use(rl.Middleware)
-	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger))
+	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger, s.chain))
 }
 
 func (s *Server) setupRoutes() {
@@ -102,9 +127,12 @@ func (s *Server) setupRoutes() {
 	s.router.Handle("/metrics", promhttp.Handler())
 
 	s.router.Route("/api/v1", func(r chi.Router) {
-		// Auth module
-		authRepo := auth.NewRepository(s.queries)
-		authSvc := auth.NewService(authRepo, s.jwtMgr).WithLDAP(s.ldapCfg)
+		// Auth module — chain writer wired so auth audit logs join the hash chain
+		authRepo := auth.NewRepository(s.queries).WithChain(s.chain)
+		authSvc := auth.NewService(authRepo, s.jwtMgr).
+			WithLDAP(s.ldapCfg).
+			WithMaxSessions(s.maxSessions).
+			WithPasswordPolicy(s.pwdPolicy)
 		authHandler := auth.NewHandler(authSvc)
 		auth.RegisterRoutes(r, authHandler, s.jwtMgr)
 
@@ -125,9 +153,15 @@ func (s *Server) setupRoutes() {
 		timelineHandler := timeline.NewHandler(timelineSvc, timelineHub, s.jwtMgr)
 		timeline.RegisterRoutes(r, timelineHandler, s.jwtMgr)
 
+		// Assignment rules engine
+		assignEng := assignment.NewEngine(s.sqlDB)
+		assignHandler := assignment.NewHandler(s.sqlDB)
+		assignment.RegisterRoutes(r, assignHandler, s.jwtMgr)
+
 		// Cases module
 		casesRepo := cases.NewRepository(s.queries)
-		casesSvc := cases.NewService(casesRepo, timelineEmitter)
+		casesSvc := cases.NewService(casesRepo, timelineEmitter).
+			WithAssignmentEngine(assignEngineAdapter{assignEng})
 		casesHandler := cases.NewHandler(casesSvc)
 		cases.RegisterRoutes(r, casesHandler, s.jwtMgr)
 
@@ -157,7 +191,7 @@ func (s *Server) setupRoutes() {
 
 		// Notifications module (Feature 9) — wire up AFTER other modules to inject back
 		notifBroker := notifications.NewBroker()
-		notifSvc := notifications.NewService(s.queries, notifBroker)
+		notifSvc := notifications.NewService(s.queries, notifBroker).WithMailer(s.mailer)
 		notifHandler := notifications.NewHandler(notifSvc, notifBroker, s.jwtMgr)
 		notifications.RegisterRoutes(r, notifHandler, s.jwtMgr)
 
@@ -203,6 +237,21 @@ func (s *Server) setupRoutes() {
 		inboundSvc := inbound.NewService(s.sqlDB, casesSvc, s.logger)
 		inboundHandler := inbound.NewHandler(inboundSvc)
 		inbound.RegisterRoutes(r, inboundHandler, s.jwtMgr)
+
+		// API Key management
+		apiKeysHandler := apikeys.NewHandler(s.sqlDB)
+		apikeys.RegisterRoutes(r, apiKeysHandler, s.jwtMgr)
+
+		// Data retention admin
+		r.With(auth.JWTValidate(s.jwtMgr), auth.RequireRole("admin", "super_admin")).
+			Get("/retention/policies", func(w http.ResponseWriter, req *http.Request) {
+				policies, err := retention.ListPolicies(req.Context(), s.sqlDB)
+				if err != nil {
+					response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load retention policies")
+					return
+				}
+				response.JSON(w, http.StatusOK, map[string]any{"policies": policies})
+			})
 	})
 }
 
@@ -232,4 +281,16 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) Router() chi.Router {
 	return s.router
+}
+
+// assignEngineAdapter bridges assignment.Engine to cases.AssignmentEngine.
+type assignEngineAdapter struct {
+	eng *assignment.Engine
+}
+
+func (a assignEngineAdapter) Evaluate(ctx context.Context, input cases.AssignmentInput) (uuid.UUID, error) {
+	return a.eng.Evaluate(ctx, assignment.MatchInput{
+		Priority: input.Priority,
+		SourceID: input.SourceID,
+	})
 }

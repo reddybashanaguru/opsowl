@@ -287,3 +287,62 @@ func (h *Handler) ListActivity(w http.ResponseWriter, r *http.Request) {
 		"has_more":    hasMore,
 	})
 }
+
+type bulkStatusRequest struct {
+	IDs    []uuid.UUID `json:"ids"`
+	Status string      `json:"status"`
+}
+
+func (h *Handler) BulkStatus(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromCtx(r.Context())
+	var req bulkStatusRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "ids and status are required")
+		return
+	}
+	if len(req.IDs) > 100 {
+		response.Err(w, http.StatusBadRequest, "TOO_MANY", "maximum 100 cases per bulk operation")
+		return
+	}
+	updated, failed := h.svc.BulkStatus(r.Context(), claims, req.IDs, db.CaseStatus(req.Status))
+	response.JSON(w, http.StatusOK, map[string]any{"updated": updated, "failed": failed})
+}
+
+type bulkAssignRequest struct {
+	IDs        []uuid.UUID `json:"ids"`
+	AssigneeID uuid.UUID   `json:"assignee_id"`
+}
+
+func (h *Handler) BulkAssign(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromCtx(r.Context())
+	var req bulkAssignRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "ids and assignee_id are required")
+		return
+	}
+	if len(req.IDs) > 100 {
+		response.Err(w, http.StatusBadRequest, "TOO_MANY", "maximum 100 cases per bulk operation")
+		return
+	}
+	updated, failed := h.svc.BulkAssign(r.Context(), claims, req.IDs, req.AssigneeID)
+	response.JSON(w, http.StatusOK, map[string]any{"updated": updated, "failed": failed})
+}
+
+type bulkDeleteRequest struct {
+	IDs []uuid.UUID `json:"ids"`
+}
+
+func (h *Handler) BulkDelete(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromCtx(r.Context())
+	var req bulkDeleteRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || len(req.IDs) == 0 {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "ids are required")
+		return
+	}
+	if len(req.IDs) > 100 {
+		response.Err(w, http.StatusBadRequest, "TOO_MANY", "maximum 100 cases per bulk operation")
+		return
+	}
+	deleted, failed := h.svc.BulkDelete(r.Context(), claims, req.IDs)
+	response.JSON(w, http.StatusOK, map[string]any{"deleted": deleted, "failed": failed})
+}

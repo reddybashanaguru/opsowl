@@ -200,3 +200,19 @@ func (h *Handler) Stats(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, http.StatusOK, map[string]any{"total": total})
 }
+
+// Verify walks the audit hash chain and returns integrity status.
+// A broken chain indicates a row was modified or deleted — a potential insider threat event.
+// Only super_admin and admin roles can trigger a verification (it is a heavy read operation).
+func (h *Handler) Verify(w http.ResponseWriter, r *http.Request) {
+	result, err := VerifyChain(r.Context(), h.queries)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "verification failed")
+		return
+	}
+	status := http.StatusOK
+	if !result.Valid {
+		status = http.StatusConflict // 409 signals chain integrity failure
+	}
+	response.JSON(w, status, result)
+}

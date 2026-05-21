@@ -37,8 +37,9 @@ func (q *Queries) CountAuditLogs(ctx context.Context, arg CountAuditLogsParams) 
 }
 
 const createAuditLog = `-- name: CreateAuditLog :exec
-INSERT INTO audit_logs (event_code, actor_id, ip_address, resource_type, resource_id, metadata, severity)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO audit_logs (event_code, actor_id, ip_address, resource_type, resource_id, metadata, severity,
+                        seq_num, prev_hash, entry_hash)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 `
 
 type CreateAuditLogParams struct {
@@ -49,6 +50,9 @@ type CreateAuditLogParams struct {
 	ResourceID   uuid.NullUUID   `json:"resource_id"`
 	Metadata     json.RawMessage `json:"metadata"`
 	Severity     string          `json:"severity"`
+	SeqNum       int64           `json:"seq_num"`
+	PrevHash     string          `json:"prev_hash"`
+	EntryHash    string          `json:"entry_hash"`
 }
 
 func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error {
@@ -60,8 +64,79 @@ func (q *Queries) CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) 
 		arg.ResourceID,
 		arg.Metadata,
 		arg.Severity,
+		arg.SeqNum,
+		arg.PrevHash,
+		arg.EntryHash,
 	)
 	return err
+}
+
+const getLastAuditEntry = `-- name: GetLastAuditEntry :one
+SELECT COALESCE(MAX(seq_num), 0) AS seq_num, COALESCE(
+  (SELECT entry_hash FROM audit_logs WHERE seq_num = MAX(al.seq_num)),
+  'genesis'
+) AS entry_hash
+FROM audit_logs al
+WHERE seq_num IS NOT NULL
+`
+
+type GetLastAuditEntryRow struct {
+	SeqNum    int64  `json:"seq_num"`
+	EntryHash string `json:"entry_hash"`
+}
+
+func (q *Queries) GetLastAuditEntry(ctx context.Context) (GetLastAuditEntryRow, error) {
+	row := q.db.QueryRowContext(ctx, getLastAuditEntry)
+	var i GetLastAuditEntryRow
+	err := row.Scan(&i.SeqNum, &i.EntryHash)
+	return i, err
+}
+
+const listAuditChain = `-- name: ListAuditChain :many
+SELECT id, seq_num, event_code, actor_id, ip_address, metadata, severity, prev_hash, entry_hash, created_at
+FROM audit_logs
+WHERE seq_num IS NOT NULL
+  AND seq_num > $1
+ORDER BY seq_num ASC
+LIMIT $2
+`
+
+type ListAuditChainParams struct {
+	FromSeq  int64 `json:"from_seq"`
+	RowLimit int32 `json:"row_limit"`
+}
+
+type ListAuditChainRow struct {
+	ID        uuid.UUID       `json:"id"`
+	SeqNum    int64           `json:"seq_num"`
+	EventCode string          `json:"event_code"`
+	ActorID   uuid.NullUUID   `json:"actor_id"`
+	IpAddress sql.NullString  `json:"ip_address"`
+	Metadata  json.RawMessage `json:"metadata"`
+	Severity  string          `json:"severity"`
+	PrevHash  string          `json:"prev_hash"`
+	EntryHash string          `json:"entry_hash"`
+	CreatedAt time.Time       `json:"created_at"`
+}
+
+func (q *Queries) ListAuditChain(ctx context.Context, arg ListAuditChainParams) ([]ListAuditChainRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditChain, arg.FromSeq, arg.RowLimit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAuditChainRow
+	for rows.Next() {
+		var i ListAuditChainRow
+		if err := rows.Scan(
+			&i.ID, &i.SeqNum, &i.EventCode, &i.ActorID, &i.IpAddress,
+			&i.Metadata, &i.Severity, &i.PrevHash, &i.EntryHash, &i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
 }
 
 const createRefreshToken = `-- name: CreateRefreshToken :one
@@ -91,29 +166,100 @@ func (q *Queries) CreateRefreshToken(ctx context.Context, arg CreateRefreshToken
 }
 
 const createSession = `-- name: CreateSession :one
-INSERT INTO sessions (user_id, ip_address, user_agent)
-VALUES ($1, $2, $3)
-RETURNING id, user_id, ip_address, user_agent, created_at, last_active_at
+INSERT INTO sessions (user_id, ip_address, user_agent, device_name)
+VALUES ($1, $2, $3, $4)
+RETURNING id, user_id, ip_address, user_agent, device_name, is_active, revoked_at, created_at, last_active_at
 `
 
 type CreateSessionParams struct {
-	UserID    uuid.UUID   `json:"user_id"`
-	IpAddress pqtype.Inet `json:"ip_address"`
-	UserAgent string      `json:"user_agent"`
+	UserID     uuid.UUID      `json:"user_id"`
+	IpAddress  pqtype.Inet    `json:"ip_address"`
+	UserAgent  string         `json:"user_agent"`
+	DeviceName sql.NullString `json:"device_name"`
 }
 
 func (q *Queries) CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error) {
-	row := q.db.QueryRowContext(ctx, createSession, arg.UserID, arg.IpAddress, arg.UserAgent)
+	row := q.db.QueryRowContext(ctx, createSession, arg.UserID, arg.IpAddress, arg.UserAgent, arg.DeviceName)
 	var i Session
 	err := row.Scan(
 		&i.ID,
 		&i.UserID,
 		&i.IpAddress,
 		&i.UserAgent,
+		&i.DeviceName,
+		&i.IsActive,
+		&i.RevokedAt,
 		&i.CreatedAt,
 		&i.LastActiveAt,
 	)
 	return i, err
+}
+
+const countActiveSessions = `-- name: CountActiveSessions :one
+SELECT COUNT(*) FROM sessions WHERE user_id = $1 AND is_active = TRUE
+`
+
+func (q *Queries) CountActiveSessions(ctx context.Context, userID uuid.UUID) (int64, error) {
+	var count int64
+	err := q.db.QueryRowContext(ctx, countActiveSessions, userID).Scan(&count)
+	return count, err
+}
+
+const revokeOldestSessions = `-- name: RevokeOldestSessions :exec
+UPDATE sessions SET is_active = FALSE, revoked_at = NOW()
+WHERE id IN (
+  SELECT id FROM sessions
+  WHERE user_id = $1 AND is_active = TRUE
+  ORDER BY last_active_at ASC
+  LIMIT $2
+)
+`
+
+type RevokeOldestSessionsParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Limit  int64     `json:"limit"`
+}
+
+func (q *Queries) RevokeOldestSessions(ctx context.Context, arg RevokeOldestSessionsParams) error {
+	_, err := q.db.ExecContext(ctx, revokeOldestSessions, arg.UserID, arg.Limit)
+	return err
+}
+
+const revokeSession = `-- name: RevokeSession :exec
+UPDATE sessions SET is_active = FALSE, revoked_at = NOW() WHERE id = $1 AND user_id = $2
+`
+
+type RevokeSessionParams struct {
+	ID     uuid.UUID `json:"id"`
+	UserID uuid.UUID `json:"user_id"`
+}
+
+func (q *Queries) RevokeSession(ctx context.Context, arg RevokeSessionParams) error {
+	_, err := q.db.ExecContext(ctx, revokeSession, arg.ID, arg.UserID)
+	return err
+}
+
+const listActiveSessions = `-- name: ListActiveSessions :many
+SELECT id, user_id, ip_address, user_agent, device_name, is_active, revoked_at, created_at, last_active_at
+FROM sessions WHERE user_id = $1 AND is_active = TRUE ORDER BY last_active_at DESC
+`
+
+func (q *Queries) ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveSessions, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Session
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(&i.ID, &i.UserID, &i.IpAddress, &i.UserAgent, &i.DeviceName,
+			&i.IsActive, &i.RevokedAt, &i.CreatedAt, &i.LastActiveAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
 }
 
 const getRefreshTokenByHash = `-- name: GetRefreshTokenByHash :one
@@ -138,7 +284,9 @@ func (q *Queries) GetRefreshTokenByHash(ctx context.Context, tokenHash string) (
 
 const getUserByEmail = `-- name: GetUserByEmail :one
 SELECT id, email, password_hash, full_name, role, is_active, last_login_at,
-       created_at, updated_at, deleted_at
+       created_at, updated_at, deleted_at,
+       failed_login_attempts, locked_until, lockout_count,
+       password_changed_at, password_expires_at
 FROM users
 WHERE email = $1 AND deleted_at IS NULL
 `
@@ -157,13 +305,20 @@ func (q *Queries) GetUserByEmail(ctx context.Context, email string) (User, error
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FailedLoginAttempts,
+		&i.LockedUntil,
+		&i.LockoutCount,
+		&i.PasswordChangedAt,
+		&i.PasswordExpiresAt,
 	)
 	return i, err
 }
 
 const getUserByID = `-- name: GetUserByID :one
 SELECT id, email, password_hash, full_name, role, is_active, last_login_at,
-       created_at, updated_at, deleted_at
+       created_at, updated_at, deleted_at,
+       failed_login_attempts, locked_until, lockout_count,
+       password_changed_at, password_expires_at
 FROM users
 WHERE id = $1 AND deleted_at IS NULL
 `
@@ -182,8 +337,60 @@ func (q *Queries) GetUserByID(ctx context.Context, id uuid.UUID) (User, error) {
 		&i.CreatedAt,
 		&i.UpdatedAt,
 		&i.DeletedAt,
+		&i.FailedLoginAttempts,
+		&i.LockedUntil,
+		&i.LockoutCount,
+		&i.PasswordChangedAt,
+		&i.PasswordExpiresAt,
 	)
 	return i, err
+}
+
+const incrementFailedLoginAttempts = `-- name: IncrementFailedLoginAttempts :exec
+UPDATE users SET failed_login_attempts = failed_login_attempts + 1, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, incrementFailedLoginAttempts, id)
+	return err
+}
+
+const lockAccount = `-- name: LockAccount :exec
+UPDATE users
+SET locked_until = $2, lockout_count = lockout_count + 1,
+    failed_login_attempts = 0, updated_at = NOW()
+WHERE id = $1
+`
+
+type LockAccountParams struct {
+	ID          uuid.UUID `json:"id"`
+	LockedUntil time.Time `json:"locked_until"`
+}
+
+func (q *Queries) LockAccount(ctx context.Context, arg LockAccountParams) error {
+	_, err := q.db.ExecContext(ctx, lockAccount, arg.ID, arg.LockedUntil)
+	return err
+}
+
+const resetLoginAttempts = `-- name: ResetLoginAttempts :exec
+UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) ResetLoginAttempts(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, resetLoginAttempts, id)
+	return err
+}
+
+const adminUnlockAccount = `-- name: AdminUnlockAccount :exec
+UPDATE users SET failed_login_attempts = 0, locked_until = NULL, updated_at = NOW()
+WHERE id = $1
+`
+
+func (q *Queries) AdminUnlockAccount(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, adminUnlockAccount, id)
+	return err
 }
 
 const listAuditLogs = `-- name: ListAuditLogs :many
@@ -457,5 +664,89 @@ DELETE FROM mfa_backup_codes WHERE user_id = $1`
 
 func (q *Queries) DeleteAllBackupCodes(ctx context.Context, userID uuid.UUID) error {
 	_, err := q.db.ExecContext(ctx, deleteAllBackupCodes, userID)
+	return err
+}
+
+const addPasswordHistory = `-- name: AddPasswordHistory :exec
+INSERT INTO password_history (user_id, password_hash) VALUES ($1, $2)`
+
+type AddPasswordHistoryParams struct {
+	UserID       uuid.UUID `json:"user_id"`
+	PasswordHash string    `json:"password_hash"`
+}
+
+func (q *Queries) AddPasswordHistory(ctx context.Context, arg AddPasswordHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, addPasswordHistory, arg.UserID, arg.PasswordHash)
+	return err
+}
+
+const getPasswordHistory = `-- name: GetPasswordHistory :many
+SELECT id, user_id, password_hash, created_at
+FROM password_history
+WHERE user_id = $1
+ORDER BY created_at DESC
+LIMIT $2`
+
+type GetPasswordHistoryParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Limit  int32     `json:"limit"`
+}
+
+type PasswordHistoryRow struct {
+	ID           uuid.UUID `json:"id"`
+	UserID       uuid.UUID `json:"user_id"`
+	PasswordHash string    `json:"password_hash"`
+	CreatedAt    time.Time `json:"created_at"`
+}
+
+func (q *Queries) GetPasswordHistory(ctx context.Context, arg GetPasswordHistoryParams) ([]PasswordHistoryRow, error) {
+	rows, err := q.db.QueryContext(ctx, getPasswordHistory, arg.UserID, arg.Limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PasswordHistoryRow
+	for rows.Next() {
+		var i PasswordHistoryRow
+		if err := rows.Scan(&i.ID, &i.UserID, &i.PasswordHash, &i.CreatedAt); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+const prunePasswordHistory = `-- name: PrunePasswordHistory :exec
+DELETE FROM password_history
+WHERE id IN (
+  SELECT id FROM password_history
+  WHERE user_id = $1
+  ORDER BY created_at DESC
+  OFFSET $2
+)`
+
+type PrunePasswordHistoryParams struct {
+	UserID uuid.UUID `json:"user_id"`
+	Limit  int32     `json:"limit"`
+}
+
+func (q *Queries) PrunePasswordHistory(ctx context.Context, arg PrunePasswordHistoryParams) error {
+	_, err := q.db.ExecContext(ctx, prunePasswordHistory, arg.UserID, arg.Limit)
+	return err
+}
+
+const updatePasswordChangedAt = `-- name: UpdatePasswordChangedAt :exec
+UPDATE users SET password_changed_at = NOW(),
+  password_expires_at = CASE WHEN $2 > 0 THEN NOW() + ($2 * INTERVAL '1 day') ELSE NULL END,
+  updated_at = NOW()
+WHERE id = $1`
+
+type UpdatePasswordChangedAtParams struct {
+	ID         uuid.UUID `json:"id"`
+	ExpiryDays int32     `json:"expiry_days"`
+}
+
+func (q *Queries) UpdatePasswordChangedAt(ctx context.Context, arg UpdatePasswordChangedAtParams) error {
+	_, err := q.db.ExecContext(ctx, updatePasswordChangedAt, arg.ID, arg.ExpiryDays)
 	return err
 }

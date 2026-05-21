@@ -10,5 +10,10 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.Use(auth.JWTValidate(jwtMgr))
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Get("/cases/{id}/report", h.Generate)
+		// Regulatory report templates
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Get("/regulatory/templates", h.ListRegulatoryTemplates)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/regulatory-report", h.GenerateRegulatoryReport)
 	})
 }

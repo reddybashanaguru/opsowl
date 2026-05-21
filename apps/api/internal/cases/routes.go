@@ -34,5 +34,13 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		// admin+ — delete
 		r.With(auth.RequireRole("admin", "super_admin")).
 			Delete("/cases/{id}", h.Delete)
+
+		// Bulk operations (manager+)
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Post("/cases/bulk/status", h.BulkStatus)
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Post("/cases/bulk/assign", h.BulkAssign)
+		r.With(auth.RequireRole("admin", "super_admin")).
+			Post("/cases/bulk/delete", h.BulkDelete)
 	})
 }

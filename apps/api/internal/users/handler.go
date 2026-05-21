@@ -151,3 +151,17 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	response.JSON(w, http.StatusOK, map[string]string{"message": "user deactivated"})
 }
+
+// Unlock clears account lockout for a user — admin/super_admin only.
+func (h *Handler) Unlock(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid user id")
+		return
+	}
+	if err := h.svc.Unlock(r.Context(), id); err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not unlock account")
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{"message": "account unlocked"})
+}

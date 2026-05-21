@@ -9,15 +9,24 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/sqlc-dev/pqtype"
+	"github.com/reddybashanaguru/opsowl/internal/auditchain"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
 type Repository struct {
-	q *db.Queries
+	q     *db.Queries
+	chain *auditchain.ChainWriter
 }
 
 func NewRepository(q *db.Queries) *Repository {
 	return &Repository{q: q}
+}
+
+// WithChain attaches a ChainWriter so auth audit logs participate in the
+// tamper-evident hash chain. Call this after the chain writer is initialised.
+func (r *Repository) WithChain(cw *auditchain.ChainWriter) *Repository {
+	r.chain = cw
+	return r
 }
 
 func (r *Repository) GetUserByEmail(ctx context.Context, email string) (db.User, error) {
@@ -59,6 +68,25 @@ func (r *Repository) CreateSession(ctx context.Context, userID uuid.UUID, ipStr,
 		UserAgent: userAgent,
 	})
 	return err
+}
+
+// EnforceSessionLimit revokes oldest sessions when the active count reaches the cap.
+func (r *Repository) EnforceSessionLimit(ctx context.Context, userID uuid.UUID, maxSessions int) error {
+	if maxSessions <= 0 {
+		return nil
+	}
+	count, err := r.q.CountActiveSessions(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if count >= int64(maxSessions) {
+		excess := count - int64(maxSessions) + 1
+		return r.q.RevokeOldestSessions(ctx, db.RevokeOldestSessionsParams{
+			UserID: userID,
+			Limit:  excess,
+		})
+	}
+	return nil
 }
 
 func (r *Repository) CreateRefreshToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) (db.RefreshToken, error) {
@@ -169,7 +197,7 @@ func (r *Repository) CreateAuditLog(ctx context.Context, eventCode string, actor
 	if resourceID != nil {
 		resID = uuid.NullUUID{UUID: *resourceID, Valid: true}
 	}
-	return r.q.CreateAuditLog(ctx, db.CreateAuditLogParams{
+	p := db.CreateAuditLogParams{
 		EventCode:    eventCode,
 		ActorID:      actor,
 		IpAddress:    sql.NullString{String: ipAddress, Valid: ipAddress != ""},
@@ -177,5 +205,25 @@ func (r *Repository) CreateAuditLog(ctx context.Context, eventCode string, actor
 		ResourceID:   resID,
 		Metadata:     metaJSON,
 		Severity:     severity,
-	})
+	}
+	if r.chain != nil {
+		return r.chain.Write(ctx, p)
+	}
+	return r.q.CreateAuditLog(ctx, p)
+}
+
+func (r *Repository) IncrementFailedLoginAttempts(ctx context.Context, userID uuid.UUID) error {
+	return r.q.IncrementFailedLoginAttempts(ctx, userID)
+}
+
+func (r *Repository) LockAccount(ctx context.Context, userID uuid.UUID, until time.Time) error {
+	return r.q.LockAccount(ctx, db.LockAccountParams{ID: userID, LockedUntil: until})
+}
+
+func (r *Repository) ResetLoginAttempts(ctx context.Context, userID uuid.UUID) error {
+	return r.q.ResetLoginAttempts(ctx, userID)
+}
+
+func (r *Repository) AdminUnlockAccount(ctx context.Context, userID uuid.UUID) error {
+	return r.q.AdminUnlockAccount(ctx, userID)
 }

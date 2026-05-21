@@ -16,6 +16,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/config"
 	"github.com/reddybashanaguru/opsowl/internal/db"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/mail"
 	"github.com/reddybashanaguru/opsowl/internal/server"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 )
@@ -75,7 +76,25 @@ func main() {
 		logger.Info("LDAP authentication enabled", zap.String("url", cfg.LDAPUrl))
 	}
 
-	srv := server.New(ctx, logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg)
+	mailCfg := mail.Config{
+		Host:     cfg.SMTPHost,
+		Port:     cfg.SMTPPort,
+		User:     cfg.SMTPUser,
+		Password: cfg.SMTPPassword,
+		From:     cfg.SMTPFrom,
+		TLS:      cfg.SMTPTLS,
+	}
+	pwdPolicy := auth.PasswordPolicy{
+		MinLength:    cfg.PasswordMinLength,
+		ExpiryDays:   cfg.PasswordExpiryDays,
+		HistoryCount: cfg.PasswordHistoryN,
+		RequireUpper: cfg.PasswordUppercase,
+		RequireNumber: cfg.PasswordNumber,
+	}
+	if pwdPolicy.MinLength == 0 {
+		pwdPolicy.MinLength = 8
+	}
+	srv := server.New(ctx, logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg, cfg.SIEMWebhookURL, cfg.SIEMFormat, mailCfg, cfg.MaxSessionsPerUser, pwdPolicy)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),

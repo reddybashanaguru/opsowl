@@ -260,7 +260,7 @@ func (s *Service) failEvent(ctx context.Context, eventID uuid.UUID, msg string) 
 	if err != nil {
 		s.logger.Error("failed to mark event as failed", zap.Error(err))
 	}
-	return fmt.Errorf(msg)
+	return fmt.Errorf("%s", msg)
 }
 
 // ─── Source management ───────────────────────────────────────────────────────

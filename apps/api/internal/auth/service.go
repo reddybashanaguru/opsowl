@@ -16,29 +16,53 @@ import (
 
 const refreshTTL = 30 * 24 * time.Hour
 
+const (
+	maxFailedAttempts = 5           // lock after N consecutive failures
+	baseLockoutMins   = 30          // first lockout: 30 min; doubles each time, capped at 24h
+	maxLockoutMins    = 24 * 60     // 24 hours cap
+)
+
 var (
-	ErrInvalidCredentials = errors.New("invalid_credentials")
-	ErrAccountDisabled    = errors.New("account_disabled")
-	ErrTokenExpired       = errors.New("token_expired")
-	ErrTokenRevoked       = errors.New("token_revoked")
-	ErrTokenReuse         = errors.New("token_reuse_detected")
-	ErrIncorrectPassword  = errors.New("incorrect_password")
-	ErrUserNotFound       = errors.New("user_not_found")
-	ErrMFARequired        = errors.New("mfa_required")
-	ErrInvalidMFACode     = errors.New("invalid_mfa_code")
-	ErrMFAAlreadyActive   = errors.New("mfa_already_active")
-	ErrMFANotActive       = errors.New("mfa_not_active")
+	ErrInvalidCredentials   = errors.New("invalid_credentials")
+	ErrAccountDisabled      = errors.New("account_disabled")
+	ErrAccountLocked        = errors.New("account_locked")
+	ErrTokenExpired         = errors.New("token_expired")
+	ErrTokenRevoked         = errors.New("token_revoked")
+	ErrTokenReuse           = errors.New("token_reuse_detected")
+	ErrIncorrectPassword    = errors.New("incorrect_password")
+	ErrUserNotFound         = errors.New("user_not_found")
+	ErrMFARequired          = errors.New("mfa_required")
+	ErrInvalidMFACode       = errors.New("invalid_mfa_code")
+	ErrMFAAlreadyActive     = errors.New("mfa_already_active")
+	ErrMFANotActive         = errors.New("mfa_not_active")
 	ErrMFAEnrollmentPending = errors.New("mfa_enrollment_not_started")
 )
 
 type Service struct {
-	repo *Repository
-	jwt  *JWTManager
-	ldap *LDAPAuthenticator
+	repo        *Repository
+	jwt         *JWTManager
+	ldap        *LDAPAuthenticator
+	maxSessions int
+	pwdPolicy   PasswordPolicy
 }
 
 func NewService(repo *Repository, jwt *JWTManager) *Service {
-	return &Service{repo: repo, jwt: jwt}
+	return &Service{
+		repo:        repo,
+		jwt:         jwt,
+		maxSessions: 5,
+		pwdPolicy:   PasswordPolicy{MinLength: 8},
+	}
+}
+
+func (s *Service) WithMaxSessions(n int) *Service {
+	s.maxSessions = n
+	return s
+}
+
+func (s *Service) WithPasswordPolicy(p PasswordPolicy) *Service {
+	s.pwdPolicy = p
+	return s
 }
 
 // WithLDAP enables LDAP/AD authentication as the primary auth path.
@@ -89,8 +113,14 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 		return nil, ErrAccountDisabled
 	}
 
+	// Check lockout before attempting password verification.
+	if user.LockedUntil.Valid && time.Now().Before(user.LockedUntil.Time) {
+		go s.repo.CreateAuditLog(context.Background(), "auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID, map[string]any{"locked_until": user.LockedUntil.Time}, "warn") //nolint:errcheck
+		return nil, ErrAccountLocked
+	}
+
 	if err := checkPassword(user.PasswordHash, password); err != nil {
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.failed", &user.ID, ipAddress, "users", &user.ID, map[string]any{"email": email}, "warn") //nolint:errcheck
+		go s.handleFailedAttempt(user, ipAddress)
 		return nil, ErrInvalidCredentials
 	}
 
@@ -111,9 +141,36 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
-	go s.repo.CreateSession(context.Background(), user.ID, ipAddress, "") //nolint:errcheck
+	go s.repo.ResetLoginAttempts(context.Background(), user.ID) //nolint:errcheck
+	go func() {
+		bg := context.Background()
+		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
+		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
+	}()
 	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "local"}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
+}
+
+// handleFailedAttempt increments the failure counter and locks the account
+// once maxFailedAttempts is reached. Lockout duration doubles with each lockout event.
+func (s *Service) handleFailedAttempt(user db.User, ipAddress string) {
+	ctx := context.Background()
+	newCount := int(user.FailedLoginAttempts) + 1
+	_ = s.repo.IncrementFailedLoginAttempts(ctx, user.ID)
+	go s.repo.CreateAuditLog(ctx, "auth.login.failed", &user.ID, ipAddress, "users", &user.ID,
+		map[string]any{"attempt": newCount, "max": maxFailedAttempts}, "warn") //nolint:errcheck
+
+	if newCount >= maxFailedAttempts {
+		// Progressive lockout: 30 min → 60 min → 120 min → … capped at 24h
+		lockoutMins := baseLockoutMins * (1 << int(user.LockoutCount))
+		if lockoutMins > maxLockoutMins {
+			lockoutMins = maxLockoutMins
+		}
+		until := time.Now().Add(time.Duration(lockoutMins) * time.Minute)
+		_ = s.repo.LockAccount(ctx, user.ID, until)
+		go s.repo.CreateAuditLog(ctx, "auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID,
+			map[string]any{"locked_until": until, "lockout_minutes": lockoutMins}, "critical") //nolint:errcheck
+	}
 }
 
 func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddress string) (*LoginResult, error) {
@@ -160,7 +217,11 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
-	go s.repo.CreateSession(context.Background(), user.ID, ipAddress, "") //nolint:errcheck
+	go func() {
+		bg := context.Background()
+		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
+		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
+	}()
 	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "ldap"}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
 }
@@ -224,6 +285,14 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentP
 	if err := checkPassword(user.PasswordHash, currentPwd); err != nil {
 		return ErrIncorrectPassword
 	}
+	// Validate new password against policy
+	if err := s.pwdPolicy.Validate(newPwd); err != nil {
+		return err
+	}
+	// Check password history
+	if err := CheckHistory(ctx, s.repo.q, userID, newPwd, s.pwdPolicy.HistoryCount); err != nil {
+		return err
+	}
 	newHash, err := HashPassword(newPwd)
 	if err != nil {
 		return err
@@ -231,6 +300,15 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentP
 	if err := s.repo.UpdatePasswordHash(ctx, userID, newHash); err != nil {
 		return err
 	}
+	// Record history and update changed_at
+	go func() {
+		bg := context.Background()
+		RecordHistory(bg, s.repo.q, userID, newHash, s.pwdPolicy.HistoryCount)
+		_ = s.repo.q.UpdatePasswordChangedAt(bg, db.UpdatePasswordChangedAtParams{
+			ID:         userID,
+			ExpiryDays: int32(s.pwdPolicy.ExpiryDays),
+		})
+	}()
 	_ = s.repo.RevokeAllUserRefreshTokens(ctx, userID)
 	go s.repo.CreateAuditLog(context.Background(), "auth.password.changed", &userID, ipAddress, "users", &userID, map[string]any{}, "info") //nolint:errcheck
 	return nil
@@ -340,7 +418,11 @@ func (s *Service) completeMFALogin(ctx context.Context, user db.User, ipAddress 
 		return nil, err
 	}
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
-	go s.repo.CreateSession(context.Background(), user.ID, ipAddress, "") //nolint:errcheck
+	go func() {
+		bg := context.Background()
+		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
+		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
+	}()
 	go s.repo.CreateAuditLog(context.Background(), "auth.login.mfa_success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
 }

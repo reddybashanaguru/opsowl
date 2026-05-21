@@ -34,6 +34,11 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      # SSE (Server-Side Encryption) — AES-256-GCM for all objects at rest.
+      # Format: <key-name>:<base64-encoded-32-byte-key>
+      # Generate: openssl rand -base64 32
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY:-opsowl-default-key:bXlzZWNyZXRrZXkxMjM0NTY3ODkwMTIzNDU2}
+      MINIO_KMS_KES_ENDPOINT: ""
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -70,6 +75,27 @@ services:
       LDAP_BIND_DN: ${LDAP_BIND_DN:-}
       LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-https://localhost}
+      # AES-256 column-level encryption key (base64-encoded 32 bytes).
+      # Generate: openssl rand -base64 32
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      # SIEM / audit forwarding
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_FORMAT: ${SIEM_FORMAT:-json}
+      # SMTP for email notifications
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@opsowl.local}
+      SMTP_TLS: ${SMTP_TLS:-true}
+      # Password policy
+      PASSWORD_EXPIRY_DAYS: ${PASSWORD_EXPIRY_DAYS:-90}
+      PASSWORD_HISTORY_COUNT: ${PASSWORD_HISTORY_COUNT:-5}
+      PASSWORD_MIN_LENGTH: ${PASSWORD_MIN_LENGTH:-8}
+      PASSWORD_REQUIRE_UPPERCASE: ${PASSWORD_REQUIRE_UPPERCASE:-true}
+      PASSWORD_REQUIRE_NUMBER: ${PASSWORD_REQUIRE_NUMBER:-true}
+      # Session limits
+      MAX_SESSIONS_PER_USER: ${MAX_SESSIONS_PER_USER:-5}
       # Workspace terminology — each client sets these in their .env
       INDUSTRY: ${INDUSTRY:-financial_services}
       CASE_LABEL: ${CASE_LABEL:-Case}

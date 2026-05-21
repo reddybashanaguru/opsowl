@@ -861,12 +861,15 @@ type RefreshToken struct {
 }
 
 type Session struct {
-	ID           uuid.UUID   `json:"id"`
-	UserID       uuid.UUID   `json:"user_id"`
-	IpAddress    pqtype.Inet `json:"ip_address"`
-	UserAgent    string      `json:"user_agent"`
-	CreatedAt    time.Time   `json:"created_at"`
-	LastActiveAt time.Time   `json:"last_active_at"`
+	ID           uuid.UUID    `json:"id"`
+	UserID       uuid.UUID    `json:"user_id"`
+	IpAddress    pqtype.Inet  `json:"ip_address"`
+	UserAgent    string       `json:"user_agent"`
+	DeviceName   sql.NullString `json:"device_name"`
+	IsActive     bool         `json:"is_active"`
+	RevokedAt    sql.NullTime `json:"revoked_at"`
+	CreatedAt    time.Time    `json:"created_at"`
+	LastActiveAt time.Time    `json:"last_active_at"`
 }
 
 type SlaPolicy struct {
@@ -965,14 +968,19 @@ type MfaBackupCode struct {
 }
 
 type User struct {
-	ID           uuid.UUID    `json:"id"`
-	Email        string       `json:"email"`
-	PasswordHash string       `json:"password_hash"`
-	FullName     string       `json:"full_name"`
-	Role         UserRole     `json:"role"`
-	IsActive     bool         `json:"is_active"`
-	LastLoginAt  sql.NullTime `json:"last_login_at"`
-	CreatedAt    time.Time    `json:"created_at"`
-	UpdatedAt    time.Time    `json:"updated_at"`
-	DeletedAt    sql.NullTime `json:"deleted_at"`
+	ID                  uuid.UUID    `json:"id"`
+	Email               string       `json:"email"`
+	PasswordHash        string       `json:"password_hash"`
+	FullName            string       `json:"full_name"`
+	Role                UserRole     `json:"role"`
+	IsActive            bool         `json:"is_active"`
+	LastLoginAt         sql.NullTime `json:"last_login_at"`
+	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at"`
+	DeletedAt           sql.NullTime `json:"deleted_at"`
+	FailedLoginAttempts int32        `json:"failed_login_attempts"`
+	LockedUntil         sql.NullTime `json:"locked_until"`
+	LockoutCount        int32        `json:"lockout_count"`
+	PasswordChangedAt   sql.NullTime `json:"password_changed_at"`
+	PasswordExpiresAt   sql.NullTime `json:"password_expires_at"`
 }

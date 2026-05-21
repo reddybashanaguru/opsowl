@@ -29,6 +29,16 @@ type Querier interface {
 	CountUsers(ctx context.Context, role NullUserRole) (int64, error)
 	CreateAILog(ctx context.Context, arg CreateAILogParams) (AiLog, error)
 	CreateAuditLog(ctx context.Context, arg CreateAuditLogParams) error
+	GetLastAuditEntry(ctx context.Context) (GetLastAuditEntryRow, error)
+	ListAuditChain(ctx context.Context, arg ListAuditChainParams) ([]ListAuditChainRow, error)
+	IncrementFailedLoginAttempts(ctx context.Context, id uuid.UUID) error
+	LockAccount(ctx context.Context, arg LockAccountParams) error
+	ResetLoginAttempts(ctx context.Context, id uuid.UUID) error
+	AdminUnlockAccount(ctx context.Context, id uuid.UUID) error
+	AddPasswordHistory(ctx context.Context, arg AddPasswordHistoryParams) error
+	GetPasswordHistory(ctx context.Context, arg GetPasswordHistoryParams) ([]PasswordHistoryRow, error)
+	PrunePasswordHistory(ctx context.Context, arg PrunePasswordHistoryParams) error
+	UpdatePasswordChangedAt(ctx context.Context, arg UpdatePasswordChangedAtParams) error
 	CreateMFABackupCodes(ctx context.Context, arg []CreateMFABackupCodesParams) (int64, error)
 	CreateTOTPSecret(ctx context.Context, arg CreateTOTPSecretParams) (TotpSecret, error)
 	CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error)
@@ -41,6 +51,10 @@ type Querier interface {
 	CreateMention(ctx context.Context, arg CreateMentionParams) (Mention, error)
 	CreateNote(ctx context.Context, arg CreateNoteParams) (CreateNoteRow, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
+	CountActiveSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	RevokeOldestSessions(ctx context.Context, arg RevokeOldestSessionsParams) error
+	RevokeSession(ctx context.Context, arg RevokeSessionParams) error
+	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]Session, error)
 	CreateRefreshToken(ctx context.Context, arg CreateRefreshTokenParams) (RefreshToken, error)
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error)

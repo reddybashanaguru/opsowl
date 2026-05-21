@@ -24,10 +24,22 @@ var (
 // DefaultOrgID is used in MVP while multi-tenancy is deferred.
 var DefaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
+// AssignmentEngine is a minimal interface so the cases package doesn't import assignment directly.
+type AssignmentEngine interface {
+	Evaluate(ctx context.Context, input AssignmentInput) (uuid.UUID, error)
+}
+
+// AssignmentInput matches assignment.MatchInput to avoid a direct import.
+type AssignmentInput struct {
+	Priority string
+	SourceID *uuid.UUID
+}
+
 type Service struct {
-	repo     *Repository
-	emitter  timeline.Emitter
-	notifSvc *notifications.Service
+	repo       *Repository
+	emitter    timeline.Emitter
+	notifSvc   *notifications.Service
+	assignEng  AssignmentEngine
 }
 
 func NewService(repo *Repository, emitter timeline.Emitter) *Service {
@@ -36,6 +48,11 @@ func NewService(repo *Repository, emitter timeline.Emitter) *Service {
 
 func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
 	s.notifSvc = notifSvc
+	return s
+}
+
+func (s *Service) WithAssignmentEngine(e AssignmentEngine) *Service {
+	s.assignEng = e
 	return s
 }
 
@@ -57,6 +74,12 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	assignedTo := uuid.NullUUID{}
 	if req.AssignedTo != nil {
 		assignedTo = uuid.NullUUID{UUID: *req.AssignedTo, Valid: true}
+	} else if s.assignEng != nil {
+		if autoUser, err := s.assignEng.Evaluate(ctx, AssignmentInput{
+			Priority: string(req.Priority),
+		}); err == nil && autoUser != uuid.Nil {
+			assignedTo = uuid.NullUUID{UUID: autoUser, Valid: true}
+		}
 	}
 
 	creatorID := claims.UserID
@@ -516,4 +539,46 @@ func (s *Service) toResponseFromListRow(row db.ListCasesRow) CaseResponse {
 		r.Tags = []string{}
 	}
 	return r
+}
+
+// BulkStatus updates the status for multiple cases. Returns counts of updated and failed IDs.
+func (s *Service) BulkStatus(ctx context.Context, claims *auth.Claims, ids []uuid.UUID, status db.CaseStatus) (updated int, failed []uuid.UUID) {
+	for _, id := range ids {
+		if _, err := s.repo.UpdateStatus(ctx, db.UpdateCaseStatusParams{
+			ID:     id,
+			Status: status,
+		}); err != nil {
+			failed = append(failed, id)
+		} else {
+			updated++
+		}
+	}
+	return updated, failed
+}
+
+// BulkAssign assigns multiple cases to a single assignee.
+func (s *Service) BulkAssign(ctx context.Context, claims *auth.Claims, ids []uuid.UUID, assigneeID uuid.UUID) (updated int, failed []uuid.UUID) {
+	for _, id := range ids {
+		if _, err := s.repo.UpdateAssignment(ctx, db.UpdateCaseAssignmentParams{
+			ID:         id,
+			AssignedTo: uuid.NullUUID{UUID: assigneeID, Valid: true},
+		}); err != nil {
+			failed = append(failed, id)
+		} else {
+			updated++
+		}
+	}
+	return updated, failed
+}
+
+// BulkDelete soft-deletes multiple cases.
+func (s *Service) BulkDelete(ctx context.Context, claims *auth.Claims, ids []uuid.UUID) (deleted int, failed []uuid.UUID) {
+	for _, id := range ids {
+		if err := s.Delete(ctx, claims, id); err != nil {
+			failed = append(failed, id)
+		} else {
+			deleted++
+		}
+	}
+	return deleted, failed
 }

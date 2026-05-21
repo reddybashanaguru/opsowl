@@ -156,6 +156,10 @@ func (s *Service) Delete(ctx context.Context, actor *auth.Claims, targetID uuid.
 	return nil
 }
 
+func (s *Service) Unlock(ctx context.Context, targetID uuid.UUID) error {
+	return s.repo.UnlockAccount(ctx, targetID)
+}
+
 // helpers
 
 func toResponse(u db.User) UserResponse {

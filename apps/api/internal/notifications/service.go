@@ -3,9 +3,11 @@ package notifications
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/reddybashanaguru/opsowl/internal/mail"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
@@ -14,10 +16,17 @@ import (
 type Service struct {
 	q      *db.Queries
 	broker *UserBroker
+	mailer *mail.Sender
 }
 
 func NewService(q *db.Queries, broker *UserBroker) *Service {
 	return &Service{q: q, broker: broker}
+}
+
+// WithMailer attaches an SMTP sender for email delivery of notifications.
+func (s *Service) WithMailer(m *mail.Sender) *Service {
+	s.mailer = m
+	return s
 }
 
 // NotifyInput is the data any module passes to create a notification.
@@ -80,7 +89,40 @@ func (s *Service) Notify(ctx context.Context, in NotifyInput) error {
 
 	// Push to any connected SSE clients for this user
 	s.broker.Push(in.RecipientID.String(), toResponse(n))
+
+	// Email delivery — only if the user has email_enabled for this notification type
+	if s.mailer != nil {
+		go s.deliverEmail(ctx, in, n) //nolint:errcheck
+	}
 	return nil
+}
+
+// deliverEmail checks the user's email preference for this notification type
+// and sends an email if enabled.
+func (s *Service) deliverEmail(ctx context.Context, in NotifyInput, n db.Notification) {
+	prefs, err := s.q.ListNotificationPreferences(ctx, in.RecipientID)
+	if err != nil {
+		return
+	}
+	for _, p := range prefs {
+		if p.NotificationType == in.Type && p.EmailEnabled {
+			// Fetch recipient email address
+			user, err := s.q.GetUserByID(ctx, in.RecipientID)
+			if err != nil {
+				return
+			}
+			body := fmt.Sprintf("%s\n\n%s\n\n---\nThis is an automated notification from OpsOwl AI.", in.Title, in.Message)
+			if in.LinkURL != "" {
+				body += fmt.Sprintf("\n\nView: %s", in.LinkURL)
+			}
+			_ = s.mailer.Send(mail.Message{
+				To:      []string{user.Email},
+				Subject: fmt.Sprintf("[OpsOwl] %s", in.Title),
+				Body:    body,
+			})
+			return
+		}
+	}
 }
 
 // NotifyAsync fires Notify in a goroutine — use when the caller cannot block.

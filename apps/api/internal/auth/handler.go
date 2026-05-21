@@ -73,6 +73,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusUnauthorized, "INVALID_CREDENTIALS", "invalid email or password")
 		case errors.Is(err, ErrAccountDisabled):
 			response.Err(w, http.StatusForbidden, "ACCOUNT_DISABLED", "this account has been deactivated")
+		case errors.Is(err, ErrAccountLocked):
+			response.Err(w, http.StatusTooManyRequests, "ACCOUNT_LOCKED", "account temporarily locked due to repeated failed login attempts")
 		default:
 			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "an unexpected error occurred")
 		}

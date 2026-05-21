@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"go.uber.org/zap"
 
+	"github.com/reddybashanaguru/opsowl/internal/auditchain"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
@@ -74,19 +75,20 @@ type auditJob struct {
 
 // AuditLog writes a row to audit_logs for every mutating request AND every
 // GET on sensitive resources (cases, documents, notes, AI logs, audit viewer).
-// This satisfies RBI Cybersecurity Framework requirements for access logging.
+// Entries are written through ChainWriter which computes a SHA-256 hash chain
+// for tamper-evidence (RBI CSF requirement for immutable audit trails).
 //
-// Uses a fixed-size worker pool (4 goroutines, 2048-entry buffer) instead of
-// spawning a new goroutine per request — prevents goroutine explosion under
-// load and ensures the audit trail survives traffic spikes.
-func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger) func(http.Handler) http.Handler {
+// 4 goroutines drain the channel; ChainWriter serialises them via mutex.
+func AuditLog(q *db.Queries, jwtMgr *auth.JWTManager, logger *zap.Logger, chain *auditchain.ChainWriter) func(http.Handler) http.Handler {
 	ch := make(chan auditJob, 2048)
 
+	// 4 goroutines drain the channel; ChainWriter.Write() serialises them internally
+	// via a mutex to guarantee monotonic seq_num assignment and correct hash linkage.
 	for i := 0; i < 4; i++ {
 		go func() {
 			for job := range ch {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				if err := q.CreateAuditLog(ctx, job.params); err != nil {
+				if err := chain.Write(ctx, job.params); err != nil {
 					logger.Warn("audit log write failed", zap.Error(err))
 				}
 				cancel()
