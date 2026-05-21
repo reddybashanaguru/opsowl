@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
@@ -434,10 +435,10 @@ func (s *Service) CreateRule(ctx context.Context, sourceID, creatorID uuid.UUID,
 		RETURNING id, source_id, event_type_pattern, case_priority, tags,
 		          title_template, description_template, auto_assign_user_id,
 		          is_active, sort_order, created_at`,
-		sourceID, req.EventTypePattern, req.CasePriority, stringSliceToArray(req.Tags),
+		sourceID, req.EventTypePattern, req.CasePriority, pq.Array(req.Tags),
 		req.TitleTemplate, req.DescriptionTemplate, nullUUID(req.AutoAssignUserID),
 		req.SortOrder, creatorID,
-	).Scan(&rule.ID, &rule.SourceID, &rule.EventTypePattern, &rule.CasePriority, &rule.Tags,
+	).Scan(&rule.ID, &rule.SourceID, &rule.EventTypePattern, &rule.CasePriority, pq.Array(&rule.Tags),
 		&rule.TitleTemplate, &rule.DescriptionTemplate, &rule.AutoAssignUserID,
 		&rule.IsActive, &rule.SortOrder, &rule.CreatedAt)
 	return &rule, err
@@ -459,7 +460,7 @@ func (s *Service) ListRules(ctx context.Context, sourceID uuid.UUID) ([]*Rule, e
 	var out []*Rule
 	for rows.Next() {
 		var r Rule
-		if err := rows.Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, &r.Tags,
+		if err := rows.Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, pq.Array(&r.Tags),
 			&r.TitleTemplate, &r.DescriptionTemplate, &r.AutoAssignUserID,
 			&r.IsActive, &r.SortOrder, &r.CreatedAt); err != nil {
 			return nil, err
@@ -472,7 +473,7 @@ func (s *Service) ListRules(ctx context.Context, sourceID uuid.UUID) ([]*Rule, e
 func (s *Service) UpdateRule(ctx context.Context, ruleID uuid.UUID, req UpdateRuleRequest) (*Rule, error) {
 	var tagsExpr interface{} = nil
 	if req.Tags != nil {
-		tagsExpr = stringSliceToArray(req.Tags)
+		tagsExpr = pq.Array(req.Tags)
 	}
 	var r Rule
 	err := s.db.QueryRowContext(ctx, `
@@ -493,7 +494,7 @@ func (s *Service) UpdateRule(ctx context.Context, ruleID uuid.UUID, req UpdateRu
 		ruleID, req.EventTypePattern, req.CasePriority, tagsExpr,
 		req.TitleTemplate, req.DescriptionTemplate, nullUUID(req.AutoAssignUserID),
 		req.IsActive, req.SortOrder,
-	).Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, &r.Tags,
+	).Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, pq.Array(&r.Tags),
 		&r.TitleTemplate, &r.DescriptionTemplate, &r.AutoAssignUserID,
 		&r.IsActive, &r.SortOrder, &r.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -599,7 +600,7 @@ func (s *Service) findMatchingRule(ctx context.Context, sourceID uuid.UUID, even
 
 	for rows.Next() {
 		var r Rule
-		if err := rows.Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, &r.Tags,
+		if err := rows.Scan(&r.ID, &r.SourceID, &r.EventTypePattern, &r.CasePriority, pq.Array(&r.Tags),
 			&r.TitleTemplate, &r.DescriptionTemplate, &r.AutoAssignUserID,
 			&r.IsActive, &r.SortOrder, &r.CreatedAt); err != nil {
 			return nil, err
@@ -688,20 +689,4 @@ func nullUUID(id *uuid.UUID) uuid.NullUUID {
 		return uuid.NullUUID{}
 	}
 	return uuid.NullUUID{UUID: *id, Valid: true}
-}
-
-// stringSliceToArray converts []string to a PostgreSQL text[] literal.
-func stringSliceToArray(s []string) interface{} {
-	if s == nil {
-		return "{}"
-	}
-	return fmt.Sprintf("{%s}", strings.Join(quotePGStrings(s), ","))
-}
-
-func quotePGStrings(ss []string) []string {
-	out := make([]string, len(ss))
-	for i, s := range ss {
-		out[i] = `"` + strings.ReplaceAll(s, `"`, `\"`) + `"`
-	}
-	return out
 }
