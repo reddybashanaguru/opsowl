@@ -1,0 +1,15 @@
+{
+  "cookies": [
+    {
+      "name": "refresh_token",
+      "value": "rt_4c8cc64ca21103e88476e45fec7964f2c4580feb145e7aa296e8487cb9537a2c",
+      "domain": "localhost",
+      "path": "/api/v1/auth",
+      "expires": 1781939279.06756,
+      "httpOnly": true,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": []
+}
