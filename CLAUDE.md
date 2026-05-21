@@ -770,16 +770,16 @@ Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMA
 | PE-02 | `auth/service.go` | JWT survives role downgrade — demoted users keep old permissions until token expires (up to 24h). | 🟠 P1 | ✅ Fixed |
 | RC-01 | `auth/repository.go:74` | `EnforceSessionLimit` races on COUNT then UPDATE — concurrent logins bypass the session cap. | 🟠 P1 | ✅ Fixed |
 | SD-04 | `assignment/engine.go` | `match_priority` stored as TEXT with no case normalization — `"Critical"` vs `"critical"` never matches. | 🟠 P1 | ✅ Fixed |
-| RC-03 | `auth/service.go:321` | MFA enrollment TOCTOU — concurrent tabs overwrite each other's TOTP secrets. | 🟠 P1 | ⏳ Pending |
-| AI-03 | `auth/service.go:313` | Password change audit log is fire-and-forget — server crash leaves no forensic record. | 🟠 P1 | ⏳ Pending |
-| AI-04 | `retention/purge.go` | Retention purge deletes rows with no entry in audit chain — DPDP Act non-compliance. | 🟠 P1 | ⏳ Pending |
-| SB-01 | `SLACountdown` component | Client-side time calculation + clock drift — SLA shows green when actually breached. | 🟡 P2 | ⏳ Pending |
-| SB-02 | `cases/service.go` | Priority change doesn't recalculate `sla_breach_at` — escalated cases retain wrong SLA deadline. | 🟡 P2 | ⏳ Pending |
-| AH-02 | `report/regulatory.go:136` | AI-hallucinated content flows into STR/SAR reports with no validation of PAN/Aadhaar/IFSC format. | 🟡 P2 | ⏳ Pending |
-| DI-02 | `documents/service.go` | Documents stuck in `processing` status after AI service crash — no timeout, no fallback to `failed`. | 🟡 P2 | ⏳ Pending |
-| CI-01 | `auditchain/chain.go:55` | Single `ChainWriter` mutex serializes all audit writes — bottleneck at 500+ cases/min EOD burst. | 🟡 P2 | ⏳ Pending |
-| PE-03 | `cases/service.go` | Bulk delete has no tenant ownership check — admin from Org A can delete Org B's cases by UUID. | 🟡 P2 | ⏳ Pending |
-| SD-01 | `cases/page.tsx` | TanStack Query cache shows stale data for 2–4s after bulk mutation — double-submission risk. | 🟡 P2 | ⏳ Pending |
+| RC-03 | `auth/service.go:321` | MFA enrollment TOCTOU — concurrent tabs overwrite each other's TOTP secrets. | 🟠 P1 | ✅ Fixed |
+| AI-03 | `auth/service.go:313` | Password change audit log is fire-and-forget — server crash leaves no forensic record. | 🟠 P1 | ✅ Fixed |
+| AI-04 | `retention/purge.go` | Retention purge deletes rows with no entry in audit chain — DPDP Act non-compliance. | 🟠 P1 | ✅ Fixed |
+| SB-01 | `SLACountdown` component | Client-side time calculation + clock drift — SLA shows green when actually breached. | 🟡 P2 | ✅ Fixed |
+| SB-02 | `cases/service.go` | Priority change doesn't recalculate `sla_breach_at` — escalated cases retain wrong SLA deadline. | 🟡 P2 | ✅ Fixed |
+| AH-02 | `report/regulatory.go:136` | AI-hallucinated content flows into STR/SAR reports with no validation of PAN/Aadhaar/IFSC format. | 🟡 P2 | ✅ Fixed |
+| DI-02 | `documents/service.go` | Documents stuck in `processing` status after AI service crash — no timeout, no fallback to `failed`. | 🟡 P2 | ✅ Fixed |
+| CI-01 | `auditchain/chain.go:55` | Single `ChainWriter` mutex serializes all audit writes — bottleneck at 500+ cases/min EOD burst. | 🟡 P2 | ✅ Fixed |
+| PE-03 | `cases/service.go` | Bulk delete has no tenant ownership check — admin from Org A can delete Org B's cases by UUID. | 🟡 P2 | ✅ Fixed |
+| SD-01 | `cases/page.tsx` | TanStack Query cache shows stale data for 2–4s after bulk mutation — double-submission risk. | 🟡 P2 | ✅ Fixed |
 
 ### Fix Session Log
 
@@ -793,6 +793,12 @@ Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMA
 | RC-04 + AI-02 | `BulkStatus`/`BulkAssign`/`BulkDelete` now wrapped in `sql.BeginTx` — all-or-nothing semantics. `BulkAssign` now calls `CloseLastAssignment` + `CreateCaseAssignment` inside same tx for each case. Added `sqlDB *sql.DB` to `Service`. | `internal/cases/service.go`, `server/server.go`, `cases/cases_test.go` | ✅ PASS |
 | PE-02 | `users.Service.Update` calls `RevokeAllTokens` when role or is_active changes. `RevokeAllTokens` now also revokes all active `sessions`. Added `RevokeAllUserSessions` SQL + Querier interface entry. | `internal/users/service.go`, `repository.go`, `db/generated/auth.sql.go`, `querier.go` | ✅ PASS |
 | RC-01 | Replaced COUNT+UPDATE race in `EnforceSessionLimit` with single atomic `EnforceSessionCap` UPDATE that revokes sessions not in the newest N. Added SQL + Querier interface. | `internal/auth/repository.go`, `db/generated/auth.sql.go`, `querier.go` | ✅ PASS |
+| RC-03 + AI-03 + AI-04 | RC-03: per-user `sync.Map` mutex prevents concurrent TOTP enrollment TOCTOU. AI-03: password change history + audit log now synchronous (was fire-and-forget goroutine). AI-04: retention purge scheduler writes `retention.purge.completed` audit entry after each purge. | `internal/auth/service.go`, `internal/retention/purge.go`, `internal/server/server.go` | ✅ PASS |
+| SB-02 + PE-03 | SB-02: priority-change SLA recalculation made synchronous — response now returns updated `sla_breach_at`. PE-03: bulk delete verifies case ownership per caller for analyst role. | `internal/cases/service.go` | ✅ PASS |
+| SD-01 | Bulk status/delete mutations use `onMutate` optimistic update to immediately patch TanStack cache; `onError` triggers full invalidate to restore. Cases list now uses `refetchOnWindowFocus`. | `apps/web/src/app/(dashboard)/cases/page.tsx` | ✅ PASS |
+| SB-01 | `SLACountdown` re-syncs timer on `visibilitychange` to correct drift when tab was backgrounded. Interval reduced 60s→30s. | `apps/web/src/components/cases/SLACountdown.tsx` | ✅ PASS |
+| AH-02 + DI-02 | AH-02: `validateSubjectDetails` added — rejects malformed PAN (10-char), Aadhaar (12-digit), IFSC (11-char) before STR/SAR generation. DI-02: `RecoverStuckDocuments` called at startup marks any document in `processing` for >15 min as `failed`. | `internal/report/regulatory.go`, `internal/documents/repository.go`, `service.go`, `server/server.go` | ✅ PASS |
+| CI-01 | Replaced `sync.Mutex` serialization in `ChainWriter` with a 1024-entry buffered channel + background drain goroutine. Write enqueues async; falls back to sync write when queue full (backpressure, no drops). | `internal/auditchain/chain.go` | ✅ PASS |
 
 ---
 
