@@ -381,16 +381,41 @@ function CasesContent() {
     });
   }
 
+  // Shared optimistic-update helper: patches infinite-query pages in place
+  type InfData = { pages: { data: CaseRow[]; meta: ListMeta }[] };
+  function patchCasesCache(patcher: (c: CaseRow) => CaseRow) {
+    qc.setQueriesData<InfData>({ queryKey: ["cases"] }, (old) => {
+      if (!old) return old;
+      return { ...old, pages: old.pages.map((pg) => ({ ...pg, data: pg.data.map(patcher) })) };
+    });
+  }
+  function removeCasesFromCache(ids: Set<string>) {
+    qc.setQueriesData<InfData>({ queryKey: ["cases"] }, (old) => {
+      if (!old) return old;
+      return { ...old, pages: old.pages.map((pg) => ({ ...pg, data: pg.data.filter((c) => !ids.has(c.id)) })) };
+    });
+  }
+
   // Bulk mutations
   const bulkStatusMutation = useMutation({
     mutationFn: (newStatus: string) =>
       api.post<BulkResult>("/api/v1/cases/bulk/status", { ids: Array.from(selected), status: newStatus }),
+    onMutate: async (newStatus) => {
+      await qc.cancelQueries({ queryKey: ["cases"] });
+      const snap = selected;
+      patchCasesCache((c) => (snap.has(c.id) ? { ...c, status: newStatus } : c));
+      return { snap };
+    },
     onSuccess: (res) => {
       showToast(`Updated ${res.updated} case${res.updated !== 1 ? "s" : ""}${res.failed ? ` (${res.failed} failed)` : ""}`, "success");
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["cases"] });
     },
-    onError: (e) => showToast(e instanceof APIError ? e.message : "Bulk status change failed", "error"),
+    onError: (e, _, ctx) => {
+      if (ctx) patchCasesCache((c) => c); // noop — full refetch below restores truth
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      showToast(e instanceof APIError ? e.message : "Bulk status change failed", "error");
+    },
   });
 
   const bulkAssignMutation = useMutation({
@@ -407,12 +432,21 @@ function CasesContent() {
   const bulkDeleteMutation = useMutation({
     mutationFn: () =>
       api.post<BulkResult>("/api/v1/cases/bulk/delete", { ids: Array.from(selected) }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ["cases"] });
+      const snap = selected;
+      removeCasesFromCache(snap);
+      return { snap };
+    },
     onSuccess: (res) => {
       showToast(`Deleted ${res.updated} case${res.updated !== 1 ? "s" : ""}`, "success");
       setSelected(new Set());
       qc.invalidateQueries({ queryKey: ["cases"] });
     },
-    onError: (e) => showToast(e instanceof APIError ? e.message : "Bulk delete failed", "error"),
+    onError: (e) => {
+      qc.invalidateQueries({ queryKey: ["cases"] });
+      showToast(e instanceof APIError ? e.message : "Bulk delete failed", "error");
+    },
   });
 
   const bulkPending = bulkStatusMutation.isPending || bulkAssignMutation.isPending || bulkDeleteMutation.isPending;
