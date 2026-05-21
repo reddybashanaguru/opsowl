@@ -177,7 +177,7 @@ func makeManagerClaims(userID uuid.UUID) *auth.Claims {
 
 func setupService(db *sql.DB, store storage.Client, aiURL string) *documents.Service {
 	q := dbgen.New(db)
-	repo := documents.NewRepository(q)
+	repo := documents.NewRepository(q, db)
 	logger, _ := zap.NewDevelopment()
 	return documents.NewService(repo, store, noopEmitter{}, logger, aiURL)
 }
@@ -190,7 +190,7 @@ func setupRouter(t *testing.T, db *sql.DB, store storage.Client, aiURL string) (
 	}
 
 	q := dbgen.New(db)
-	repo := documents.NewRepository(q)
+	repo := documents.NewRepository(q, db)
 	logger, _ := zap.NewDevelopment()
 	svc := documents.NewService(repo, store, noopEmitter{}, logger, aiURL)
 	h := documents.NewHandler(svc)
@@ -1283,7 +1283,7 @@ func TestServiceGet_PresignedURLError(t *testing.T) {
 	store := &failPresignStorage{newMockStorage()}
 
 	q := dbgen.New(db)
-	repo := documents.NewRepository(q)
+	repo := documents.NewRepository(q, db)
 	logger, _ := zap.NewDevelopment()
 	svc := documents.NewService(repo, store, noopEmitter{}, logger, "")
 
@@ -1356,7 +1356,7 @@ func TestServiceUpload_EmitTimelineError(t *testing.T) {
 	store := newMockStorage()
 
 	q := dbgen.New(db)
-	repo := documents.NewRepository(q)
+	repo := documents.NewRepository(q, db)
 	logger, _ := zap.NewDevelopment()
 	svc := documents.NewService(repo, store, errorEmitter{}, logger, "http://localhost:9999")
 	claims := makeAnalystClaims(userID)
@@ -1403,7 +1403,7 @@ func TestRepoSoftDelete_NotFound(t *testing.T) {
 	defer cleanup()
 
 	q := dbgen.New(db)
-	repo := documents.NewRepository(q)
+	repo := documents.NewRepository(q, db)
 
 	err := repo.SoftDelete(context.Background(), uuid.New())
 	if err == nil {

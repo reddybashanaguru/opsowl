@@ -3,8 +3,10 @@ package report
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"regexp"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -12,6 +14,25 @@ import (
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
+
+var (
+	rePAN     = regexp.MustCompile(`^[A-Z]{5}[0-9]{4}[A-Z]$`)
+	reAadhaar = regexp.MustCompile(`^\d{12}$`)
+	reIFSC    = regexp.MustCompile(`^[A-Z]{4}0[A-Z0-9]{6}$`)
+)
+
+func validateSubjectDetails(s SubjectDetails) error {
+	if s.PAN != "" && !rePAN.MatchString(s.PAN) {
+		return errors.New("pan must be 10 characters: 5 uppercase letters, 4 digits, 1 uppercase letter (e.g. ABCDE1234F)")
+	}
+	if s.AadhaarRef != "" && !reAadhaar.MatchString(s.AadhaarRef) {
+		return errors.New("aadhaar_ref must be exactly 12 digits")
+	}
+	if s.AccountRef != "" && len(s.AccountRef) == 11 && !reIFSC.MatchString(s.AccountRef) {
+		return errors.New("account_ref when 11 characters must be a valid IFSC (4 uppercase letters + 0 + 6 alphanumeric)")
+	}
+	return nil
+}
 
 // RegulatoryReportType represents the type of regulatory filing required.
 type RegulatoryReportType string
@@ -100,6 +121,10 @@ func (h *Handler) GenerateRegulatoryReport(w http.ResponseWriter, r *http.Reques
 	}
 	if req.SuspicionBasis == "" {
 		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", "suspicion_basis is required")
+		return
+	}
+	if err := validateSubjectDetails(req.Subject); err != nil {
+		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
 

@@ -82,7 +82,7 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 		pwdPolicy:    pwdPolicy,
 	}
 	s.setupMiddleware()
-	s.setupRoutes()
+	s.setupRoutes(ctx)
 	go sla.NewScheduler(queries, logger).Start(ctx)
 	go retention.NewScheduler(sqlDB, queries, logger).Start(ctx)
 	return s
@@ -121,7 +121,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger, s.chain))
 }
 
-func (s *Server) setupRoutes() {
+func (s *Server) setupRoutes(ctx context.Context) {
 	s.router.Get("/health", s.handleHealth)
 	s.router.Get("/ready", s.handleReady)
 	s.router.Handle("/metrics", promhttp.Handler())
@@ -172,8 +172,9 @@ func (s *Server) setupRoutes() {
 		tasks.RegisterRoutes(r, tasksHandler, s.jwtMgr)
 
 		// Documents module
-		docsRepo := documents.NewRepository(s.queries)
+		docsRepo := documents.NewRepository(s.queries, s.sqlDB)
 		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL)
+		go docsSvc.RecoverStuckDocuments(ctx)
 		docsHandler := documents.NewHandler(docsSvc)
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)
 

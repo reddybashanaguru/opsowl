@@ -38,6 +38,19 @@ func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter
 	}
 }
 
+// RecoverStuckDocuments is called once at startup to mark any documents that were
+// left in 'processing' state (e.g. due to a previous server crash) as 'failed'.
+func (s *Service) RecoverStuckDocuments(ctx context.Context) {
+	n, err := s.repo.MarkStuckAsFailed(ctx, 15*time.Minute)
+	if err != nil {
+		s.logger.Error("failed to recover stuck documents", zap.Error(err))
+		return
+	}
+	if n > 0 {
+		s.logger.Warn("recovered stuck documents", zap.Int64("count", n))
+	}
+}
+
 // Upload validates, stores, and persists a document, then kicks off async processing.
 func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, filename string, reader io.Reader, totalSize int64) (*DocumentResponse, error) {
 	if totalSize > MaxFileSizeBytes {

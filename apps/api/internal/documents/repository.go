@@ -4,17 +4,39 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
 type Repository struct {
-	q *db.Queries
+	q     *db.Queries
+	sqlDB *sql.DB
 }
 
-func NewRepository(q *db.Queries) *Repository {
-	return &Repository{q: q}
+func NewRepository(q *db.Queries, sqlDB *sql.DB) *Repository {
+	return &Repository{q: q, sqlDB: sqlDB}
+}
+
+// MarkStuckAsFailed finds documents that have been in 'processing' status for
+// longer than staleAfter and marks them as 'failed'. Called at startup to
+// recover from a crash-during-processing scenario.
+func (r *Repository) MarkStuckAsFailed(ctx context.Context, staleAfter time.Duration) (int64, error) {
+	cutoff := time.Now().Add(-staleAfter)
+	res, err := r.sqlDB.ExecContext(ctx, `
+		UPDATE documents
+		SET processing_status = 'failed',
+		    error_message = 'processing timeout: recovered at startup',
+		    updated_at = NOW()
+		WHERE processing_status = 'processing'
+		  AND updated_at < $1
+		  AND deleted_at IS NULL
+	`, cutoff)
+	if err != nil {
+		return 0, err
+	}
+	return res.RowsAffected()
 }
 
 func (r *Repository) Create(ctx context.Context, p db.CreateDocumentParams) (db.Document, error) {
