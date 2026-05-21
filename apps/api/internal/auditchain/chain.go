@@ -19,9 +19,16 @@ type SIEMForwarder interface {
 	Forward(p db.CreateAuditLogParams)
 }
 
+const writeQueueCap = 1024
+
 // ChainWriter serialises audit log inserts so each entry's hash covers the
 // previous entry — tamper-evident hash chain (RBI CSF requirement).
 // Any deleted or modified row breaks the chain, detectable via /api/v1/audit/verify.
+//
+// Writes are enqueued into a buffered channel so callers are not blocked by DB
+// round-trips. A single background goroutine drains the queue sequentially to
+// preserve the ordering guarantee. If the queue is full (burst > 1024 pending)
+// Write falls back to a synchronous write to apply backpressure rather than drop.
 type ChainWriter struct {
 	mu       sync.Mutex
 	queries  *db.Queries
@@ -29,10 +36,15 @@ type ChainWriter struct {
 	lastHash string
 	logger   *zap.Logger
 	siem     SIEMForwarder
+	writeCh  chan db.CreateAuditLogParams
 }
 
 func NewChainWriter(ctx context.Context, q *db.Queries, logger *zap.Logger) *ChainWriter {
-	cw := &ChainWriter{queries: q, logger: logger}
+	cw := &ChainWriter{
+		queries: q,
+		logger:  logger,
+		writeCh: make(chan db.CreateAuditLogParams, writeQueueCap),
+	}
 	row, err := q.GetLastAuditEntry(ctx)
 	if err == nil {
 		cw.lastSeq = row.SeqNum
@@ -43,6 +55,7 @@ func NewChainWriter(ctx context.Context, q *db.Queries, logger *zap.Logger) *Cha
 	} else {
 		cw.lastHash = "genesis"
 	}
+	go cw.drain(ctx)
 	return cw
 }
 
@@ -51,8 +64,24 @@ func (cw *ChainWriter) WithSIEM(f SIEMForwarder) *ChainWriter {
 	return cw
 }
 
-// Write inserts an audit entry into the hash chain.
-func (cw *ChainWriter) Write(ctx context.Context, p db.CreateAuditLogParams) error {
+// drain is the single goroutine that actually writes entries to the DB in order.
+func (cw *ChainWriter) drain(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case p, ok := <-cw.writeCh:
+			if !ok {
+				return
+			}
+			if err := cw.writeSync(ctx, p); err != nil {
+				cw.logger.Error("audit chain write failed", zap.Error(err))
+			}
+		}
+	}
+}
+
+func (cw *ChainWriter) writeSync(ctx context.Context, p db.CreateAuditLogParams) error {
 	cw.mu.Lock()
 	defer cw.mu.Unlock()
 
@@ -86,6 +115,18 @@ func (cw *ChainWriter) Write(ctx context.Context, p db.CreateAuditLogParams) err
 		cw.siem.Forward(p)
 	}
 	return nil
+}
+
+// Write enqueues an audit entry. Returns immediately when the queue has room;
+// falls back to a synchronous write when the queue is full (backpressure).
+func (cw *ChainWriter) Write(ctx context.Context, p db.CreateAuditLogParams) error {
+	select {
+	case cw.writeCh <- p:
+		return nil
+	default:
+		// Queue full — write synchronously to apply backpressure
+		return cw.writeSync(ctx, p)
+	}
 }
 
 // VerifyResult is returned by VerifyChain.
