@@ -65,11 +65,19 @@ test.describe("Settings — labels and MFA", () => {
     await expect(page.getByRole("button", { name: "Reset to Defaults" })).toBeVisible();
   });
 
-  // ─── GAP: No "Change Password" section in Settings ───────────────────────
-  // The API has PUT /api/v1/auth/password but there is no UI for it.
-  // Recommendation: Add a "Change Password" card below the MFA section.
-  test("GAP — no change password section (needs to be built)", async ({ page }) => {
-    const changePwdEl = page.getByText(/Change Password|Update Password/i);
-    await expect(changePwdEl).not.toBeVisible();
+  test("Change Password section is visible", async ({ page }) => {
+    await expect(page.getByText("Change Password")).toBeVisible();
+  });
+
+  test("Change Password section has current and new password fields", async ({ page }) => {
+    await expect(page.getByPlaceholder("••••••••").first()).toBeVisible();
+    await expect(page.getByPlaceholder("Min 8 characters")).toBeVisible();
+    await expect(page.getByPlaceholder("Re-enter new password")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Update Password/i })).toBeVisible();
+  });
+
+  test("Change Password button is disabled when fields are empty", async ({ page }) => {
+    const updateBtn = page.getByRole("button", { name: /Update Password/i });
+    await expect(updateBtn).toBeDisabled();
   });
 });

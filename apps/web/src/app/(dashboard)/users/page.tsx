@@ -24,6 +24,7 @@ const ROLE_COLORS: Record<string, { badge: string; dot: string }> = {
 };
 
 const ROLES = ["", "super_admin", "admin", "manager", "analyst", "viewer"];
+const ASSIGNABLE_ROLES = ["super_admin", "admin", "manager", "analyst", "viewer"] as const;
 const ROLE_LABELS: Record<string, string> = {
   "": "All Roles", super_admin: "Super Admin", admin: "Admin",
   manager: "Manager", analyst: "Analyst", viewer: "Viewer",
@@ -40,12 +41,212 @@ function Avatar({ name }: { name: string }) {
   );
 }
 
+// ─── Invite User Modal ────────────────────────────────────────────────────────
+
+interface InviteModalProps {
+  onClose: () => void;
+  onSuccess: () => void;
+}
+
+function InviteModal({ onClose, onSuccess }: InviteModalProps) {
+  const [fullName, setFullName] = useState("");
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState<string>("analyst");
+  const [password, setPassword] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
+  const [error, setError] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post("/api/v1/users", { email, full_name: fullName, role, password }),
+    onSuccess: () => {
+      onSuccess();
+      onClose();
+    },
+    onError: (err) => {
+      setError(err instanceof APIError ? err.message : "Failed to create user");
+    },
+  });
+
+  const canSubmit = fullName.trim() && email.trim() && password.length >= 8;
+
+  return (
+    <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+      <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 w-full max-w-md">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-slate-100 font-semibold text-lg">Invite User</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">✕</button>
+        </div>
+
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-lg px-3 py-2 mb-4">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Full Name *</label>
+            <input
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Priya Sharma"
+              autoFocus
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Email Address *</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="analyst@yourorg.com"
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Role *</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+            >
+              {ASSIGNABLE_ROLES.map((r) => (
+                <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Temporary Password * (min 8 chars)</label>
+            <div className="relative">
+              <input
+                type={showPwd ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 pr-10 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs"
+              >
+                {showPwd ? "Hide" : "Show"}
+              </button>
+            </div>
+            <p className="text-slate-600 text-[10px] mt-1">The user should change this on first login.</p>
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6 pt-4 border-t border-slate-700/60">
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={!canSubmit || mutation.isPending}
+            className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {mutation.isPending ? "Creating…" : "Create User"}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-slate-400 hover:text-slate-200 text-sm transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Inline Role Selector ─────────────────────────────────────────────────────
+
+interface RoleSelectorProps {
+  userId: string;
+  currentRole: string;
+  onSuccess: () => void;
+}
+
+function RoleSelector({ userId, currentRole, onSuccess }: RoleSelectorProps) {
+  const [editing, setEditing] = useState(false);
+  const [selected, setSelected] = useState(currentRole);
+  const [error, setError] = useState("");
+
+  const mutation = useMutation({
+    mutationFn: (role: string) =>
+      api.put(`/api/v1/users/${userId}`, { role }),
+    onSuccess: () => {
+      setEditing(false);
+      setError("");
+      onSuccess();
+    },
+    onError: (err) => {
+      setError(err instanceof APIError ? err.message : "Failed to update role");
+    },
+  });
+
+  const cfg = ROLE_COLORS[currentRole] ?? { badge: "bg-slate-700 text-slate-300 border-slate-600", dot: "bg-slate-500" };
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-2 group/role">
+        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${cfg.badge}`}>
+          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+          {ROLE_LABELS[currentRole] ?? currentRole}
+        </span>
+        <button
+          onClick={() => { setSelected(currentRole); setEditing(true); }}
+          className="opacity-0 group-hover/role:opacity-100 text-slate-600 hover:text-slate-300 text-[10px] transition-all"
+          title="Change role"
+        >
+          ✎
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <select
+        value={selected}
+        onChange={(e) => setSelected(e.target.value)}
+        autoFocus
+        className="bg-slate-900 border border-cyan-500 text-slate-100 text-xs rounded px-2 py-1 focus:outline-none"
+      >
+        {ASSIGNABLE_ROLES.map((r) => (
+          <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+        ))}
+      </select>
+      <button
+        onClick={() => mutation.mutate(selected)}
+        disabled={selected === currentRole || mutation.isPending}
+        className="text-xs text-cyan-400 hover:text-cyan-300 font-medium disabled:opacity-40 transition-colors"
+      >
+        {mutation.isPending ? "…" : "Save"}
+      </button>
+      <button
+        onClick={() => { setEditing(false); setError(""); }}
+        className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+      >
+        ✕
+      </button>
+      {error && <span className="text-red-400 text-[10px]">{error}</span>}
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function UsersPage() {
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [showInvite, setShowInvite] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["users"],
@@ -80,6 +281,8 @@ export default function UsersPage() {
     return counts;
   }, [allUsers]);
 
+  const canManage = ["admin", "super_admin"].includes(currentUser?.role ?? "");
+
   return (
     <RBACGate
       allowedRoles={["admin", "super_admin"]}
@@ -97,6 +300,14 @@ export default function UsersPage() {
               {(roleFilter || search) && " (filtered)"}
             </p>
           </div>
+          {canManage && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="flex items-center gap-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            >
+              <span className="text-base leading-none">+</span> Invite User
+            </button>
+          )}
         </div>
 
         {/* Role distribution strip */}
@@ -178,7 +389,6 @@ export default function UsersPage() {
               </thead>
               <tbody>
                 {filtered.map((u) => {
-                  const cfg = ROLE_COLORS[u.role] ?? { badge: "bg-slate-700 text-slate-300 border-slate-600", dot: "bg-slate-500" };
                   return (
                     <tr key={u.id} className="border-b border-slate-700/40 hover:bg-slate-700/15 transition-colors">
                       <td className="px-5 py-3.5">
@@ -191,10 +401,18 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${cfg.badge}`}>
-                          <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-                          {ROLE_LABELS[u.role] ?? u.role}
-                        </span>
+                        {u.id !== currentUser?.id && canManage ? (
+                          <RoleSelector
+                            userId={u.id}
+                            currentRole={u.role}
+                            onSuccess={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
+                          />
+                        ) : (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${(ROLE_COLORS[u.role] ?? { badge: "bg-slate-700 text-slate-300 border-slate-600", dot: "bg-slate-500" }).badge}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${(ROLE_COLORS[u.role] ?? { badge: "", dot: "bg-slate-500" }).dot}`} />
+                            {ROLE_LABELS[u.role] ?? u.role}
+                          </span>
+                        )}
                       </td>
                       <td className="px-5 py-3.5">
                         <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${u.is_active ? "text-emerald-400" : "text-slate-500"}`}>
@@ -228,6 +446,13 @@ export default function UsersPage() {
           </div>
         )}
       </div>
+
+      {showInvite && (
+        <InviteModal
+          onClose={() => setShowInvite(false)}
+          onSuccess={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
+        />
+      )}
     </RBACGate>
   );
 }

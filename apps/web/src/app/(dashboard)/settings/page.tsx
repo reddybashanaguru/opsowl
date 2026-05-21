@@ -260,6 +260,120 @@ function MFASection() {
   );
 }
 
+// ─── Change Password Section ──────────────────────────────────────────────────
+
+function ChangePasswordSection() {
+  const [currentPwd, setCurrentPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [showCurrent, setShowCurrent] = useState(false);
+  const [showNew, setShowNew] = useState(false);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.put("/api/v1/auth/password", {
+        current_password: currentPwd,
+        new_password: newPwd,
+      }),
+    onSuccess: () => {
+      setCurrentPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+    },
+  });
+
+  const mismatch = confirmPwd.length > 0 && newPwd !== confirmPwd;
+  const tooShort = newPwd.length > 0 && newPwd.length < 8;
+  const canSubmit = currentPwd.length > 0 && newPwd.length >= 8 && newPwd === confirmPwd && !mutation.isPending;
+
+  return (
+    <section className="mb-8 p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+        Change Password
+      </h2>
+      <p className="text-slate-500 text-xs mb-5">Update your account password. You will remain signed in after the change.</p>
+
+      {mutation.isSuccess && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm bg-green-500/10 border border-green-500/30 text-green-400">
+          Password updated successfully.
+        </div>
+      )}
+      {mutation.isError && (
+        <div className="mb-4 px-4 py-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30 text-red-400">
+          {mutation.error instanceof APIError ? mutation.error.message : "Failed to change password."}
+        </div>
+      )}
+
+      <div className="space-y-4 max-w-sm">
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Current Password</label>
+          <div className="relative">
+            <input
+              type={showCurrent ? "text" : "password"}
+              value={currentPwd}
+              onChange={(e) => setCurrentPwd(e.target.value)}
+              placeholder="••••••••"
+              className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 pr-14 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrent((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs"
+            >
+              {showCurrent ? "Hide" : "Show"}
+            </button>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">New Password</label>
+          <div className="relative">
+            <input
+              type={showNew ? "text" : "password"}
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+              placeholder="Min 8 characters"
+              className={`w-full bg-slate-900 border rounded px-3 py-2 pr-14 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none transition-colors ${
+                tooShort ? "border-red-500/60 focus:border-red-500" : "border-slate-600 focus:border-cyan-500"
+              }`}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNew((v) => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs"
+            >
+              {showNew ? "Hide" : "Show"}
+            </button>
+          </div>
+          {tooShort && <p className="text-red-400 text-[10px] mt-1">Minimum 8 characters required.</p>}
+        </div>
+
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Confirm New Password</label>
+          <input
+            type="password"
+            value={confirmPwd}
+            onChange={(e) => setConfirmPwd(e.target.value)}
+            placeholder="Re-enter new password"
+            className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none transition-colors ${
+              mismatch ? "border-red-500/60 focus:border-red-500" : "border-slate-600 focus:border-cyan-500"
+            }`}
+          />
+          {mismatch && <p className="text-red-400 text-[10px] mt-1">Passwords do not match.</p>}
+        </div>
+
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={!canSubmit}
+          className="px-5 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
+        >
+          {mutation.isPending ? "Updating…" : "Update Password"}
+        </button>
+      </div>
+    </section>
+  );
+}
+
 export default function SettingsPage() {
   const { config, loaded, setConfig, fetch: refreshConfig } = useConfigStore();
 
@@ -330,6 +444,9 @@ export default function SettingsPage() {
 
       {/* MFA — available to all authenticated users */}
       <MFASection />
+
+      {/* Change Password — available to all authenticated users */}
+      <ChangePasswordSection />
 
       {/* Workspace settings — admin only */}
       <RBACGate
