@@ -30,7 +30,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Users", href: "/users", icon: "◎" },
     { label: "Audit Logs", href: "/audit", icon: "◈" },
     { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
-    { label: "Settings", href: "/settings", icon: "⚙" },
+    { label: "Settings", href: "/settings", icon: "⚙", exact: true },
   ];
 
   const roleColor: Record<string, string> = {
@@ -102,7 +102,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   key={item.href}
                   href={item.href}
                   className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
-                    pathname.startsWith(item.href)
+                    ("exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href))
                       ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
                       : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
                   }`}
