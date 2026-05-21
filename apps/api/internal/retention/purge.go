@@ -26,8 +26,9 @@ func NewScheduler(sqlDB *sql.DB, logger *zap.Logger) *Scheduler {
 
 // Start begins the daily purge loop. Call in a goroutine.
 func (s *Scheduler) Start(ctx context.Context) {
-	// Run once on startup (catches any missed purges), then every 24h.
-	s.runPurge(ctx)
+	// Run the first purge in a background goroutine so the startup path is
+	// never blocked by a potentially long unbounded DELETE on large tables.
+	go s.runPurge(ctx)
 	ticker := time.NewTicker(24 * time.Hour)
 	defer ticker.Stop()
 	for {

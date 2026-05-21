@@ -52,6 +52,8 @@ type Querier interface {
 	CreateNote(ctx context.Context, arg CreateNoteParams) (CreateNoteRow, error)
 	CreateNotification(ctx context.Context, arg CreateNotificationParams) (Notification, error)
 	CountActiveSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	EnforceSessionCap(ctx context.Context, arg EnforceSessionCapParams) error
+	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error
 	RevokeOldestSessions(ctx context.Context, arg RevokeOldestSessionsParams) error
 	RevokeSession(ctx context.Context, arg RevokeSessionParams) error
 	ListActiveSessions(ctx context.Context, userID uuid.UUID) ([]Session, error)

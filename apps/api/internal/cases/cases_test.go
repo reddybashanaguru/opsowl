@@ -84,7 +84,7 @@ func newTestService(t *testing.T, db *sql.DB) *cases.Service {
 	t.Helper()
 	q := dbgen.New(db)
 	repo := cases.NewRepository(q)
-	return cases.NewService(repo, noopEmitter{})
+	return cases.NewService(repo, db, noopEmitter{})
 }
 
 // seedUser creates a user and returns its ID.
@@ -605,7 +605,7 @@ func setupRouter(t *testing.T, db *sql.DB) (*chi.Mux, *auth.JWTManager) {
 
 	q := dbgen.New(db)
 	repo := cases.NewRepository(q)
-	svc := cases.NewService(repo, noopEmitter{})
+	svc := cases.NewService(repo, db, noopEmitter{})
 	h := cases.NewHandler(svc)
 
 	r := chi.NewRouter()

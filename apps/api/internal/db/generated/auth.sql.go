@@ -225,6 +225,41 @@ func (q *Queries) RevokeOldestSessions(ctx context.Context, arg RevokeOldestSess
 	return err
 }
 
+// EnforceSessionCap revokes all sessions beyond the newest (keepNewest) sessions
+// for a user in a single atomic UPDATE — no COUNT+UPDATE race condition.
+const enforceSessionCap = `-- name: EnforceSessionCap :exec
+UPDATE sessions
+SET is_active = FALSE, revoked_at = NOW()
+WHERE user_id = $1
+  AND is_active = TRUE
+  AND id NOT IN (
+    SELECT id FROM sessions
+    WHERE user_id = $1 AND is_active = TRUE
+    ORDER BY last_active_at DESC
+    LIMIT $2
+  )
+`
+
+type EnforceSessionCapParams struct {
+	UserID      uuid.UUID `json:"user_id"`
+	KeepNewest  int64     `json:"keep_newest"`
+}
+
+func (q *Queries) EnforceSessionCap(ctx context.Context, arg EnforceSessionCapParams) error {
+	_, err := q.db.ExecContext(ctx, enforceSessionCap, arg.UserID, arg.KeepNewest)
+	return err
+}
+
+const revokeAllUserSessions = `-- name: RevokeAllUserSessions :exec
+UPDATE sessions SET is_active = FALSE, revoked_at = NOW()
+WHERE user_id = $1 AND is_active = TRUE
+`
+
+func (q *Queries) RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) error {
+	_, err := q.db.ExecContext(ctx, revokeAllUserSessions, userID)
+	return err
+}
+
 const revokeSession = `-- name: RevokeSession :exec
 UPDATE sessions SET is_active = FALSE, revoked_at = NOW() WHERE id = $1 AND user_id = $2
 `

@@ -70,23 +70,21 @@ func (r *Repository) CreateSession(ctx context.Context, userID uuid.UUID, ipStr,
 	return err
 }
 
-// EnforceSessionLimit revokes oldest sessions when the active count reaches the cap.
+// EnforceSessionLimit revokes sessions so that at most (maxSessions-1) remain active,
+// leaving one slot for the new session being created. Uses a single atomic UPDATE
+// to avoid the COUNT-then-UPDATE race condition.
 func (r *Repository) EnforceSessionLimit(ctx context.Context, userID uuid.UUID, maxSessions int) error {
 	if maxSessions <= 0 {
 		return nil
 	}
-	count, err := r.q.CountActiveSessions(ctx, userID)
-	if err != nil {
-		return err
+	keepNewest := int64(maxSessions) - 1 // reserve one slot for the incoming session
+	if keepNewest < 0 {
+		keepNewest = 0
 	}
-	if count >= int64(maxSessions) {
-		excess := count - int64(maxSessions) + 1
-		return r.q.RevokeOldestSessions(ctx, db.RevokeOldestSessionsParams{
-			UserID: userID,
-			Limit:  excess,
-		})
-	}
-	return nil
+	return r.q.EnforceSessionCap(ctx, db.EnforceSessionCapParams{
+		UserID:     userID,
+		KeepNewest: keepNewest,
+	})
 }
 
 func (r *Repository) CreateRefreshToken(ctx context.Context, userID uuid.UUID, tokenHash string, expiresAt time.Time) (db.RefreshToken, error) {

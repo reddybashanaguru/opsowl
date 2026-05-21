@@ -160,7 +160,7 @@ func (s *Server) setupRoutes() {
 
 		// Cases module
 		casesRepo := cases.NewRepository(s.queries)
-		casesSvc := cases.NewService(casesRepo, timelineEmitter).
+		casesSvc := cases.NewService(casesRepo, s.sqlDB, timelineEmitter).
 			WithAssignmentEngine(assignEngineAdapter{assignEng})
 		casesHandler := cases.NewHandler(casesSvc)
 		cases.RegisterRoutes(r, casesHandler, s.jwtMgr)

@@ -11,9 +11,10 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.Use(auth.JWTValidate(jwtMgr))
 		r.Use(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin))
 
-		r.Get("/audit", h.List)
-		r.Get("/audit/export", h.ExportCSV)
-		r.Get("/audit/stats", h.Stats)
-		r.Get("/audit/verify", h.Verify)
+		// API key callers need audit:read scope to access these endpoints.
+		r.With(auth.RequireScope("audit:read")).Get("/audit", h.List)
+		r.With(auth.RequireScope("audit:read")).Get("/audit/export", h.ExportCSV)
+		r.With(auth.RequireScope("audit:read")).Get("/audit/stats", h.Stats)
+		r.With(auth.RequireScope("audit:read")).Get("/audit/verify", h.Verify)
 	})
 }

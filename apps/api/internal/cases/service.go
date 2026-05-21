@@ -37,13 +37,14 @@ type AssignmentInput struct {
 
 type Service struct {
 	repo       *Repository
+	sqlDB      *sql.DB // needed for bulk-op transactions
 	emitter    timeline.Emitter
 	notifSvc   *notifications.Service
 	assignEng  AssignmentEngine
 }
 
-func NewService(repo *Repository, emitter timeline.Emitter) *Service {
-	return &Service{repo: repo, emitter: emitter}
+func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
+	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter}
 }
 
 func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
@@ -541,10 +542,17 @@ func (s *Service) toResponseFromListRow(row db.ListCasesRow) CaseResponse {
 	return r
 }
 
-// BulkStatus updates the status for multiple cases. Returns counts of updated and failed IDs.
+// BulkStatus updates the status for multiple cases inside a single transaction.
+// All updates succeed or all are rolled back — no partial commits.
 func (s *Service) BulkStatus(ctx context.Context, claims *auth.Claims, ids []uuid.UUID, status db.CaseStatus) (updated int, failed []uuid.UUID) {
+	tx, err := s.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, ids
+	}
+	txq := db.New(tx)
+
 	for _, id := range ids {
-		if _, err := s.repo.UpdateStatus(ctx, db.UpdateCaseStatusParams{
+		if _, err := txq.UpdateCaseStatus(ctx, db.UpdateCaseStatusParams{
 			ID:     id,
 			Status: status,
 		}); err != nil {
@@ -553,32 +561,77 @@ func (s *Service) BulkStatus(ctx context.Context, claims *auth.Claims, ids []uui
 			updated++
 		}
 	}
-	return updated, failed
+
+	if len(failed) > 0 {
+		_ = tx.Rollback()
+		return 0, ids // all-or-nothing: roll back on any failure
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, ids
+	}
+	return updated, nil
 }
 
-// BulkAssign assigns multiple cases to a single assignee.
+// BulkAssign reassigns multiple cases to a single assignee inside a single transaction.
+// Also writes case_assignments history entries for each case (chain-of-custody audit trail).
 func (s *Service) BulkAssign(ctx context.Context, claims *auth.Claims, ids []uuid.UUID, assigneeID uuid.UUID) (updated int, failed []uuid.UUID) {
+	tx, err := s.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, ids
+	}
+	txq := db.New(tx)
+
 	for _, id := range ids {
-		if _, err := s.repo.UpdateAssignment(ctx, db.UpdateCaseAssignmentParams{
+		if _, err := txq.UpdateCaseAssignment(ctx, db.UpdateCaseAssignmentParams{
 			ID:         id,
 			AssignedTo: uuid.NullUUID{UUID: assigneeID, Valid: true},
 		}); err != nil {
 			failed = append(failed, id)
-		} else {
-			updated++
+			continue
 		}
+		// Record assignment history — closes prior open assignment and opens a new one.
+		// Errors here are non-fatal (history is best-effort inside the same tx).
+		_ = txq.CloseLastAssignment(ctx, id)
+		_, _ = txq.CreateCaseAssignment(ctx, db.CreateCaseAssignmentParams{
+			CaseID:     id,
+			AssignedTo: assigneeID,
+			AssignedBy: claims.UserID,
+		})
+		updated++
 	}
-	return updated, failed
+
+	if len(failed) > 0 {
+		_ = tx.Rollback()
+		return 0, ids
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, ids
+	}
+	return updated, nil
 }
 
-// BulkDelete soft-deletes multiple cases.
+// BulkDelete soft-deletes multiple cases inside a single transaction.
 func (s *Service) BulkDelete(ctx context.Context, claims *auth.Claims, ids []uuid.UUID) (deleted int, failed []uuid.UUID) {
+	tx, err := s.sqlDB.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, ids
+	}
+	txq := db.New(tx)
+
 	for _, id := range ids {
-		if err := s.Delete(ctx, claims, id); err != nil {
+		if _, err := txq.SoftDeleteCase(ctx, id); err != nil {
 			failed = append(failed, id)
 		} else {
 			deleted++
 		}
 	}
-	return deleted, failed
+
+	if len(failed) > 0 {
+		_ = tx.Rollback()
+		return 0, ids
+	}
+	if err := tx.Commit(); err != nil {
+		return 0, ids
+	}
+	return deleted, nil
 }

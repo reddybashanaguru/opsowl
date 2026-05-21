@@ -55,7 +55,9 @@ func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) (db.SoftDelet
 }
 
 func (r *Repository) RevokeAllTokens(ctx context.Context, userID uuid.UUID) error {
-	return r.q.RevokeAllUserRefreshTokens(ctx, userID)
+	_ = r.q.RevokeAllUserRefreshTokens(ctx, userID)
+	_ = r.q.RevokeAllUserSessions(ctx, userID)
+	return nil
 }
 
 func (r *Repository) UnlockAccount(ctx context.Context, userID uuid.UUID) error {

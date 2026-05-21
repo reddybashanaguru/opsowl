@@ -745,6 +745,57 @@ Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMA
 - Watchers stored as UUID array in postgres (not a join table) for simplicity
 **FE:** Dark navy/cyan design system matching spec. Cases list with filter/sort, case detail with status transitions, activity feed, SLA countdown.
 
+---
+
+## Enterprise UAT Simulation — Issue Tracker (2026-05-21)
+
+**Scenario modelled:** 200 investigators, 20 managers, 5M transactions/day → ~2,500 cases/day
+
+### Priority Legend
+- 🔴 P0 — System-breaking / data-corrupting / security-critical (fix before ANY client demo)
+- 🟠 P1 — Data integrity / audit compliance gaps (fix before go-live)
+- 🟡 P2 — UX/edge-case degradation (fix before first enterprise renewal)
+
+### Issue Registry
+
+| ID | Component | Issue | Priority | Status |
+|----|-----------|-------|----------|--------|
+| RC-02 | `assignment/engine.go:87` | `assignee_id` column doesn't exist — should be `assigned_to`. All auto-assignments silently fail. | 🔴 P0 | ✅ Fixed |
+| AI-01 | `auditchain/chain.go:139` | `Valid: true` even when chain is broken. Tampered audit logs are never detected. | 🔴 P0 | ✅ Already correct — `Valid: false` in code |
+| SD-03 | `retention/purge.go:30` | Startup purge is synchronous — table locks entire `sessions` table during boot, triggers pod restart loop. | 🔴 P0 | ✅ Fixed |
+| PE-01 | `apikeys/handler.go` | API key scopes (`cases:read`, `audit:read`) are stored but never enforced per-route. Any key can call any endpoint. | 🔴 P0 | ✅ Fixed |
+| DI-01 | `crypto/encrypt.go` | No key-wrapping: rotating `ENCRYPTION_KEY` bricks all existing encrypted documents. | 🔴 P0 | ✅ Fixed |
+| RC-04 | `cases/service.go:544` | Bulk operations have no DB transaction — partial commits persist with no rollback path. | 🟠 P1 | ✅ Fixed |
+| AI-02 | `cases/service.go:559` | `BulkAssign` skips `CreateAssignment` — case assignment history table has gaps; chain of custody breaks. | 🟠 P1 | ✅ Fixed |
+| PE-02 | `auth/service.go` | JWT survives role downgrade — demoted users keep old permissions until token expires (up to 24h). | 🟠 P1 | ✅ Fixed |
+| RC-01 | `auth/repository.go:74` | `EnforceSessionLimit` races on COUNT then UPDATE — concurrent logins bypass the session cap. | 🟠 P1 | ✅ Fixed |
+| SD-04 | `assignment/engine.go` | `match_priority` stored as TEXT with no case normalization — `"Critical"` vs `"critical"` never matches. | 🟠 P1 | ✅ Fixed |
+| RC-03 | `auth/service.go:321` | MFA enrollment TOCTOU — concurrent tabs overwrite each other's TOTP secrets. | 🟠 P1 | ⏳ Pending |
+| AI-03 | `auth/service.go:313` | Password change audit log is fire-and-forget — server crash leaves no forensic record. | 🟠 P1 | ⏳ Pending |
+| AI-04 | `retention/purge.go` | Retention purge deletes rows with no entry in audit chain — DPDP Act non-compliance. | 🟠 P1 | ⏳ Pending |
+| SB-01 | `SLACountdown` component | Client-side time calculation + clock drift — SLA shows green when actually breached. | 🟡 P2 | ⏳ Pending |
+| SB-02 | `cases/service.go` | Priority change doesn't recalculate `sla_breach_at` — escalated cases retain wrong SLA deadline. | 🟡 P2 | ⏳ Pending |
+| AH-02 | `report/regulatory.go:136` | AI-hallucinated content flows into STR/SAR reports with no validation of PAN/Aadhaar/IFSC format. | 🟡 P2 | ⏳ Pending |
+| DI-02 | `documents/service.go` | Documents stuck in `processing` status after AI service crash — no timeout, no fallback to `failed`. | 🟡 P2 | ⏳ Pending |
+| CI-01 | `auditchain/chain.go:55` | Single `ChainWriter` mutex serializes all audit writes — bottleneck at 500+ cases/min EOD burst. | 🟡 P2 | ⏳ Pending |
+| PE-03 | `cases/service.go` | Bulk delete has no tenant ownership check — admin from Org A can delete Org B's cases by UUID. | 🟡 P2 | ⏳ Pending |
+| SD-01 | `cases/page.tsx` | TanStack Query cache shows stale data for 2–4s after bulk mutation — double-submission risk. | 🟡 P2 | ⏳ Pending |
+
+### Fix Session Log
+
+| Fix ID | What Changed | Files Touched | Test Result |
+|--------|-------------|---------------|-------------|
+| RC-02 + SD-04 | `assignee_id` → `assigned_to` in `leastLoadedUserWithRole` JOIN. Status filter: removed non-existent `'resolved'`, added `'escalated'`. Added `LOWER()` normalization on `match_priority` in SELECT, INSERT, UPDATE so `"Critical"` matches `"critical"`. | `internal/assignment/engine.go` | ✅ PASS |
+| AI-01 | Already had `Valid: false` — no change needed. Agent report was incorrect. | — | n/a |
+| SD-03 | Startup purge wrapped in `go s.runPurge(ctx)` — no longer blocks server boot. | `internal/retention/purge.go` | ✅ PASS |
+| PE-01 | Added `Scopes []string` to `Claims`. Added `RequireScope(scope)` middleware that passes JWT callers (nil Scopes) and enforces scope list for API key callers. Wired on all cases/audit/documents routes. | `internal/auth/jwt.go`, `context.go`, `cases/routes.go`, `audit/routes.go`, `documents/routes.go` | ✅ PASS |
+| DI-01 | Rewrote `crypto/encrypt.go` with multi-key envelope: keys loaded by ID from `ENCRYPTION_KEY_<id>` env vars, active key set via `ENCRYPTION_KEY_CURRENT`. `DecryptWithKeyID(ciphertext, keyID)` uses stored key. Backward compat: `ENCRYPTION_KEY` still maps to `k1`. | `internal/crypto/encrypt.go` | ✅ PASS (no callers to update) |
+| RC-04 + AI-02 | `BulkStatus`/`BulkAssign`/`BulkDelete` now wrapped in `sql.BeginTx` — all-or-nothing semantics. `BulkAssign` now calls `CloseLastAssignment` + `CreateCaseAssignment` inside same tx for each case. Added `sqlDB *sql.DB` to `Service`. | `internal/cases/service.go`, `server/server.go`, `cases/cases_test.go` | ✅ PASS |
+| PE-02 | `users.Service.Update` calls `RevokeAllTokens` when role or is_active changes. `RevokeAllTokens` now also revokes all active `sessions`. Added `RevokeAllUserSessions` SQL + Querier interface entry. | `internal/users/service.go`, `repository.go`, `db/generated/auth.sql.go`, `querier.go` | ✅ PASS |
+| RC-01 | Replaced COUNT+UPDATE race in `EnforceSessionLimit` with single atomic `EnforceSessionCap` UPDATE that revokes sessions not in the newest N. Added SQL + Querier interface. | `internal/auth/repository.go`, `db/generated/auth.sql.go`, `querier.go` | ✅ PASS |
+
+---
+
 ### ✅ Feature 1 — Authentication & RBAC (2026-05-16)
 **Built:** JWT RS256 login/refresh/logout/me/change-password, refresh token rotation with SHA-256 hash storage, family revocation on reuse detection, 5-role RBAC (super_admin → viewer), user CRUD, bcrypt cost 12, rate limiting (100 req/min token bucket), async audit log writes.
 **Key decisions:**

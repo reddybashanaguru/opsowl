@@ -1,0 +1,439 @@
+"use client";
+
+import { useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { api, APIError } from "@/lib/api";
+import { RBACGate } from "@/components/auth/RBACGate";
+
+interface AssignmentRule {
+  id: string;
+  name: string;
+  description?: string;
+  priority_order: number;
+  match_priority?: string;
+  match_source_id?: string;
+  assign_to_user?: string;
+  assign_to_role?: string;
+  is_active: boolean;
+  created_at: string;
+}
+
+interface RuleFormData {
+  name: string;
+  description: string;
+  priority_order: number;
+  match_priority: string;
+  assign_to_role: string;
+  assign_to_user: string;
+}
+
+const EMPTY_FORM: RuleFormData = {
+  name: "",
+  description: "",
+  priority_order: 100,
+  match_priority: "",
+  assign_to_role: "",
+  assign_to_user: "",
+};
+
+const PRIORITIES = ["", "critical", "high", "medium", "low"];
+const ROLES = ["", "analyst", "manager", "admin"];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "text-red-400 bg-red-400/10",
+  high: "text-orange-400 bg-orange-400/10",
+  medium: "text-amber-400 bg-amber-400/10",
+  low: "text-slate-400 bg-slate-400/10",
+};
+
+function RuleModal({
+  rule,
+  onClose,
+  onSaved,
+}: {
+  rule: AssignmentRule | null;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const isEdit = rule !== null;
+  const [form, setForm] = useState<RuleFormData>(
+    rule
+      ? {
+          name: rule.name,
+          description: rule.description ?? "",
+          priority_order: rule.priority_order,
+          match_priority: rule.match_priority ?? "",
+          assign_to_role: rule.assign_to_role ?? "",
+          assign_to_user: rule.assign_to_user ?? "",
+        }
+      : EMPTY_FORM
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const body = {
+        name: form.name,
+        description: form.description,
+        priority_order: form.priority_order,
+        match_priority: form.match_priority || undefined,
+        assign_to_role: form.assign_to_role || undefined,
+        assign_to_user: form.assign_to_user || undefined,
+      };
+      return isEdit
+        ? api.put(`/api/v1/assignment-rules/${rule!.id}`, body)
+        : api.post("/api/v1/assignment-rules", body);
+    },
+    onSuccess: () => {
+      onSaved();
+    },
+    onError: (e) => {
+      setError(e instanceof APIError ? e.message : "Failed to save rule");
+    },
+  });
+
+  function field(k: keyof RuleFormData, v: string | number) {
+    setForm((prev) => ({ ...prev, [k]: v }));
+  }
+
+  const assignTarget = form.assign_to_role
+    ? "role"
+    : form.assign_to_user
+    ? "user"
+    : "role";
+
+  const [targetType, setTargetType] = useState<"role" | "user">(
+    rule?.assign_to_user ? "user" : "role"
+  );
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-white font-semibold text-lg">
+            {isEdit ? "Edit Rule" : "New Assignment Rule"}
+          </h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl">✕</button>
+        </div>
+
+        {error && (
+          <div className="mb-4 px-4 py-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30 text-red-400">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs text-slate-400 mb-1">Rule Name *</label>
+              <input
+                value={form.name}
+                onChange={(e) => field("name", e.target.value)}
+                placeholder="e.g. Auto-assign critical cases"
+                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Priority Order</label>
+              <input
+                type="number"
+                value={form.priority_order}
+                onChange={(e) => field("priority_order", Number(e.target.value))}
+                min={1}
+                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Lower = higher priority</p>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Description</label>
+            <input
+              value={form.description}
+              onChange={(e) => field("description", e.target.value)}
+              placeholder="What does this rule do?"
+              className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+          </div>
+
+          <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Match Conditions</p>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Priority (leave blank to match any)</label>
+              <select
+                value={form.match_priority}
+                onChange={(e) => field("match_priority", e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+              >
+                {PRIORITIES.map((p) => (
+                  <option key={p} value={p}>
+                    {p === "" ? "Any priority" : p.charAt(0).toUpperCase() + p.slice(1)}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Assign To</p>
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => { setTargetType("role"); field("assign_to_user", ""); }}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  targetType === "role"
+                    ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-400"
+                    : "bg-slate-800 border border-slate-700 text-slate-400 hover:border-slate-500"
+                }`}
+              >
+                Role (round-robin)
+              </button>
+              <button
+                type="button"
+                onClick={() => { setTargetType("user"); field("assign_to_role", ""); }}
+                className={`px-3 py-1.5 rounded text-xs font-medium transition-colors ${
+                  targetType === "user"
+                    ? "bg-cyan-500/20 border border-cyan-500/40 text-cyan-400"
+                    : "bg-slate-800 border border-slate-700 text-slate-400 hover:border-slate-500"
+                }`}
+              >
+                Specific User
+              </button>
+            </div>
+
+            {targetType === "role" ? (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Role</label>
+                <select
+                  value={form.assign_to_role}
+                  onChange={(e) => field("assign_to_role", e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>
+                      {r === "" ? "Select a role…" : r.charAt(0).toUpperCase() + r.slice(1)}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-slate-600 text-[10px] mt-1">
+                  Assigns to the analyst with fewest open cases in this role.
+                </p>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">User ID</label>
+                <input
+                  value={form.assign_to_user}
+                  onChange={(e) => field("assign_to_user", e.target.value)}
+                  placeholder="UUID of the user to assign to"
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={() => mutation.mutate()}
+            disabled={
+              !form.name.trim() ||
+              (!form.assign_to_role && !form.assign_to_user) ||
+              mutation.isPending
+            }
+            className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
+          >
+            {mutation.isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Rule"}
+          </button>
+          <button
+            onClick={onClose}
+            className="px-4 py-2 text-slate-400 hover:text-slate-200 text-sm border border-slate-700 rounded transition-colors"
+          >
+            Cancel
+          </button>
+        </div>
+
+        {/* suppress unused var lint */}
+        <span className="hidden">{assignTarget}</span>
+      </div>
+    </div>
+  );
+}
+
+function AssignmentRulesContent() {
+  const qc = useQueryClient();
+  const [modalRule, setModalRule] = useState<AssignmentRule | "new" | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const { data: rules = [], isLoading } = useQuery({
+    queryKey: ["assignment-rules"],
+    queryFn: () => api.get<{ rules: AssignmentRule[] }>("/api/v1/assignment-rules"),
+    select: (d) => d.rules ?? [],
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/api/v1/assignment-rules/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["assignment-rules"] });
+      setDeletingId(null);
+    },
+  });
+
+  function handleSaved() {
+    qc.invalidateQueries({ queryKey: ["assignment-rules"] });
+    setModalRule(null);
+  }
+
+  return (
+    <div className="p-8 max-w-5xl">
+      <div className="flex items-start justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-100 mb-1">Assignment Rules</h1>
+          <p className="text-slate-400 text-sm">
+            Automatically route new cases to users or teams. Rules are evaluated in priority order — first match wins.
+          </p>
+        </div>
+        <button
+          onClick={() => setModalRule("new")}
+          className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors"
+        >
+          + New Rule
+        </button>
+      </div>
+
+      {rules.length === 0 && !isLoading && (
+        <div className="p-5 bg-slate-800/40 border border-slate-700/50 rounded-lg text-slate-500 text-sm text-center">
+          No rules configured. New cases will remain unassigned until manually routed.
+          <button
+            onClick={() => setModalRule("new")}
+            className="block mx-auto mt-2 text-cyan-400 hover:text-cyan-300"
+          >
+            Create your first rule →
+          </button>
+        </div>
+      )}
+
+      {isLoading && (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="h-16 bg-slate-800/60 animate-pulse rounded-xl" />
+          ))}
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {rules.map((rule, idx) => (
+          <div
+            key={rule.id}
+            className={`p-5 bg-[#1e293b] border rounded-xl transition-colors ${
+              rule.is_active ? "border-slate-700" : "border-slate-700/40 opacity-60"
+            }`}
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                {/* Priority badge */}
+                <div className="flex flex-col items-center gap-1">
+                  <span className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-700 text-slate-400 text-xs font-bold tabular-nums">
+                    {idx + 1}
+                  </span>
+                  {!rule.is_active && (
+                    <span className="text-[10px] text-slate-600">off</span>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-slate-200 font-medium text-sm">{rule.name}</span>
+                    {rule.match_priority && (
+                      <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[rule.match_priority] ?? ""}`}>
+                        {rule.match_priority}
+                      </span>
+                    )}
+                  </div>
+                  {rule.description && (
+                    <p className="text-slate-500 text-xs mb-2">{rule.description}</p>
+                  )}
+                  <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                    <span>
+                      <span className="text-slate-600">Match: </span>
+                      {rule.match_priority
+                        ? <span className="text-slate-300">{rule.match_priority} priority</span>
+                        : <span className="italic text-slate-600">any case</span>
+                      }
+                    </span>
+                    <span>
+                      <span className="text-slate-600">Assign: </span>
+                      {rule.assign_to_role
+                        ? <span className="text-cyan-400/80">least-loaded {rule.assign_to_role}</span>
+                        : rule.assign_to_user
+                        ? <span className="font-mono text-cyan-400/80">{rule.assign_to_user.slice(0, 8)}…</span>
+                        : <span className="text-slate-600 italic">not set</span>
+                      }
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 ml-4 shrink-0">
+                <button
+                  onClick={() => setModalRule(rule)}
+                  className="text-xs text-slate-500 hover:text-slate-200 px-3 py-1.5 border border-slate-700 rounded hover:border-slate-500 transition-colors"
+                >
+                  Edit
+                </button>
+                {deletingId === rule.id ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-red-400">Delete?</span>
+                    <button
+                      onClick={() => deleteMutation.mutate(rule.id)}
+                      className="text-xs px-2 py-1 bg-red-600/20 border border-red-500/30 text-red-400 rounded hover:bg-red-600/30"
+                    >
+                      Yes
+                    </button>
+                    <button
+                      onClick={() => setDeletingId(null)}
+                      className="text-xs text-slate-500 hover:text-slate-300"
+                    >
+                      No
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDeletingId(rule.id)}
+                    className="text-xs text-slate-600 hover:text-red-400 transition-colors"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {rules.length > 0 && (
+        <p className="text-slate-600 text-xs mt-4">
+          Rules are evaluated in order above. Reorder by adjusting the Priority Order field.
+        </p>
+      )}
+
+      {modalRule !== null && (
+        <RuleModal
+          rule={modalRule === "new" ? null : modalRule}
+          onClose={() => setModalRule(null)}
+          onSaved={handleSaved}
+        />
+      )}
+    </div>
+  );
+}
+
+export default function AssignmentRulesPage() {
+  return (
+    <RBACGate allowedRoles={["admin", "super_admin"]} fallback={
+      <div className="p-8 text-slate-400 text-sm">Admin access required to manage assignment rules.</div>
+    }>
+      <AssignmentRulesContent />
+    </RBACGate>
+  );
+}

@@ -132,6 +132,11 @@ func (s *Service) Update(ctx context.Context, actor *auth.Claims, targetID uuid.
 	if err != nil {
 		return UserResponse{}, ErrUserNotFound
 	}
+	// Invalidate all active sessions when role or active status changes so the
+	// new permissions take effect immediately rather than after token expiry.
+	if req.Role != nil || req.IsActive != nil {
+		_ = s.repo.RevokeAllTokens(ctx, targetID)
+	}
 	return toResponse(db.User{
 		ID:          row.ID,
 		Email:       row.Email,

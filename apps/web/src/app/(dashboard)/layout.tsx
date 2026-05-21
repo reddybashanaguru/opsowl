@@ -30,6 +30,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Users", href: "/users", icon: "◎" },
     { label: "Audit Logs", href: "/audit", icon: "◈" },
     { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
+    { label: "API Keys", href: "/settings/api-keys", icon: "⌗" },
+    { label: "Assignment Rules", href: "/settings/assignment-rules", icon: "⇢" },
+    { label: "Retention", href: "/settings/retention", icon: "⌛" },
     { label: "Settings", href: "/settings", icon: "⚙", exact: true },
   ];
 

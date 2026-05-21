@@ -49,7 +49,7 @@ func (e *Engine) Evaluate(ctx context.Context, input MatchInput) (uuid.UUID, err
 		SELECT assign_to_user, assign_to_role
 		FROM assignment_rules
 		WHERE is_active = TRUE
-		  AND (match_priority IS NULL OR match_priority = $1)
+		  AND (match_priority IS NULL OR LOWER(match_priority) = LOWER($1))
 		  AND (match_source_id IS NULL OR match_source_id = $2)
 		ORDER BY priority_order ASC
 		LIMIT 20
@@ -85,7 +85,7 @@ func (e *Engine) leastLoadedUserWithRole(ctx context.Context, role string) (uuid
 	err := e.db.QueryRowContext(ctx, `
 		SELECT u.id
 		FROM users u
-		LEFT JOIN cases c ON c.assignee_id = u.id AND c.status NOT IN ('closed', 'resolved')
+		LEFT JOIN cases c ON c.assigned_to = u.id AND c.status NOT IN ('closed', 'escalated')
 		WHERE u.role = $1 AND u.is_active = TRUE AND u.deleted_at IS NULL
 		GROUP BY u.id
 		ORDER BY COUNT(c.id) ASC
@@ -185,7 +185,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	err := h.db.QueryRowContext(r.Context(), `
 		INSERT INTO assignment_rules
 		  (name, description, priority_order, match_priority, match_source_id, assign_to_user, assign_to_role, created_by)
-		VALUES ($1, NULLIF($2,''), $3, NULLIF($4,''), $5, $6, NULLIF($7,''), $8)
+		VALUES ($1, NULLIF($2,''), $3, NULLIF(LOWER($4),''), $5, $6, NULLIF(LOWER($7),''), $8)
 		RETURNING id
 	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchSourceID,
 		req.AssignToUser, req.AssignToRole, claims.UserID).Scan(&id)
@@ -210,8 +210,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	result, err := h.db.ExecContext(r.Context(), `
 		UPDATE assignment_rules
 		SET name=$1, description=NULLIF($2,''), priority_order=$3,
-		    match_priority=NULLIF($4,''), match_source_id=$5,
-		    assign_to_user=$6, assign_to_role=NULLIF($7,''), updated_at=NOW()
+		    match_priority=NULLIF(LOWER($4),''), match_source_id=$5,
+		    assign_to_user=$6, assign_to_role=NULLIF(LOWER($7),''), updated_at=NOW()
 		WHERE id=$8
 	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchSourceID,
 		req.AssignToUser, req.AssignToRole, id)

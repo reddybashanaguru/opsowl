@@ -2,10 +2,10 @@
   "cookies": [
     {
       "name": "refresh_token",
-      "value": "rt_4c8cc64ca21103e88476e45fec7964f2c4580feb145e7aa296e8487cb9537a2c",
+      "value": "rt_4c2f4a8f8a58e95856b67289a11fb25aec5c5d56c57e0c810d361d5deec30e4f",
       "domain": "localhost",
       "path": "/api/v1/auth",
-      "expires": 1781939279.06756,
+      "expires": 1781940480.271824,
       "httpOnly": true,
       "secure": false,
       "sameSite": "Lax"

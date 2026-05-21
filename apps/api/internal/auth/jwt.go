@@ -22,6 +22,8 @@ type Claims struct {
 	Email      string      `json:"email"`
 	Role       db.UserRole `json:"role"`
 	MFAPending bool        `json:"mfa_pending,omitempty"` // true only on MFA challenge tokens
+	// Scopes is non-nil only for API key callers. Empty/nil means JWT caller — no scope restriction.
+	Scopes []string `json:"scopes,omitempty"`
 	jwt.RegisteredClaims
 }
 
