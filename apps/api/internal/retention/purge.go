@@ -6,6 +6,7 @@ package retention
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -16,12 +17,13 @@ import (
 
 // Scheduler runs daily retention purges.
 type Scheduler struct {
-	sqlDB  *sql.DB
-	logger *zap.Logger
+	sqlDB   *sql.DB
+	queries *db.Queries
+	logger  *zap.Logger
 }
 
-func NewScheduler(sqlDB *sql.DB, logger *zap.Logger) *Scheduler {
-	return &Scheduler{sqlDB: sqlDB, logger: logger}
+func NewScheduler(sqlDB *sql.DB, queries *db.Queries, logger *zap.Logger) *Scheduler {
+	return &Scheduler{sqlDB: sqlDB, queries: queries, logger: logger}
 }
 
 // Start begins the daily purge loop. Call in a goroutine.
@@ -65,6 +67,7 @@ func (s *Scheduler) runPurge(ctx context.Context) {
 				zap.Time("cutoff", cutoff))
 		}
 		_ = s.updateLastPurged(ctx, p.ResourceType)
+		s.writeAuditLog(ctx, p.ResourceType, deleted, cutoff)
 	}
 }
 
@@ -114,6 +117,24 @@ func (s *Scheduler) purge(ctx context.Context, resourceType string, cutoff time.
 	return result.RowsAffected()
 }
 
+func (s *Scheduler) writeAuditLog(ctx context.Context, resourceType string, deleted int64, cutoff time.Time) {
+	if s.queries == nil {
+		return
+	}
+	meta, _ := json.Marshal(map[string]any{
+		"resource_type": resourceType,
+		"deleted_count": deleted,
+		"cutoff":        cutoff.UTC().Format(time.RFC3339),
+	})
+	_ = s.queries.CreateAuditLog(ctx, db.CreateAuditLogParams{
+		EventCode:    "retention.purge.completed",
+		IpAddress:    sql.NullString{},
+		ResourceType: sql.NullString{String: resourceType, Valid: true},
+		Metadata:     meta,
+		Severity:     "info",
+	})
+}
+
 func (s *Scheduler) updateLastPurged(ctx context.Context, resourceType string) error {
 	_, err := s.sqlDB.ExecContext(ctx,
 		`UPDATE data_retention_policies SET last_purged_at = NOW() WHERE resource_type = $1`,
@@ -155,5 +176,3 @@ func ListPolicies(ctx context.Context, sqlDB *sql.DB) ([]PolicyResponse, error) 
 	return out, rows.Err()
 }
 
-// Ensure db import is used (it's used by callers).
-var _ = db.Queries{}

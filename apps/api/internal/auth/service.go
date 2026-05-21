@@ -7,6 +7,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -44,6 +45,9 @@ type Service struct {
 	ldap        *LDAPAuthenticator
 	maxSessions int
 	pwdPolicy   PasswordPolicy
+	// mfaEnrollMu prevents concurrent MFA enrollment for the same user
+	// (TOCTOU: delete-pending + generate + store must be atomic per user).
+	mfaEnrollMu sync.Map // map[uuid.UUID]*sync.Mutex
 }
 
 func NewService(repo *Repository, jwt *JWTManager) *Service {
@@ -300,17 +304,16 @@ func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentP
 	if err := s.repo.UpdatePasswordHash(ctx, userID, newHash); err != nil {
 		return err
 	}
-	// Record history and update changed_at
-	go func() {
-		bg := context.Background()
-		RecordHistory(bg, s.repo.q, userID, newHash, s.pwdPolicy.HistoryCount)
-		_ = s.repo.q.UpdatePasswordChangedAt(bg, db.UpdatePasswordChangedAtParams{
-			ID:         userID,
-			ExpiryDays: int32(s.pwdPolicy.ExpiryDays),
-		})
-	}()
+	// Record history and update expiry synchronously — if the server crashes here the
+	// password was changed but history/expiry would be inconsistent (AI-03 fix).
+	RecordHistory(ctx, s.repo.q, userID, newHash, s.pwdPolicy.HistoryCount)
+	_ = s.repo.q.UpdatePasswordChangedAt(ctx, db.UpdatePasswordChangedAtParams{
+		ID:         userID,
+		ExpiryDays: int32(s.pwdPolicy.ExpiryDays),
+	})
 	_ = s.repo.RevokeAllUserRefreshTokens(ctx, userID)
-	go s.repo.CreateAuditLog(context.Background(), "auth.password.changed", &userID, ipAddress, "users", &userID, map[string]any{}, "info") //nolint:errcheck
+	// Audit log is synchronous so forensic timeline is complete even on subsequent crash.
+	_ = s.repo.CreateAuditLog(ctx, "auth.password.changed", &userID, ipAddress, "users", &userID, map[string]any{}, "info")
 	return nil
 }
 
@@ -318,13 +321,24 @@ func (s *Service) VerifyToken(tokenStr string) (*Claims, error) {
 	return s.jwt.Verify(tokenStr)
 }
 
+// enrollMutex returns the per-user mutex for MFA enrollment (lazy-init via sync.Map).
+func (s *Service) enrollMutex(userID uuid.UUID) *sync.Mutex {
+	mu, _ := s.mfaEnrollMu.LoadOrStore(userID, &sync.Mutex{})
+	return mu.(*sync.Mutex)
+}
+
 // EnrollMFA starts TOTP enrollment: generates a secret, stores it as pending, returns QR + backup codes.
 // Backup codes are generated and returned now but only activated when VerifyMFAEnrollment succeeds.
+// A per-user mutex prevents concurrent enrollments from overwriting each other's secret.
 func (s *Service) EnrollMFA(ctx context.Context, userID uuid.UUID, email string) (*MFAEnrollResponse, error) {
+	mu := s.enrollMutex(userID)
+	mu.Lock()
+	defer mu.Unlock()
+
 	if active, _ := s.repo.HasActiveTOTP(ctx, userID); active {
 		return nil, ErrMFAAlreadyActive
 	}
-	// Clean up any previous pending enrollments.
+	// Clean up any previous pending enrollments (safe — we hold the per-user lock).
 	_ = s.repo.DeletePendingTOTPSecrets(ctx, userID)
 
 	key, err := totp.Generate(totp.GenerateOpts{

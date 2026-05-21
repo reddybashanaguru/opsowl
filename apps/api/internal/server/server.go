@@ -84,7 +84,7 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 	s.setupMiddleware()
 	s.setupRoutes()
 	go sla.NewScheduler(queries, logger).Start(ctx)
-	go retention.NewScheduler(sqlDB, logger).Start(ctx)
+	go retention.NewScheduler(sqlDB, queries, logger).Start(ctx)
 	return s
 }
 
