@@ -186,22 +186,29 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 	if req.DueDate != nil {
 		p.DueDate = sql.NullTime{Time: *req.DueDate, Valid: true}
 	}
+	var slaParams *db.UpdateCaseStatusParams
 	if req.Priority != nil {
 		p.Priority = db.NullCasePriority{CasePriority: *req.Priority, Valid: true}
 		if existing.Status != db.CaseStatusDraft {
 			newSLA := slaBreachAt(*req.Priority, time.Now())
-			go s.repo.UpdateStatus(context.Background(), db.UpdateCaseStatusParams{
+			slaParams = &db.UpdateCaseStatusParams{
 				ID:          id,
 				Status:      existing.Status,
 				SlaBreachAt: sql.NullTime{Time: newSLA, Valid: true},
 				SlaBreached: sql.NullBool{Bool: false, Valid: true},
-			})
+			}
 		}
 	}
 
 	c, err := s.repo.Update(ctx, p)
 	if err != nil {
 		return nil, err
+	}
+
+	if slaParams != nil {
+		if updated, err := s.repo.UpdateStatus(ctx, *slaParams); err == nil {
+			c = updated
+		}
 	}
 
 	go s.repo.CreateActivity(context.Background(), id, actorID, "case_updated", map[string]interface{}{})
@@ -611,7 +618,12 @@ func (s *Service) BulkAssign(ctx context.Context, claims *auth.Claims, ids []uui
 }
 
 // BulkDelete soft-deletes multiple cases inside a single transaction.
+// Analysts may only delete cases assigned to them; managers and above are unrestricted.
 func (s *Service) BulkDelete(ctx context.Context, claims *auth.Claims, ids []uuid.UUID) (deleted int, failed []uuid.UUID) {
+	isPrivileged := claims.Role == db.UserRoleManager ||
+		claims.Role == db.UserRoleAdmin ||
+		claims.Role == db.UserRoleSuperAdmin
+
 	tx, err := s.sqlDB.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, ids
@@ -619,6 +631,13 @@ func (s *Service) BulkDelete(ctx context.Context, claims *auth.Claims, ids []uui
 	txq := db.New(tx)
 
 	for _, id := range ids {
+		if !isPrivileged {
+			row, err := txq.GetCaseByID(ctx, id)
+			if err != nil || row.AssignedTo.UUID != claims.UserID {
+				failed = append(failed, id)
+				continue
+			}
+		}
 		if _, err := txq.SoftDeleteCase(ctx, id); err != nil {
 			failed = append(failed, id)
 		} else {
