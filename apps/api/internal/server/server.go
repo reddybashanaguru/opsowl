@@ -113,7 +113,7 @@ func (s *Server) setupMiddleware() {
 	}
 	rl := middleware.NewRateLimiter(rateLimit, s.jwtMgr)
 
-	s.router.Use(chimw.RequestID)
+	s.router.Use(middleware.RequestID) // stamps X-Request-Id; must be first
 	s.router.Use(chimw.RealIP)
 	s.router.Use(chimw.Recoverer)
 	s.router.Use(chimw.CleanPath)
@@ -121,6 +121,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.CORS)
 	s.router.Use(middleware.Metrics)
 	s.router.Use(chimw.Compress(5))
+	s.router.Use(middleware.AccessLog(s.logger, s.jwtMgr)) // structured access log with user_id + request_id
 	s.router.Use(sseAwareTimeout(30 * time.Second))
 	s.router.Use(apikeys.APIKeyMiddleware(s.sqlDB))
 	s.router.Use(rl.Middleware)
