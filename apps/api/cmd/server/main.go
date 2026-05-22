@@ -19,6 +19,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/mail"
 	"github.com/reddybashanaguru/opsowl/internal/server"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
+	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
 func main() {
@@ -29,6 +30,8 @@ func main() {
 		logger, _ = zap.NewProduction()
 	}
 	defer logger.Sync() //nolint:errcheck
+
+	worker.Init(logger)
 
 	cfg, err := config.Load()
 	if err != nil {
@@ -130,5 +133,7 @@ func main() {
 		logger.Error("shutdown error", zap.Error(err))
 		os.Exit(1)
 	}
+	// Drain background worker pool after HTTP is closed so in-flight jobs finish.
+	worker.Background.Stop()
 	logger.Info("server stopped cleanly")
 }

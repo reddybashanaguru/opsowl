@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/pquerna/otp/totp"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
 const refreshTTL = 30 * 24 * time.Hour
@@ -69,6 +70,14 @@ func (s *Service) WithPasswordPolicy(p PasswordPolicy) *Service {
 	return s
 }
 
+
+// auditAsync enqueues an audit log write on the shared background worker pool.
+func (s *Service) auditAsync(event string, userID *uuid.UUID, ip, resource string, resourceID *uuid.UUID, meta map[string]any, severity string) {
+	worker.TrySubmit(func() {
+		s.repo.CreateAuditLog(context.Background(), event, userID, ip, resource, resourceID, meta, severity) //nolint:errcheck
+	})
+}
+
 // WithLDAP enables LDAP/AD authentication as the primary auth path.
 func (s *Service) WithLDAP(cfg *LDAPConfig) *Service {
 	if cfg.Enabled() {
@@ -106,20 +115,20 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 	user, err := s.repo.GetUserByEmail(ctx, email)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			go s.repo.CreateAuditLog(context.Background(), "auth.login.failed", nil, ipAddress, "", nil, map[string]any{"email": email}, "warn") //nolint:errcheck
+			s.auditAsync("auth.login.failed", nil, ipAddress, "", nil, map[string]any{"email": email}, "warn") //nolint:errcheck
 			return nil, ErrInvalidCredentials
 		}
 		return nil, err
 	}
 
 	if !user.IsActive {
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.account_disabled", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
+		s.auditAsync("auth.login.account_disabled", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
 		return nil, ErrAccountDisabled
 	}
 
 	// Check lockout before attempting password verification.
 	if user.LockedUntil.Valid && time.Now().Before(user.LockedUntil.Time) {
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID, map[string]any{"locked_until": user.LockedUntil.Time}, "warn") //nolint:errcheck
+		s.auditAsync("auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID, map[string]any{"locked_until": user.LockedUntil.Time}, "warn") //nolint:errcheck
 		return nil, ErrAccountLocked
 	}
 
@@ -135,7 +144,7 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 		if err != nil {
 			return nil, err
 		}
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.mfa_required", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "info") //nolint:errcheck
+		s.auditAsync("auth.login.mfa_required", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "info") //nolint:errcheck
 		return &LoginResult{MFARequired: true, MFAToken: mfaToken}, nil
 	}
 
@@ -145,13 +154,13 @@ func (s *Service) loginLocal(ctx context.Context, email, password, ipAddress str
 	}
 
 	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
-	go s.repo.ResetLoginAttempts(context.Background(), user.ID) //nolint:errcheck
+	worker.TrySubmit(func() { s.repo.ResetLoginAttempts(context.Background(), user.ID) }) //nolint:errcheck
 	go func() {
 		bg := context.Background()
 		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
 		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
 	}()
-	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "local"}, "info") //nolint:errcheck
+	s.auditAsync("auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "local"}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
 }
 
@@ -161,7 +170,7 @@ func (s *Service) handleFailedAttempt(user db.User, ipAddress string) {
 	ctx := context.Background()
 	newCount := int(user.FailedLoginAttempts) + 1
 	_ = s.repo.IncrementFailedLoginAttempts(ctx, user.ID)
-	go s.repo.CreateAuditLog(ctx, "auth.login.failed", &user.ID, ipAddress, "users", &user.ID,
+	s.auditAsync("auth.login.failed", &user.ID, ipAddress, "users", &user.ID,
 		map[string]any{"attempt": newCount, "max": maxFailedAttempts}, "warn") //nolint:errcheck
 
 	if newCount >= maxFailedAttempts {
@@ -172,7 +181,7 @@ func (s *Service) handleFailedAttempt(user db.User, ipAddress string) {
 		}
 		until := time.Now().Add(time.Duration(lockoutMins) * time.Minute)
 		_ = s.repo.LockAccount(ctx, user.ID, until)
-		go s.repo.CreateAuditLog(ctx, "auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID,
+		s.auditAsync("auth.login.account_locked", &user.ID, ipAddress, "users", &user.ID,
 			map[string]any{"locked_until": until, "lockout_minutes": lockoutMins}, "critical") //nolint:errcheck
 	}
 }
@@ -181,7 +190,7 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 	// Verify credentials against LDAP/AD
 	resolvedEmail, err := s.ldap.Authenticate(username, password)
 	if err != nil {
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.failed", nil, ipAddress, "", nil, map[string]any{"username": username, "method": "ldap"}, "warn") //nolint:errcheck
+		s.auditAsync("auth.login.failed", nil, ipAddress, "", nil, map[string]any{"username": username, "method": "ldap"}, "warn") //nolint:errcheck
 		return nil, ErrInvalidCredentials
 	}
 
@@ -200,7 +209,7 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 	}
 
 	if !user.IsActive {
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.account_disabled", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
+		s.auditAsync("auth.login.account_disabled", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
 		return nil, ErrAccountDisabled
 	}
 
@@ -211,7 +220,7 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 		if err != nil {
 			return nil, err
 		}
-		go s.repo.CreateAuditLog(context.Background(), "auth.login.mfa_required", &user.ID, ipAddress, "users", &user.ID, map[string]any{"method": "ldap"}, "info") //nolint:errcheck
+		s.auditAsync("auth.login.mfa_required", &user.ID, ipAddress, "users", &user.ID, map[string]any{"method": "ldap"}, "info") //nolint:errcheck
 		return &LoginResult{MFARequired: true, MFAToken: mfaToken}, nil
 	}
 
@@ -226,7 +235,7 @@ func (s *Service) loginWithLDAP(ctx context.Context, username, password, ipAddre
 		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
 		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
 	}()
-	go s.repo.CreateAuditLog(context.Background(), "auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "ldap"}, "info") //nolint:errcheck
+	s.auditAsync("auth.login.success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID, "method": "ldap"}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
 }
 
@@ -242,8 +251,8 @@ func (s *Service) Refresh(ctx context.Context, rawToken, ipAddress string) (*Tok
 
 	// Reuse detection: token already revoked
 	if rt.RevokedAt.Valid {
-		go s.repo.RevokeAllUserRefreshTokens(context.Background(), rt.UserID)           //nolint:errcheck
-		go s.repo.CreateAuditLog(context.Background(), "auth.token.reuse_detected", &rt.UserID, ipAddress, "refresh_tokens", &rt.ID, map[string]any{"rt_hash": hash[:8] + "..."}, "critical") //nolint:errcheck
+		worker.TrySubmit(func() { s.repo.RevokeAllUserRefreshTokens(context.Background(), rt.UserID) }) //nolint:errcheck
+		s.auditAsync("auth.token.reuse_detected", &rt.UserID, ipAddress, "refresh_tokens", &rt.ID, map[string]any{"rt_hash": hash[:8] + "..."}, "critical") //nolint:errcheck
 		return nil, ErrTokenReuse
 	}
 
@@ -266,7 +275,7 @@ func (s *Service) Refresh(ctx context.Context, rawToken, ipAddress string) (*Tok
 		return nil, err
 	}
 
-	go s.repo.CreateAuditLog(context.Background(), "auth.token.refresh", &user.ID, ipAddress, "refresh_tokens", &rt.ID, map[string]any{"new_rt_id": pair.RTID}, "info") //nolint:errcheck
+	s.auditAsync("auth.token.refresh", &user.ID, ipAddress, "refresh_tokens", &rt.ID, map[string]any{"new_rt_id": pair.RTID}, "info") //nolint:errcheck
 	return pair, nil
 }
 
@@ -277,7 +286,7 @@ func (s *Service) Logout(ctx context.Context, rawToken string, userID uuid.UUID,
 		return nil // idempotent
 	}
 	_ = s.repo.RevokeRefreshToken(ctx, rt.ID)
-	go s.repo.CreateAuditLog(context.Background(), "auth.logout", &userID, ipAddress, "users", &userID, map[string]any{}, "info") //nolint:errcheck
+	s.auditAsync("auth.logout", &userID, ipAddress, "users", &userID, map[string]any{}, "info") //nolint:errcheck
 	return nil
 }
 
@@ -419,7 +428,7 @@ func (s *Service) VerifyMFAChallenge(ctx context.Context, mfaToken, code, ipAddr
 	codeHash := fmt.Sprintf("%x", h)
 	bc, err := s.repo.GetUnusedBackupCode(ctx, user.ID, codeHash)
 	if err != nil {
-		go s.repo.CreateAuditLog(context.Background(), "auth.mfa.failed", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
+		s.auditAsync("auth.mfa.failed", &user.ID, ipAddress, "users", &user.ID, map[string]any{}, "warn") //nolint:errcheck
 		return nil, ErrInvalidMFACode
 	}
 	_ = s.repo.MarkBackupCodeUsed(ctx, bc.ID)
@@ -437,7 +446,7 @@ func (s *Service) completeMFALogin(ctx context.Context, user db.User, ipAddress 
 		_ = s.repo.EnforceSessionLimit(bg, user.ID, s.maxSessions)
 		_ = s.repo.CreateSession(bg, user.ID, ipAddress, "")
 	}()
-	go s.repo.CreateAuditLog(context.Background(), "auth.login.mfa_success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID}, "info") //nolint:errcheck
+	s.auditAsync("auth.login.mfa_success", &user.ID, ipAddress, "users", &user.ID, map[string]any{"session_id": pair.RTID}, "info") //nolint:errcheck
 	return &LoginResult{Pair: pair}, nil
 }
 
@@ -454,7 +463,7 @@ func (s *Service) DisableMFA(ctx context.Context, userID uuid.UUID, password, ip
 		return err
 	}
 	_ = s.repo.DeleteAllBackupCodes(ctx, userID)
-	go s.repo.CreateAuditLog(context.Background(), "auth.mfa.disabled", &userID, ipAddress, "users", &userID, map[string]any{}, "warn") //nolint:errcheck
+	s.auditAsync("auth.mfa.disabled", &userID, ipAddress, "users", &userID, map[string]any{}, "warn") //nolint:errcheck
 	return nil
 }
 
