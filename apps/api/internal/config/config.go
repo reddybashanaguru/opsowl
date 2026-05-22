@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 	"strconv"
@@ -116,9 +117,11 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// validateProductionSecrets fails startup if weak/default credentials are in use.
-// This ensures secrets are rotated before deploying to a regulated environment.
+// validateProductionSecrets fails startup if weak/default credentials or
+// incorrectly-sized keys are detected. This prevents misconfigured deployments
+// from silently accepting plaintext or default-key encrypted data in production.
 func validateProductionSecrets(cfg *Config) error {
+	// Check known-weak credential values
 	checks := map[string]string{
 		"STORAGE_ACCESS_KEY": cfg.StorageAccessKey,
 		"STORAGE_SECRET_KEY": cfg.StorageSecretKey,
@@ -130,9 +133,23 @@ func validateProductionSecrets(cfg *Config) error {
 			}
 		}
 	}
+
+	// ENCRYPTION_KEY must be present and must decode to exactly 32 bytes (AES-256).
 	if cfg.EncryptionKey == "" {
 		return fmt.Errorf("SECURITY: ENCRYPTION_KEY must be set in production (generate: openssl rand -base64 32)")
 	}
+	keyBytes, err := base64.StdEncoding.DecodeString(cfg.EncryptionKey)
+	if err != nil {
+		// Try URL-safe base64 as well
+		keyBytes, err = base64.URLEncoding.DecodeString(cfg.EncryptionKey)
+	}
+	if err != nil {
+		return fmt.Errorf("SECURITY: ENCRYPTION_KEY is not valid base64 — regenerate with: openssl rand -base64 32")
+	}
+	if len(keyBytes) != 32 {
+		return fmt.Errorf("SECURITY: ENCRYPTION_KEY must decode to exactly 32 bytes for AES-256 (got %d bytes) — regenerate with: openssl rand -base64 32", len(keyBytes))
+	}
+
 	return nil
 }
 
