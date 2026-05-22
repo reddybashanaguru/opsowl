@@ -1,8 +1,6 @@
 // @vitest-environment node
-// Running in the node environment so that `typeof window === "undefined"` is
-// true inside api.ts's getAuthHeader(), which causes it to return {} immediately
-// and skip the lazy require('@/lib/stores/auth.store') call that would otherwise
-// fail (CJS require can't resolve Vite '@/' aliases in the test runner).
+// Use the node environment so that `fetch` is cleanly stubbable and the
+// module loads without the jsdom `window` complications.
 
 import { newIdempotencyKey, api, APIError } from "../api";
 
@@ -57,6 +55,13 @@ describe("api.idempotentPost", () => {
     const [, init] = fetchMock.mock.calls[0];
     const headers = init?.headers as Record<string, string>;
     expect(headers["Idempotency-Key"]).toBe(key);
+  });
+
+  it("does NOT include an Authorization header (auth is cookie-based)", async () => {
+    await api.idempotentPost("/api/v1/cases", { title: "Test" }, "k0");
+    const [, init] = vi.mocked(fetch).mock.calls[0];
+    const headers = init?.headers as Record<string, string>;
+    expect(headers["Authorization"]).toBeUndefined();
   });
 
   it("uses POST method", async () => {

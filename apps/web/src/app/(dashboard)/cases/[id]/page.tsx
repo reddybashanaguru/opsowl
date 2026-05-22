@@ -168,10 +168,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           onClick={async () => {
             setExportingPDF(true);
             try {
-              const accessToken = useAuthStore.getState().accessToken;
               const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
               const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
-                headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+                credentials: "include",
               });
               if (!res.ok) throw new Error("Failed to generate report");
               const blob = await res.blob();

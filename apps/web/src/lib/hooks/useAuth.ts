@@ -5,34 +5,32 @@ import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore, type UserRole } from "@/lib/stores/auth.store";
 
-interface RefreshResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
 export function useAuth() {
-  const { user, accessToken, setAuth, clearAuth, hasRole } = useAuthStore();
+  const { user, setAuth, clearAuth, hasRole } = useAuthStore();
   const router = useRouter();
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const logout = useCallback(async () => {
-    if (accessToken) {
-      try {
-        await api.post("/api/v1/auth/logout", {});
-      } catch {
-        // ignore — clear state regardless
-      }
+    try {
+      await api.post("/api/v1/auth/logout", {});
+    } catch {
+      // ignore — clear state regardless
     }
     clearAuth();
     router.push("/login");
-  }, [accessToken, clearAuth, router]);
+  }, [clearAuth, router]);
 
   const refresh = useCallback(async (): Promise<boolean> => {
     try {
-      const data = await api.post<RefreshResponse>("/api/v1/auth/refresh", {});
-      if (user) {
-        setAuth(user, data.access_token);
+      // The server sets a new access_token httpOnly cookie in the response.
+      // We only need the user info from the body.
+      const data = await api.post<{ user?: { id: string; email: string; full_name: string; role: UserRole } }>(
+        "/api/v1/auth/refresh",
+        {},
+      );
+      if (data?.user && user) {
+        // Refresh user state if server returned updated profile; otherwise keep current.
+        setAuth(data.user as Parameters<typeof setAuth>[0]);
       }
       return true;
     } catch {
@@ -42,9 +40,11 @@ export function useAuth() {
     }
   }, [user, setAuth, clearAuth, router]);
 
-  // Auto-refresh 5 minutes before token expires (55 min into 60 min lifetime)
+  // Auto-refresh 5 minutes before token expires (55 min into 60 min lifetime).
+  // Without the token in JS we use a fixed 55-min interval; the server sets the
+  // new access_token cookie automatically.
   useEffect(() => {
-    if (!accessToken) return;
+    if (!user) return;
 
     if (refreshTimer.current) {
       clearTimeout(refreshTimer.current);
@@ -56,12 +56,11 @@ export function useAuth() {
     return () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [accessToken, refresh]);
+  }, [user, refresh]);
 
   return {
     user,
-    accessToken,
-    isAuthenticated: !!user && !!accessToken,
+    isAuthenticated: !!user,
     logout,
     refresh,
     hasRole: (...roles: UserRole[]) => hasRole(...roles),

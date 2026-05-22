@@ -5,34 +5,34 @@ import { useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 
-interface RefreshResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in: number;
-}
-
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { user, accessToken, setAuth, clearAuth } = useAuthStore();
+  const { user, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-  const [checking, setChecking] = useState(!accessToken);
+  // Always verify session on mount — the access token is httpOnly so we
+  // can't read it in JS. We use the presence of the user in sessionStorage
+  // as a hint, but we still need a server round-trip if the token may have
+  // expired (e.g., after a page refresh that ran past the 55-min auto-refresh).
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (accessToken) {
-      setChecking(false);
-      return;
-    }
-
     if (!user) {
       router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
       return;
     }
 
-    // user in sessionStorage but no in-memory token — attempt silent refresh via httpOnly cookie
+    // Attempt silent refresh via the httpOnly refresh_token cookie.
+    // If successful the server issues a new access_token cookie automatically.
     api
-      .post<RefreshResponse>("/api/v1/auth/refresh", {})
+      .post<{ user?: { id: string; email: string; full_name: string; role: string } }>(
+        "/api/v1/auth/refresh",
+        {},
+      )
       .then((data) => {
-        setAuth(user, data.access_token);
+        if (data?.user) {
+          // Update user profile in case it changed server-side.
+          setAuth(data.user as Parameters<typeof setAuth>[0]);
+        }
         setChecking(false);
       })
       .catch(() => {
@@ -49,7 +49,7 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   );
 
   if (checking) return spinner;
-  if (!user || !accessToken) return spinner;
+  if (!user) return spinner;
 
   return <>{children}</>;
 }

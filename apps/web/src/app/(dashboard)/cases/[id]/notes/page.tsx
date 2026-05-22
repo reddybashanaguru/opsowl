@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useCallback } from "react";
 import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, getSseTicket } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
@@ -39,7 +39,6 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const accessToken = useAuthStore((s) => s.accessToken);
   const cfg = useConfig();
 
   const [showEditor, setShowEditor] = useState(false);
@@ -61,16 +60,21 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const allNotes = data?.pages.flatMap((p) => p.data) ?? [];
   const total = data?.pages[0]?.meta.total_count ?? 0;
 
-  // SSE for real-time updates
+  // SSE for real-time updates — use short-lived ticket so the access token is
+  // never exposed in a URL.
   useEffect(() => {
-    if (!accessToken) return;
-    const url = `http://localhost:8080/api/v1/cases/${id}/notes/stream?token=${accessToken}`;
-    const es = new EventSource(url);
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: ["case-notes", id] });
-    };
-    return () => es.close();
-  }, [id, accessToken, qc]);
+    let es: EventSource | null = null;
+    getSseTicket()
+      .then((ticket) => {
+        const url = `http://localhost:8080/api/v1/cases/${id}/notes/stream?token=${ticket}`;
+        es = new EventSource(url);
+        es.onmessage = () => {
+          qc.invalidateQueries({ queryKey: ["case-notes", id] });
+        };
+      })
+      .catch(() => {/* ignore — notes fall back to manual refresh */});
+    return () => es?.close();
+  }, [id, qc]);
 
   const createMutation = useMutation({
     mutationFn: (body: {

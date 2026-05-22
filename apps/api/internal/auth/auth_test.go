@@ -262,6 +262,42 @@ func TestJWTValidateMiddleware(t *testing.T) {
 			t.Fatalf("expected 401, got %d", rec.Code)
 		}
 	})
+
+	t.Run("httpOnly cookie accepted without Bearer header", func(t *testing.T) {
+		called := false
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		})
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: pair.AccessToken})
+		rec := httptest.NewRecorder()
+		mw(next).ServeHTTP(rec, req)
+		if !called {
+			t.Fatal("handler should have been called when token is in cookie")
+		}
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d", rec.Code)
+		}
+	})
+
+	t.Run("cookie takes precedence over Bearer header", func(t *testing.T) {
+		// Provide a valid cookie and a tampered (invalid) Bearer header.
+		// The middleware should prefer the cookie and succeed.
+		called := false
+		next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			called = true
+			w.WriteHeader(http.StatusOK)
+		})
+		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req.AddCookie(&http.Cookie{Name: "access_token", Value: pair.AccessToken})
+		req.Header.Set("Authorization", "Bearer tampered-invalid")
+		rec := httptest.NewRecorder()
+		mw(next).ServeHTTP(rec, req)
+		if !called {
+			t.Fatal("handler should have been called: valid cookie must override bad header")
+		}
+	})
 }
 
 func TestRBACMiddleware(t *testing.T) {

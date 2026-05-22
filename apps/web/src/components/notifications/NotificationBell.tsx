@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, getSseTicket } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 
 interface Notification {
@@ -81,7 +81,6 @@ export function NotificationBell() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const accessToken = useAuthStore((s) => s.accessToken);
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -116,17 +115,23 @@ export function NotificationBell() {
     },
   });
 
-  // SSE for real-time notifications
+  // SSE for real-time notifications — use a short-lived SSE ticket so the full
+  // access token never appears in a URL (browser history / server access logs).
   useEffect(() => {
-    if (!accessToken || !user) return;
-    const url = `http://localhost:8080/api/v1/notifications/stream?token=${accessToken}`;
-    const es = new EventSource(url);
-    es.onmessage = () => {
-      qc.invalidateQueries({ queryKey: ["notifications"] });
-      qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
-    };
-    return () => es.close();
-  }, [accessToken, user, qc]);
+    if (!user) return;
+    let es: EventSource | null = null;
+    getSseTicket()
+      .then((ticket) => {
+        const url = `http://localhost:8080/api/v1/notifications/stream?token=${ticket}`;
+        es = new EventSource(url);
+        es.onmessage = () => {
+          qc.invalidateQueries({ queryKey: ["notifications"] });
+          qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
+        };
+      })
+      .catch(() => {/* ignore — bell falls back to polling */});
+    return () => es?.close();
+  }, [user, qc]);
 
   // Close on outside click
   useEffect(() => {

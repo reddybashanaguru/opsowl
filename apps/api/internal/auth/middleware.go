@@ -8,16 +8,31 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
 
-// JWTValidate extracts and verifies the Bearer token, injecting Claims into ctx.
+// JWTValidate extracts and verifies the JWT. Browser clients send it as an
+// httpOnly access_token cookie; API/script clients send Authorization: Bearer.
+// Cookie takes precedence so the Bearer header is not required for browsers.
 func JWTValidate(jwtMgr *JWTManager) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
-				response.Err(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization header required")
+			var tokenStr string
+
+			// httpOnly cookie (browser clients — XSS cannot read this)
+			if c, err := r.Cookie("access_token"); err == nil && c.Value != "" {
+				tokenStr = c.Value
+			}
+
+			// Bearer header fallback (API clients, scripts, non-browser integrations)
+			if tokenStr == "" {
+				if h := r.Header.Get("Authorization"); strings.HasPrefix(h, "Bearer ") {
+					tokenStr = strings.TrimPrefix(h, "Bearer ")
+				}
+			}
+
+			if tokenStr == "" {
+				response.Err(w, http.StatusUnauthorized, "MISSING_TOKEN", "authorization required")
 				return
 			}
-			tokenStr := strings.TrimPrefix(authHeader, "Bearer ")
+
 			claims, err := jwtMgr.Verify(tokenStr)
 			if err != nil {
 				response.Err(w, http.StatusUnauthorized, "INVALID_TOKEN", "token is invalid or expired")

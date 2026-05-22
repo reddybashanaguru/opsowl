@@ -1,6 +1,7 @@
 /**
- * API client — wraps fetch with auth header, base URL, and {data, meta, error} envelope handling.
- * All API calls go through here — never call fetch directly in components.
+ * API client — wraps fetch with base URL and {data, meta, error} envelope handling.
+ * Auth is carried by the httpOnly access_token cookie (sent automatically via
+ * credentials: "include"). No JS-readable token is stored or sent as a header.
  */
 
 /** Generates a v4 UUID idempotency key for use with idempotentPost(). */
@@ -29,15 +30,6 @@ export class APIError extends Error {
   }
 }
 
-function getAuthHeader(): Record<string, string> {
-  if (typeof window === "undefined") return {};
-  // Import lazily to avoid circular deps — Zustand store is a singleton
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useAuthStore } = require("@/lib/stores/auth.store");
-  const token: string | null = useAuthStore.getState().accessToken;
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -49,7 +41,6 @@ async function request<T>(
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeader(),
       ...options.headers,
     },
   });
@@ -88,7 +79,6 @@ async function requestList<TItem, TMeta = Record<string, unknown>>(
     credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...getAuthHeader(),
       ...options.headers,
     },
   });
@@ -126,7 +116,6 @@ export const api = {
       method: "POST",
       body: formData,
       credentials: "include",
-      headers: { ...getAuthHeader() },
     }).then(async (resp) => {
       const envelope = await resp.json() as {
         data?: T;
@@ -185,3 +174,13 @@ export const api = {
   delete: <T>(path: string, init?: RequestInit) =>
     request<T>(path, { method: "DELETE", ...init }),
 };
+
+/**
+ * Issues a short-lived (90s) SSE ticket for use as ?token= on EventSource URLs.
+ * EventSource cannot set custom headers, so the full access token must not appear
+ * in URLs. This endpoint requires an authenticated session (cookie-based).
+ */
+export async function getSseTicket(): Promise<string> {
+  const data = await api.get<{ ticket: string; expires_in: number }>("/api/v1/auth/sse-ticket");
+  return data.ticket;
+}

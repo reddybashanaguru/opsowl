@@ -65,8 +65,8 @@ function LoginForm() {
         setRateLimitMsg(null);
         return;
       }
-      if (data.user && data.access_token) {
-        setAuth(data.user, data.access_token);
+      if (data.user) {
+        setAuth(data.user);
         router.push(decodeURIComponent(searchParams.get("returnUrl") ?? "/dashboard"));
       }
     },
@@ -86,8 +86,8 @@ function LoginForm() {
         code: values.code,
       }),
     onSuccess: (data) => {
-      if (data.user && data.access_token) {
-        setAuth(data.user, data.access_token);
+      if (data.user) {
+        setAuth(data.user);
         router.push(decodeURIComponent(searchParams.get("returnUrl") ?? "/dashboard"));
       }
     },

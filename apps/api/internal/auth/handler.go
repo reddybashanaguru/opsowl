@@ -92,6 +92,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	pair := result.Pair
 	http.SetCookie(w, refreshCookie(pair.RefreshToken, int(refreshTTL.Seconds())))
+	http.SetCookie(w, accessCookie(pair.AccessToken, defaultAccessTTLSec))
 
 	var lastLogin *string
 	if pair.User.LastLoginAt.Valid {
@@ -136,6 +137,7 @@ func (h *Handler) Refresh(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.SetCookie(w, refreshCookie(pair.RefreshToken, int(refreshTTL.Seconds())))
+	http.SetCookie(w, accessCookie(pair.AccessToken, defaultAccessTTLSec))
 	response.JSON(w, http.StatusOK, RefreshResponse{
 		AccessToken:  pair.AccessToken,
 		RefreshToken: pair.RefreshToken,
@@ -151,6 +153,7 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 		_ = h.svc.Logout(r.Context(), rawToken, claims.UserID, realIP(r))
 	}
 	http.SetCookie(w, expireRefreshCookie())
+	http.SetCookie(w, expireAccessCookie())
 	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -264,6 +267,7 @@ func (h *Handler) MFAChallenge(w http.ResponseWriter, r *http.Request) {
 
 	pair := result.Pair
 	http.SetCookie(w, refreshCookie(pair.RefreshToken, int(refreshTTL.Seconds())))
+	http.SetCookie(w, accessCookie(pair.AccessToken, defaultAccessTTLSec))
 
 	var lastLogin *string
 	if pair.User.LastLoginAt.Valid {
@@ -411,3 +415,31 @@ func expireRefreshCookie() *http.Cookie {
 		MaxAge:   -1,
 	}
 }
+
+// accessCookie returns an httpOnly cookie carrying the short-lived JWT access token.
+// Path "/" so every API route receives it automatically; Secure in production.
+func accessCookie(token string, maxAge int) *http.Cookie {
+	return &http.Cookie{
+		Name:     "access_token",
+		Value:    token,
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   isSecureEnv(),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   maxAge,
+	}
+}
+
+func expireAccessCookie() *http.Cookie {
+	return &http.Cookie{
+		Name:     "access_token",
+		Value:    "",
+		Path:     "/",
+		HttpOnly: true,
+		Secure:   isSecureEnv(),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1,
+	}
+}
+
+const defaultAccessTTLSec = 3600 // 1 hour — mirrors JWTManager default

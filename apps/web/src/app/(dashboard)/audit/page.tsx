@@ -139,11 +139,9 @@ export default function AuditPage() {
   }
 
   async function handleExportCSV() {
-    const { useAuthStore } = await import("@/lib/stores/auth.store");
-    const token = useAuthStore.getState().accessToken;
     const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
     const res = await fetch(`${apiBase}/api/v1/audit/export`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      credentials: "include",
     });
     if (!res.ok) return;
     const blob = await res.blob();
