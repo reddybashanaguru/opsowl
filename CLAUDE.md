@@ -812,3 +812,71 @@ Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMA
 **Frontend:** Dark navy/cyan theme matching spec docs. Login page, protected dashboard layout with sidebar, user management table, RBACGate component.
 **Known limitation:** `ChangePassword` stores new hash in memory but lacks a dedicated sqlc query to write it — add `UpdateUserPassword` query before shipping (non-blocking for development).
 
+
+---
+
+## Principal Engineer Hardening Review (2026-05-22)
+
+### What Was Found (7/10 — Production-Ready but Fragile)
+
+Three critical risks identified and fixed before enterprise deployment:
+
+| Severity | Issue | File | Status |
+|----------|-------|------|--------|
+| 🔴 Critical | Rate limiter unbounded map — grows forever, 5-min cleanup goroutine blocks all requests | `middleware/rate_limit.go` | ✅ Fixed: LRU-capped (50k) |
+| 🔴 Critical | 32× fire-and-forget `go s.repo.*` goroutines exhaust DB connection pool | `cases/service.go`, `auth/service.go` | ✅ Fixed: bounded worker pool |
+| 🔴 Critical | Audit chain single-goroutine drain — channel saturates under bulk ops | `auditchain/chain.go` | ✅ Already fixed (CI-01) |
+| 🟠 High | No Docker resource limits — OOM cascade takes postgres down with API | `docker-compose.yml` | ✅ Fixed |
+| 🟠 High | Missing composite DB indexes — ListCases multi-predicate queries do full scan | `migrations/` | ✅ Fixed: migration 00021 |
+| 🟠 High | No graceful shutdown worker drain | `cmd/server/main.go` | ✅ Fixed |
+| 🟠 High | JWT stored in sessionStorage (XSS-accessible) | `auth.store.ts` | 🔄 In progress (Phase 3) |
+| 🟠 High | No request ID correlation in logs | `middleware/` | ✅ Fixed: RequestID + AccessLog |
+| 🟡 Medium | ENCRYPTION_KEY only null-checked, not size-validated | `config/config.go` | ✅ Fixed: must decode to 32 bytes |
+| 🟡 Medium | Minio default SSE key in docker-compose.yml | `docker-compose.yml` | ✅ Fixed: no default |
+| 🟡 Medium | No idempotency keys on mutations | API | 🔄 In progress (Phase 3) |
+| 🟡 Medium | AI service health check used python httpx | `docker-compose.yml` | ✅ Fixed: wget |
+| 🟡 Medium | No daily DB backup | `docker-compose.yml` | ✅ Fixed: pg-backup sidecar |
+
+### Failure Timeline Under 500 Concurrent Users (before fixes)
+- **T+3m**: Goroutine burst exhausts pgx pool (25 connections)
+- **T+5m**: Rate limiter cleanup goroutine holds global mutex → all requests pause ~100ms
+- **T+12m**: Audit chain channel saturates on bulk ops → all writes block
+- **T+15m**: OOM crash → postgres killed → data loss risk
+
+### Hardening Commits on `main`
+| Commit | Item |
+|--------|------|
+| `e5c85c2` | Phase 0: Docker resource limits, Minio KMS fix, AI health check, pg_dump sidecar |
+| `278f530` | Phase 1: Rate limiter LRU cap (10 tests) |
+| `92fab9f` | Phase 1: Bounded worker pool — 32 goroutine sites → 8-worker pool (8 tests) |
+| `26c88c6` | Phase 2: Composite DB indexes migration 00021 (4 indexes) |
+| `481f9c4` | Phase 2: RequestID + AccessLog structured middleware (4 tests) |
+| `e74d5f6` | Phase 3: ENCRYPTION_KEY 32-byte validation (9 tests) |
+
+### Worker Pool Architecture
+```
+Service.Create() / Service.ChangeStatus() / auth.Login()
+       │
+       ▼
+worker.TrySubmit(func() { ... })   ← non-blocking, returns immediately
+       │
+       ▼  (if Background pool is nil → runs synchronously — safe for tests)
+worker.Background Pool
+  ├── Worker 1 ──► s.repo.CreateActivity(ctx, ...)
+  ├── Worker 2 ──► s.repo.CreateAuditLog(ctx, ...)
+  ├── ... (8 workers total)
+  └── 512-deep channel (drops with warn log when full — no unbounded spawn)
+```
+
+### Composite Index Design
+The `ListCases` query filters on `(status, priority, assigned_to, sla_breached)` and
+always orders by `created_at DESC`. Single-column indexes are nearly useless for
+multi-predicate queries. Migration 00021 adds:
+- `idx_cases_assigned_status_created` — inbox view
+- `idx_cases_org_status_created` — board/kanban view
+- `idx_cases_org_sla_breached_created` — SLA dashboard
+- `idx_cases_org_priority_status` — supervisor priority queue
+
+### Phase 3 Remaining Items
+- [ ] httpOnly JWT cookie (move access token from sessionStorage → httpOnly cookie)
+- [ ] Idempotency keys on POST mutations (prevent double-submit under retry)
