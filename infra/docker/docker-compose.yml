@@ -96,6 +96,8 @@ services:
       PASSWORD_REQUIRE_NUMBER: ${PASSWORD_REQUIRE_NUMBER:-true}
       # Session limits
       MAX_SESSIONS_PER_USER: ${MAX_SESSIONS_PER_USER:-5}
+      # Rate limiting — raise to 1000 rpm in dev/test environments
+      MAX_REQUESTS_PER_MIN: ${MAX_REQUESTS_PER_MIN:-100}
       # Workspace terminology — each client sets these in their .env
       INDUSTRY: ${INDUSTRY:-financial_services}
       CASE_LABEL: ${CASE_LABEL:-Case}

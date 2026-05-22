@@ -51,6 +51,7 @@ type Config struct {
 	PasswordUppercase  bool
 	PasswordNumber     bool
 	MaxSessionsPerUser int
+	MaxRequestsPerMin  int
 }
 
 // knownWeakSecrets lists values that must never be used in production.
@@ -103,6 +104,7 @@ func Load() (*Config, error) {
 		PasswordUppercase:  getEnv("PASSWORD_REQUIRE_UPPERCASE", "true") == "true",
 		PasswordNumber:     getEnv("PASSWORD_REQUIRE_NUMBER", "true") == "true",
 		MaxSessionsPerUser: getEnvInt("MAX_SESSIONS_PER_USER", 5),
+		MaxRequestsPerMin:  getEnvInt("MAX_REQUESTS_PER_MIN", 100),
 	}
 
 	if env == "production" {

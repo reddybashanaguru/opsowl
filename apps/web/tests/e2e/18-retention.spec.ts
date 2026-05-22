@@ -42,7 +42,7 @@ test.describe("Data Retention admin panel", () => {
       const firstRow = rows.first();
       await expect(firstRow.getByText(/days/)).toBeVisible();
       // Status badge: Active or Paused
-      const badge = firstRow.locator("text=/Active|Paused/");
+      const badge = firstRow.locator("text=/Active|Inactive/");
       await expect(badge).toBeVisible();
     }
   });

@@ -1,7 +1,27 @@
 import { test, expect } from "@playwright/test";
-import { login } from "./helpers/auth";
+import { login, apiToken } from "./helpers/auth";
+
+const API_URL = "http://localhost:8080/api/v1";
 
 test.describe("API Keys management", () => {
+  let token: string;
+
+  test.beforeAll(async () => {
+    token = await apiToken();
+    // Clean up E2E test keys left over from previous runs
+    const res = await fetch(`${API_URL}/api-keys`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json() as { data: { api_keys: Array<{ id: string; name: string }> } };
+    const testKeys = (json.data?.api_keys ?? []).filter((k) => k.name.startsWith("E2E"));
+    await Promise.all(testKeys.map((k) =>
+      fetch(`${API_URL}/api-keys/${k.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ));
+  });
+
   test.beforeEach(async ({ page }) => {
     await login(page);
     await page.goto("/settings/api-keys");
@@ -46,7 +66,7 @@ test.describe("API Keys management", () => {
 
     // The new key appears in the table after banner is dismissed
     await page.locator("button", { hasText: "✕" }).first().click();
-    await expect(page.getByText("E2E Playwright Key")).toBeVisible();
+    await expect(page.getByText("E2E Playwright Key").first()).toBeVisible();
   });
 
   test("revoke flow shows inline confirm and removes key", async ({ page }) => {

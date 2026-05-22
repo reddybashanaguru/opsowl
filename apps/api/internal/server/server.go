@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -105,7 +107,11 @@ func sseAwareTimeout(d time.Duration) func(http.Handler) http.Handler {
 }
 
 func (s *Server) setupMiddleware() {
-	rl := middleware.NewRateLimiter(100, s.jwtMgr)
+	rateLimit := 100
+	if v, err := strconv.Atoi(os.Getenv("MAX_REQUESTS_PER_MIN")); err == nil && v > 0 {
+		rateLimit = v
+	}
+	rl := middleware.NewRateLimiter(rateLimit, s.jwtMgr)
 
 	s.router.Use(chimw.RequestID)
 	s.router.Use(chimw.RealIP)
