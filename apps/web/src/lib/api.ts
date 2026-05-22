@@ -3,6 +3,18 @@
  * All API calls go through here — never call fetch directly in components.
  */
 
+/** Generates a v4 UUID idempotency key for use with idempotentPost(). */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== "undefined" && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for environments without crypto.randomUUID (Node < 19)
+  return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    return (c === "x" ? r : (r & 0x3) | 0x8).toString(16);
+  });
+}
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 export class APIError extends Error {
@@ -137,6 +149,23 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
       ...init,
+    }),
+
+  /**
+   * Idempotent POST: attaches an Idempotency-Key header so the server replays
+   * the cached response on duplicate submissions (network retries, button
+   * double-clicks that trigger the same mutation key). Generate the key once
+   * per user action using newIdempotencyKey() and pass the same value on retries.
+   */
+  idempotentPost: <T>(path: string, body: unknown, idempotencyKey: string, init?: RequestInit) =>
+    request<T>(path, {
+      method: "POST",
+      body: JSON.stringify(body),
+      ...init,
+      headers: {
+        "Idempotency-Key": idempotencyKey,
+        ...(init?.headers ?? {}),
+      },
     }),
 
   put: <T>(path: string, body: unknown, init?: RequestInit) =>

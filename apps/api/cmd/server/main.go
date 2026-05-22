@@ -17,6 +17,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/db"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/mail"
+	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/server"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/worker"
@@ -49,6 +50,15 @@ func main() {
 
 	sqlDB := stdlib.OpenDBFromPool(pool)
 	queries := dbgen.New(sqlDB)
+
+	// Daily idempotency key cleanup — deletes expired rows from idempotency_keys.
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			middleware.IdempotencyCleanup(sqlDB, logger)
+		}
+	}()
 
 	accessTTL, err := time.ParseDuration(cfg.JWTAccessExpiry)
 	if err != nil {

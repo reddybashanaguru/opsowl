@@ -1,11 +1,12 @@
 "use client";
 
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useMutation } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api, APIError } from "@/lib/api";
+import { api, APIError, newIdempotencyKey } from "@/lib/api";
 
 const SLA_LABELS: Record<string, string> = {
   critical: "~4 hours to resolve",
@@ -36,17 +37,22 @@ export default function NewCasePage() {
 
   const priority = form.watch("priority");
 
+  // Generate a stable idempotency key for this form render.
+  // If the network fails and React Query retries, the same key is sent so the
+  // server de-duplicates and returns the already-created case instead of creating another.
+  const idempotencyKey = useMemo(() => newIdempotencyKey(), []);
+
   const { mutate, isPending, error } = useMutation({
     mutationFn: (values: FormValues) => {
       const tags = values.tags
         ? values.tags.split(",").map((t) => t.trim()).filter(Boolean)
         : [];
-      return api.post<CaseResponse>("/api/v1/cases", {
+      return api.idempotentPost<CaseResponse>("/api/v1/cases", {
         title: values.title,
         description: values.description ?? "",
         priority: values.priority,
         tags,
-      });
+      }, idempotencyKey);
     },
     onSuccess: (data) => {
       router.push(`/cases/${data.id}`);

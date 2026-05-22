@@ -125,6 +125,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(sseAwareTimeout(30 * time.Second))
 	s.router.Use(apikeys.APIKeyMiddleware(s.sqlDB))
 	s.router.Use(rl.Middleware)
+	s.router.Use(middleware.Idempotency(s.sqlDB, s.logger)) // POST idempotency (opt-in via Idempotency-Key header)
 	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger, s.chain))
 }
 

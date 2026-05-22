@@ -5,7 +5,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tansta
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { api, APIError } from "@/lib/api";
+import { api, APIError, newIdempotencyKey } from "@/lib/api";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
@@ -401,7 +401,7 @@ function CasesContent() {
   // Bulk mutations
   const bulkStatusMutation = useMutation({
     mutationFn: (newStatus: string) =>
-      api.post<BulkResult>("/api/v1/cases/bulk/status", { ids: Array.from(selected), status: newStatus }),
+      api.idempotentPost<BulkResult>("/api/v1/cases/bulk/status", { ids: Array.from(selected), status: newStatus }, newIdempotencyKey()),
     onMutate: async (newStatus) => {
       await qc.cancelQueries({ queryKey: ["cases"] });
       const snap = selected;
@@ -422,7 +422,7 @@ function CasesContent() {
 
   const bulkAssignMutation = useMutation({
     mutationFn: (userId: string) =>
-      api.post<BulkResult>("/api/v1/cases/bulk/assign", { ids: Array.from(selected), user_id: userId }),
+      api.idempotentPost<BulkResult>("/api/v1/cases/bulk/assign", { ids: Array.from(selected), user_id: userId }, newIdempotencyKey()),
     onSuccess: (res) => {
       showToast(`Assigned ${res.updated} case${res.updated !== 1 ? "s" : ""}`, "success");
       setSelected(new Set());
@@ -433,7 +433,7 @@ function CasesContent() {
 
   const bulkDeleteMutation = useMutation({
     mutationFn: () =>
-      api.post<BulkResult>("/api/v1/cases/bulk/delete", { ids: Array.from(selected) }),
+      api.idempotentPost<BulkResult>("/api/v1/cases/bulk/delete", { ids: Array.from(selected) }, newIdempotencyKey()),
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ["cases"] });
       const snap = selected;
