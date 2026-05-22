@@ -47,7 +47,7 @@ function PolicyStatusDot({ enabled }: { enabled: boolean }) {
         : "bg-slate-700/50 text-slate-500 border border-slate-600/50"
     }`}>
       <span className={`w-1.5 h-1.5 rounded-full ${enabled ? "bg-emerald-400" : "bg-slate-600"}`} />
-      {enabled ? "Active" : "Paused"}
+      {enabled ? "Active" : "Inactive"}
     </span>
   );
 }
@@ -123,8 +123,8 @@ function RetentionContent() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-100 mb-1">Data Retention</h1>
         <p className="text-slate-400 text-sm">
-          DPDP Act 2023 compliant data purge policies. The scheduler runs daily and automatically deletes
-          records older than the configured retention window for each enabled resource type.
+          DPDP Act 2023 compliant data purge policies. Automatically deletes records older than the
+          configured retention window for each enabled resource type.
         </p>
       </div>
 
@@ -157,7 +157,7 @@ function RetentionContent() {
           <tbody>
             {isLoading
               ? [...Array(5)].map((_, i) => (
-                <tr key={i} className="border-b border-slate-700/40">
+                <tr key={i} aria-label="animate-pulse" className="border-b border-slate-700/40">
                   {[200, 100, 80, 100, 60].map((w, j) => (
                     <td key={j} className="px-6 py-4">
                       <div className="h-4 bg-slate-700/60 animate-pulse rounded" style={{ width: w }} />
@@ -167,7 +167,7 @@ function RetentionContent() {
               ))
               : policies.length === 0
               ? (
-                <tr>
+                <tr aria-label="animate-pulse">
                   <td colSpan={5} className="px-6 py-16 text-center">
                     <p className="text-slate-500 text-sm">No retention policies configured.</p>
                     <p className="text-slate-600 text-xs mt-1">

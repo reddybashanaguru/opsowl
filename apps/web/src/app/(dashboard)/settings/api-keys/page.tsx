@@ -119,8 +119,9 @@ function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
         <div className="space-y-4">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Key Name *</label>
+            <label htmlFor="key-name" className="block text-xs text-slate-400 mb-1">Key Name *</label>
             <input
+              id="key-name"
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}

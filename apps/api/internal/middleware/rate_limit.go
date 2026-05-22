@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"container/list"
 	"fmt"
 	"net/http"
 	"strings"
@@ -11,70 +12,120 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
 
+// maxBuckets is the maximum number of per-user/IP token buckets held in memory.
+// The LRU evicts the least-recently-seen entry when this limit is reached,
+// bounding memory at ~(maxBuckets × ~120 bytes) ≈ 6 MB at 50 000 entries.
+const maxBuckets = 50_000
+
 type bucket struct {
 	tokens   float64
 	lastSeen time.Time
-	mu       sync.Mutex
 }
 
-type RateLimiter struct {
+// lruBuckets is a thread-safe LRU map of token buckets.
+// It replaces the previous unbounded map + 5-minute cleanup goroutine, which
+// held a global mutex during cleanup and could pause all requests for ~100ms.
+type lruBuckets struct {
 	mu      sync.Mutex
-	buckets map[string]*bucket
+	items   map[string]*list.Element
+	order   *list.List // front = most-recently used
+	maxSize int
+}
+
+type lruEntry struct {
+	key string
+	b   bucket
+}
+
+func newLRUBuckets(maxSize int) *lruBuckets {
+	return &lruBuckets{
+		items:   make(map[string]*list.Element, maxSize),
+		order:   list.New(),
+		maxSize: maxSize,
+	}
+}
+
+// get returns the bucket for key and moves it to the front.
+// Returns (zero-value, false) if not present.
+func (l *lruBuckets) get(key string) (bucket, bool) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	el, ok := l.items[key]
+	if !ok {
+		return bucket{}, false
+	}
+	l.order.MoveToFront(el)
+	return el.Value.(*lruEntry).b, true
+}
+
+// set upserts a bucket for key, evicting the LRU entry if at capacity.
+func (l *lruBuckets) set(key string, b bucket) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if el, ok := l.items[key]; ok {
+		l.order.MoveToFront(el)
+		el.Value.(*lruEntry).b = b
+		return
+	}
+	if l.order.Len() >= l.maxSize {
+		// Evict least-recently-used (back of list).
+		oldest := l.order.Back()
+		if oldest != nil {
+			l.order.Remove(oldest)
+			delete(l.items, oldest.Value.(*lruEntry).key)
+		}
+	}
+	el := l.order.PushFront(&lruEntry{key: key, b: b})
+	l.items[key] = el
+}
+
+// Len returns the current number of tracked buckets.
+func (l *lruBuckets) Len() int {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.order.Len()
+}
+
+// RateLimiter is a per-user/IP token-bucket rate limiter backed by a bounded
+// LRU map. Memory is capped at maxBuckets entries with no background goroutine.
+type RateLimiter struct {
+	buckets *lruBuckets
 	rate    float64 // tokens per second
 	burst   float64
 	jwtMgr  *auth.JWTManager
 }
 
 func NewRateLimiter(requestsPerMinute int, jwtMgr *auth.JWTManager) *RateLimiter {
-	rl := &RateLimiter{
-		buckets: make(map[string]*bucket),
+	return &RateLimiter{
+		buckets: newLRUBuckets(maxBuckets),
 		rate:    float64(requestsPerMinute) / 60.0,
 		burst:   float64(requestsPerMinute),
 		jwtMgr:  jwtMgr,
 	}
-	go rl.cleanup()
-	return rl
-}
-
-func (rl *RateLimiter) cleanup() {
-	ticker := time.NewTicker(5 * time.Minute)
-	for range ticker.C {
-		rl.mu.Lock()
-		cutoff := time.Now().Add(-10 * time.Minute)
-		for key, b := range rl.buckets {
-			b.mu.Lock()
-			if b.lastSeen.Before(cutoff) {
-				delete(rl.buckets, key)
-			}
-			b.mu.Unlock()
-		}
-		rl.mu.Unlock()
-	}
 }
 
 func (rl *RateLimiter) allow(key string) (bool, float64) {
-	rl.mu.Lock()
-	b, ok := rl.buckets[key]
-	if !ok {
-		b = &bucket{tokens: rl.burst, lastSeen: time.Now()}
-		rl.buckets[key] = b
-	}
-	rl.mu.Unlock()
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	now := time.Now()
+
+	b, ok := rl.buckets.get(key)
+	if !ok {
+		b = bucket{tokens: rl.burst, lastSeen: now}
+	}
+
 	elapsed := now.Sub(b.lastSeen).Seconds()
-	b.tokens = min(rl.burst, b.tokens+elapsed*rl.rate)
+	b.tokens += elapsed * rl.rate
+	if b.tokens > rl.burst {
+		b.tokens = rl.burst
+	}
 	b.lastSeen = now
 
 	if b.tokens < 1 {
-		// seconds until next token available
+		rl.buckets.set(key, b)
 		wait := (1 - b.tokens) / rl.rate
 		return false, wait
 	}
 	b.tokens--
+	rl.buckets.set(key, b)
 	return true, 0
 }
 
@@ -113,11 +164,4 @@ func realIPFromRequest(r *http.Request) string {
 		return strings.Split(ip, ",")[0]
 	}
 	return r.RemoteAddr
-}
-
-func min(a, b float64) float64 {
-	if a < b {
-		return a
-	}
-	return b
 }

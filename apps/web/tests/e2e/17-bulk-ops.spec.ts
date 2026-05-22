@@ -100,7 +100,7 @@ test.describe("Cases — bulk operations", () => {
 
   test("bulk status change applies and shows toast", async ({ page }) => {
     // Select one of the seeded e2e cases
-    const row = page.locator("tbody tr", { hasText: "E2E Bulk Case 1" });
+    const row = page.locator("tbody tr", { hasText: "E2E Bulk Case 1" }).first();
     await expect(row).toBeVisible({ timeout: 6_000 });
     await row.locator("input[type='checkbox']").check();
 

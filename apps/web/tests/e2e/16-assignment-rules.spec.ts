@@ -9,6 +9,18 @@ test.describe("Assignment Rules CRUD", () => {
 
   test.beforeAll(async () => {
     token = await apiToken();
+    // Clean up E2E test rules left over from previous runs
+    const res = await fetch(`${API_URL}/assignment-rules?per_page=100`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const json = await res.json() as { data: { rules: Array<{ id: string; name: string }> } };
+    const testRules = (json.data?.rules ?? []).filter((r) => r.name.startsWith("E2E"));
+    await Promise.all(testRules.map((r) =>
+      fetch(`${API_URL}/assignment-rules/${r.id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ));
   });
 
   test.afterAll(async () => {
@@ -63,7 +75,7 @@ test.describe("Assignment Rules CRUD", () => {
     createdRuleIds.push(json.data.id);
 
     await page.reload();
-    const row = page.locator("[data-testid='rule-card']", { hasText: "E2E Edit Rule" });
+    const row = page.locator("[data-testid='rule-card']", { hasText: "E2E Edit Rule" }).first();
     await expect(row).toBeVisible({ timeout: 5_000 });
     await row.getByRole("button", { name: /Edit/i }).click();
 
@@ -84,7 +96,7 @@ test.describe("Assignment Rules CRUD", () => {
     // Don't push to cleanup — we're deleting it in the test
 
     await page.reload();
-    const row = page.locator("[data-testid='rule-card']", { hasText: "E2E Delete Rule" });
+    const row = page.locator("[data-testid='rule-card']", { hasText: "E2E Delete Rule" }).first();
     await expect(row).toBeVisible({ timeout: 5_000 });
     await row.getByRole("button", { name: /Delete/i }).click();
 

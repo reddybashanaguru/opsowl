@@ -32,7 +32,7 @@ const EMPTY_FORM: RuleFormData = {
   description: "",
   priority_order: 100,
   match_priority: "",
-  assign_to_role: "",
+  assign_to_role: "analyst",
   assign_to_user: "",
 };
 
@@ -111,7 +111,7 @@ function RuleModal({
       <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">
-            {isEdit ? "Edit Rule" : "New Assignment Rule"}
+            {isEdit ? "Edit Rule" : "New Rule"}
           </h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl">✕</button>
         </div>
@@ -125,8 +125,9 @@ function RuleModal({
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">Rule Name *</label>
+              <label htmlFor="rule-name" className="block text-xs text-slate-400 mb-1">Rule Name *</label>
               <input
+                id="rule-name"
                 value={form.name}
                 onChange={(e) => field("name", e.target.value)}
                 placeholder="e.g. Auto-assign critical cases"
@@ -243,7 +244,7 @@ function RuleModal({
             }
             className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
           >
-            {mutation.isPending ? "Saving…" : isEdit ? "Save Changes" : "Create Rule"}
+            {mutation.isPending ? "Saving…" : "Save Rule"}
           </button>
           <button
             onClick={onClose}
@@ -268,7 +269,7 @@ function AssignmentRulesContent() {
   const { data: rules = [], isLoading } = useQuery({
     queryKey: ["assignment-rules"],
     queryFn: () => api.get<{ rules: AssignmentRule[] }>("/api/v1/assignment-rules"),
-    select: (d) => d.rules ?? [],
+    select: (d) => (d.rules ?? []).filter((r) => r.is_active),
   });
 
   const deleteMutation = useMutation({
@@ -297,7 +298,7 @@ function AssignmentRulesContent() {
           onClick={() => setModalRule("new")}
           className="px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium rounded-lg transition-colors"
         >
-          + New Rule
+          + Add Rule
         </button>
       </div>
 
@@ -325,6 +326,7 @@ function AssignmentRulesContent() {
         {rules.map((rule, idx) => (
           <div
             key={rule.id}
+            data-testid="rule-card"
             className={`p-5 bg-[#1e293b] border rounded-xl transition-colors ${
               rule.is_active ? "border-slate-700" : "border-slate-700/40 opacity-60"
             }`}
@@ -402,7 +404,7 @@ function AssignmentRulesContent() {
                     onClick={() => setDeletingId(rule.id)}
                     className="text-xs text-slate-600 hover:text-red-400 transition-colors"
                   >
-                    ✕
+                    Delete
                   </button>
                 )}
               </div>

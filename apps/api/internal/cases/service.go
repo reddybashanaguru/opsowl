@@ -13,6 +13,7 @@ import (
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
+	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
 var (
@@ -101,21 +102,26 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 		return nil, err
 	}
 
-	go s.repo.CreateActivity(context.Background(), c.ID, creatorID, "case_created", map[string]interface{}{
-		"title":    c.Title,
-		"priority": c.Priority,
+	caseID, caseTitle, casePriority, caseNumber, caseCreatedAt := c.ID, c.Title, c.Priority, c.CaseNumber, c.CreatedAt
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), caseID, creatorID, "case_created", map[string]interface{}{ //nolint:errcheck
+			"title":    caseTitle,
+			"priority": casePriority,
+		})
 	})
-	go s.emitter.Emit(context.Background(), timeline.Event{
-		CaseID:    c.ID,
-		EventType: db.TimelineEventTypeCaseCreated,
-		Source:    db.TimelineEventSourceUser,
-		ActorID:   &creatorID,
-		OccurredAt: c.CreatedAt,
-		Payload: map[string]any{
-			"case_number": c.CaseNumber,
-			"title":       c.Title,
-			"priority":    string(c.Priority),
-		},
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     caseID,
+			EventType:  db.TimelineEventTypeCaseCreated,
+			Source:     db.TimelineEventSourceUser,
+			ActorID:    &creatorID,
+			OccurredAt: caseCreatedAt,
+			Payload: map[string]any{
+				"case_number": caseNumber,
+				"title":       caseTitle,
+				"priority":    string(casePriority),
+			},
+		})
 	})
 
 	return s.toCaseResponse(c, "", claims.Email, nil, nil, nil), nil
@@ -211,7 +217,10 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		}
 	}
 
-	go s.repo.CreateActivity(context.Background(), id, actorID, "case_updated", map[string]interface{}{})
+	updateID := id
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), updateID, actorID, "case_updated", map[string]interface{}{}) //nolint:errcheck
+	})
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
 }
@@ -249,22 +258,28 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 		return nil, err
 	}
 
-	go s.repo.CreateActivity(context.Background(), id, actorID, "status_changed", map[string]interface{}{
-		"from":   string(existing.Status),
-		"to":     string(req.Status),
-		"reason": req.Reason,
+	fromStatus, toStatus, reason := string(existing.Status), string(req.Status), req.Reason
+	statusCaseID := id
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), statusCaseID, actorID, "status_changed", map[string]interface{}{ //nolint:errcheck
+			"from":   fromStatus,
+			"to":     toStatus,
+			"reason": reason,
+		})
 	})
-	go s.emitter.Emit(context.Background(), timeline.Event{
-		CaseID:    id,
-		EventType: db.TimelineEventTypeCaseStatusChanged,
-		Source:    db.TimelineEventSourceUser,
-		ActorID:   &actorID,
-		OccurredAt: time.Now(),
-		Payload: map[string]any{
-			"from":   string(existing.Status),
-			"to":     string(req.Status),
-			"reason": req.Reason,
-		},
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     statusCaseID,
+			EventType:  db.TimelineEventTypeCaseStatusChanged,
+			Source:     db.TimelineEventSourceUser,
+			ActorID:    &actorID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"from":   fromStatus,
+				"to":     toStatus,
+				"reason": reason,
+			},
+		})
 	})
 
 	// Notify assigned investigator of status change
@@ -308,20 +323,25 @@ func (s *Service) Assign(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		return nil, err
 	}
 
-	go s.repo.CreateActivity(context.Background(), id, actorID, "assigned", map[string]interface{}{
-		"to":   req.UserID.String(),
-		"note": req.Note,
+	assignCaseID, assignTo, assignNote := id, req.UserID.String(), req.Note
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), assignCaseID, actorID, "assigned", map[string]interface{}{ //nolint:errcheck
+			"to":   assignTo,
+			"note": assignNote,
+		})
 	})
-	go s.emitter.Emit(context.Background(), timeline.Event{
-		CaseID:    id,
-		EventType: db.TimelineEventTypeCaseAssigned,
-		Source:    db.TimelineEventSourceUser,
-		ActorID:   &actorID,
-		OccurredAt: time.Now(),
-		Payload: map[string]any{
-			"assigned_to": req.UserID.String(),
-			"note":        req.Note,
-		},
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     assignCaseID,
+			EventType:  db.TimelineEventTypeCaseAssigned,
+			Source:     db.TimelineEventSourceUser,
+			ActorID:    &actorID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"assigned_to": assignTo,
+				"note":        assignNote,
+			},
+		})
 	})
 
 	if s.notifSvc != nil {
@@ -372,20 +392,25 @@ func (s *Service) UpdateTags(ctx context.Context, claims *auth.Claims, id uuid.U
 	}
 
 	actorID := claims.UserID
-	go s.repo.CreateActivity(context.Background(), id, actorID, "tags_updated", map[string]interface{}{
-		"add":    req.Add,
-		"remove": req.Remove,
+	tagCaseID, addTags, removeTags := id, req.Add, req.Remove
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), tagCaseID, actorID, "tags_updated", map[string]interface{}{ //nolint:errcheck
+			"add":    addTags,
+			"remove": removeTags,
+		})
 	})
-	go s.emitter.Emit(context.Background(), timeline.Event{
-		CaseID:    id,
-		EventType: db.TimelineEventTypeCaseTagged,
-		Source:    db.TimelineEventSourceUser,
-		ActorID:   &actorID,
-		OccurredAt: time.Now(),
-		Payload: map[string]any{
-			"add":    req.Add,
-			"remove": req.Remove,
-		},
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     tagCaseID,
+			EventType:  db.TimelineEventTypeCaseTagged,
+			Source:     db.TimelineEventSourceUser,
+			ActorID:    &actorID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"add":    addTags,
+				"remove": removeTags,
+			},
+		})
 	})
 
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
@@ -401,7 +426,10 @@ func (s *Service) Delete(ctx context.Context, claims *auth.Claims, id uuid.UUID)
 		return ErrNotFound
 	}
 	actorID := claims.UserID
-	go s.repo.CreateActivity(context.Background(), id, actorID, "case_deleted", map[string]interface{}{})
+	delCaseID := id
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), delCaseID, actorID, "case_deleted", map[string]interface{}{}) //nolint:errcheck
+	})
 	return nil
 }
 
