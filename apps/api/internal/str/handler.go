@@ -1,0 +1,216 @@
+package str
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
+
+	"github.com/reddybashanaguru/opsowl/internal/auth"
+	"github.com/reddybashanaguru/opsowl/internal/cases"
+	"github.com/reddybashanaguru/opsowl/internal/response"
+)
+
+type Handler struct {
+	repo *Repository
+}
+
+func NewHandler(repo *Repository) *Handler {
+	return &Handler{repo: repo}
+}
+
+// POST /api/v1/cases/{id}/str
+func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
+
+	var req CreateDraftRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		return
+	}
+	if req.SuspicionBasis == "" {
+		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", "suspicion_basis is required")
+		return
+	}
+
+	f, err := h.repo.Create(r.Context(), caseID, cases.DefaultOrgID, req)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create STR draft")
+		return
+	}
+	response.JSON(w, http.StatusCreated, toResponse(f))
+}
+
+// GET /api/v1/cases/{id}/str
+func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
+
+	filings, err := h.repo.ListByCaseID(r.Context(), caseID, cases.DefaultOrgID)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list STR filings")
+		return
+	}
+
+	out := make([]*FilingResponse, 0, len(filings))
+	for i := range filings {
+		out = append(out, toResponse(&filings[i]))
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"filings": out})
+}
+
+// GET /api/v1/cases/{id}/str/{str_id}
+func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+
+	f, err := h.repo.GetByID(r.Context(), strID, cases.DefaultOrgID)
+	if errors.Is(err, ErrNotFound) {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "STR filing not found")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR filing")
+		return
+	}
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
+// POST /api/v1/cases/{id}/str/{str_id}/submit
+func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+
+	f, err := h.repo.Submit(r.Context(), strID, cases.DefaultOrgID, claims.UserID)
+	if errors.Is(err, ErrWrongStatus) {
+		response.Err(w, http.StatusConflict, "WRONG_STATUS", "filing must be in draft status to submit")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to submit STR filing")
+		return
+	}
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
+// POST /api/v1/cases/{id}/str/{str_id}/approve
+func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+
+	f, err := h.repo.Approve(r.Context(), strID, cases.DefaultOrgID, claims.UserID)
+	if errors.Is(err, ErrMakerChecker) {
+		response.Err(w, http.StatusForbidden, "MAKER_CHECKER_VIOLATION",
+			"PMLA s.12: the approver must be a different person from the submitter")
+		return
+	}
+	if errors.Is(err, ErrWrongStatus) {
+		response.Err(w, http.StatusConflict, "WRONG_STATUS", "filing must be in submitted status to approve")
+		return
+	}
+	if errors.Is(err, ErrNotFound) {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "STR filing not found")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to approve STR filing")
+		return
+	}
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
+// POST /api/v1/cases/{id}/str/{str_id}/reject
+func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+	var req RejectRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	f, err := h.repo.Reject(r.Context(), strID, cases.DefaultOrgID, req.Reason)
+	if errors.Is(err, ErrWrongStatus) {
+		response.Err(w, http.StatusConflict, "WRONG_STATUS", "filing must be in submitted status to reject")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to reject STR filing")
+		return
+	}
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
+// POST /api/v1/cases/{id}/str/{str_id}/file
+func (h *Handler) MarkFiled(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+	var req MarkFiledRequest
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	f, err := h.repo.MarkFiled(r.Context(), strID, cases.DefaultOrgID, req.FIUReference)
+	if errors.Is(err, ErrWrongStatus) {
+		response.Err(w, http.StatusConflict, "WRONG_STATUS", "filing must be approved before marking as filed")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to mark STR as filed")
+		return
+	}
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
+// GET /api/v1/cases/{id}/str/{str_id}/export
+func (h *Handler) ExportFINnet(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+
+	f, err := h.repo.GetByID(r.Context(), strID, cases.DefaultOrgID)
+	if errors.Is(err, ErrNotFound) {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "STR filing not found")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR filing")
+		return
+	}
+
+	xmlData, err := BuildFINnetXML(toResponse(f))
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "XML_ERROR", "failed to generate FINnet XML")
+		return
+	}
+
+	filename := fmt.Sprintf("STR-%s.xml", strID.String()[:8])
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(xmlData)
+}

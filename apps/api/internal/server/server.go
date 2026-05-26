@@ -22,6 +22,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/audit"
 	"github.com/reddybashanaguru/opsowl/internal/auditchain"
 	"github.com/reddybashanaguru/opsowl/internal/report"
+	"github.com/reddybashanaguru/opsowl/internal/str"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/mail"
 	"github.com/reddybashanaguru/opsowl/internal/retention"
@@ -237,6 +238,9 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		// PDF Case Report (P2-1)
 		reportHandler := report.NewHandler(s.queries, s.aiServiceURL, s.logger)
 		report.RegisterRoutes(r, reportHandler, s.jwtMgr)
+
+		// STR/SAR/CTR dual-authorization workflow + FINnet 2.0 XML export
+		str.RegisterRoutes(r, s.sqlDB, s.jwtMgr)
 
 		// Dynamic config (industry labels)
 		configHandler := config.NewHandler(s.sqlDB)

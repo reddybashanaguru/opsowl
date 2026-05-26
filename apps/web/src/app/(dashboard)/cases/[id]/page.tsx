@@ -144,6 +144,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           { label: "AI Insights →", href: `/cases/${id}/insights` },
           { label: "Timeline →", href: `/cases/${id}/timeline` },
           { label: "AI Logs →", href: `/cases/${id}/ai-logs` },
+          { label: "STR →", href: `/cases/${id}/str` },
         ].map(({ label, href }) => (
           <span key={href} className="flex items-center gap-4">
             <div className="h-4 border-l border-slate-700" />

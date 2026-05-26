@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { useAuthStore } from "@/lib/stores/auth.store";
+import { getSseTicket } from "@/lib/api";
 
 export type SSEStatus = "connecting" | "connected" | "reconnecting" | "error" | "closed";
 
@@ -35,9 +35,15 @@ export function useTimelineSSE({ caseId, enabled = true, onEvent }: UseTimelineS
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
-  const connect = useCallback(() => {
-    const token = useAuthStore.getState().accessToken;
-    if (!token || !enabled) return;
+  const connect = useCallback(async () => {
+    if (!enabled) return;
+    let token: string;
+    try {
+      token = await getSseTicket();
+    } catch {
+      setStatus("error");
+      return;
+    }
 
     const url = new URL(`${BASE_URL}/api/v1/cases/${caseId}/timeline/stream`);
     url.searchParams.set("token", token);
