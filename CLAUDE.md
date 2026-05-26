@@ -944,8 +944,8 @@ docs: RBI compliance documentation suite (RBI T3)
 ### Progress
 - [x] C4: PMLA 10-year retention corrections (migration 00023/00024) — commit 52eac0c
 - [x] C5: Inactivity session timeout (15-min idle + 2-min warning) — commit 52eac0c
-- [ ] C2: Tipping-off controls
-- [ ] C6: IDOR org-scoping integration tests
+- [x] C2: Tipping-off controls — analyst blocked from STR; manager|admin|super_admin only — commit 2191afc
+- [x] C6: IDOR org-scoping integration tests — service.Get() org check; 3 tests pass — commit 2191afc
 - [ ] C1: STR dual-authorization + FIU-IND XML export
 - [ ] C3: DPDP erasure endpoint
 - [ ] T2: Config fixes
