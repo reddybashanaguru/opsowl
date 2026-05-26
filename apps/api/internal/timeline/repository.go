@@ -16,6 +16,16 @@ func NewRepository(q *db.Queries) *Repository {
 	return &Repository{q: q}
 }
 
+// GetEventsSince returns all events for a case that occurred after the given
+// event (by occurred_at, id), in ASC order. Used for SSE replay on reconnect.
+func (r *Repository) GetEventsSince(ctx context.Context, caseID, lastEventID uuid.UUID) ([]db.ListTimelineEventsRow, error) {
+	ref, err := r.q.GetTimelineEventByID(ctx, lastEventID)
+	if err != nil {
+		return nil, err
+	}
+	return r.q.ListTimelineEventsSince(ctx, caseID, ref.OccurredAt, lastEventID)
+}
+
 func (r *Repository) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]db.ListTimelineEventsRow, error) {
 	limit := f.Limit
 	if limit <= 0 || limit > 100 {

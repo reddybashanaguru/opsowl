@@ -262,21 +262,28 @@ func (h *Handler) DeleteRule(w http.ResponseWriter, r *http.Request) {
 // ─── Admin: Event log ─────────────────────────────────────────────────────────
 
 func (h *Handler) ListEvents(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+	q := r.URL.Query()
+	limit, _ := strconv.Atoi(q.Get("limit"))
 	var sourceID *uuid.UUID
-	if s := r.URL.Query().Get("source_id"); s != "" {
-		id, err := uuid.Parse(s)
-		if err == nil {
+	if s := q.Get("source_id"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
 			sourceID = &id
 		}
 	}
-	events, err := h.svc.ListEvents(r.Context(), limit, sourceID)
+	var status *string
+	if s := q.Get("status"); s != "" {
+		status = &s
+	}
+	var cursorID *uuid.UUID
+	if s := q.Get("cursor"); s != "" {
+		if id, err := uuid.Parse(s); err == nil {
+			cursorID = &id
+		}
+	}
+	page, err := h.svc.ListEvents(r.Context(), limit, sourceID, status, cursorID)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not list events")
 		return
 	}
-	if events == nil {
-		events = []*Event{}
-	}
-	response.JSON(w, http.StatusOK, events)
+	response.JSON(w, http.StatusOK, page)
 }

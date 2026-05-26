@@ -133,8 +133,26 @@ func (h *Handler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Subscribe to live events before replaying so no events are missed between
+	// the replay query and the subscription being registered.
 	client, unsub := h.hub.Subscribe(caseID.String())
 	defer unsub()
+
+	// Replay missed events if the client sends Last-Event-ID on reconnect.
+	if lastID := r.Header.Get("Last-Event-ID"); lastID != "" {
+		if id, err := uuid.Parse(lastID); err == nil {
+			if missed, err := h.svc.repo.GetEventsSince(r.Context(), caseID, id); err == nil {
+				for _, evt := range missed {
+					resp := toEventResponse(evt)
+					b, _ := json.Marshal(resp)
+					fmt.Fprintf(w, "id: %s\nevent: timeline_event\ndata: %s\n\n", evt.ID, b)
+				}
+				if len(missed) > 0 {
+					flusher.Flush()
+				}
+			}
+		}
+	}
 
 	heartbeat := time.NewTicker(30 * time.Second)
 	defer heartbeat.Stop()

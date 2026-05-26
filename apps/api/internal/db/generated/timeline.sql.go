@@ -232,3 +232,53 @@ func (q *Queries) ListTimelineEvents(ctx context.Context, arg ListTimelineEvents
 	}
 	return items, nil
 }
+
+const listTimelineEventsSince = `-- name: ListTimelineEventsSince :many
+SELECT t.id, t.created_at, t.updated_at, t.deleted_at, t.case_id, t.event_type,
+       t.source, t.actor_id, t.occurred_at, t.payload, t.metadata,
+       u.full_name AS actor_name, u.email AS actor_email
+FROM timeline_events t
+LEFT JOIN users u ON u.id = t.actor_id
+WHERE t.case_id    = $1
+  AND t.deleted_at IS NULL
+  AND (t.occurred_at > $2 OR (t.occurred_at = $2 AND t.id > $3))
+ORDER BY t.occurred_at ASC, t.id ASC
+LIMIT 200
+`
+
+func (q *Queries) ListTimelineEventsSince(ctx context.Context, caseID uuid.UUID, afterTime time.Time, afterID uuid.UUID) ([]ListTimelineEventsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listTimelineEventsSince, caseID, afterTime, afterID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListTimelineEventsRow{}
+	for rows.Next() {
+		var i ListTimelineEventsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.CaseID,
+			&i.EventType,
+			&i.Source,
+			&i.ActorID,
+			&i.OccurredAt,
+			&i.Payload,
+			&i.Metadata,
+			&i.ActorName,
+			&i.ActorEmail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

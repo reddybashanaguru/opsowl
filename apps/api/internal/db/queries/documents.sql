@@ -22,7 +22,9 @@ JOIN users u ON u.id = d.uploaded_by
 WHERE d.case_id = $1
   AND d.deleted_at IS NULL
   AND (sqlc.narg('status')::document_processing_status IS NULL OR d.processing_status = sqlc.narg('status'))
-  AND (sqlc.narg('cursor_id')::uuid IS NULL OR d.id < sqlc.narg('cursor_id'))
+  AND (sqlc.narg('cursor_time')::timestamptz IS NULL
+       OR d.created_at < sqlc.narg('cursor_time')
+       OR (d.created_at = sqlc.narg('cursor_time') AND d.id < sqlc.narg('cursor_id')::uuid))
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT @row_limit;
 
@@ -54,7 +56,9 @@ JOIN cases c ON c.id = d.case_id
 JOIN users u ON u.id = d.uploaded_by
 WHERE d.deleted_at IS NULL
   AND (sqlc.narg('status')::document_processing_status IS NULL OR d.processing_status = sqlc.narg('status'))
-  AND (sqlc.narg('cursor_id')::uuid IS NULL OR d.id < sqlc.narg('cursor_id'))
+  AND (sqlc.narg('cursor_time')::timestamptz IS NULL
+       OR d.created_at < sqlc.narg('cursor_time')
+       OR (d.created_at = sqlc.narg('cursor_time') AND d.id < sqlc.narg('cursor_id')::uuid))
 ORDER BY d.created_at DESC, d.id DESC
 LIMIT @row_limit;
 

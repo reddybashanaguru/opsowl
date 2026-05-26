@@ -178,15 +178,18 @@ JOIN cases c ON c.id = d.case_id
 JOIN users u ON u.id = d.uploaded_by
 WHERE d.deleted_at IS NULL
   AND ($1::document_processing_status IS NULL OR d.processing_status = $1)
-  AND ($2::uuid IS NULL OR d.id < $2)
+  AND ($2::timestamptz IS NULL
+       OR d.created_at < $2
+       OR (d.created_at = $2 AND d.id < $3::uuid))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListAllDocumentsParams struct {
-	Status   NullDocumentProcessingStatus `json:"status"`
-	CursorID uuid.NullUUID                `json:"cursor_id"`
-	RowLimit int32                        `json:"row_limit"`
+	Status     NullDocumentProcessingStatus `json:"status"`
+	CursorTime sql.NullTime                 `json:"cursor_time"`
+	CursorID   uuid.NullUUID                `json:"cursor_id"`
+	RowLimit   int32                        `json:"row_limit"`
 }
 
 type ListAllDocumentsRow struct {
@@ -210,7 +213,7 @@ type ListAllDocumentsRow struct {
 }
 
 func (q *Queries) ListAllDocuments(ctx context.Context, arg ListAllDocumentsParams) ([]ListAllDocumentsRow, error) {
-	rows, err := q.db.QueryContext(ctx, listAllDocuments, arg.Status, arg.CursorID, arg.RowLimit)
+	rows, err := q.db.QueryContext(ctx, listAllDocuments, arg.Status, arg.CursorTime, arg.CursorID, arg.RowLimit)
 	if err != nil {
 		return nil, err
 	}
@@ -260,16 +263,19 @@ JOIN users u ON u.id = d.uploaded_by
 WHERE d.case_id = $1
   AND d.deleted_at IS NULL
   AND ($2::document_processing_status IS NULL OR d.processing_status = $2)
-  AND ($3::uuid IS NULL OR d.id < $3)
+  AND ($3::timestamptz IS NULL
+       OR d.created_at < $3
+       OR (d.created_at = $3 AND d.id < $4::uuid))
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $4
+LIMIT $5
 `
 
 type ListDocumentsByCaseParams struct {
-	CaseID   uuid.UUID                    `json:"case_id"`
-	Status   NullDocumentProcessingStatus `json:"status"`
-	CursorID uuid.NullUUID                `json:"cursor_id"`
-	RowLimit int32                        `json:"row_limit"`
+	CaseID     uuid.UUID                    `json:"case_id"`
+	Status     NullDocumentProcessingStatus `json:"status"`
+	CursorTime sql.NullTime                 `json:"cursor_time"`
+	CursorID   uuid.NullUUID                `json:"cursor_id"`
+	RowLimit   int32                        `json:"row_limit"`
 }
 
 type ListDocumentsByCaseRow struct {
@@ -300,6 +306,7 @@ func (q *Queries) ListDocumentsByCase(ctx context.Context, arg ListDocumentsByCa
 	rows, err := q.db.QueryContext(ctx, listDocumentsByCase,
 		arg.CaseID,
 		arg.Status,
+		arg.CursorTime,
 		arg.CursorID,
 		arg.RowLimit,
 	)

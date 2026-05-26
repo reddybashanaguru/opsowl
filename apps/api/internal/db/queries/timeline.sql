@@ -40,3 +40,17 @@ SELECT t.*, u.full_name AS actor_name, u.email AS actor_email
 FROM timeline_events t
 LEFT JOIN users u ON u.id = t.actor_id
 WHERE t.id = $1 AND t.deleted_at IS NULL;
+
+-- name: ListTimelineEventsSince :many
+-- Returns events for a case that happened AFTER (occurred_at, id), ASC order.
+-- Used by the SSE handler to replay missed events on reconnect.
+SELECT t.id, t.created_at, t.updated_at, t.deleted_at, t.case_id, t.event_type,
+       t.source, t.actor_id, t.occurred_at, t.payload, t.metadata,
+       u.full_name AS actor_name, u.email AS actor_email
+FROM timeline_events t
+LEFT JOIN users u ON u.id = t.actor_id
+WHERE t.case_id    = $1
+  AND t.deleted_at IS NULL
+  AND (t.occurred_at > $2 OR (t.occurred_at = $2 AND t.id > $3))
+ORDER BY t.occurred_at ASC, t.id ASC
+LIMIT 200;

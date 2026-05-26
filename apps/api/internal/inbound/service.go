@@ -517,7 +517,13 @@ func (s *Service) DeleteRule(ctx context.Context, ruleID uuid.UUID) error {
 
 // ─── Event log ───────────────────────────────────────────────────────────────
 
-func (s *Service) ListEvents(ctx context.Context, limit int, sourceID *uuid.UUID) ([]*Event, error) {
+type EventsPage struct {
+	Events     []*Event   `json:"events"`
+	HasMore    bool       `json:"has_more"`
+	NextCursor *uuid.UUID `json:"next_cursor"`
+}
+
+func (s *Service) ListEvents(ctx context.Context, limit int, sourceID *uuid.UUID, status *string, cursorID *uuid.UUID) (*EventsPage, error) {
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -528,10 +534,16 @@ func (s *Service) ListEvents(ctx context.Context, limit int, sourceID *uuid.UUID
 		FROM inbound_events e
 		JOIN inbound_sources s ON s.id = e.source_id
 		WHERE ($1::uuid IS NULL OR e.source_id = $1)
+		  AND ($2::text IS NULL OR e.status = $2)
+		  AND ($3::uuid IS NULL OR e.id < $3)
 		ORDER BY e.created_at DESC
-		LIMIT $2`
+		LIMIT $4`
 
-	rows, err := s.db.QueryContext(ctx, query, nullUUID(sourceID), limit)
+	var nullStatus sql.NullString
+	if status != nil {
+		nullStatus = sql.NullString{String: *status, Valid: true}
+	}
+	rows, err := s.db.QueryContext(ctx, query, nullUUID(sourceID), nullStatus, nullUUID(cursorID), limit+1)
 	if err != nil {
 		return nil, err
 	}
@@ -559,7 +571,20 @@ func (s *Service) ListEvents(ctx context.Context, limit int, sourceID *uuid.UUID
 		}
 		out = append(out, &e)
 	}
-	return out, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	hasMore := len(out) > limit
+	if hasMore {
+		out = out[:limit]
+	}
+	var nextCursor *uuid.UUID
+	if hasMore && len(out) > 0 {
+		last := out[len(out)-1].ID
+		nextCursor = &last
+	}
+	return &EventsPage{Events: out, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

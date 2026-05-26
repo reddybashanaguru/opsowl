@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -203,10 +205,11 @@ func (s *Service) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]
 	}
 
 	rows, err := s.repo.ListByCase(ctx, db.ListDocumentsByCaseParams{
-		CaseID:   caseID,
-		Status:   nullStatus,
-		CursorID: nullUUID(f.CursorID),
-		RowLimit: limit + 1,
+		CaseID:     caseID,
+		Status:     nullStatus,
+		CursorTime: nullTime(f.CursorTime),
+		CursorID:   nullUUID(f.CursorID),
+		RowLimit:   limit + 1,
 	})
 	if err != nil {
 		return nil, ListMeta{}, err
@@ -219,10 +222,11 @@ func (s *Service) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]
 
 	total, _ := s.repo.Count(ctx, caseID)
 
-	var nextCursor *uuid.UUID
+	var nextCursor *string
 	if hasMore && len(rows) > 0 {
-		last := rows[len(rows)-1].ID
-		nextCursor = &last
+		last := rows[len(rows)-1]
+		c := encodeCursor(last.CreatedAt, last.ID)
+		nextCursor = &c
 	}
 
 	out := make([]*DocumentResponse, 0, len(rows))
@@ -238,7 +242,7 @@ func (s *Service) List(ctx context.Context, caseID uuid.UUID, f ListFilters) ([]
 	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
 
-func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStatus, cursorID *uuid.UUID, limit int32) ([]*GlobalDocumentResponse, ListMeta, error) {
+func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStatus, cursorTime *time.Time, cursorID *uuid.UUID, limit int32) ([]*GlobalDocumentResponse, ListMeta, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 30
 	}
@@ -248,9 +252,10 @@ func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStat
 	}
 
 	rows, err := s.repo.ListAll(ctx, db.ListAllDocumentsParams{
-		Status:   nullStatus,
-		CursorID: nullUUID(cursorID),
-		RowLimit: limit + 1,
+		Status:     nullStatus,
+		CursorTime: nullTime(cursorTime),
+		CursorID:   nullUUID(cursorID),
+		RowLimit:   limit + 1,
 	})
 	if err != nil {
 		return nil, ListMeta{}, err
@@ -263,10 +268,11 @@ func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStat
 
 	total, _ := s.repo.CountAll(ctx, nullStatus)
 
-	var nextCursor *uuid.UUID
+	var nextCursor *string
 	if hasMore && len(rows) > 0 {
-		last := rows[len(rows)-1].ID
-		nextCursor = &last
+		last := rows[len(rows)-1]
+		c := encodeCursor(last.CreatedAt, last.ID)
+		nextCursor = &c
 	}
 
 	out := make([]*GlobalDocumentResponse, 0, len(rows))
@@ -363,6 +369,35 @@ func nullUUID(id *uuid.UUID) uuid.NullUUID {
 		return uuid.NullUUID{}
 	}
 	return uuid.NullUUID{UUID: *id, Valid: true}
+}
+
+func nullTime(t *time.Time) sql.NullTime {
+	if t == nil {
+		return sql.NullTime{}
+	}
+	return sql.NullTime{Time: *t, Valid: true}
+}
+
+type docCursor struct {
+	T  time.Time `json:"t"`
+	ID uuid.UUID `json:"id"`
+}
+
+func encodeCursor(t time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(docCursor{T: t, ID: id})
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func decodeCursor(s string) (*time.Time, *uuid.UUID, error) {
+	raw, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return nil, nil, err
+	}
+	var p docCursor
+	if err := json.Unmarshal(raw, &p); err != nil {
+		return nil, nil, err
+	}
+	return &p.T, &p.ID, nil
 }
 
 func rowToGetRow(r db.ListDocumentsByCaseRow) db.GetDocumentByIDRow {

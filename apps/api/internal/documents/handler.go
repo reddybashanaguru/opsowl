@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -79,8 +80,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if v := r.URL.Query().Get("cursor"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			f.CursorID = &id
+		if ct, cid, err := decodeCursor(v); err == nil {
+			f.CursorTime = ct
+			f.CursorID = cid
 		}
 	}
 	if v := r.URL.Query().Get("status"); v != "" {
@@ -179,10 +181,12 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 			limit = l
 		}
 	}
+	var cursorTime *time.Time
 	var cursorID *uuid.UUID
 	if v := r.URL.Query().Get("cursor"); v != "" {
-		if id, err := uuid.Parse(v); err == nil {
-			cursorID = &id
+		if ct, cid, err := decodeCursor(v); err == nil {
+			cursorTime = ct
+			cursorID = cid
 		}
 	}
 	var status *db.DocumentProcessingStatus
@@ -191,7 +195,7 @@ func (h *Handler) ListAll(w http.ResponseWriter, r *http.Request) {
 		status = &s
 	}
 
-	docs, meta, err := h.svc.ListAll(r.Context(), status, cursorID, limit)
+	docs, meta, err := h.svc.ListAll(r.Context(), status, cursorTime, cursorID, limit)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return

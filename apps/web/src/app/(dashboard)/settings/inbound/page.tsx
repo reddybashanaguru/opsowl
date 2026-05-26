@@ -352,25 +352,106 @@ function SourceCard({ source, onDeleted }: { source: Source; onDeleted: () => vo
 
 // ─── Event log ────────────────────────────────────────────────────────────────
 
-function EventLog() {
-  const { data: events = [], isLoading } = useQuery<InboundEvent[]>({
-    queryKey: ["inbound-events"],
-    queryFn: () => api.get("/api/v1/inbound/events?limit=50"),
-    refetchInterval: 10_000,
+interface EventsPage {
+  events: InboundEvent[];
+  has_more: boolean;
+  next_cursor: string | null;
+}
+
+function EventLog({ sources }: { sources: Source[] }) {
+  const [sourceFilter, setSourceFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [typeFilter, setTypeFilter] = useState("");
+  const [cursor, setCursor] = useState<string | undefined>(undefined);
+  const [pages, setPages] = useState<InboundEvent[][]>([]);
+  const [expandedID, setExpandedID] = useState<string | null>(null);
+  const qc = useQueryClient();
+
+  const buildURL = (cur?: string) => {
+    const p = new URLSearchParams({ limit: "30" });
+    if (sourceFilter) p.set("source_id", sourceFilter);
+    if (statusFilter) p.set("status", statusFilter);
+    if (cur) p.set("cursor", cur);
+    return `/api/v1/inbound/events?${p}`;
+  };
+
+  const { data: page, isLoading, isFetching } = useQuery<EventsPage>({
+    queryKey: ["inbound-events", sourceFilter, statusFilter, cursor],
+    queryFn: () => api.get(buildURL(cursor)),
+    refetchInterval: 15_000,
+    placeholderData: (prev) => prev,
   });
 
+  const allEvents = pages.flatMap(p => p).concat(page?.events ?? []);
+  const visible = typeFilter
+    ? allEvents.filter(e => e.event_type.includes(typeFilter))
+    : allEvents;
+
+  function loadMore() {
+    if (!page?.next_cursor) return;
+    setPages(prev => [...prev, page.events]);
+    setCursor(page.next_cursor!);
+  }
+
+  function refresh() {
+    setPages([]);
+    setCursor(undefined);
+    qc.invalidateQueries({ queryKey: ["inbound-events"] });
+  }
+
   return (
-    <div>
-      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-3">Recent Events</h2>
-      {isLoading ? (
+    <div className="space-y-3">
+      {/* Toolbar */}
+      <div className="flex flex-wrap gap-2 items-center justify-between">
+        <div className="flex gap-2 flex-wrap">
+          <select
+            value={sourceFilter}
+            onChange={e => { setSourceFilter(e.target.value); setPages([]); setCursor(undefined); }}
+            className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500"
+          >
+            <option value="">All sources</option>
+            {sources.map(s => (
+              <option key={s.id} value={s.id}>{s.name}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => { setStatusFilter(e.target.value); setPages([]); setCursor(undefined); }}
+            className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500"
+          >
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="processed">Processed</option>
+            <option value="failed">Failed</option>
+            <option value="ignored">Ignored</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Filter by event type…"
+            value={typeFilter}
+            onChange={e => setTypeFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-3 py-1.5 w-48 focus:outline-none focus:border-cyan-500 placeholder-slate-600"
+          />
+        </div>
+        <button
+          onClick={refresh}
+          disabled={isFetching}
+          className="text-xs px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:border-cyan-500/50 transition-colors disabled:opacity-50"
+        >
+          {isFetching ? "Refreshing…" : "↻ Refresh"}
+        </button>
+      </div>
+
+      {/* Table */}
+      {isLoading && pages.length === 0 ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
             <div key={i} className="h-12 bg-slate-800/50 rounded-lg animate-pulse" />
           ))}
         </div>
-      ) : events.length === 0 ? (
+      ) : visible.length === 0 ? (
         <div className="text-center py-10 text-slate-500 text-sm border border-slate-700 rounded-xl">
-          No events received yet.
+          No events match the current filters.
         </div>
       ) : (
         <div className="border border-slate-700 rounded-xl overflow-hidden">
@@ -381,35 +462,90 @@ function EventLog() {
                 <th className="text-left px-4 py-2 text-xs text-slate-400">Source</th>
                 <th className="text-left px-4 py-2 text-xs text-slate-400">Event Type</th>
                 <th className="text-left px-4 py-2 text-xs text-slate-400">Status</th>
-                <th className="text-left px-4 py-2 text-xs text-slate-400">Case</th>
+                <th className="text-left px-4 py-2 text-xs text-slate-400">Attempts</th>
+                <th className="text-left px-4 py-2 text-xs text-slate-400">Outcome</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-700/50">
-              {events.map(evt => (
-                <tr key={evt.id} className="hover:bg-slate-800/20">
-                  <td className="px-4 py-2 text-xs text-slate-500 whitespace-nowrap">
-                    {new Date(evt.created_at).toLocaleTimeString()}
-                  </td>
-                  <td className="px-4 py-2 text-xs font-mono text-slate-400">{evt.source_name}</td>
-                  <td className="px-4 py-2 text-xs font-mono text-cyan-400">{evt.event_type}</td>
-                  <td className="px-4 py-2">
-                    <span className={`px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[evt.status]}`}>
-                      {evt.status}
-                    </span>
-                  </td>
-                  <td className="px-4 py-2 text-xs text-slate-500">
-                    {evt.case_id ? (
-                      <a href={`/cases/${evt.case_id}`} className="text-cyan-400 hover:underline">View Case</a>
-                    ) : evt.error_message ? (
-                      <span className="text-red-400">{evt.error_message}</span>
-                    ) : "—"}
-                  </td>
-                </tr>
+              {visible.map(evt => (
+                <>
+                  <tr
+                    key={evt.id}
+                    onClick={() => setExpandedID(expandedID === evt.id ? null : evt.id)}
+                    className={`cursor-pointer transition-colors ${
+                      evt.status === "failed" ? "hover:bg-red-950/20" : "hover:bg-slate-800/30"
+                    } ${expandedID === evt.id ? "bg-slate-800/40" : ""}`}
+                  >
+                    <td className="px-4 py-2.5 text-xs text-slate-500 whitespace-nowrap">
+                      <div>{new Date(evt.created_at).toLocaleDateString()}</div>
+                      <div className="text-slate-600">{new Date(evt.created_at).toLocaleTimeString()}</div>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs font-mono text-slate-400">{evt.source_name}</td>
+                    <td className="px-4 py-2.5 text-xs font-mono text-cyan-400">{evt.event_type}</td>
+                    <td className="px-4 py-2.5">
+                      <span className={`px-2 py-0.5 rounded-full text-xs ${STATUS_COLORS[evt.status]}`}>
+                        {evt.status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500 text-center">{evt.attempt_count}</td>
+                    <td className="px-4 py-2.5 text-xs">
+                      {evt.case_id ? (
+                        <a
+                          href={`/cases/${evt.case_id}`}
+                          onClick={e => e.stopPropagation()}
+                          className="text-cyan-400 hover:underline"
+                        >
+                          View Case →
+                        </a>
+                      ) : evt.error_message ? (
+                        <span className="text-red-400 truncate max-w-[200px] block" title={evt.error_message}>
+                          {evt.error_message}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+                  </tr>
+                  {expandedID === evt.id && (
+                    <tr key={`${evt.id}-payload`}>
+                      <td colSpan={6} className="px-4 pb-3 bg-slate-900/60">
+                        <div className="text-xs text-slate-400 mb-1 font-medium pt-2">Payload</div>
+                        <pre className="text-xs font-mono text-slate-300 bg-slate-900 border border-slate-700 rounded-lg p-3 overflow-x-auto max-h-48">
+                          {JSON.stringify(evt.payload, null, 2)}
+                        </pre>
+                        <div className="text-xs text-slate-600 mt-2">
+                          ID: <span className="font-mono">{evt.id}</span>
+                          {" · "}
+                          Idempotency key: <span className="font-mono">{evt.idempotency_key}</span>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {/* Load more */}
+      {page?.has_more && (
+        <div className="flex justify-center pt-1">
+          <button
+            onClick={loadMore}
+            disabled={isFetching}
+            className="text-xs px-4 py-2 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg hover:border-cyan-500/50 transition-colors disabled:opacity-50"
+          >
+            {isFetching ? "Loading…" : "Load more events"}
+          </button>
+        </div>
+      )}
+
+      {/* Live indicator */}
+      <div className="flex items-center gap-1.5 text-xs text-slate-600">
+        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+        Auto-refreshing every 15 s
+      </div>
     </div>
   );
 }
@@ -493,7 +629,7 @@ export default function InboundPage() {
         </div>
       )}
 
-      {activeTab === "events" && <EventLog />}
+      {activeTab === "events" && <EventLog sources={sources} />}
 
       {showSourceForm && (
         <SourceForm

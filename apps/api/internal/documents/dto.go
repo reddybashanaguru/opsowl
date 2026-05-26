@@ -23,15 +23,16 @@ const (
 )
 
 type ListFilters struct {
-	Status   *db.DocumentProcessingStatus
-	Limit    int32
-	CursorID *uuid.UUID
+	Status     *db.DocumentProcessingStatus
+	Limit      int32
+	CursorTime *time.Time
+	CursorID   *uuid.UUID
 }
 
 type ListMeta struct {
-	TotalCount int64      `json:"total_count"`
-	HasMore    bool       `json:"has_more"`
-	NextCursor *uuid.UUID `json:"next_cursor"`
+	TotalCount int64   `json:"total_count"`
+	HasMore    bool    `json:"has_more"`
+	NextCursor *string `json:"next_cursor"`
 }
 
 type UploaderRef struct {
