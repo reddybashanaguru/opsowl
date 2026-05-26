@@ -114,6 +114,7 @@ func (s *Server) setupMiddleware() {
 	}
 	rl := middleware.NewRateLimiter(rateLimit, s.jwtMgr)
 
+	s.router.Use(middleware.RequireTLS)  // HTTPS enforcement (RBI T2); no-op unless REQUIRE_TLS=true
 	s.router.Use(middleware.RequestID) // stamps X-Request-Id; must be first
 	s.router.Use(chimw.RealIP)
 	s.router.Use(chimw.Recoverer)
@@ -149,7 +150,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		r.With(auth.JWTValidate(s.jwtMgr)).Get("/dashboard/stats", s.handleDashboardStats)
 
 		// Users module
-		usersRepo := users.NewRepository(s.queries)
+		usersRepo := users.NewRepository(s.queries).WithDB(s.sqlDB)
 		usersSvc := users.NewService(usersRepo, authSvc)
 		usersHandler := users.NewHandler(usersSvc)
 		users.RegisterRoutes(r, usersHandler, s.jwtMgr)

@@ -25,6 +25,10 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.With(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin)).
 			Post("/users/{id}/unlock", h.Unlock)
 
+		// DPDP Act 2023 Right-to-Erasure — admin/super_admin only; blocked by PMLA 10-year retention hold
+		r.With(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin)).
+			Delete("/users/{id}/data", h.EraseData)
+
 		// self or admin+ can update
 		r.Put("/users/{id}", h.Update)
 	})

@@ -3,17 +3,26 @@ package users
 import (
 	"context"
 	"database/sql"
+	"fmt"
 
 	"github.com/google/uuid"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
 type Repository struct {
-	q *db.Queries
+	q  *db.Queries
+	db *sql.DB
 }
 
 func NewRepository(q *db.Queries) *Repository {
 	return &Repository{q: q}
+}
+
+// WithDB wires in a raw *sql.DB for queries that cross module boundaries
+// (e.g., the DPDP erasure PMLA hold check against str_filings).
+func (r *Repository) WithDB(d *sql.DB) *Repository {
+	r.db = d
+	return r
 }
 
 func (r *Repository) Create(ctx context.Context, params db.CreateUserParams) (db.CreateUserRow, error) {
@@ -62,4 +71,44 @@ func (r *Repository) RevokeAllTokens(ctx context.Context, userID uuid.UUID) erro
 
 func (r *Repository) UnlockAccount(ctx context.Context, userID uuid.UUID) error {
 	return r.q.AdminUnlockAccount(ctx, userID)
+}
+
+// HasActiveSTRHold returns true when the user is referenced as submitted_by or
+// approved_by in any STR filing created within the last 10 years. Under PMLA s.12
+// those records must be retained, so PII erasure is blocked.
+func (r *Repository) HasActiveSTRHold(ctx context.Context, userID uuid.UUID) (bool, error) {
+	if r.db == nil {
+		return false, nil
+	}
+	var exists bool
+	err := r.db.QueryRowContext(ctx, `
+		SELECT EXISTS(
+			SELECT 1 FROM str_filings
+			WHERE (submitted_by = $1 OR approved_by = $1)
+			  AND created_at > NOW() - INTERVAL '10 years'
+		)`, userID).Scan(&exists)
+	return exists, err
+}
+
+// ErasePII anonymises all personally identifiable fields for the given user.
+// erased_at is stamped; all active sessions are revoked. The user row is
+// kept so that foreign-key references in audit_logs / str_filings remain intact.
+func (r *Repository) ErasePII(ctx context.Context, userID uuid.UUID) error {
+	if r.db == nil {
+		return fmt.Errorf("raw db not configured")
+	}
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE users
+		   SET email         = 'erased_' || LEFT(id::TEXT, 8) || '@erased.invalid',
+		       full_name     = '[ERASED]',
+		       password_hash = '',
+		       erased_at     = NOW(),
+		       updated_at    = NOW()
+		 WHERE id = $1 AND erased_at IS NULL`, userID)
+	if err != nil {
+		return err
+	}
+	_ = r.q.RevokeAllUserRefreshTokens(ctx, userID)
+	_ = r.q.RevokeAllUserSessions(ctx, userID)
+	return nil
 }

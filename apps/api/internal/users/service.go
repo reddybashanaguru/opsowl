@@ -18,6 +18,7 @@ var (
 	ErrUserNotFound = errors.New("user_not_found")
 	ErrForbidden    = errors.New("forbidden")
 	ErrWeakPassword = errors.New("weak_password")
+	ErrPMLAHold     = errors.New("pmla_hold") // DPDP Act 2023 s.17 — PMLA retention override
 )
 
 type Service struct {
@@ -163,6 +164,23 @@ func (s *Service) Delete(ctx context.Context, actor *auth.Claims, targetID uuid.
 
 func (s *Service) Unlock(ctx context.Context, targetID uuid.UUID) error {
 	return s.repo.UnlockAccount(ctx, targetID)
+}
+
+// EraseUserPII processes a DPDP Act 2023 Right-to-Erasure request.
+// Blocked by PMLA s.12 when the user appears in any STR filing within the
+// last 10 years — those records must be retained regardless of DPDP requests.
+func (s *Service) EraseUserPII(ctx context.Context, actor *auth.Claims, targetID uuid.UUID) error {
+	if actor.UserID == targetID {
+		return errors.New("cannot_erase_self")
+	}
+	hold, err := s.repo.HasActiveSTRHold(ctx, targetID)
+	if err != nil {
+		return err
+	}
+	if hold {
+		return ErrPMLAHold
+	}
+	return s.repo.ErasePII(ctx, targetID)
 }
 
 // helpers

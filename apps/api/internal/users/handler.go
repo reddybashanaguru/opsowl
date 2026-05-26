@@ -152,6 +152,32 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, map[string]string{"message": "user deactivated"})
 }
 
+// EraseData handles DPDP Act 2023 Right-to-Erasure requests.
+// DELETE /api/v1/users/{id}/data — admin/super_admin only.
+func (h *Handler) EraseData(w http.ResponseWriter, r *http.Request) {
+	claims := auth.ClaimsFromCtx(r.Context())
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid user id")
+		return
+	}
+	if err := h.svc.EraseUserPII(r.Context(), claims, id); err != nil {
+		switch {
+		case errors.Is(err, ErrPMLAHold):
+			response.Err(w, http.StatusConflict, "PMLA_HOLD",
+				"DPDP Act 2023 s.17: erasure blocked — user is referenced in STR filings subject to PMLA 10-year retention")
+		case err.Error() == "cannot_erase_self":
+			response.Err(w, http.StatusBadRequest, "CANNOT_ERASE_SELF", "you cannot erase your own account")
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not erase user data")
+		}
+		return
+	}
+	response.JSON(w, http.StatusOK, map[string]string{
+		"message": "user PII erased under DPDP Act 2023 Right-to-Erasure",
+	})
+}
+
 // Unlock clears account lockout for a user — admin/super_admin only.
 func (h *Handler) Unlock(w http.ResponseWriter, r *http.Request) {
 	id, err := uuid.Parse(chi.URLParam(r, "id"))

@@ -45,7 +45,7 @@ func New(webhookURL, format string, logger *zap.Logger) *Forwarder {
 		webhookURL: webhookURL,
 		format:     format,
 		client:     &http.Client{Timeout: 5 * time.Second},
-		ch:         make(chan db.CreateAuditLogParams, 512),
+		ch:         make(chan db.CreateAuditLogParams, 1000),
 		logger:     logger,
 	}
 	if webhookURL != "" {

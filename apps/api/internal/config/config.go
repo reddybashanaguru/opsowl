@@ -101,7 +101,7 @@ func Load() (*Config, error) {
 		SMTPTLS:           getEnv("SMTP_TLS", "true") == "true",
 		PasswordExpiryDays: getEnvInt("PASSWORD_EXPIRY_DAYS", 90),
 		PasswordHistoryN:   getEnvInt("PASSWORD_HISTORY_COUNT", 5),
-		PasswordMinLength:  getEnvInt("PASSWORD_MIN_LENGTH", 8),
+		PasswordMinLength:  getEnvInt("PASSWORD_MIN_LENGTH", 12),
 		PasswordUppercase:  getEnv("PASSWORD_REQUIRE_UPPERCASE", "true") == "true",
 		PasswordNumber:     getEnv("PASSWORD_REQUIRE_NUMBER", "true") == "true",
 		MaxSessionsPerUser: getEnvInt("MAX_SESSIONS_PER_USER", 5),
