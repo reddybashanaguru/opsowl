@@ -127,9 +127,13 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	return s.toCaseResponse(c, "", claims.Email, nil, nil, nil), nil
 }
 
-func (s *Service) Get(ctx context.Context, id uuid.UUID) (*CaseResponse, error) {
+func (s *Service) Get(ctx context.Context, id, orgID uuid.UUID) (*CaseResponse, error) {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {
+		return nil, ErrNotFound
+	}
+	// IDOR guard: case must belong to the caller's org (RBI C6)
+	if row.OrganizationID != orgID {
 		return nil, ErrNotFound
 	}
 	watchers, _ := s.repo.GetWatchers(ctx, id)

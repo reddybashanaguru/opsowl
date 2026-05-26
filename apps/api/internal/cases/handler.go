@@ -55,7 +55,7 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
 		return
 	}
-	c, err := h.svc.Get(r.Context(), id)
+	c, err := h.svc.Get(r.Context(), id, DefaultOrgID)
 	if err != nil {
 		response.Err(w, http.StatusNotFound, "NOT_FOUND", "case not found")
 		return

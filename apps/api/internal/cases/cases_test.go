@@ -186,7 +186,7 @@ func TestGetCase(t *testing.T) {
 	})
 
 	t.Run("get existing case", func(t *testing.T) {
-		c, err := svc.Get(context.Background(), created.ID)
+		c, err := svc.Get(context.Background(), created.ID, cases.DefaultOrgID)
 		if err != nil {
 			t.Fatalf("get: %v", err)
 		}
@@ -199,9 +199,67 @@ func TestGetCase(t *testing.T) {
 	})
 
 	t.Run("get non-existent returns ErrNotFound", func(t *testing.T) {
-		_, err := svc.Get(context.Background(), uuid.New())
+		_, err := svc.Get(context.Background(), uuid.New(), cases.DefaultOrgID)
 		if err == nil {
 			t.Fatal("expected error")
+		}
+	})
+}
+
+// ── C6: IDOR org-scoping tests ────────────────────────────────────────────────
+
+func TestGetCase_IDORProtection(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc := newTestService(t, db)
+	analystID := seedUser(t, db, "idor@test.com", dbgen.UserRoleAnalyst)
+	claims := claimsFor(analystID, "idor@test.com", dbgen.UserRoleAnalyst)
+
+	created, err := svc.Create(context.Background(), claims, cases.CreateCaseRequest{
+		Title:    "Org A case",
+		Priority: dbgen.CasePriorityHigh,
+	})
+	if err != nil {
+		t.Fatalf("create: %v", err)
+	}
+
+	// Org A case is accessible from Org A
+	t.Run("own org case is accessible", func(t *testing.T) {
+		_, err := svc.Get(context.Background(), created.ID, cases.DefaultOrgID)
+		if err != nil {
+			t.Errorf("expected no error for own-org case, got: %v", err)
+		}
+	})
+
+	// Directly insert a case with a DIFFERENT org_id (simulating Org B's case)
+	foreignOrgID := uuid.New()
+	var foreignCaseID uuid.UUID
+	err = db.QueryRowContext(context.Background(), `
+		INSERT INTO cases (case_number, title, description, status, priority, created_by, organization_id, tags)
+		VALUES (
+			'OWL-TEST-' || nextval('case_number_seq')::TEXT,
+			'Foreign org case', '', 'open', 'medium', $1, $2, '{}'
+		)
+		RETURNING id`,
+		analystID, foreignOrgID,
+	).Scan(&foreignCaseID)
+	if err != nil {
+		t.Fatalf("insert foreign-org case: %v", err)
+	}
+
+	// Accessing foreign org case from DefaultOrgID must return ErrNotFound
+	t.Run("cross-org case returns ErrNotFound (IDOR blocked)", func(t *testing.T) {
+		_, err := svc.Get(context.Background(), foreignCaseID, cases.DefaultOrgID)
+		if err == nil {
+			t.Fatal("expected ErrNotFound for cross-org access, got nil — IDOR vulnerability!")
+		}
+	})
+
+	// The foreign org CAN access its own case
+	t.Run("case is accessible to its own org", func(t *testing.T) {
+		_, err := svc.Get(context.Background(), foreignCaseID, foreignOrgID)
+		if err != nil {
+			t.Errorf("expected no error for foreign-org accessing own case, got: %v", err)
 		}
 	})
 }
@@ -540,7 +598,7 @@ func TestSoftDelete(t *testing.T) {
 			t.Fatalf("delete: %v", err)
 		}
 		// Should no longer be fetchable
-		_, err = svc.Get(context.Background(), c.ID)
+		_, err = svc.Get(context.Background(), c.ID, cases.DefaultOrgID)
 		if err == nil {
 			t.Fatal("deleted case should return not found")
 		}

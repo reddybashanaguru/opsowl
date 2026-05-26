@@ -164,6 +164,19 @@ func TestPMLARetentionFloor_TriggerAllowsNonPMLAResources(t *testing.T) {
 	}
 }
 
+func TestPMLARetentionFloor_TriggerAllowsExactFloor(t *testing.T) {
+	db, teardown := testDB(t)
+	defer teardown()
+
+	// Exactly 3650 is the minimum; trigger must NOT reject it.
+	_, err := db.ExecContext(context.Background(), `
+		UPDATE data_retention_policies SET retention_days = 3650 WHERE resource_type = 'audit_logs'
+	`)
+	if err != nil {
+		t.Fatalf("trigger must allow retention_days = 3650 (floor boundary): %v", err)
+	}
+}
+
 func TestPMLARetentionFloor_TriggerBlocksInsertBelowFloor(t *testing.T) {
 	db, teardown := testDB(t)
 	defer teardown()
