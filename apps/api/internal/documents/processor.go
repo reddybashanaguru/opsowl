@@ -30,10 +30,15 @@ type aiProcessResponse struct {
 	ErrorMessage *string `json:"error_message"`
 }
 
+// processBackoff defines the wait between automatic retry attempts.
+// Attempt 1 → immediate, attempt 2 → 30s, attempt 3 → 5min.
+var processBackoff = []time.Duration{0, 30 * time.Second, 5 * time.Minute}
+
 // processAsync is called in a goroutine after upload succeeds.
-// It marks the document as processing, calls the AI service, then updates the final result.
+// It marks the document as processing, calls the AI service with up to 3 attempts
+// (backoff: 0s / 30s / 5min), then writes the final status.
 func (s *Service) processAsync(docID, caseID uuid.UUID, storedPath, filename, fileType, mimeType string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Minute)
 	defer cancel()
 
 	if _, err := s.repo.UpdateStatus(ctx, docID, db.DocumentProcessingStatusProcessing); err != nil {
@@ -41,19 +46,44 @@ func (s *Service) processAsync(docID, caseID uuid.UUID, storedPath, filename, fi
 		return
 	}
 
-	result, err := s.callAIService(ctx, docID, caseID, storedPath, filename, fileType, mimeType)
-	if err != nil {
-		s.logger.Error("AI service call failed", zap.String("doc_id", docID.String()), zap.Error(err))
-		errMsg := err.Error()
-		s.finalizeProcessing(ctx, docID, caseID, db.DocumentProcessingStatusFailed, nil, nil, &errMsg)
-		return
+	var lastErr error
+	for attempt, delay := range s.retryBackoff {
+		if delay > 0 {
+			s.logger.Info("retrying document processing",
+				zap.String("doc_id", docID.String()),
+				zap.Int("attempt", attempt+1),
+				zap.Duration("backoff", delay))
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				errMsg := "processing cancelled"
+				s.finalizeProcessing(ctx, docID, caseID, db.DocumentProcessingStatusFailed, nil, nil, &errMsg)
+				return
+			}
+		}
+
+		result, err := s.callAIService(ctx, docID, caseID, storedPath, filename, fileType, mimeType)
+		if err == nil {
+			status := db.DocumentProcessingStatusCompleted
+			if !result.Success {
+				status = db.DocumentProcessingStatusFailed
+			}
+			s.finalizeProcessing(ctx, docID, caseID, status, result.PageCount, result.ChunkCount, result.ErrorMessage)
+			return
+		}
+		lastErr = err
+		s.logger.Warn("AI service call failed — will retry",
+			zap.String("doc_id", docID.String()),
+			zap.Int("attempt", attempt+1),
+			zap.Int("max_attempts", len(s.retryBackoff)),
+			zap.Error(err))
 	}
 
-	status := db.DocumentProcessingStatusCompleted
-	if !result.Success {
-		status = db.DocumentProcessingStatusFailed
-	}
-	s.finalizeProcessing(ctx, docID, caseID, status, result.PageCount, result.ChunkCount, result.ErrorMessage)
+	// All attempts exhausted.
+	s.logger.Error("AI service permanently failed for document",
+		zap.String("doc_id", docID.String()), zap.Error(lastErr))
+	errMsg := lastErr.Error()
+	s.finalizeProcessing(ctx, docID, caseID, db.DocumentProcessingStatusFailed, nil, nil, &errMsg)
 }
 
 func (s *Service) callAIService(ctx context.Context, docID, caseID uuid.UUID, storedPath, filename, fileType, mimeType string) (*aiProcessResponse, error) {

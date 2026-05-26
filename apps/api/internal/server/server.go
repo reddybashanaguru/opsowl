@@ -33,6 +33,7 @@ import (
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/documents"
 	"github.com/reddybashanaguru/opsowl/internal/inbound"
+	"github.com/reddybashanaguru/opsowl/internal/scanner"
 	"github.com/reddybashanaguru/opsowl/internal/insights"
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/notes"
@@ -183,7 +184,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// Documents module
 		docsRepo := documents.NewRepository(s.queries, s.sqlDB)
-		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL)
+		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL).
+			WithScanner(scanner.FromEnv())
 		go docsSvc.RecoverStuckDocuments(ctx)
 		docsHandler := documents.NewHandler(docsSvc)
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)

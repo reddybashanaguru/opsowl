@@ -14,6 +14,7 @@ var (
 	ErrForbidden       = errors.New("forbidden")
 	ErrFileTooLarge    = errors.New("file too large")
 	ErrFileTypeBlocked = errors.New("file type not allowed")
+	ErrVirusFound      = errors.New("file rejected by antivirus scan — threat detected")
 )
 
 const (

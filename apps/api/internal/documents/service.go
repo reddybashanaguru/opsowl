@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"database/sql"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,6 +16,7 @@ import (
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/scanner"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
@@ -25,6 +28,8 @@ type Service struct {
 	logger       *zap.Logger
 	httpClient   *http.Client
 	aiServiceURL string
+	av           scanner.Scanner
+	retryBackoff []time.Duration
 }
 
 func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter, logger *zap.Logger, aiServiceURL string) *Service {
@@ -35,7 +40,23 @@ func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter
 		logger:       logger,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		aiServiceURL: aiServiceURL,
+		av:           scanner.NoopScanner{},
+		retryBackoff: processBackoff,
 	}
+}
+
+// WithScanner injects an antivirus scanner used during Upload.
+// Defaults to NoopScanner (pass-through) when not called.
+func (s *Service) WithScanner(sc scanner.Scanner) *Service {
+	s.av = sc
+	return s
+}
+
+// WithRetryBackoff overrides the default processing retry delays.
+// Intended for tests that need immediate retries without waiting 30s/5min.
+func (s *Service) WithRetryBackoff(delays []time.Duration) *Service {
+	s.retryBackoff = delays
+	return s
 }
 
 // RecoverStuckDocuments is called once at startup to mark any documents that were
@@ -74,11 +95,41 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	key := fmt.Sprintf("documents/%s/%s/%s", caseID.String(), docID.String(), filename)
 
 	// Compute SHA-256 while streaming to storage — no extra memory allocation.
+	// Simultaneously pipe a copy to the antivirus scanner.
 	hasher := sha256.New()
 	combined := newPrefixReader(header, io.TeeReader(reader, hasher))
-	if err := s.store.Upload(ctx, key, combined, totalSize, fi.MIMEType); err != nil {
-		return nil, fmt.Errorf("storage upload: %w", err)
+
+	pr, pw := io.Pipe()
+	var (
+		wg      sync.WaitGroup
+		virusErr error
+	)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		virusErr = s.av.ScanReader(pr)
+		_ = pr.Close()
+	}()
+
+	teeForScan := io.TeeReader(combined, pw)
+	if uploadErr := s.store.Upload(ctx, key, teeForScan, totalSize, fi.MIMEType); uploadErr != nil {
+		_ = pw.CloseWithError(uploadErr)
+		wg.Wait()
+		return nil, fmt.Errorf("storage upload: %w", uploadErr)
 	}
+	_ = pw.Close()
+	wg.Wait()
+
+	if errors.Is(virusErr, scanner.ErrVirusFound) {
+		_ = s.store.Delete(ctx, key)
+		return nil, ErrVirusFound
+	}
+	if virusErr != nil && !errors.Is(virusErr, scanner.ErrUnavailable) {
+		s.logger.Warn("antivirus scan error — upload allowed (graceful degradation)", zap.Error(virusErr))
+	} else if errors.Is(virusErr, scanner.ErrUnavailable) {
+		s.logger.Warn("antivirus unavailable — upload allowed", zap.Error(virusErr))
+	}
+
 	fileHash := fmt.Sprintf("%x", hasher.Sum(nil))
 
 	doc, err := s.repo.Create(ctx, db.CreateDocumentParams{

@@ -52,6 +52,8 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "file exceeds 50 MB limit")
 		case errors.Is(err, ErrFileTypeBlocked):
 			response.Err(w, http.StatusUnprocessableEntity, "FILE_TYPE_BLOCKED", err.Error())
+		case errors.Is(err, ErrVirusFound):
+			response.Err(w, http.StatusUnprocessableEntity, "VIRUS_DETECTED", "file rejected: antivirus scan detected a threat")
 		default:
 			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}

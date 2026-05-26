@@ -918,7 +918,7 @@ func TestServiceUpload_AIServiceBadStatus(t *testing.T) {
 	}))
 	defer aiServer.Close()
 
-	svc := setupService(db, store, aiServer.URL)
+	svc := setupService(db, store, aiServer.URL).WithRetryBackoff([]time.Duration{0, 0, 0})
 	claims := makeAnalystClaims(userID)
 
 	content := makePDFBytes()
@@ -1235,7 +1235,7 @@ func TestServiceUpload_AIBadJSON(t *testing.T) {
 	}))
 	defer aiServer.Close()
 
-	svc := setupService(db, store, aiServer.URL)
+	svc := setupService(db, store, aiServer.URL).WithRetryBackoff([]time.Duration{0, 0, 0})
 	claims := makeAnalystClaims(userID)
 
 	content := makePDFBytes()

@@ -108,6 +108,8 @@ services:
       PASSWORD_REQUIRE_NUMBER: ${PASSWORD_REQUIRE_NUMBER:-true}
       # Session limits
       MAX_SESSIONS_PER_USER: ${MAX_SESSIONS_PER_USER:-5}
+      # ClamAV antivirus (P6-1); leave empty to use NoopScanner in dev
+      CLAMAV_ADDR: ${CLAMAV_ADDR:-clamav:3310}
       # Rate limiting — raise to 1000 rpm in dev/test environments
       MAX_REQUESTS_PER_MIN: ${MAX_REQUESTS_PER_MIN:-100}
       # Workspace terminology — each client sets these in their .env
@@ -132,6 +134,8 @@ services:
       postgres:
         condition: service_healthy
       minio:
+        condition: service_started
+      clamav:
         condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
@@ -244,6 +248,28 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  # ── ClamAV Antivirus (P6-1) ──────────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: opsowl-clamav
+    restart: unless-stopped
+    environment:
+      CLAMD_CONF_MaxFileSize: "52428800"   # 50 MB — matches Go upload limit
+      CLAMD_CONF_StreamMaxLength: "52428800"
+    expose:
+      - "3310"
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s    # freshclam DB download on first boot
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
 
   # ── PostgreSQL daily backup sidecar ─────────────────────────────────────────
   # Dumps the database once per day; keeps the last 7 dumps; writes to ./backups/
