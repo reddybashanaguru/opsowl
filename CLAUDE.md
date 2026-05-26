@@ -878,5 +878,75 @@ multi-predicate queries. Migration 00021 adds:
 - `idx_cases_org_priority_status` — supervisor priority queue
 
 ### Phase 3 Remaining Items
-- [ ] httpOnly JWT cookie (move access token from sessionStorage → httpOnly cookie)
-- [ ] Idempotency keys on POST mutations (prevent double-submit under retry)
+- [x] httpOnly JWT cookie (access token moved from sessionStorage → httpOnly SameSite=Strict cookie; SSE uses short-lived ticket via `/api/v1/auth/sse-ticket`)
+- [x] Idempotency keys on POST mutations (prevent double-submit under retry; migration 00022)
+
+---
+
+## Phase 5: RBI Compliance Sprint
+
+**Trigger:** Simulated RBI auditor review identified 10 show-stopper gaps for PSU bank deployment.
+
+### 10 Audit Findings
+
+| # | Finding | Severity | Item |
+|---|---------|----------|------|
+| F1 | STR filing has no dual-authorization (maker-checker) | Critical | C1 |
+| F2 | Tipping-off controls absent — any user can see STR subjects | Critical | C2 |
+| F3 | DPDP Act 2023 erasure endpoint missing | High | C3 |
+| F4 | PMLA retention: audit_logs=2yr, cases=7yr, ai_logs=1yr (all must be 10yr) | Critical | C4 |
+| F5 | Inactivity session timeout absent (regulatory standard: 15 min) | High | C5 |
+| F6 | No IDOR org-scoping integration tests — cross-org data leak risk unverified | High | C6 |
+| F7 | TLS enforcement not in app config (must not rely only on infra) | Medium | T2 |
+| F8 | Password policy defaults too weak (min 8 chars, no complexity) | Medium | T2 |
+| F9 | SIEM queue size 0 in config — silent event drain possible | Medium | T2 |
+| F10 | No formal compliance documentation (DPA, DPIA, RBI compliance matrix) | High | T3 |
+
+### 3-Tier Implementation Plan
+
+**Tier 1 — Code Changes (C1–C6)**
+
+| Item | Description | Migration | Day |
+|------|-------------|-----------|-----|
+| C4 | Retention corrections: all PMLA resources → 3650 days; add str_filings | 00023 | 1-2 |
+| C5 | Inactivity session timeout: 15-min idle + 2-min warning modal | — | 1-2 |
+| C2 | Tipping-off controls: role-gated STR subject visibility | — | 3-4 |
+| C6 | IDOR org-scoping integration tests (cross-org 403 assertions) | — | 3-4 |
+| C1 | STR dual-authorization: maker-checker DB constraint + FIU-IND XML export | 00024 | 5-7 |
+| C3 | DPDP erasure endpoint: DELETE /api/v1/users/:id/data (PMLA-blocked) | — | 8 |
+
+**Tier 2 — Config Fixes (T2)**
+
+- Enforce TLS in app-level config (`require_tls: true`)
+- Raise password minimum to 12 chars + complexity regex
+- Set SIEM queue depth ≥ 1000
+
+**Tier 3 — Compliance Documents (T3)**  
+Generated to `compliance/` directory:
+- `DATA_PROCESSING_AGREEMENT.md`
+- `DPIA.md`
+- `RBI_COMPLIANCE_MATRIX.md`
+- `PMLA_CONTROLS.md`
+- `INCIDENT_RESPONSE.md`
+- `VENDOR_ASSESSMENT.md`
+- `AUDIT_READINESS_CHECKLIST.md`
+
+### Commit Sequence
+```
+fix: PMLA 10-year retention corrections + inactivity session timeout (RBI C4+C5)
+feat: tipping-off controls + IDOR org-scoping integration tests (RBI C2+C6)
+feat: STR dual-authorization maker-checker + FIU-IND XML export (RBI C1)
+feat: DPDP Act 2023 erasure endpoint with PMLA override (RBI C3)
+fix: TLS enforcement + password policy + SIEM queue depth (RBI T2)
+docs: RBI compliance documentation suite (RBI T3)
+```
+
+### Progress
+- [ ] C4: PMLA 10-year retention corrections (migration 00023)
+- [ ] C5: Inactivity session timeout (15-min idle + 2-min warning)
+- [ ] C2: Tipping-off controls
+- [ ] C6: IDOR org-scoping integration tests
+- [ ] C1: STR dual-authorization + FIU-IND XML export
+- [ ] C3: DPDP erasure endpoint
+- [ ] T2: Config fixes
+- [ ] T3: Compliance documents

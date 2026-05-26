@@ -4,16 +4,24 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { useIdleTimeout } from "@/lib/hooks/useIdleTimeout";
+import { IdleTimeoutWarning } from "@/components/auth/IdleTimeoutWarning";
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, setAuth, clearAuth } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
-  // Always verify session on mount — the access token is httpOnly so we
-  // can't read it in JS. We use the presence of the user in sessionStorage
-  // as a hint, but we still need a server round-trip if the token may have
-  // expired (e.g., after a page refresh that ran past the 55-min auto-refresh).
   const [checking, setChecking] = useState(true);
+
+  const handleIdleLogout = () => {
+    clearAuth();
+    router.replace(`/login?reason=idle&returnUrl=${encodeURIComponent(pathname)}`);
+  };
+
+  const { warningVisible, secondsLeft, extendSession } = useIdleTimeout({
+    onTimeout: handleIdleLogout,
+    enabled: !checking && !!user,
+  });
 
   useEffect(() => {
     if (!user) {
@@ -30,7 +38,6 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       )
       .then((data) => {
         if (data?.user) {
-          // Update user profile in case it changed server-side.
           setAuth(data.user as Parameters<typeof setAuth>[0]);
         }
         setChecking(false);
@@ -51,5 +58,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   if (checking) return spinner;
   if (!user) return spinner;
 
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {warningVisible && (
+        <IdleTimeoutWarning
+          secondsLeft={secondsLeft}
+          onStayLoggedIn={extendSession}
+          onLogoutNow={handleIdleLogout}
+        />
+      )}
+    </>
+  );
 }
