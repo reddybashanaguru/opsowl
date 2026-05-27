@@ -200,7 +200,10 @@ export default function DashboardPage() {
 
   const { data: myQueue } = useQuery<QueueResponse>({
     queryKey: ["my-queue", user?.id],
-    queryFn: () => api.get<QueueResponse>(`/api/v1/cases?assigned_to=${user?.id}&limit=5`),
+    queryFn: () =>
+      api.getList<QueueCase, { total_count: number; has_more: boolean }>(
+        `/api/v1/cases?assigned_to=${user?.id}&limit=5`,
+      ).then((r) => ({ data: r.data, meta: r.meta as { total_count: number; has_more: boolean } })),
     enabled: !!user?.id,
     refetchInterval: 30_000,
   });
@@ -256,7 +259,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases"   sub="open + in-progress" />
         <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href="/tasks"   sub="todo + in-progress" />
-        <StatCard label="My Open Cases"  value={myQueue?.meta.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}`} sub="assigned to me" />
+        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}`} sub="assigned to me" />
         <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="active cases" />
       </div>
 
