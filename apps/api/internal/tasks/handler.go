@@ -80,7 +80,9 @@ func (h *Handler) ListByCase(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if c := q.Get("cursor"); c != "" {
-		if id, err := uuid.Parse(c); err == nil {
+		if so, ca, id, err := DecodeCursor(c); err == nil {
+			f.CursorSortOrder = &so
+			f.CursorTime = &ca
 			f.CursorID = &id
 		}
 	}

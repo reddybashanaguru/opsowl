@@ -45,7 +45,9 @@ func (r *Repository) ListByCase(ctx context.Context, caseID uuid.UUID, f ListFil
 	if f.OverdueOnly {
 		p.OverdueOnly = sql.NullBool{Bool: true, Valid: true}
 	}
-	if f.CursorID != nil {
+	if f.CursorSortOrder != nil && f.CursorTime != nil && f.CursorID != nil {
+		p.CursorSortOrder = sql.NullInt32{Int32: *f.CursorSortOrder, Valid: true}
+		p.CursorTime = sql.NullTime{Time: *f.CursorTime, Valid: true}
 		p.CursorID = uuid.NullUUID{UUID: *f.CursorID, Valid: true}
 	}
 	return r.q.ListTasksByCase(ctx, p)

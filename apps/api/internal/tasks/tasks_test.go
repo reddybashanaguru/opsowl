@@ -974,8 +974,9 @@ func TestServiceListByCaseCursorPagination(t *testing.T) {
 		t.Error("expected next_cursor on page1")
 	}
 
-	// Page 2: just verify cursor path executes without error
-	_, _, err = svc.ListByCase(context.Background(), caseID, tasks.ListFilters{Limit: 3, CursorID: meta1.NextCursor})
+	// Page 2: decode the opaque cursor and verify the cursor path executes without error
+	so, ca, cid, _ := tasks.DecodeCursor(*meta1.NextCursor)
+	_, _, err = svc.ListByCase(context.Background(), caseID, tasks.ListFilters{Limit: 3, CursorSortOrder: &so, CursorTime: &ca, CursorID: &cid})
 	if err != nil {
 		t.Fatalf("ListByCase page2 with cursor errored: %v", err)
 	}

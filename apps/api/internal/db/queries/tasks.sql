@@ -32,8 +32,9 @@ WHERE t.case_id = $1
   AND (sqlc.narg('priority')::task_priority IS NULL OR t.priority = sqlc.narg('priority'))
   AND (sqlc.narg('assigned_to')::uuid IS NULL OR t.assigned_to = sqlc.narg('assigned_to'))
   AND (sqlc.narg('overdue_only')::boolean IS NULL OR sqlc.narg('overdue_only') = FALSE OR t.is_overdue = TRUE)
-  AND (sqlc.narg('cursor_id')::uuid IS NULL OR t.id < sqlc.narg('cursor_id'))
-ORDER BY t.sort_order ASC, t.created_at ASC
+  AND (sqlc.narg('cursor_sort_order')::integer IS NULL OR
+       (t.sort_order, t.created_at, t.id) > (sqlc.narg('cursor_sort_order')::integer, sqlc.narg('cursor_time')::timestamptz, sqlc.narg('cursor_id')::uuid))
+ORDER BY t.sort_order ASC, t.created_at ASC, t.id ASC
 LIMIT @row_limit;
 
 -- name: ListMyTasks :many

@@ -461,19 +461,22 @@ WHERE t.case_id = $1
   AND ($3::task_priority IS NULL OR t.priority = $3)
   AND ($4::uuid IS NULL OR t.assigned_to = $4)
   AND ($5::boolean IS NULL OR $5 = FALSE OR t.is_overdue = TRUE)
-  AND ($6::uuid IS NULL OR t.id < $6)
-ORDER BY t.sort_order ASC, t.created_at ASC
-LIMIT $7
+  AND ($6::integer IS NULL OR
+       (t.sort_order, t.created_at, t.id) > ($6::integer, $7::timestamptz, $8::uuid))
+ORDER BY t.sort_order ASC, t.created_at ASC, t.id ASC
+LIMIT $9
 `
 
 type ListTasksByCaseParams struct {
-	CaseID      uuid.UUID        `json:"case_id"`
-	Status      NullTaskStatus   `json:"status"`
-	Priority    NullTaskPriority `json:"priority"`
-	AssignedTo  uuid.NullUUID    `json:"assigned_to"`
-	OverdueOnly sql.NullBool     `json:"overdue_only"`
-	CursorID    uuid.NullUUID    `json:"cursor_id"`
-	RowLimit    int32            `json:"row_limit"`
+	CaseID          uuid.UUID        `json:"case_id"`
+	Status          NullTaskStatus   `json:"status"`
+	Priority        NullTaskPriority `json:"priority"`
+	AssignedTo      uuid.NullUUID    `json:"assigned_to"`
+	OverdueOnly     sql.NullBool     `json:"overdue_only"`
+	CursorSortOrder sql.NullInt32    `json:"cursor_sort_order"`
+	CursorTime      sql.NullTime     `json:"cursor_time"`
+	CursorID        uuid.NullUUID    `json:"cursor_id"`
+	RowLimit        int32            `json:"row_limit"`
 }
 
 type ListTasksByCaseRow struct {
@@ -507,6 +510,8 @@ func (q *Queries) ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams
 		arg.Priority,
 		arg.AssignedTo,
 		arg.OverdueOnly,
+		arg.CursorSortOrder,
+		arg.CursorTime,
 		arg.CursorID,
 		arg.RowLimit,
 	)

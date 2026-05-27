@@ -139,7 +139,12 @@ func (h *Handler) Stream(w http.ResponseWriter, r *http.Request) {
 	defer unsub()
 
 	// Replay missed events if the client sends Last-Event-ID on reconnect.
-	if lastID := r.Header.Get("Last-Event-ID"); lastID != "" {
+	// EventSource cannot set custom headers, so also check the query param.
+	lastID := r.Header.Get("Last-Event-ID")
+	if lastID == "" {
+		lastID = r.URL.Query().Get("last_event_id")
+	}
+	if lastID != "" {
 		if id, err := uuid.Parse(lastID); err == nil {
 			if missed, err := h.svc.repo.GetEventsSince(r.Context(), caseID, id); err == nil {
 				for _, evt := range missed {

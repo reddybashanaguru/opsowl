@@ -725,7 +725,7 @@ Built `internal/inbound/` module. `POST /api/v1/inbound/events` endpoint — HMA
 **BE tests:** 92.5% coverage (39 tests: 16 service + 23 handler)
 **FE tests:** 27 tests (TaskCard 16, TaskStatusBadge 5, TaskPriorityBadge 6)
 **Frontend:** Case tasks page at `/cases/[id]/tasks`, task detail with comments at `/cases/[id]/tasks/[taskId]`, My Tasks cross-case page at `/tasks` grouped (Overdue→Today→This Week→Later→Done)
-**Known limitation:** Cursor pagination for tasks uses UUID byte comparison vs sort_order ordering — page boundaries aren't perfectly stable. Fix in Phase 2 with UUIDv7 or composite cursor.
+**Cursor pagination** for tasks uses a composite `(sort_order, created_at, id)` predicate (P6-4). Pages are stable even with concurrent inserts.
 
 ### ✅ Feature 3 — Timeline Workspace (2026-05-16)
 **Built:** SSE real-time timeline hub with auth via `?token=` query param (EventSource can't set headers), base64 JSON cursor pagination (occurred_at + id), 20+ event types with color-coded icons, backdated flag (|occurred_at - created_at| > 1 hour), filter by source/event_type. Timeline emitted from cases (create/status-change/assign/tag) and tasks (create/complete).
@@ -993,7 +993,7 @@ Derived from a full chaos engineering analysis across 9 failure scenarios (DB ou
 | P6-1 | ClamAV antivirus scan on document upload | Critical | 1 |
 | P6-2 | Document processing auto-retry with backoff (30s / 5min / 30min) | High | 1 |
 | P6-3 | Timeline SSE event replay on reconnect (server replays since last_event_id) | High | 2 |
-| P6-4 | Composite cursor pagination — replace UUID byte-sort with (created_at, id) cursor | Medium | 2 |
+| P6-4 | Composite cursor pagination — replace UUID byte-sort with (sort_order, created_at, id) cursor | Medium | 2 |
 | P6-5 | Inbound event log viewer UI (webhook events per source in settings) | Medium | 3 |
 
 ### Commit Sequence
@@ -1003,9 +1003,13 @@ feat: SSE event replay + composite cursor pagination (P6-3+P6-4)
 feat: inbound event log viewer UI (P6-5)
 ```
 
-### Progress
-- [ ] P6-1: ClamAV antivirus
-- [ ] P6-2: Document auto-retry backoff
-- [ ] P6-3: SSE event replay
-- [ ] P6-4: Composite cursor pagination
-- [ ] P6-5: Inbound event log UI
+### Progress (all complete — 2026-05-27)
+- [x] P6-1: ClamAV antivirus — scanner.FromEnv() wired; clamav container in docker-compose (was already done)
+- [x] P6-2: Document auto-retry backoff — processBackoff = [0, 30s, 5min] in processor.go (was already done)
+- [x] P6-3: SSE event replay — Stream handler reads last_event_id from query param fallback (EventSource cannot set headers); fixed header-only bug
+- [x] P6-4: Composite cursor — (sort_order, created_at, id) > cursor tuple; opaque base64-JSON token; test updated
+- [x] P6-5: Inbound event log UI — EventLog component in /settings/inbound (was already done)
+
+### Architectural Decisions
+- P6-3: EventSource API cannot set custom request headers, so last_event_id must arrive as a query param. Backend now reads `r.URL.Query().Get("last_event_id")` as fallback after checking the HTTP `Last-Event-ID` header.
+- P6-4: Cursor is an opaque base64-URL-encoded JSON blob `{so, ca, id}` to hide internal schema. `DecodeCursor` is exported for test use. The SQL predicate `(sort_order, created_at, id) > (…)` matches the ORDER BY exactly.

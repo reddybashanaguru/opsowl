@@ -3,6 +3,8 @@ package tasks
 import (
 	"context"
 	"database/sql"
+	"encoding/base64"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,6 +13,31 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
+
+type taskCursor struct {
+	SortOrder int32     `json:"so"`
+	CreatedAt time.Time `json:"ca"`
+	ID        uuid.UUID `json:"id"`
+}
+
+func encodeCursor(so int32, ca time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(taskCursor{SortOrder: so, CreatedAt: ca, ID: id})
+	return base64.RawURLEncoding.EncodeToString(b)
+}
+
+// DecodeCursor decodes an opaque pagination cursor into its composite fields.
+// Exported for use in tests.
+func DecodeCursor(s string) (sortOrder int32, createdAt time.Time, id uuid.UUID, err error) {
+	b, err := base64.RawURLEncoding.DecodeString(s)
+	if err != nil {
+		return
+	}
+	var c taskCursor
+	if err = json.Unmarshal(b, &c); err != nil {
+		return
+	}
+	return c.SortOrder, c.CreatedAt, c.ID, nil
+}
 
 type Service struct {
 	repo     *Repository
@@ -124,10 +151,11 @@ func (s *Service) ListByCase(ctx context.Context, caseID uuid.UUID, f ListFilter
 
 	total, _ := s.repo.CountByCase(ctx, caseID, f.Status)
 
-	var nextCursor *uuid.UUID
+	var nextCursor *string
 	if hasMore && len(rows) > 0 {
-		last := rows[len(rows)-1].ID
-		nextCursor = &last
+		last := rows[len(rows)-1]
+		c := encodeCursor(last.SortOrder, last.CreatedAt, last.ID)
+		nextCursor = &c
 	}
 
 	out := make([]TaskResponse, 0, len(rows))
