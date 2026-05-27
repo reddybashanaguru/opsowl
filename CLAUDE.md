@@ -546,7 +546,7 @@ opsowl-grafana      running   3003:3000
 |------|-------|----------|
 | `internal/tasks/` | Cursor pagination uses UUID byte comparison vs `sort_order` — page boundaries not perfectly stable | Low — fix with UUIDv7 in Phase 4 |
 | `internal/timeline/` | SSE reconnect doesn't replay missed events | Low — track `lastEventId` on server |
-| `internal/documents/` | No retry on AI service transient failure during async processing | Medium — add backoff in Phase 4 |
+| `internal/documents/` | No retry on AI service transient failure during async processing | Medium — add backoff in Phase 4 (backoff added; periodic stuck-recovery added 2026-05-27) |
 | `apps/api` | No ClamAV virus scan on upload (stubbed) | Medium — add before enterprise prod |
 | `infra/docker/nginx/ssl/` | Self-signed dev cert — replace with CA-signed cert for production | High (before client demo) |
 
@@ -950,6 +950,35 @@ docs: RBI compliance documentation suite (RBI T3)
 - [x] C3: DPDP erasure endpoint — commit a506fb5
 - [x] T2: Config fixes (pwd min 12, SIEM queue 1000, RequireTLS) — commit a506fb5
 - [x] T3: 7 compliance docs in compliance/ — commit a506fb5
+
+---
+
+## Chaos Engineering Hardening (2026-05-27)
+
+Derived from a full chaos engineering analysis across 9 failure scenarios (DB outage, Redis, AI timeout, network partition, corrupted OCR, duplicate events, Kafka lag, container restart, clock drift). 5 highest-priority fixes implemented.
+
+### Fixes
+
+| ID | Scenario | Fix | Files |
+|----|---------|-----|-------|
+| CE-1 | DB outage — pool exhaustion, hanging requests | DB circuit breaker: opens after 5 ping failures → 503 fast-fail. Pool `MaxConnLifetime/Idle/HealthCheckPeriod` added. | `internal/db/circuit.go` (new), `db.go`, `main.go` |
+| CE-2 | Container restart mid-document-processing | Periodic recovery every 10 min via `StartPeriodicRecovery` — not just at startup. | `documents/service.go`, `server/server.go` |
+| CE-3 | AI provider timeout — 120s hanging HTTP request | `POST /cases/:id/insights/analyse` returns 202 immediately; `worker.TrySubmit` dispatches AI call async. Frontend polls at 3s for 30s after click. | `insights/handler.go`, `insights_test.go`, `cases/[id]/page.tsx` |
+| CE-4 | Clock drift between containers | `jwt.WithLeeway(30s)` added to `ParseWithClaims` — tolerates ±30s NTP drift without rejecting valid tokens. | `auth/jwt.go` |
+| CE-5 | processAsync goroutines killed on SIGTERM | `processingWg sync.WaitGroup` tracks all goroutines. `DrainProcessing(15s)` in shutdown sequence. Docker `stop_grace_period: 35s` (was 10s default). | `documents/service.go`, `server/server.go`, `main.go`, `docker-compose.yml` |
+
+### Commit
+`d14dac8` — fix(resilience): chaos engineering hardening — 5 production reliability fixes
+
+### Test Results
+- Go: 24/24 packages pass
+- Frontend: 190/190 tests pass
+
+### Key Architectural Decisions
+- Circuit breaker is a standalone `db.CircuitBreaker` struct pinged by a background goroutine in `main.go` — no external library needed, no per-request overhead in the closed state.
+- AI analyse async uses `worker.TrySubmit` so tests (Background pool nil) run synchronously — no test timing changes needed.
+- Document processing WaitGroup uses a `launchProcessAsync` wrapper so `processAsync` itself is unchanged — existing retry logic untouched.
+- `/health` and `/ready` bypass the circuit breaker so load-balancer probes still work during a DB outage.
 
 ---
 
