@@ -41,7 +41,7 @@ def _check_injection(text: str) -> None:
 
 class AskRequest(BaseModel):
     case_id: str
-    question: str = Field(..., max_length=500)
+    question: str = Field(..., min_length=1, max_length=500)
     top_k: int = Field(default=8, ge=1, le=20)
 
 
