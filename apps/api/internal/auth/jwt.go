@@ -21,8 +21,9 @@ type Claims struct {
 	UserID     uuid.UUID   `json:"sub"`
 	Email      string      `json:"email"`
 	Role       db.UserRole `json:"role"`
-	MFAPending bool        `json:"mfa_pending,omitempty"` // true only on MFA challenge tokens
-	// Scopes is non-nil only for API key callers. Empty/nil means JWT caller — no scope restriction.
+	JTI        uuid.UUID   `json:"jti_uid"` // unique token ID for revocation
+	MFAPending bool        `json:"mfa_pending,omitempty"`
+	// Scopes is non-nil only for API key callers.
 	Scopes []string `json:"scopes,omitempty"`
 	jwt.RegisteredClaims
 }
@@ -31,6 +32,7 @@ type JWTManager struct {
 	privateKey *rsa.PrivateKey
 	publicKey  *rsa.PublicKey
 	accessTTL  time.Duration
+	revoker    *RevokeChecker // nil = revocation disabled (dev / non-browser API keys)
 }
 
 func NewJWTManager(privateKeyPath, publicKeyPath string, accessTTL time.Duration) (*JWTManager, error) {
@@ -59,12 +61,19 @@ func NewJWTManager(privateKeyPath, publicKeyPath string, accessTTL time.Duration
 	}, nil
 }
 
+// WithRevoker attaches a revocation store so Verify rejects explicitly-logged-out tokens.
+func (m *JWTManager) WithRevoker(rc *RevokeChecker) *JWTManager {
+	m.revoker = rc
+	return m
+}
+
 func (m *JWTManager) Sign(userID uuid.UUID, email string, role db.UserRole) (string, error) {
 	now := time.Now().UTC()
 	claims := Claims{
 		UserID: userID,
 		Email:  email,
 		Role:   role,
+		JTI:    uuid.New(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    jwtIssuer,
 			Audience:  jwt.ClaimStrings{jwtAudience},
@@ -76,14 +85,14 @@ func (m *JWTManager) Sign(userID uuid.UUID, email string, role db.UserRole) (str
 	return token.SignedString(m.privateKey)
 }
 
-// SignMFAToken issues a short-lived (5min) partial token used only for the MFA challenge step.
-// The token carries MFAPending=true; it is rejected by JWTValidate for all other endpoints.
+// SignMFAToken issues a short-lived (5min) partial token for the MFA challenge step.
 func (m *JWTManager) SignMFAToken(userID uuid.UUID, email string, role db.UserRole) (string, error) {
 	now := time.Now().UTC()
 	claims := Claims{
 		UserID:     userID,
 		Email:      email,
 		Role:       role,
+		JTI:        uuid.New(),
 		MFAPending: true,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    jwtIssuer,
@@ -97,14 +106,13 @@ func (m *JWTManager) SignMFAToken(userID uuid.UUID, email string, role db.UserRo
 }
 
 // SignSSETicket issues a short-lived (90s) token for SSE connections.
-// Using a dedicated short-lived token prevents the full 1-hour access token
-// from appearing in nginx/proxy access logs when establishing SSE streams.
 func (m *JWTManager) SignSSETicket(userID uuid.UUID, email string, role db.UserRole) (string, error) {
 	now := time.Now().UTC()
 	claims := Claims{
 		UserID: userID,
 		Email:  email,
 		Role:   role,
+		JTI:    uuid.New(),
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    jwtIssuer,
 			Audience:  jwt.ClaimStrings{jwtAudience},
@@ -131,5 +139,14 @@ func (m *JWTManager) Verify(tokenStr string) (*Claims, error) {
 	if !ok || !token.Valid {
 		return nil, errors.New("invalid token claims")
 	}
+
+	// Check explicit revocation — only for full access tokens (not MFA partials or SSE tickets).
+	// MFA tokens (5min) and SSE tickets (90s) expire before revocation is meaningful.
+	if m.revoker != nil && !claims.MFAPending && claims.JTI != uuid.Nil {
+		if m.revoker.IsRevoked(claims.JTI) {
+			return nil, errors.New("token revoked")
+		}
+	}
+
 	return claims, nil
 }

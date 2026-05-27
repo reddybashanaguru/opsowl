@@ -290,6 +290,23 @@ func (s *Service) Logout(ctx context.Context, rawToken string, userID uuid.UUID,
 	return nil
 }
 
+// RevokeCurrentAccessToken adds the caller's access token JTI to the revocation
+// blocklist so it is immediately rejected, even before its 1-hour TTL expires.
+func (s *Service) RevokeCurrentAccessToken(ctx context.Context, claims *Claims) {
+	if s.jwt.revoker == nil || claims == nil || claims.JTI == uuid.Nil {
+		return
+	}
+	var expiresAt time.Time
+	if claims.ExpiresAt != nil {
+		expiresAt = claims.ExpiresAt.Time
+	} else {
+		expiresAt = time.Now().Add(time.Hour) // conservative fallback
+	}
+	worker.TrySubmit(func() {
+		_ = s.jwt.revoker.Revoke(context.Background(), claims.JTI, expiresAt)
+	})
+}
+
 func (s *Service) ChangePassword(ctx context.Context, userID uuid.UUID, currentPwd, newPwd, ipAddress string) error {
 	user, err := s.repo.GetUserByID(ctx, userID)
 	if err != nil {

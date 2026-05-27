@@ -46,11 +46,13 @@ type pyCopilotResponse struct {
 }
 
 type Service struct {
-	repo         *Repository
-	emitter      timeline.Emitter
-	logger       *zap.Logger
-	httpClient   *http.Client
-	aiServiceURL string
+	repo           *Repository
+	emitter        timeline.Emitter
+	logger         *zap.Logger
+	httpClient     *http.Client
+	aiServiceURL   string
+	serviceSecret  string         // shared secret for Go→Python auth (AI_SERVICE_SECRET)
+	cb             *circuitBreaker
 }
 
 func NewService(repo *Repository, emitter timeline.Emitter, logger *zap.Logger, aiServiceURL string) *Service {
@@ -60,7 +62,15 @@ func NewService(repo *Repository, emitter timeline.Emitter, logger *zap.Logger, 
 		logger:       logger,
 		httpClient:   &http.Client{Timeout: 120 * time.Second},
 		aiServiceURL: aiServiceURL,
+		// Open after 5 consecutive failures; try one probe after 30s.
+		cb: newCircuitBreaker(5, 30*time.Second),
 	}
+}
+
+// WithServiceSecret sets the shared secret sent to the Python AI service.
+func (s *Service) WithServiceSecret(secret string) *Service {
+	s.serviceSecret = secret
+	return s
 }
 
 // ── Core AI actions ───────────────────────────────────────────────────────────
@@ -208,6 +218,10 @@ func (s *Service) ListPending(ctx context.Context, limit int32) ([]*AILogRespons
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 func (s *Service) callPython(ctx context.Context, path string, body interface{}) (*pyCopilotResponse, error) {
+	if !s.cb.allow() {
+		return nil, ErrCircuitOpen
+	}
+
 	b, err := json.Marshal(body)
 	if err != nil {
 		return nil, err
@@ -218,14 +232,20 @@ func (s *Service) callPython(ctx context.Context, path string, body interface{})
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if s.serviceSecret != "" {
+		req.Header.Set("Authorization", "Bearer "+s.serviceSecret)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
+		s.cb.recordFailure()
+		s.logger.Warn("AI service call failed", zap.String("path", path), zap.Error(err))
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer resp.Body.Close() //nolint:errcheck
 
 	if resp.StatusCode != http.StatusOK {
+		s.cb.recordFailure()
 		var errBody struct{ Detail string `json:"detail"` }
 		_ = json.NewDecoder(resp.Body).Decode(&errBody)
 		return nil, fmt.Errorf("python service %s returned %d: %s", path, resp.StatusCode, errBody.Detail)
@@ -233,8 +253,10 @@ func (s *Service) callPython(ctx context.Context, path string, body interface{})
 
 	var out pyCopilotResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+		s.cb.recordFailure()
 		return nil, fmt.Errorf("decode python response: %w", err)
 	}
+	s.cb.recordSuccess()
 	return &out, nil
 }
 

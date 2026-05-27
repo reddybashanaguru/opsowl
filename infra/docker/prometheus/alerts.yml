@@ -1,0 +1,69 @@
+groups:
+  - name: opsowl.api
+    interval: 30s
+    rules:
+
+      - alert: APIHighErrorRate
+        expr: |
+          sum(rate(opsowl_http_requests_total{status=~"5.."}[5m]))
+          /
+          sum(rate(opsowl_http_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High API error rate"
+          description: "More than 5% of requests are returning 5xx over the last 5 minutes."
+
+      - alert: APIHighLatencyP99
+        expr: |
+          histogram_quantile(0.99,
+            sum(rate(opsowl_http_request_duration_seconds_bucket[5m])) by (le)
+          ) > 2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "API p99 latency > 2s"
+          description: "99th-percentile request duration has exceeded 2 seconds for 5 minutes."
+
+      - alert: APIHighInFlight
+        expr: opsowl_http_requests_in_flight > 200
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Too many in-flight requests"
+          description: "More than 200 concurrent requests — possible traffic spike or goroutine leak."
+
+      - alert: RateLimitSpike
+        expr: |
+          sum(rate(opsowl_http_requests_total{status="429"}[5m])) > 10
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Rate limit spike"
+          description: "More than 10 rate-limited requests per second — possible credential stuffing."
+
+  - name: opsowl.infrastructure
+    interval: 30s
+    rules:
+
+      - alert: APIServiceDown
+        expr: up{job="opsowl-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpsOwl API is down"
+          description: "The API scrape target has been unreachable for more than 1 minute."
+
+      - alert: PrometheusTargetDown
+        expr: up == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Prometheus target {{ $labels.job }} is down"
+          description: "Target {{ $labels.job }} has been unreachable for 5 minutes."

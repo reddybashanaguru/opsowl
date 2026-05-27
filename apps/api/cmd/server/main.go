@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pressly/goose/v3"
 	"go.uber.org/zap"
 
 	"github.com/jackc/pgx/v5/stdlib"
@@ -49,14 +50,31 @@ func main() {
 	logger.Info("database connected")
 
 	sqlDB := stdlib.OpenDBFromPool(pool)
+
+	// Auto-run pending migrations at startup (idempotent — goose tracks applied versions).
+	// The binary ships with the migrations/ directory (see Dockerfile COPY step).
+	// This replaces the manual `make migrate` step and prevents version skew between
+	// binary and schema.
+	goose.SetLogger(goose.NopLogger())
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		logger.Fatal("database migration failed — check migrations/ directory", zap.Error(err))
+	}
+	logger.Info("database migrations up-to-date")
+
 	queries := dbgen.New(sqlDB)
 
-	// Daily idempotency key cleanup — deletes expired rows from idempotency_keys.
+	// AT revocation checker — checked by JWTManager.Verify on every authenticated request.
+	revoker := auth.NewRevokeChecker(sqlDB)
+
+	// Daily cleanup goroutines.
 	go func() {
 		ticker := time.NewTicker(24 * time.Hour)
 		defer ticker.Stop()
 		for range ticker.C {
 			middleware.IdempotencyCleanup(sqlDB, logger)
+			if err := revoker.Cleanup(ctx); err != nil {
+				logger.Warn("revoked token cleanup failed", zap.Error(err))
+			}
 		}
 	}()
 
@@ -68,6 +86,8 @@ func main() {
 	if err != nil {
 		logger.Fatal("failed to init JWT manager", zap.Error(err))
 	}
+	// Wire AT revocation — Verify() will reject explicitly-revoked tokens.
+	jwtMgr.WithRevoker(revoker)
 
 	minioClient, err := storage.NewMinIO(cfg.StorageEndpoint, cfg.StorageAccessKey, cfg.StorageSecretKey, cfg.StorageBucket, cfg.StorageUseSSL)
 	if err != nil {
@@ -107,7 +127,13 @@ func main() {
 	if pwdPolicy.MinLength == 0 {
 		pwdPolicy.MinLength = 8
 	}
-	srv := server.New(ctx, logger, jwtMgr, queries, sqlDB, minioClient, cfg.AIServiceURL, ldapCfg, cfg.SIEMWebhookURL, cfg.SIEMFormat, mailCfg, cfg.MaxSessionsPerUser, pwdPolicy)
+
+	srv := server.New(
+		ctx, logger, jwtMgr, queries, sqlDB, minioClient,
+		cfg.AIServiceURL, cfg.AIServiceSecret,
+		ldapCfg, cfg.SIEMWebhookURL, cfg.SIEMFormat,
+		mailCfg, cfg.MaxSessionsPerUser, pwdPolicy,
+	)
 
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
@@ -143,7 +169,9 @@ func main() {
 		logger.Error("shutdown error", zap.Error(err))
 		os.Exit(1)
 	}
-	// Drain background worker pool after HTTP is closed so in-flight jobs finish.
+	// Drain buffered audit events so no log entries are lost on clean shutdown.
+	srv.DrainAuditChain()
+	// Drain background worker pool after audit chain so in-flight jobs finish.
 	worker.Background.Stop()
 	logger.Info("server stopped cleanly")
 }

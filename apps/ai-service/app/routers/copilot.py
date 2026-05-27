@@ -6,14 +6,15 @@ import re
 import time
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.service_auth import require_service_token
 from app.services import pii_masker, rag
 from app.services.llm_router import llm_router
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/copilot")
+router = APIRouter(prefix="/copilot", dependencies=[Depends(require_service_token)])
 
 # ── Prompt injection patterns ─────────────────────────────────────────────────
 

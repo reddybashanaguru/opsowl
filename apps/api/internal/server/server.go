@@ -52,22 +52,23 @@ import (
 )
 
 type Server struct {
-	router       *chi.Mux
-	logger       *zap.Logger
-	jwtMgr       *auth.JWTManager
-	queries      *db.Queries
-	sqlDB        *sql.DB
-	store        storage.Client
-	aiServiceURL string
-	ldapCfg      *auth.LDAPConfig
-	siemFwd      *siem.Forwarder
-	chain        *auditchain.ChainWriter
-	mailer       *mail.Sender
-	maxSessions  int
-	pwdPolicy    auth.PasswordPolicy
+	router          *chi.Mux
+	logger          *zap.Logger
+	jwtMgr          *auth.JWTManager
+	queries         *db.Queries
+	sqlDB           *sql.DB
+	store           storage.Client
+	aiServiceURL    string
+	aiServiceSecret string
+	ldapCfg         *auth.LDAPConfig
+	siemFwd         *siem.Forwarder
+	chain           *auditchain.ChainWriter
+	mailer          *mail.Sender
+	maxSessions     int
+	pwdPolicy       auth.PasswordPolicy
 }
 
-func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL string, ldapCfg *auth.LDAPConfig, siemURL, siemFmt string, mailCfg mail.Config, maxSessions int, pwdPolicy auth.PasswordPolicy) *Server {
+func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL, aiServiceSecret string, ldapCfg *auth.LDAPConfig, siemURL, siemFmt string, mailCfg mail.Config, maxSessions int, pwdPolicy auth.PasswordPolicy) *Server {
 	siemFwd := siem.New(siemURL, siemFmt, logger)
 	chain := auditchain.NewChainWriter(ctx, queries, logger).WithSIEM(siemFwd)
 
@@ -75,25 +76,32 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 		maxSessions = 5
 	}
 	s := &Server{
-		router:       chi.NewRouter(),
-		logger:       logger,
-		jwtMgr:       jwtMgr,
-		queries:      queries,
-		sqlDB:        sqlDB,
-		store:        store,
-		aiServiceURL: aiServiceURL,
-		ldapCfg:      ldapCfg,
-		siemFwd:      siemFwd,
-		chain:        chain,
-		mailer:       mail.New(mailCfg),
-		maxSessions:  maxSessions,
-		pwdPolicy:    pwdPolicy,
+		router:          chi.NewRouter(),
+		logger:          logger,
+		jwtMgr:          jwtMgr,
+		queries:         queries,
+		sqlDB:           sqlDB,
+		store:           store,
+		aiServiceURL:    aiServiceURL,
+		aiServiceSecret: aiServiceSecret,
+		ldapCfg:         ldapCfg,
+		siemFwd:         siemFwd,
+		chain:           chain,
+		mailer:          mail.New(mailCfg),
+		maxSessions:     maxSessions,
+		pwdPolicy:       pwdPolicy,
 	}
 	s.setupMiddleware()
 	s.setupRoutes(ctx)
 	go sla.NewScheduler(queries, logger).Start(ctx)
 	go retention.NewScheduler(sqlDB, queries, logger).Start(ctx)
 	return s
+}
+
+// DrainAuditChain flushes any buffered audit events before the process exits.
+// Call this after the HTTP server has stopped accepting requests.
+func (s *Server) DrainAuditChain() {
+	s.chain.Drain()
 }
 
 // sseAwareTimeout applies a 30-second request timeout to all routes EXCEPT
@@ -119,7 +127,7 @@ func (s *Server) setupMiddleware() {
 	}
 	rl := middleware.NewRateLimiter(rateLimit, s.jwtMgr)
 
-	s.router.Use(middleware.RequireTLS)  // HTTPS enforcement (RBI T2); no-op unless REQUIRE_TLS=true
+	s.router.Use(middleware.RequireTLS) // HTTPS enforcement (RBI T2); no-op unless REQUIRE_TLS=true
 	s.router.Use(middleware.RequestID) // stamps X-Request-Id; must be first
 	s.router.Use(chimw.RealIP)
 	s.router.Use(chimw.Recoverer)
@@ -128,12 +136,19 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(middleware.CORS)
 	s.router.Use(middleware.Metrics)
 	s.router.Use(chimw.Compress(5))
-	s.router.Use(middleware.AccessLog(s.logger, s.jwtMgr)) // structured access log with user_id + request_id
+	s.router.Use(middleware.AccessLog(s.logger, s.jwtMgr))
 	s.router.Use(sseAwareTimeout(30 * time.Second))
 	s.router.Use(apikeys.APIKeyMiddleware(s.sqlDB))
 	s.router.Use(rl.Middleware)
-	s.router.Use(middleware.Idempotency(s.sqlDB, s.logger)) // POST idempotency (opt-in via Idempotency-Key header)
+	s.router.Use(middleware.Idempotency(s.sqlDB, s.logger))
 	s.router.Use(middleware.AuditLog(s.queries, s.jwtMgr, s.logger, s.chain))
+}
+
+// authLoginRateLimit returns a per-IP rate limiter function for pre-auth endpoints.
+// 10 req/min prevents credential stuffing while allowing legitimate login retries.
+func authLoginRateLimit() func(http.Handler) http.Handler {
+	rl := middleware.NewIPRateLimiter(10)
+	return rl.Middleware
 }
 
 func (s *Server) setupRoutes(ctx context.Context) {
@@ -149,7 +164,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 			WithMaxSessions(s.maxSessions).
 			WithPasswordPolicy(s.pwdPolicy)
 		authHandler := auth.NewHandler(authSvc)
-		auth.RegisterRoutes(r, authHandler, s.jwtMgr)
+		// Per-IP limiter (10 req/min) applied only to login/refresh/MFA challenge.
+		auth.RegisterRoutes(r, authHandler, s.jwtMgr, authLoginRateLimit())
 
 		// Dashboard stats
 		r.With(auth.JWTValidate(s.jwtMgr)).Get("/dashboard/stats", s.handleDashboardStats)
@@ -203,7 +219,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// AI Copilot + AI Logging module (Feature 4 + 12)
 		aiRepo := ai.NewRepository(s.queries)
-		aiSvc := ai.NewService(aiRepo, timelineEmitter, s.logger, s.aiServiceURL)
+		aiSvc := ai.NewService(aiRepo, timelineEmitter, s.logger, s.aiServiceURL).
+			WithServiceSecret(s.aiServiceSecret)
 		aiHandler := ai.NewHandler(aiSvc)
 		ai.RegisterRoutes(r, aiHandler, s.jwtMgr)
 

@@ -29,6 +29,8 @@ const writeQueueCap = 1024
 // round-trips. A single background goroutine drains the queue sequentially to
 // preserve the ordering guarantee. If the queue is full (burst > 1024 pending)
 // Write falls back to a synchronous write to apply backpressure rather than drop.
+//
+// Call Drain() before process exit so buffered events are not lost on graceful shutdown.
 type ChainWriter struct {
 	mu       sync.Mutex
 	queries  *db.Queries
@@ -37,6 +39,8 @@ type ChainWriter struct {
 	logger   *zap.Logger
 	siem     SIEMForwarder
 	writeCh  chan db.CreateAuditLogParams
+	stopCh   chan struct{}
+	doneCh   chan struct{}
 }
 
 func NewChainWriter(ctx context.Context, q *db.Queries, logger *zap.Logger) *ChainWriter {
@@ -44,6 +48,8 @@ func NewChainWriter(ctx context.Context, q *db.Queries, logger *zap.Logger) *Cha
 		queries: q,
 		logger:  logger,
 		writeCh: make(chan db.CreateAuditLogParams, writeQueueCap),
+		stopCh:  make(chan struct{}),
+		doneCh:  make(chan struct{}),
 	}
 	row, err := q.GetLastAuditEntry(ctx)
 	if err == nil {
@@ -59,16 +65,30 @@ func NewChainWriter(ctx context.Context, q *db.Queries, logger *zap.Logger) *Cha
 	return cw
 }
 
+// Drain flushes all buffered audit events and waits for the drain goroutine to exit.
+// Call during graceful shutdown AFTER the HTTP server has stopped accepting requests
+// so no new writes can arrive while draining.
+func (cw *ChainWriter) Drain() {
+	close(cw.stopCh)
+	<-cw.doneCh
+}
+
 func (cw *ChainWriter) WithSIEM(f SIEMForwarder) *ChainWriter {
 	cw.siem = f
 	return cw
 }
 
-// drain is the single goroutine that actually writes entries to the DB in order.
+// drain is the single goroutine that writes entries to the DB in order.
+// On stopCh close it flushes all remaining buffered events before signalling doneCh.
 func (cw *ChainWriter) drain(ctx context.Context) {
+	defer close(cw.doneCh)
 	for {
 		select {
 		case <-ctx.Done():
+			cw.flushRemaining()
+			return
+		case <-cw.stopCh:
+			cw.flushRemaining()
 			return
 		case p, ok := <-cw.writeCh:
 			if !ok {
@@ -77,6 +97,21 @@ func (cw *ChainWriter) drain(ctx context.Context) {
 			if err := cw.writeSync(ctx, p); err != nil {
 				cw.logger.Error("audit chain write failed", zap.Error(err))
 			}
+		}
+	}
+}
+
+// flushRemaining drains any events still in writeCh using a background context.
+func (cw *ChainWriter) flushRemaining() {
+	bg := context.Background()
+	for {
+		select {
+		case p := <-cw.writeCh:
+			if err := cw.writeSync(bg, p); err != nil {
+				cw.logger.Error("audit chain flush failed", zap.Error(err))
+			}
+		default:
+			return
 		}
 	}
 }

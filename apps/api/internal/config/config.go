@@ -26,6 +26,7 @@ type Config struct {
 	StorageUseSSL    bool
 
 	AIServiceURL    string
+	AIServiceSecret string // shared secret for Go→Python inter-service auth
 	AnthropicAPIKey string
 	OpenAIAPIKey    string
 
@@ -83,6 +84,7 @@ func Load() (*Config, error) {
 		StorageBucket:     getEnv("STORAGE_BUCKET", "opsowl"),
 		StorageUseSSL:     getEnv("STORAGE_USE_SSL", "false") == "true",
 		AIServiceURL:      getEnv("AI_SERVICE_URL", "http://localhost:8000"),
+		AIServiceSecret:   getEnv("AI_SERVICE_SECRET", ""),
 		AnthropicAPIKey:   getEnv("ANTHROPIC_API_KEY", ""),
 		OpenAIAPIKey:      getEnv("OPENAI_API_KEY", ""),
 		LDAPUrl:           getEnv("LDAP_URL", ""),

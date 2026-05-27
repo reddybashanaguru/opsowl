@@ -4,6 +4,14 @@ global:
   external_labels:
     app: opsowl
 
+rule_files:
+  - "alerts.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
 scrape_configs:
   - job_name: opsowl-api
     static_configs:

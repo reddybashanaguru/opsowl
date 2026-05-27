@@ -149,6 +149,10 @@ func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
 	rawToken := tokenFromCookieOrBody(r)
 	claims := ClaimsFromCtx(r.Context())
 
+	if claims != nil {
+		// Revoke the access token immediately so it cannot be replayed within its TTL.
+		h.svc.RevokeCurrentAccessToken(r.Context(), claims)
+	}
 	if rawToken != "" && claims != nil {
 		_ = h.svc.Logout(r.Context(), rawToken, claims.UserID, realIP(r))
 	}

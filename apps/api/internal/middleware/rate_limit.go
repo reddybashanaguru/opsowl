@@ -104,6 +104,18 @@ func NewRateLimiter(requestsPerMinute int, jwtMgr *auth.JWTManager) *RateLimiter
 	}
 }
 
+// NewIPRateLimiter creates a rate limiter keyed strictly by client IP.
+// Use this on pre-authentication endpoints (login, refresh, MFA challenge)
+// where no JWT is present yet. Default burst = requestsPerMinute.
+func NewIPRateLimiter(requestsPerMinute int) *RateLimiter {
+	return &RateLimiter{
+		buckets: newLRUBuckets(maxBuckets),
+		rate:    float64(requestsPerMinute) / 60.0,
+		burst:   float64(requestsPerMinute),
+		jwtMgr:  nil, // nil → always key by IP (see rateLimitKey)
+	}
+}
+
 func (rl *RateLimiter) allow(key string) (bool, float64) {
 	now := time.Now()
 

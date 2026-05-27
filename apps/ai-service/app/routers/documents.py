@@ -4,15 +4,16 @@ from __future__ import annotations
 import logging
 import uuid as uuid_lib
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
 from app.config import settings
 from app.db import get_pool
+from app.service_auth import require_service_token
 from app.services import chunker, embedder, extractor, storage_client
 
 logger = logging.getLogger(__name__)
-router = APIRouter()
+router = APIRouter(dependencies=[Depends(require_service_token)])
 
 
 class ProcessDocumentRequest(BaseModel):
