@@ -2,6 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
+import { ExportButton } from "@/components/analytics/ExportButton";
+import { LoadBar } from "@/components/analytics/LoadBar";
 
 interface AnalystWorkload {
   id: string;
@@ -14,9 +16,35 @@ interface AnalystWorkload {
   avg_case_age_hours: string;
 }
 
+interface RiskRow {
+  id: string;
+  case_number: string;
+  title: string;
+  status: string;
+  priority: string;
+  sla_breached: boolean;
+  risk_score: string | null;
+  risk_level: string | null;
+  analysed_at: string | null;
+}
+
 const ROLE_BADGE: Record<string, string> = {
   analyst: "bg-blue-500/20 text-blue-300",
   manager: "bg-violet-500/20 text-violet-300",
+};
+
+const RISK_COLOR: Record<string, string> = {
+  critical: "text-red-400",
+  high: "text-amber-400",
+  medium: "text-blue-400",
+  low: "text-green-400",
+};
+
+const PRIORITY_COLOR: Record<string, string> = {
+  critical: "text-red-400",
+  high: "text-amber-400",
+  medium: "text-blue-400",
+  low: "text-green-400",
 };
 
 function Metric({ label, value, color }: { label: string; value: number | string; color?: string }) {
@@ -24,18 +52,6 @@ function Metric({ label, value, color }: { label: string; value: number | string
     <div className="text-center">
       <div className={`text-xl font-bold ${color ?? "text-white"}`}>{value}</div>
       <div className="text-slate-500 text-xs mt-0.5">{label}</div>
-    </div>
-  );
-}
-
-function LoadBar({ value, max, color }: { value: number; max: number; color: string }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
-  return (
-    <div className="h-1.5 bg-slate-700 rounded-full overflow-hidden">
-      <div
-        className={`h-full rounded-full transition-all ${color}`}
-        style={{ width: `${pct}%` }}
-      />
     </div>
   );
 }
@@ -54,12 +70,20 @@ export default function WorkloadPage() {
     refetchInterval: 30000,
   });
 
+  const { data: riskRows, isLoading: riskLoading } = useQuery<RiskRow[]>({
+    queryKey: ["risk-leaderboard"],
+    queryFn: () => api.get<RiskRow[]>("/api/v1/analytics/risk?limit=20"),
+    refetchInterval: 60000,
+  });
+
   const maxCases = Math.max(...(analysts ?? []).map((a) => a.active_cases), 1);
   const maxTasks = Math.max(...(analysts ?? []).map((a) => a.open_tasks), 1);
 
   const totalActiveCases = (analysts ?? []).reduce((s, a) => s + a.active_cases, 0);
   const totalOpenTasks = (analysts ?? []).reduce((s, a) => s + a.open_tasks, 0);
   const totalOverdue = (analysts ?? []).reduce((s, a) => s + a.overdue_tasks, 0);
+
+  const today = new Date().toISOString().slice(0, 10);
 
   if (error) {
     return (
@@ -72,96 +96,199 @@ export default function WorkloadPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <div className="mb-6">
-        <h1 className="text-white text-2xl font-bold">Team Workload</h1>
-        <p className="text-slate-400 text-sm mt-1">
-          Real-time case and task distribution across analysts and managers.
-        </p>
-      </div>
-
-      {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: "Total Active Cases", value: totalActiveCases, color: "text-cyan-400" },
-          { label: "Total Open Tasks", value: totalOpenTasks, color: "text-violet-400" },
-          { label: "Overdue Tasks", value: totalOverdue, color: totalOverdue > 0 ? "text-red-400" : "text-emerald-400" },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 text-center">
-            <div className={`text-3xl font-bold ${color}`}>{value}</div>
-            <div className="text-slate-400 text-sm mt-1">{label}</div>
+    <div className="p-6 max-w-5xl mx-auto space-y-8">
+      {/* ── Workload section ── */}
+      <div>
+        <div className="flex items-start justify-between mb-6">
+          <div>
+            <h1 className="text-white text-2xl font-bold">Team Workload</h1>
+            <p className="text-slate-400 text-sm mt-1">
+              Real-time case and task distribution across analysts and managers.
+            </p>
           </div>
-        ))}
-      </div>
-
-      {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 animate-pulse h-28" />
-          ))}
+          <ExportButton
+            path="/api/v1/analytics/workload/export"
+            filename={`workload-${today}.csv`}
+            label="Export Workload"
+          />
         </div>
-      ) : !analysts || analysts.length === 0 ? (
-        <div className="text-center py-16 text-slate-600">
-          <p className="text-4xl mb-3">👥</p>
-          <p className="text-sm">No analysts or managers found.</p>
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {analysts.map((a) => (
-            <div key={a.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-600 transition-colors">
-              <div className="flex items-center gap-4">
-                {/* Avatar */}
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                  {a.full_name.charAt(0).toUpperCase()}
-                </div>
 
-                {/* Name + role */}
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-white font-semibold text-sm">{a.full_name}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${ROLE_BADGE[a.role] ?? "bg-slate-700 text-slate-400"}`}>
-                      {a.role}
-                    </span>
-                    {a.overdue_tasks > 0 && (
-                      <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">
-                        {a.overdue_tasks} overdue
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-slate-500 text-xs">{a.email}</p>
-
-                  {/* Load bars */}
-                  <div className="mt-2 grid grid-cols-2 gap-3">
-                    <div>
-                      <div className="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>Cases</span>
-                        <span>{a.active_cases}</span>
-                      </div>
-                      <LoadBar value={a.active_cases} max={maxCases} color="bg-cyan-500" />
-                    </div>
-                    <div>
-                      <div className="flex justify-between text-xs text-slate-500 mb-1">
-                        <span>Tasks</span>
-                        <span>{a.open_tasks}</span>
-                      </div>
-                      <LoadBar value={a.open_tasks} max={maxTasks} color="bg-violet-500" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Metrics */}
-                <div className="grid grid-cols-3 gap-6 flex-shrink-0">
-                  <Metric label="Active Cases" value={a.active_cases} color="text-cyan-400" />
-                  <Metric label="Open Tasks" value={a.open_tasks} color="text-violet-400" />
-                  <Metric label="Avg Case Age" value={avgCaseAge(a.avg_case_age_hours)} color="text-slate-300" />
-                </div>
-              </div>
+        {/* Summary strip */}
+        <div className="grid grid-cols-3 gap-4 mb-6">
+          {[
+            { label: "Total Active Cases", value: totalActiveCases, color: "text-cyan-400" },
+            { label: "Total Open Tasks", value: totalOpenTasks, color: "text-violet-400" },
+            { label: "Overdue Tasks", value: totalOverdue, color: totalOverdue > 0 ? "text-red-400" : "text-emerald-400" },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 text-center">
+              <div className={`text-3xl font-bold ${color}`}>{value}</div>
+              <div className="text-slate-400 text-sm mt-1">{label}</div>
             </div>
           ))}
         </div>
-      )}
 
-      <p className="text-slate-600 text-xs text-center mt-6">Updates every 30 seconds</p>
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 animate-pulse h-28" />
+            ))}
+          </div>
+        ) : !analysts || analysts.length === 0 ? (
+          <div className="text-center py-16 text-slate-600">
+            <p className="text-4xl mb-3">👥</p>
+            <p className="text-sm">No analysts or managers found.</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {analysts.map((a) => (
+              <div
+                key={a.id}
+                className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-600 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                    {a.full_name.charAt(0).toUpperCase()}
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-white font-semibold text-sm">{a.full_name}</span>
+                      <span
+                        className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${
+                          ROLE_BADGE[a.role] ?? "bg-slate-700 text-slate-400"
+                        }`}
+                      >
+                        {a.role}
+                      </span>
+                      {a.overdue_tasks > 0 && (
+                        <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">
+                          {a.overdue_tasks} overdue
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-slate-500 text-xs">{a.email}</p>
+
+                    <div className="mt-2 grid grid-cols-2 gap-3">
+                      <div>
+                        <div className="flex justify-between text-xs text-slate-500 mb-1">
+                          <span>Cases</span>
+                          <span>{a.active_cases}</span>
+                        </div>
+                        <LoadBar value={a.active_cases} max={maxCases} color="bg-cyan-500" />
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-xs text-slate-500 mb-1">
+                          <span>Tasks</span>
+                          <span>{a.open_tasks}</span>
+                        </div>
+                        <LoadBar value={a.open_tasks} max={maxTasks} color="bg-violet-500" />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-6 flex-shrink-0">
+                    <Metric label="Active Cases" value={a.active_cases} color="text-cyan-400" />
+                    <Metric label="Open Tasks" value={a.open_tasks} color="text-violet-400" />
+                    <Metric label="Avg Case Age" value={avgCaseAge(a.avg_case_age_hours)} color="text-slate-300" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-slate-600 text-xs text-center mt-4">Workload updates every 30 seconds</p>
+      </div>
+
+      {/* ── Risk Leaderboard section ── */}
+      <div>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h2 className="text-white text-lg font-semibold">AI Risk Leaderboard</h2>
+            <p className="text-slate-400 text-sm mt-0.5">Top 20 cases ranked by AI risk score.</p>
+          </div>
+          <ExportButton
+            path="/api/v1/analytics/risk/export?limit=100"
+            filename={`risk-leaderboard-${today}.csv`}
+            label="Export Risk"
+          />
+        </div>
+
+        {riskLoading ? (
+          <div className="space-y-2">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl h-12 animate-pulse" />
+            ))}
+          </div>
+        ) : !riskRows || riskRows.length === 0 ? (
+          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-8 text-center text-slate-500 text-sm">
+            No AI-analysed cases yet. Run AI Copilot on a case to generate risk scores.
+          </div>
+        ) : (
+          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="text-left px-4 py-3 font-medium">#</th>
+                  <th className="text-left px-4 py-3 font-medium">Case</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Priority</th>
+                  <th className="text-right px-4 py-3 font-medium">Risk Score</th>
+                  <th className="text-left px-4 py-3 font-medium">Risk Level</th>
+                  <th className="text-left px-4 py-3 font-medium">SLA</th>
+                </tr>
+              </thead>
+              <tbody>
+                {riskRows.map((row, i) => (
+                  <tr
+                    key={row.id}
+                    className="border-b border-slate-700/50 last:border-0 hover:bg-slate-700/30 transition-colors"
+                  >
+                    <td className="px-4 py-3 text-slate-600 text-xs font-mono">{i + 1}</td>
+                    <td className="px-4 py-3">
+                      <div className="text-white font-medium text-xs">{row.case_number}</div>
+                      <div className="text-slate-400 text-xs truncate max-w-[240px]">{row.title}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="text-xs text-slate-400 capitalize">{row.status.replace("_", " ")}</span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`text-xs font-semibold capitalize ${PRIORITY_COLOR[row.priority] ?? "text-slate-400"}`}>
+                        {row.priority}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {row.risk_score != null ? (
+                        <span className="text-white font-mono font-semibold">{row.risk_score}</span>
+                      ) : (
+                        <span className="text-slate-600">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.risk_level ? (
+                        <span className={`text-xs font-semibold capitalize ${RISK_COLOR[row.risk_level] ?? "text-slate-400"}`}>
+                          {row.risk_level}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 text-xs">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
+                      {row.sla_breached ? (
+                        <span className="text-red-400 text-xs font-semibold">Breached</span>
+                      ) : (
+                        <span className="text-emerald-400 text-xs">OK</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <p className="text-slate-600 text-xs text-center mt-3">Risk data updates every 60 seconds</p>
+      </div>
     </div>
   );
 }

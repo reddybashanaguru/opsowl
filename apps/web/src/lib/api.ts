@@ -173,6 +173,24 @@ export const api = {
 
   delete: <T>(path: string, init?: RequestInit) =>
     request<T>(path, { method: "DELETE", ...init }),
+
+  /** Fetches a file from the API and triggers a browser download. */
+  download: async (path: string, filename: string): Promise<void> => {
+    const url = `${API_BASE}${path}`;
+    const resp = await fetch(url, { method: "GET", credentials: "include" });
+    if (!resp.ok) {
+      throw new APIError("DOWNLOAD_FAILED", "Export failed", resp.status);
+    }
+    const blob = await resp.blob();
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(objectUrl);
+  },
 };
 
 /**

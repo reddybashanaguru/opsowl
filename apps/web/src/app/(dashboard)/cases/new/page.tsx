@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, APIError, newIdempotencyKey } from "@/lib/api";
 
@@ -28,14 +28,61 @@ interface CaseResponse {
   case_number: string;
 }
 
+interface TaskStub {
+  title: string;
+  description: string;
+  priority: string;
+  sort_order: number;
+}
+
+interface Template {
+  id: string;
+  name: string;
+  description_skeleton: string;
+  priority: string;
+  tags: string[];
+  is_active: boolean;
+  tasks: TaskStub[];
+}
+
+interface TemplatesResponse {
+  templates: Template[];
+}
+
 export default function NewCasePage() {
   const router = useRouter();
+  const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
+  const [showPicker, setShowPicker] = useState(false);
+
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { priority: "medium" },
   });
 
   const priority = form.watch("priority");
+
+  const { data: templatesData } = useQuery<TemplatesResponse>({
+    queryKey: ["templates-active"],
+    queryFn: () => api.get<TemplatesResponse>("/api/v1/templates?active=true"),
+  });
+  const templates = templatesData?.templates ?? [];
+
+  const applyTemplate = (tmpl: Template) => {
+    setSelectedTemplate(tmpl);
+    setShowPicker(false);
+    if (tmpl.description_skeleton) {
+      form.setValue("description", tmpl.description_skeleton);
+    }
+    form.setValue("priority", tmpl.priority as FormValues["priority"]);
+    if (tmpl.tags?.length) {
+      form.setValue("tags", tmpl.tags.join(", "));
+    }
+  };
+
+  const clearTemplate = () => {
+    setSelectedTemplate(null);
+    form.reset({ priority: "medium" });
+  };
 
   // Generate a stable idempotency key for this form render.
   // If the network fails and React Query retries, the same key is sent so the
@@ -54,7 +101,14 @@ export default function NewCasePage() {
         tags,
       }, idempotencyKey);
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      if (selectedTemplate) {
+        try {
+          await api.post(`/api/v1/templates/${selectedTemplate.id}/apply`, { case_id: data.id });
+        } catch {
+          // Tasks failed to apply; navigate anyway — user can add tasks manually
+        }
+      }
       router.push(`/cases/${data.id}`);
     },
   });
@@ -76,6 +130,66 @@ export default function NewCasePage() {
 
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6">
         <form onSubmit={form.handleSubmit((v) => mutate(v))} className="space-y-5">
+          {/* Template picker */}
+          {templates.length > 0 && (
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-1.5">
+                Start from Template{" "}
+                <span className="text-slate-500 font-normal text-xs">(optional)</span>
+              </label>
+              {selectedTemplate ? (
+                <div className="flex items-center justify-between bg-cyan-500/10 border border-cyan-500/30 rounded-lg px-3 py-2">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-cyan-400">📋</span>
+                    <span className="text-cyan-300 font-medium">{selectedTemplate.name}</span>
+                    {selectedTemplate.tasks?.length > 0 && (
+                      <span className="text-cyan-500 text-xs">
+                        · {selectedTemplate.tasks.length} task{selectedTemplate.tasks.length !== 1 ? "s" : ""} will be created
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={clearTemplate}
+                    className="text-cyan-500 hover:text-cyan-300 text-xs transition-colors"
+                  >
+                    Clear
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setShowPicker((v) => !v)}
+                    className="w-full text-left bg-[#0f172a] border border-slate-600 text-slate-400 hover:border-slate-400 rounded-lg px-3 py-2 text-sm transition-colors flex items-center justify-between"
+                  >
+                    <span>Select a template…</span>
+                    <span className="text-slate-600">{showPicker ? "▲" : "▼"}</span>
+                  </button>
+                  {showPicker && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#1e293b] border border-slate-600 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
+                      {templates.map((t) => (
+                        <button
+                          key={t.id}
+                          type="button"
+                          onClick={() => applyTemplate(t)}
+                          className="w-full text-left px-3 py-2.5 hover:bg-slate-700/60 transition-colors border-b border-slate-700/50 last:border-0"
+                        >
+                          <div className="text-sm text-white font-medium">{t.name}</div>
+                          {t.tasks?.length > 0 && (
+                            <div className="text-xs text-slate-500 mt-0.5">
+                              {t.tasks.length} task checklist · {t.priority} priority
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Title */}
           <div>
             <label className="block text-slate-300 text-sm font-medium mb-1.5">

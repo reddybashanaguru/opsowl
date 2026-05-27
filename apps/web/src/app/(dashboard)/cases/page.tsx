@@ -466,12 +466,20 @@ function CasesContent() {
             {search && <span className="text-slate-500"> matching &ldquo;{search}&rdquo;</span>}
           </p>
         </div>
-        <Link
-          href="/cases/new"
-          className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-        >
-          + New {cfg.case_label}
-        </Link>
+        <div className="flex gap-2">
+          <Link
+            href="/cases/import"
+            className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+          >
+            ↑ Import CSV
+          </Link>
+          <Link
+            href="/cases/new"
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+          >
+            + New {cfg.case_label}
+          </Link>
+        </div>
       </div>
 
       {/* Filters + Search */}

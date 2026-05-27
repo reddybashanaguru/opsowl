@@ -947,6 +947,36 @@ docs: RBI compliance documentation suite (RBI T3)
 - [x] C2: Tipping-off controls — analyst blocked from STR; manager|admin|super_admin only — commit 2191afc
 - [x] C6: IDOR org-scoping integration tests — service.Get() org check; 3 tests pass — commit 2191afc
 - [x] C1: STR dual-authorization + FIU-IND XML export — commit cd06da9
-- [ ] C3: DPDP erasure endpoint
-- [ ] T2: Config fixes
-- [ ] T3: Compliance documents
+- [x] C3: DPDP erasure endpoint — commit a506fb5
+- [x] T2: Config fixes (pwd min 12, SIEM queue 1000, RequireTLS) — commit a506fb5
+- [x] T3: 7 compliance docs in compliance/ — commit a506fb5
+
+---
+
+## Phase 6: Enterprise Reliability & Security (2026-05-26)
+
+3 phases remain after Phase 5: Phase 6 (this), Phase 7 (multi-tenancy), Phase 8 (advanced integrations + Ollama).
+
+### Features
+
+| ID | Feature | Priority | Day |
+|----|---------|----------|-----|
+| P6-1 | ClamAV antivirus scan on document upload | Critical | 1 |
+| P6-2 | Document processing auto-retry with backoff (30s / 5min / 30min) | High | 1 |
+| P6-3 | Timeline SSE event replay on reconnect (server replays since last_event_id) | High | 2 |
+| P6-4 | Composite cursor pagination — replace UUID byte-sort with (created_at, id) cursor | Medium | 2 |
+| P6-5 | Inbound event log viewer UI (webhook events per source in settings) | Medium | 3 |
+
+### Commit Sequence
+```
+feat: ClamAV antivirus scan + document auto-retry with backoff (P6-1+P6-2)
+feat: SSE event replay + composite cursor pagination (P6-3+P6-4)
+feat: inbound event log viewer UI (P6-5)
+```
+
+### Progress
+- [ ] P6-1: ClamAV antivirus
+- [ ] P6-2: Document auto-retry backoff
+- [ ] P6-3: SSE event replay
+- [ ] P6-4: Composite cursor pagination
+- [ ] P6-5: Inbound event log UI

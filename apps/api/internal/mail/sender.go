@@ -25,10 +25,12 @@ func (c Config) IsConfigured() bool {
 }
 
 // Message is a simple outgoing email.
+// Set HTML to send an HTML body; Body is used as plain-text fallback.
 type Message struct {
 	To      []string
 	Subject string
-	Body    string // plain text
+	Body    string // plain text (always set; used as fallback when HTML is set)
+	HTML    string // optional HTML body; if set, sends multipart/alternative
 }
 
 // Sender sends transactional emails via SMTP.
@@ -52,8 +54,7 @@ func (s *Sender) Send(msg Message) error {
 	}
 
 	addr := fmt.Sprintf("%s:%d", s.cfg.Host, s.cfg.Port)
-	headers := buildHeaders(s.cfg.From, msg.To, msg.Subject)
-	body := []byte(headers + "\r\n" + msg.Body)
+	body := buildBody(s.cfg.From, msg)
 
 	var auth smtp.Auth
 	if s.cfg.User != "" {
@@ -104,13 +105,34 @@ func (s *Sender) sendTLS(addr string, auth smtp.Auth, body []byte, to []string) 
 	return err
 }
 
-func buildHeaders(from string, to []string, subject string) string {
+func buildBody(from string, msg Message) []byte {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("From: %s\r\n", from))
-	sb.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(to, ", ")))
-	sb.WriteString(fmt.Sprintf("Subject: %s\r\n", subject))
+	sb.WriteString(fmt.Sprintf("To: %s\r\n", strings.Join(msg.To, ", ")))
+	sb.WriteString(fmt.Sprintf("Subject: %s\r\n", msg.Subject))
 	sb.WriteString("MIME-Version: 1.0\r\n")
-	sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
 	sb.WriteString(fmt.Sprintf("Date: %s\r\n", time.Now().UTC().Format(time.RFC1123Z)))
-	return sb.String()
+
+	if msg.HTML != "" {
+		boundary := "==OpsOwlBoundary=="
+		sb.WriteString(fmt.Sprintf("Content-Type: multipart/alternative; boundary=%q\r\n", boundary))
+		sb.WriteString("\r\n")
+		// plain text part
+		sb.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n\r\n")
+		sb.WriteString(msg.Body)
+		sb.WriteString("\r\n")
+		// HTML part
+		sb.WriteString(fmt.Sprintf("--%s\r\n", boundary))
+		sb.WriteString("Content-Type: text/html; charset=UTF-8\r\n\r\n")
+		sb.WriteString(msg.HTML)
+		sb.WriteString("\r\n")
+		sb.WriteString(fmt.Sprintf("--%s--\r\n", boundary))
+	} else {
+		sb.WriteString("Content-Type: text/plain; charset=UTF-8\r\n")
+		sb.WriteString("\r\n")
+		sb.WriteString(msg.Body)
+	}
+
+	return []byte(sb.String())
 }

@@ -44,7 +44,11 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/storage"
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
+	"github.com/reddybashanaguru/opsowl/internal/csvimport"
+	scheduled_reports "github.com/reddybashanaguru/opsowl/internal/scheduled_reports"
+	"github.com/reddybashanaguru/opsowl/internal/templates"
 	"github.com/reddybashanaguru/opsowl/internal/users"
+	"github.com/reddybashanaguru/opsowl/internal/webhooks"
 )
 
 type Server struct {
@@ -164,6 +168,13 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		timelineHandler := timeline.NewHandler(timelineSvc, timelineHub, s.jwtMgr)
 		timeline.RegisterRoutes(r, timelineHandler, s.jwtMgr)
 
+		// Outbound webhooks (P8-1) — must be wired before modules that emit events
+		webhookSvc := webhooks.NewService(s.queries, s.logger)
+		timelineEmitter.WithWebhooks(webhookSvc)
+		webhookHandler := webhooks.NewHandler(webhookSvc)
+		webhooks.RegisterRoutes(r, webhookHandler, s.jwtMgr)
+		go webhookSvc.StartWorker(ctx)
+
 		// Assignment rules engine
 		assignEng := assignment.NewEngine(s.sqlDB)
 		assignHandler := assignment.NewHandler(s.sqlDB)
@@ -253,6 +264,22 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		inboundSvc := inbound.NewService(s.sqlDB, casesSvc, s.logger)
 		inboundHandler := inbound.NewHandler(inboundSvc)
 		inbound.RegisterRoutes(r, inboundHandler, s.jwtMgr)
+
+		// CSV bulk import (P8-2)
+		csvImportSvc := csvimport.NewService(s.queries, casesSvc, s.logger)
+		csvImportHandler := csvimport.NewHandler(csvImportSvc)
+		csvimport.RegisterRoutes(r, csvImportHandler, s.jwtMgr)
+
+		// Scheduled email reports (P8-3)
+		reportSchedSvc := scheduled_reports.NewService(s.queries, s.mailer, s.logger)
+		reportSchedHandler := scheduled_reports.NewHandler(reportSchedSvc)
+		scheduled_reports.RegisterRoutes(r, reportSchedHandler, s.jwtMgr)
+		go scheduled_reports.NewScheduler(reportSchedSvc, s.logger).Start(ctx)
+
+		// Case templates (P8-4)
+		templateSvc := templates.NewService(s.queries, tasksSvc)
+		templateHandler := templates.NewHandler(templateSvc)
+		templates.RegisterRoutes(r, templateHandler, s.jwtMgr)
 
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)

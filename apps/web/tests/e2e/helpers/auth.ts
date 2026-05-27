@@ -4,13 +4,35 @@ export const ADMIN = { email: "admin@opsowl.dev", password: "OpsOwl@2024" };
 export const BASE_URL = "http://localhost:3001";
 export const API_URL = "http://localhost:8080/api/v1";
 
-/** Full UI login flow — use this per-spec in beforeAll. */
-export async function login(page: Page, email = ADMIN.email, password = ADMIN.password) {
-  await page.goto("/login");
+/** Full UI login flow — use this per-spec in beforeAll/beforeEach.
+ *
+ * Pass `targetUrl` (e.g. "/settings/webhooks") to land directly on that page
+ * after login. This avoids the double-refresh race where ProtectedRoute on
+ * /dashboard rotates the refresh token before the subsequent page.goto() can
+ * receive the new httpOnly cookie.
+ *
+ * After the URL resolves we wait for the sidebar <aside> element — this is
+ * rendered by DashboardLayout only after ProtectedRoute's /auth/refresh call
+ * completes and sets checking=false, so it reliably signals that the full auth
+ * handshake is done before any test assertions run.
+ */
+export async function login(
+  page: Page,
+  email = ADMIN.email,
+  password = ADMIN.password,
+  targetUrl?: string,
+) {
+  const loginUrl = targetUrl
+    ? `/login?returnUrl=${encodeURIComponent(targetUrl)}`
+    : "/login";
+  await page.goto(loginUrl);
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await page.waitForURL("**/dashboard", { timeout: 15_000 });
+  // Wait for URL then for the sidebar — sidebar only renders after ProtectedRoute
+  // clears its checking state, ensuring the /auth/refresh rotation is complete.
+  await page.waitForURL(targetUrl ? `**${targetUrl}` : "**/dashboard", { timeout: 15_000 });
+  await page.waitForSelector("aside", { timeout: 15_000 });
 }
 
 /** Direct API helper — returns access_token for seeding data without browser. */

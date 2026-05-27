@@ -264,3 +264,160 @@ func TestWorkload_200_Manager(t *testing.T) {
 		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
+
+// ── GET /analytics/workload/export ────────────────────────────────────────────
+
+func TestExportWorkload_200_CSV(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgr := seedUser(t, db, "mgr-exp@analytics.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgr, "mgr-exp@analytics.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/workload/export", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	ct := rr.Header().Get("Content-Type")
+	if ct == "" || ct[:8] != "text/csv" {
+		t.Errorf("expected Content-Type text/csv, got %q", ct)
+	}
+	cd := rr.Header().Get("Content-Disposition")
+	if cd == "" {
+		t.Error("expected Content-Disposition header to be set")
+	}
+	body := rr.Body.String()
+	if len(body) == 0 {
+		t.Error("expected non-empty CSV body")
+	}
+	// First line must be the CSV header row
+	firstLine := body[:len("full_name,email,role,active_cases,open_tasks,overdue_tasks,avg_case_age_hours")]
+	expected := "full_name,email,role,active_cases,open_tasks,overdue_tasks,avg_case_age_hours"
+	if firstLine != expected {
+		t.Errorf("unexpected CSV header: %q", firstLine)
+	}
+}
+
+func TestExportWorkload_403_Analyst(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	aID := seedUser(t, db, "analyst-exp@analytics.com", dbgen.UserRoleAnalyst)
+	tok := makeToken(t, jwtMgr, aID, "analyst-exp@analytics.com", dbgen.UserRoleAnalyst)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/workload/export", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", rr.Code)
+	}
+}
+
+func TestExportWorkload_401_NoToken(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, _ := setupRouter(t, db)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/workload/export", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+// ── GET /analytics/risk/export ────────────────────────────────────────────────
+
+func TestExportRisk_200_CSV(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgr := seedUser(t, db, "mgr-risk-exp@analytics.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgr, "mgr-risk-exp@analytics.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/risk/export", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	ct := rr.Header().Get("Content-Type")
+	if ct == "" || ct[:8] != "text/csv" {
+		t.Errorf("expected Content-Type text/csv, got %q", ct)
+	}
+	cd := rr.Header().Get("Content-Disposition")
+	if cd == "" {
+		t.Error("expected Content-Disposition header to be set")
+	}
+	body := rr.Body.String()
+	if len(body) == 0 {
+		t.Error("expected non-empty CSV body")
+	}
+	expectedHeader := "case_number,title,status,priority,sla_breached,risk_score,risk_level,analysed_at"
+	firstLine := body[:len(expectedHeader)]
+	if firstLine != expectedHeader {
+		t.Errorf("unexpected CSV header: %q", firstLine)
+	}
+}
+
+func TestExportRisk_401_NoToken(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, _ := setupRouter(t, db)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/risk/export", nil)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", rr.Code)
+	}
+}
+
+func TestExportRisk_WithLimitParam(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	mgr := seedUser(t, db, "mgr-risk-lim@analytics.com", dbgen.UserRoleManager)
+	tok := makeToken(t, jwtMgr, mgr, "mgr-risk-lim@analytics.com", dbgen.UserRoleManager)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/risk/export?limit=10", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestExportRisk_403_Viewer(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	r, jwtMgr := setupRouter(t, db)
+	vID := seedUser(t, db, "viewer-exp@analytics.com", dbgen.UserRoleViewer)
+	tok := makeToken(t, jwtMgr, vID, "viewer-exp@analytics.com", dbgen.UserRoleViewer)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/analytics/risk/export", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("expected 403, got %d", rr.Code)
+	}
+}
