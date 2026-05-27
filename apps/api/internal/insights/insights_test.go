@@ -247,9 +247,30 @@ func TestAnalyseInsights_StoresResult(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	// Analyse now returns 202 Accepted — work is dispatched to the background pool.
+	// In tests worker.Background is nil so worker.TrySubmit runs synchronously,
+	// meaning the insights are stored before the handler returns.
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 accepted, got %d: %s", rr.Code, rr.Body.String())
 	}
+	var queued struct {
+		Data struct {
+			Queued bool   `json:"queued"`
+			CaseID string `json:"case_id"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &queued); err != nil {
+		t.Fatalf("parse queued body: %v", err)
+	}
+	if !queued.Data.Queued {
+		t.Error("expected queued=true in response")
+	}
+
+	// Verify stored result via GET insights (sync in test context — no polling needed).
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/insights", nil)
+	req2.Header.Set("Authorization", "Bearer "+tok)
+	rr2 := httptest.NewRecorder()
+	r.ServeHTTP(rr2, req2)
 
 	var body struct {
 		Data struct {
@@ -258,14 +279,14 @@ func TestAnalyseInsights_StoresResult(t *testing.T) {
 			RiskScore   float64 `json:"risk_score"`
 		} `json:"data"`
 	}
-	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
-		t.Fatalf("parse body: %v", err)
+	if err := json.Unmarshal(rr2.Body.Bytes(), &body); err != nil {
+		t.Fatalf("parse insights body: %v", err)
 	}
 	if !body.Data.AIAvailable {
 		t.Error("expected ai_available=true after analysis")
 	}
 	if body.Data.RiskLevel != "medium" {
-		t.Errorf("expected risk_level=medium (score=72.5 is < 75), got %s", body.Data.RiskLevel)
+		t.Errorf("expected risk_level=medium (score=72.5 is <75), got %s", body.Data.RiskLevel)
 	}
 	if body.Data.RiskScore < 70 || body.Data.RiskScore > 75 {
 		t.Errorf("expected risk_score ~72.5, got %v", body.Data.RiskScore)
@@ -294,14 +315,22 @@ func TestAnalyseInsights_AIUnavailable_ReturnsEmpty(t *testing.T) {
 	rr := httptest.NewRecorder()
 	r.ServeHTTP(rr, req)
 
-	// Should still return 200 with ai_available=false (graceful fallback)
-	if rr.Code != http.StatusOK {
-		t.Fatalf("expected 200 graceful fallback, got %d: %s", rr.Code, rr.Body.String())
+	// Analyse always returns 202 immediately regardless of AI availability.
+	// The background worker silently drops the job when AI fails.
+	if rr.Code != http.StatusAccepted {
+		t.Fatalf("expected 202 accepted, got %d: %s", rr.Code, rr.Body.String())
 	}
+
+	// GET insights should still return ai_available=false (no result was stored).
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/insights", nil)
+	req2.Header.Set("Authorization", "Bearer "+tok)
+	rr2 := httptest.NewRecorder()
+	r.ServeHTTP(rr2, req2)
+
 	var body struct {
 		Data struct{ AIAvailable bool `json:"ai_available"` } `json:"data"`
 	}
-	_ = json.Unmarshal(rr.Body.Bytes(), &body)
+	_ = json.Unmarshal(rr2.Body.Bytes(), &body)
 	if body.Data.AIAvailable {
 		t.Error("expected ai_available=false when AI service is down")
 	}

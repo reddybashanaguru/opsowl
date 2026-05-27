@@ -49,6 +49,22 @@ func main() {
 	defer pool.Close()
 	logger.Info("database connected")
 
+	// Circuit breaker: pings the pool every 15s; after 5 consecutive failures
+	// the circuit opens and all non-health requests receive 503 immediately.
+	cb := db.NewCircuitBreaker(5, 30*time.Second)
+	go func() {
+		t := time.NewTicker(15 * time.Second)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				cb.Probe(pool.Ping(context.Background()))
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+
 	sqlDB := stdlib.OpenDBFromPool(pool)
 
 	// Auto-run pending migrations at startup (idempotent — goose tracks applied versions).
@@ -135,9 +151,21 @@ func main() {
 		mailCfg, cfg.MaxSessionsPerUser, pwdPolicy,
 	)
 
+	// Wrap the router with the circuit breaker guard. /health and /ready bypass
+	// the check so load-balancer probes still work during a DB outage.
+	cbHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if cb.IsOpen() && r.URL.Path != "/health" && r.URL.Path != "/ready" {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"error":{"code":"SERVICE_UNAVAILABLE","message":"database unavailable, retry shortly"}}`))
+			return
+		}
+		srv.ServeHTTP(w, r)
+	})
+
 	httpServer := &http.Server{
 		Addr:         fmt.Sprintf(":%s", cfg.Port),
-		Handler:      srv,
+		Handler:      cbHandler,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 60 * time.Second,
 		IdleTimeout:  120 * time.Second,
@@ -171,7 +199,9 @@ func main() {
 	}
 	// Drain buffered audit events so no log entries are lost on clean shutdown.
 	srv.DrainAuditChain()
-	// Drain background worker pool after audit chain so in-flight jobs finish.
+	// Wait up to 15 seconds for in-flight document processing goroutines.
+	srv.DrainDocumentProcessing()
+	// Drain background worker pool after all other drains so in-flight jobs finish.
 	worker.Background.Stop()
 	logger.Info("server stopped cleanly")
 }

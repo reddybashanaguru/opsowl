@@ -66,6 +66,7 @@ type Server struct {
 	mailer          *mail.Sender
 	maxSessions     int
 	pwdPolicy       auth.PasswordPolicy
+	docsSvc         *documents.Service
 }
 
 func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queries *db.Queries, sqlDB *sql.DB, store storage.Client, aiServiceURL, aiServiceSecret string, ldapCfg *auth.LDAPConfig, siemURL, siemFmt string, mailCfg mail.Config, maxSessions int, pwdPolicy auth.PasswordPolicy) *Server {
@@ -102,6 +103,14 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 // Call this after the HTTP server has stopped accepting requests.
 func (s *Server) DrainAuditChain() {
 	s.chain.Drain()
+}
+
+// DrainDocumentProcessing waits up to 15 seconds for in-flight document
+// processing goroutines to finish before the process exits.
+func (s *Server) DrainDocumentProcessing() {
+	if s.docsSvc != nil {
+		s.docsSvc.DrainProcessing(15 * time.Second)
+	}
 }
 
 // sseAwareTimeout applies a 30-second request timeout to all routes EXCEPT
@@ -214,7 +223,9 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL).
 			WithScanner(scanner.FromEnv()).
 			WithServiceSecret(s.aiServiceSecret)
-		go docsSvc.RecoverStuckDocuments(ctx)
+		docsSvc.RecoverStuckDocuments(ctx)
+		docsSvc.StartPeriodicRecovery(ctx, 10*time.Minute)
+		s.docsSvc = docsSvc
 		docsHandler := documents.NewHandler(docsSvc)
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)
 

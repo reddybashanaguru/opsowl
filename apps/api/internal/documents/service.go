@@ -35,6 +35,7 @@ type Service struct {
 	aiServiceSecret string
 	av              scanner.Scanner
 	retryBackoff    []time.Duration
+	processingWg    sync.WaitGroup
 }
 
 func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter, logger *zap.Logger, aiServiceURL string) *Service {
@@ -71,8 +72,8 @@ func (s *Service) WithRetryBackoff(delays []time.Duration) *Service {
 	return s
 }
 
-// RecoverStuckDocuments is called once at startup to mark any documents that were
-// left in 'processing' state (e.g. due to a previous server crash) as 'failed'.
+// RecoverStuckDocuments marks any documents stuck in 'processing' for longer
+// than 15 minutes as 'failed'. Safe to call multiple times.
 func (s *Service) RecoverStuckDocuments(ctx context.Context) {
 	n, err := s.repo.MarkStuckAsFailed(ctx, 15*time.Minute)
 	if err != nil {
@@ -81,6 +82,52 @@ func (s *Service) RecoverStuckDocuments(ctx context.Context) {
 	}
 	if n > 0 {
 		s.logger.Warn("recovered stuck documents", zap.Int64("count", n))
+	}
+}
+
+// StartPeriodicRecovery starts a background loop that calls RecoverStuckDocuments
+// every [interval]. This handles documents that get stuck after startup (e.g. if
+// the AI service hangs mid-processing without the container restarting).
+// The loop exits when [ctx] is cancelled.
+func (s *Service) StartPeriodicRecovery(ctx context.Context, interval time.Duration) {
+	go func() {
+		t := time.NewTicker(interval)
+		defer t.Stop()
+		for {
+			select {
+			case <-t.C:
+				s.RecoverStuckDocuments(ctx)
+			case <-ctx.Done():
+				return
+			}
+		}
+	}()
+}
+
+// launchProcessAsync starts a tracked goroutine for document processing.
+// Using processingWg allows DrainProcessing to wait for in-flight jobs during
+// graceful shutdown instead of abandoning them.
+func (s *Service) launchProcessAsync(docID, caseID uuid.UUID, storedPath, filename, fileType, mimeType string) {
+	s.processingWg.Add(1)
+	go func() {
+		defer s.processingWg.Done()
+		s.processAsync(docID, caseID, storedPath, filename, fileType, mimeType)
+	}()
+}
+
+// DrainProcessing waits up to [timeout] for all in-flight processAsync goroutines
+// to finish. Call during graceful shutdown after the HTTP server has stopped.
+// Any goroutines still running after the timeout will be recovered as 'failed'
+// by RecoverStuckDocuments on next startup.
+func (s *Service) DrainProcessing(timeout time.Duration) {
+	done := make(chan struct{})
+	go func() {
+		s.processingWg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+	case <-time.After(timeout):
 	}
 }
 
@@ -175,7 +222,7 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		"size_bytes":  totalSize,
 	})
 
-	go s.processAsync(doc.ID, caseID, key, filename, fi.FileType, fi.MIMEType)
+	s.launchProcessAsync(doc.ID, caseID, key, filename, fi.FileType, fi.MIMEType)
 
 	url, _ := s.store.PresignedURL(ctx, key, PresignExpiry)
 	return &DocumentResponse{
@@ -469,7 +516,7 @@ func (s *Service) Retry(ctx context.Context, claims *auth.Claims, caseID uuid.UU
 		return nil, err
 	}
 
-	go s.processAsync(updated.ID, updated.CaseID, updated.StoredPath, updated.OriginalFilename, updated.FileType, updated.MimeType)
+	s.launchProcessAsync(updated.ID, updated.CaseID, updated.StoredPath, updated.OriginalFilename, updated.FileType, updated.MimeType)
 
 	return s.Get(ctx, docID)
 }

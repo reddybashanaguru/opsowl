@@ -130,7 +130,7 @@ func (m *JWTManager) Verify(tokenStr string) (*Claims, error) {
 			return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
 		}
 		return m.publicKey, nil
-	}, jwt.WithIssuer(jwtIssuer), jwt.WithAudience(jwtAudience))
+	}, jwt.WithIssuer(jwtIssuer), jwt.WithAudience(jwtAudience), jwt.WithLeeway(30*time.Second))
 	if err != nil {
 		return nil, errors.New("invalid token")
 	}

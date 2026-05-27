@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
 type Handler struct {
@@ -87,6 +88,8 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 }
 
 // POST /api/v1/cases/:id/insights/analyse
+// Returns 202 Accepted immediately. The analysis runs in the background worker
+// pool. Clients should poll GET /cases/:id/insights until ai_available=true.
 func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 	caseID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
@@ -94,18 +97,30 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	aiResp, aiErr := h.callAIAnalyse(r.Context(), caseID.String())
-	if aiErr != nil {
-		response.JSON(w, http.StatusOK, emptyInsights(caseID))
-		return
-	}
+	worker.TrySubmit(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		aiResp, aiErr := h.callAIAnalyse(ctx, caseID.String())
+		if aiErr != nil {
+			return
+		}
+		_ = h.storeInsights(context.Background(), caseID, aiResp)
+	})
 
+	response.JSON(w, http.StatusAccepted, map[string]any{
+		"queued":  true,
+		"case_id": caseID.String(),
+	})
+}
+
+// storeInsights persists AI analysis results to the database.
+func (h *Handler) storeInsights(ctx context.Context, caseID uuid.UUID, aiResp *aiAnalyseResponse) error {
 	rfJSON, _ := json.Marshal(aiResp.RiskFactors)
 	entJSON, _ := json.Marshal(aiResp.Entities)
 	anomJSON, _ := json.Marshal(aiResp.Anomalies)
 	recJSON, _ := json.Marshal(aiResp.RecommendedActions)
 
-	row, err := h.queries.UpsertCaseAIInsights(r.Context(), db.UpsertCaseAIInsightsParams{
+	_, err := h.queries.UpsertCaseAIInsights(ctx, db.UpsertCaseAIInsightsParams{
 		CaseID:             caseID,
 		RiskScore:          sql.NullString{String: fmt.Sprintf("%.2f", aiResp.RiskScore), Valid: true},
 		RiskFactors:        rfJSON,
@@ -115,11 +130,7 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 		ModelUsed:          sql.NullString{String: aiResp.ModelUsed, Valid: aiResp.ModelUsed != ""},
 		Confidence:         sql.NullString{String: fmt.Sprintf("%.2f", aiResp.Confidence), Valid: true},
 	})
-	if err != nil {
-		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to store insights")
-		return
-	}
-	response.JSON(w, http.StatusOK, rowToResponse(row))
+	return err
 }
 
 func (h *Handler) callAIAnalyse(ctx context.Context, caseID string) (*aiAnalyseResponse, error) {

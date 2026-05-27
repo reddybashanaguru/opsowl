@@ -141,6 +141,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [assigneeOpen, setAssigneeOpen] = useState(false);
+  const [isAnalysing, setIsAnalysing] = useState(false);
+  const analysingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assigneeRef = useRef<HTMLDivElement>(null);
 
   // Live timeline feed
@@ -153,7 +155,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const { data: c, isLoading } = useQuery<CaseDetail>({
     queryKey: ["case", id],
     queryFn: () => api.get<CaseDetail>(`/api/v1/cases/${id}`),
-    refetchInterval: 30_000,
+    // Poll at 3s while AI analysis is in-flight to pick up risk score quickly.
+    refetchInterval: isAnalysing ? 3_000 : 30_000,
   });
 
   const { data: activityData } = useQuery<{ data: Activity[] }>({
@@ -217,8 +220,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const analyseMutation = useMutation({
     mutationFn: () => api.post(`/api/v1/cases/${id}/insights/analyse`, {}),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["insights", id] });
-      qc.invalidateQueries({ queryKey: ["case", id] });
+      // Analysis is async (202). Poll the case query at 3s intervals for up to
+      // 30 seconds to pick up the updated risk badge once the worker finishes.
+      setIsAnalysing(true);
+      if (analysingTimer.current) clearTimeout(analysingTimer.current);
+      analysingTimer.current = setTimeout(() => setIsAnalysing(false), 30_000);
     },
   });
 
@@ -288,14 +294,14 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         {/* Analyse button */}
         <button
           onClick={() => analyseMutation.mutate()}
-          disabled={analyseMutation.isPending}
+          disabled={analyseMutation.isPending || isAnalysing}
           className="bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 border border-amber-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-          title="Re-run AI Analysis"
+          title={isAnalysing ? "AI analysis in progress…" : "Re-run AI Analysis"}
         >
-          {analyseMutation.isPending ? (
+          {(analyseMutation.isPending || isAnalysing) ? (
             <span className="w-3 h-3 border border-amber-300 border-t-transparent rounded-full animate-spin" />
           ) : "⚡"}
-          Analyse
+          {isAnalysing ? "Analysing…" : "Analyse"}
         </button>
         <button
           onClick={() => setCopilotOpen(true)}

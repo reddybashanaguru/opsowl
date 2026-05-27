@@ -74,6 +74,9 @@ services:
       dockerfile: Dockerfile
     container_name: opsowl-api
     restart: unless-stopped
+    # 35s gives the 30s shutdown context room to drain audit chain + document
+    # processing goroutines before Docker sends SIGKILL.
+    stop_grace_period: 35s
     ports:
       # Bind only to loopback — all external traffic must flow through nginx.
       # This prevents IP-spoofing attacks via forged X-Real-IP / X-Forwarded-For
