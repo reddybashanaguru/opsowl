@@ -60,6 +60,9 @@ func (r *Repository) List(ctx context.Context, f ListFilters, orgID uuid.UUID) (
 	if f.ViewerID != nil {
 		p.ViewerID = uuid.NullUUID{UUID: *f.ViewerID, Valid: true}
 	}
+	if f.Q != nil && *f.Q != "" {
+		p.Q = sql.NullString{String: *f.Q, Valid: true}
+	}
 	return r.q.ListCases(ctx, p)
 }
 

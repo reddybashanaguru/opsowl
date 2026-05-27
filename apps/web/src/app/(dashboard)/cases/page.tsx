@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { api, APIError, newIdempotencyKey } from "@/lib/api";
 import { useConfig } from "@/lib/hooks/useConfig";
+import { useAuth } from "@/lib/hooks/useAuth";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
@@ -22,6 +23,33 @@ interface CaseRow {
   sla_breached: boolean;
   tags: string[];
   created_at: string;
+  updated_at: string;
+}
+
+interface SearchCaseResult {
+  id: string;
+  case_number: string;
+  title: string;
+  description: string;
+  status: string;
+  priority: string;
+  sla_breached: boolean;
+  created_by_name: string;
+  created_at: string;
+  rank: number;
+  entity_type: "case";
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  const days = Math.floor(hrs / 24);
+  if (days < 30) return `${days}d ago`;
+  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
 }
 
 interface ListMeta {
@@ -305,10 +333,21 @@ function CasesContent() {
   const searchParams = useSearchParams();
   const cfg = useConfig();
   const qc = useQueryClient();
+  const { user } = useAuth();
 
   const [status, setStatus] = useState(searchParams.get("status") ?? "");
   const [priority, setPriority] = useState(searchParams.get("priority") ?? "");
   const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [myCasesOnly, setMyCasesOnly] = useState(() => user?.role === "analyst");
+
+  // Debounce search 300ms
+  const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (debounceTimer.current) clearTimeout(debounceTimer.current);
+    debounceTimer.current = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); };
+  }, [search]);
 
   // Bulk selection
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -325,19 +364,32 @@ function CasesContent() {
     if (status) p.set("status", status);
     if (priority) p.set("priority", priority);
     if (cursor) p.set("cursor", cursor);
+    if (myCasesOnly && user?.id) p.set("assigned_to", user.id);
     return p.toString();
-  }, [status, priority]);
+  }, [status, priority, myCasesOnly, user?.id]);
+
+  const searchActive = debouncedSearch.trim().length >= 2;
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery<CasesPage>({
-      queryKey: ["cases", status, priority],
+      queryKey: ["cases", status, priority, myCasesOnly, user?.id],
       queryFn: ({ pageParam }) =>
         api.getList<CaseRow, ListMeta>(`/api/v1/cases?${buildParams(pageParam as string | undefined)}`),
       initialPageParam: undefined,
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
       refetchOnWindowFocus: true,
       staleTime: 30_000,
+      enabled: !searchActive,
     });
+
+  const { data: searchResults, isFetching: isSearching } = useQuery<SearchCaseResult[]>({
+    queryKey: ["cases-search", debouncedSearch],
+    queryFn: () =>
+      api.get<{ results: SearchCaseResult[] }>(`/api/v1/search?q=${encodeURIComponent(debouncedSearch)}&filter=cases&limit=50`)
+        .then((r) => r.results ?? []),
+    enabled: searchActive,
+    staleTime: 10_000,
+  });
 
   const allCases = useMemo(() => {
     const seen = new Set<string>();
@@ -347,21 +399,10 @@ function CasesContent() {
       return true;
     });
   }, [data]);
-  const total = data?.pages[0]?.meta.total_count ?? 0;
+  const total = searchActive ? (searchResults?.length ?? 0) : (data?.pages[0]?.meta.total_count ?? 0);
+  const filtered = allCases;
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return allCases;
-    const q = search.toLowerCase();
-    return allCases.filter(
-      (c) =>
-        c.title.toLowerCase().includes(q) ||
-        c.case_number.toLowerCase().includes(q) ||
-        (c.tags ?? []).some((t) => t.toLowerCase().includes(q)) ||
-        (c.assigned_to?.full_name ?? "").toLowerCase().includes(q),
-    );
-  }, [allCases, search]);
-
-  // Checkbox helpers
+  // Checkbox helpers (only for non-search mode)
   const allVisibleIds = filtered.map((c) => c.id);
   const allSelected = allVisibleIds.length > 0 && allVisibleIds.every((id) => selected.has(id));
   const someSelected = allVisibleIds.some((id) => selected.has(id));
@@ -462,8 +503,7 @@ function CasesContent() {
         <div>
           <h1 className="text-white text-2xl font-bold">{cfg.cases_label}</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {search ? `${filtered.length} of ${total}` : `${total}`} {total !== 1 ? cfg.cases_label.toLowerCase() : cfg.case_label.toLowerCase()}
-            {search && <span className="text-slate-500"> matching &ldquo;{search}&rdquo;</span>}
+            {searchActive ? `${total} result${total !== 1 ? "s" : ""} for "${debouncedSearch}"` : `${total} ${total !== 1 ? cfg.cases_label.toLowerCase() : cfg.case_label.toLowerCase()}`}
           </p>
         </div>
         <div className="flex gap-2">
@@ -490,39 +530,62 @@ function CasesContent() {
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${cfg.cases_label.toLowerCase()}, tags, assignee…`}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-3 py-2 w-64 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
+            placeholder={`Search ${cfg.cases_label.toLowerCase()}…`}
+            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-8 py-2 w-64 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
           />
-          {search && (
+          {isSearching && (
+            <span className="absolute right-7 top-1/2 -translate-y-1/2 w-3 h-3 border border-cyan-400 border-t-transparent rounded-full animate-spin" />
+          )}
+          {search && !isSearching && (
             <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">
               ✕
             </button>
           )}
         </div>
 
-        <select
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-          className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+        {/* My Cases toggle */}
+        <button
+          onClick={() => setMyCasesOnly((v) => !v)}
+          title="Toggle My Cases"
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${
+            myCasesOnly
+              ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
+              : "bg-[#1e293b] border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500"
+          }`}
         >
-          {STATUSES.map((s) => (
-            <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
-          ))}
-        </select>
+          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+          </svg>
+          My Cases
+        </button>
 
-        <select
-          value={priority}
-          onChange={(e) => setPriority(e.target.value)}
-          className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
-        >
-          {PRIORITIES.map((p) => (
-            <option key={p} value={p}>{p === "" ? "All Priorities" : p.charAt(0).toUpperCase() + p.slice(1)}</option>
-          ))}
-        </select>
+        {!searchActive && (
+          <>
+            <select
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+            >
+              {STATUSES.map((s) => (
+                <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
+              ))}
+            </select>
 
-        {(status || priority || search) && (
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+            >
+              {PRIORITIES.map((p) => (
+                <option key={p} value={p}>{p === "" ? "All Priorities" : p.charAt(0).toUpperCase() + p.slice(1)}</option>
+              ))}
+            </select>
+          </>
+        )}
+
+        {(status || priority || search || myCasesOnly) && (
           <button
-            onClick={() => { setStatus(""); setPriority(""); setSearch(""); }}
+            onClick={() => { setStatus(""); setPriority(""); setSearch(""); setMyCasesOnly(false); }}
             className="text-xs text-slate-500 hover:text-slate-300 px-3 py-2 border border-slate-700 rounded-lg hover:border-slate-500 transition-colors"
           >
             Clear all
@@ -530,7 +593,51 @@ function CasesContent() {
         )}
       </div>
 
-      {/* Table */}
+      {/* Search results view */}
+      {searchActive ? (
+        <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          {isSearching && searchResults === undefined ? (
+            <div className="space-y-px">
+              {[...Array(5)].map((_, i) => <SkeletonRow key={i} />)}
+            </div>
+          ) : !searchResults || searchResults.length === 0 ? (
+            <div className="px-4 py-16 text-center text-slate-400 text-sm">No cases match &ldquo;{debouncedSearch}&rdquo;</div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">
+                  <th className="text-left px-4 py-3 font-medium">Case</th>
+                  <th className="text-left px-4 py-3 font-medium">Status</th>
+                  <th className="text-left px-4 py-3 font-medium">Priority</th>
+                  <th className="text-left px-4 py-3 font-medium">Created by</th>
+                  <th className="text-left px-4 py-3 font-medium">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {searchResults.map((c) => (
+                  <tr
+                    key={c.id}
+                    onClick={() => router.push(`/cases/${c.id}`)}
+                    className="border-b border-slate-700/40 hover:bg-slate-700/25 cursor-pointer transition-colors"
+                  >
+                    <td className="px-4 py-3 max-w-xs">
+                      <div className="font-mono text-xs text-cyan-400 mb-0.5">{c.case_number}</div>
+                      <div className="text-white font-medium truncate">{c.title}</div>
+                    </td>
+                    <td className="px-4 py-3"><StatusBadge status={c.status} /></td>
+                    <td className="px-4 py-3"><PriorityBadge priority={c.priority} /></td>
+                    <td className="px-4 py-3 text-slate-400 text-sm">{c.created_by_name}</td>
+                    <td className="px-4 py-3 text-slate-500 text-xs tabular-nums">
+                      {new Date(c.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+      /* Infinite-scroll table */
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -550,7 +657,7 @@ function CasesContent() {
               <th className="text-left px-4 py-3 font-medium">Priority</th>
               <th className="text-left px-4 py-3 font-medium">Assigned</th>
               <th className="text-left px-4 py-3 font-medium">SLA</th>
-              <th className="text-left px-4 py-3 font-medium">Created</th>
+              <th className="text-left px-4 py-3 font-medium">Last Activity</th>
             </tr>
           </thead>
           <tbody>
@@ -559,14 +666,10 @@ function CasesContent() {
             ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center">
-                  <p className="text-slate-400 text-sm mb-2">
-                    {search ? `No cases match "${search}"` : "No cases found"}
-                  </p>
-                  {!search && (
-                    <Link href="/cases/new" className="text-cyan-400 hover:text-cyan-300 text-sm">
-                      Create your first case →
-                    </Link>
-                  )}
+                  <p className="text-slate-400 text-sm mb-2">No cases found</p>
+                  <Link href="/cases/new" className="text-cyan-400 hover:text-cyan-300 text-sm">
+                    Create your first case →
+                  </Link>
                 </td>
               </tr>
             ) : (
@@ -619,8 +722,12 @@ function CasesContent() {
                     <td className="px-4 py-3 cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
                       <SLACountdown breachAt={c.sla_breach_at} breached={c.sla_breached} />
                     </td>
-                    <td className="px-4 py-3 text-slate-500 text-xs tabular-nums cursor-pointer" onClick={() => router.push(`/cases/${c.id}`)}>
-                      {new Date(c.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                    <td
+                      className="px-4 py-3 text-slate-500 text-xs tabular-nums cursor-pointer"
+                      title={new Date(c.updated_at).toLocaleString("en-IN")}
+                      onClick={() => router.push(`/cases/${c.id}`)}
+                    >
+                      {timeAgo(c.updated_at)}
                     </td>
                   </tr>
                 );
@@ -630,7 +737,7 @@ function CasesContent() {
         </table>
 
         {/* Load more footer */}
-        {hasNextPage && !search && (
+        {hasNextPage && (
           <div className="border-t border-slate-700/50 p-3 text-center">
             <button
               onClick={() => fetchNextPage()}
@@ -649,6 +756,7 @@ function CasesContent() {
           </div>
         )}
       </div>
+      )}
 
       {/* Floating bulk action bar */}
       {selected.size > 0 && (

@@ -209,10 +209,17 @@ SELECT
   creator.email      AS created_by_email,
   assignee.full_name AS assigned_to_name,
   assignee.email     AS assigned_to_email,
-  assignee.role      AS assigned_to_role
+  assignee.role      AS assigned_to_role,
+  ci.risk_score, ci.risk_level,
+  (SELECT COUNT(*) FROM tasks WHERE case_id = c.id AND status NOT IN ('done','cancelled')) AS open_tasks_count,
+  (SELECT COUNT(*) FROM documents WHERE case_id = c.id AND deleted_at IS NULL) AS documents_count
 FROM cases c
 JOIN users creator  ON creator.id  = c.created_by
 LEFT JOIN users assignee ON assignee.id = c.assigned_to
+LEFT JOIN LATERAL (
+  SELECT risk_score, risk_level FROM case_ai_insights
+  WHERE case_id = c.id ORDER BY analysed_at DESC LIMIT 1
+) ci ON true
 WHERE c.id = $1 AND c.deleted_at IS NULL
 `
 
@@ -239,6 +246,10 @@ type GetCaseByIDRow struct {
 	AssignedToName  sql.NullString `json:"assigned_to_name"`
 	AssignedToEmail sql.NullString `json:"assigned_to_email"`
 	AssignedToRole  NullUserRole   `json:"assigned_to_role"`
+	RiskScore       sql.NullString `json:"risk_score"`
+	RiskLevel       sql.NullString `json:"risk_level"`
+	OpenTasksCount  int64          `json:"open_tasks_count"`
+	DocumentsCount  int64          `json:"documents_count"`
 }
 
 func (q *Queries) GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow, error) {
@@ -267,6 +278,10 @@ func (q *Queries) GetCaseByID(ctx context.Context, id uuid.UUID) (GetCaseByIDRow
 		&i.AssignedToName,
 		&i.AssignedToEmail,
 		&i.AssignedToRole,
+		&i.RiskScore,
+		&i.RiskLevel,
+		&i.OpenTasksCount,
+		&i.DocumentsCount,
 	)
 	return i, err
 }
@@ -373,10 +388,15 @@ const listCases = `-- name: ListCases :many
 SELECT
   c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at, c.search_vector,
   creator.full_name  AS created_by_name,
-  assignee.full_name AS assigned_to_name
+  assignee.full_name AS assigned_to_name,
+  ci.risk_score, ci.risk_level
 FROM cases c
 JOIN users creator ON creator.id = c.created_by
 LEFT JOIN users assignee ON assignee.id = c.assigned_to
+LEFT JOIN LATERAL (
+  SELECT risk_score, risk_level FROM case_ai_insights
+  WHERE case_id = c.id ORDER BY analysed_at DESC LIMIT 1
+) ci ON true
 WHERE c.deleted_at IS NULL
   AND c.organization_id = $1
   AND ($2::case_status IS NULL OR c.status = $2)
@@ -395,6 +415,7 @@ WHERE c.deleted_at IS NULL
       WHERE cw.case_id = c.id AND cw.user_id = $9
     )
   )
+  AND ($11::text IS NULL OR c.title ILIKE '%' || $11 || '%' OR c.case_number ILIKE '%' || $11 || '%')
 ORDER BY c.created_at DESC
 LIMIT $10
 `
@@ -410,6 +431,7 @@ type ListCasesParams struct {
 	Cursor         uuid.NullUUID    `json:"cursor"`
 	ViewerID       uuid.NullUUID    `json:"viewer_id"`
 	RowLimit       int32            `json:"row_limit"`
+	Q              sql.NullString   `json:"q"`
 }
 
 type ListCasesRow struct {
@@ -432,6 +454,8 @@ type ListCasesRow struct {
 	SearchVector   interface{}    `json:"search_vector"`
 	CreatedByName  string         `json:"created_by_name"`
 	AssignedToName sql.NullString `json:"assigned_to_name"`
+	RiskScore      sql.NullString `json:"risk_score"`
+	RiskLevel      sql.NullString `json:"risk_level"`
 }
 
 func (q *Queries) ListCases(ctx context.Context, arg ListCasesParams) ([]ListCasesRow, error) {
@@ -446,6 +470,7 @@ func (q *Queries) ListCases(ctx context.Context, arg ListCasesParams) ([]ListCas
 		arg.Cursor,
 		arg.ViewerID,
 		arg.RowLimit,
+		arg.Q,
 	)
 	if err != nil {
 		return nil, err
@@ -474,6 +499,8 @@ func (q *Queries) ListCases(ctx context.Context, arg ListCasesParams) ([]ListCas
 			&i.SearchVector,
 			&i.CreatedByName,
 			&i.AssignedToName,
+			&i.RiskScore,
+			&i.RiskLevel,
 		); err != nil {
 			return nil, err
 		}

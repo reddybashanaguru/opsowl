@@ -23,12 +23,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const insightsNav = [
     { label: "Workload", href: "/workload", icon: "◑" },
-    { label: cfg.sla_label + " Policies", href: "/sla", icon: "◷" },
   ];
 
   const adminNav = [
     { label: "Users", href: "/users", icon: "◎" },
     { label: "Audit Logs", href: "/audit", icon: "◈" },
+    { label: cfg.sla_label + " Policies", href: "/sla", icon: "◷" },
     { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
     { label: "Webhooks", href: "/settings/webhooks", icon: "⇥" },
     { label: "Reports", href: "/settings/reports", icon: "✉" },

@@ -544,6 +544,16 @@ func (s *Service) toResponseFromGetRow(row db.GetCaseByIDRow, watchers []db.GetC
 		watcherRefs = append(watcherRefs, UserRef{ID: w.ID, FullName: w.FullName, Email: w.Email})
 	}
 	resp.Watchers = watcherRefs
+	if row.RiskScore.Valid {
+		rs := row.RiskScore.String
+		resp.RiskScore = &rs
+	}
+	if row.RiskLevel.Valid {
+		rl := row.RiskLevel.String
+		resp.RiskLevel = &rl
+	}
+	resp.OpenTasksCount = int(row.OpenTasksCount)
+	resp.DocumentsCount = int(row.DocumentsCount)
 	return resp
 }
 
@@ -577,6 +587,14 @@ func (s *Service) toResponseFromListRow(row db.ListCasesRow) CaseResponse {
 	}
 	if r.Tags == nil {
 		r.Tags = []string{}
+	}
+	if row.RiskScore.Valid {
+		s := row.RiskScore.String
+		r.RiskScore = &s
+	}
+	if row.RiskLevel.Valid {
+		l := row.RiskLevel.String
+		r.RiskLevel = &l
 	}
 	return r
 }

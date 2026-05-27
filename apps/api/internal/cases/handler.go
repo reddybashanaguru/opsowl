@@ -104,6 +104,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 			f.Limit = int32(n)
 		}
 	}
+	if qStr := q.Get("q"); qStr != "" {
+		f.Q = &qStr
+	}
 
 	// Restrict analysts and viewers to cases they own, are assigned to, or watch.
 	claims := auth.ClaimsFromCtx(r.Context())

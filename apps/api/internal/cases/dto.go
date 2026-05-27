@@ -63,6 +63,10 @@ type CaseResponse struct {
 	Watchers       []UserRef       `json:"watchers"`
 	CreatedAt      time.Time       `json:"created_at"`
 	UpdatedAt      time.Time       `json:"updated_at"`
+	RiskScore      *string         `json:"risk_score,omitempty"`
+	RiskLevel      *string         `json:"risk_level,omitempty"`
+	OpenTasksCount int             `json:"open_tasks_count,omitempty"`
+	DocumentsCount int             `json:"documents_count,omitempty"`
 }
 
 type ActivityResponse struct {
@@ -88,6 +92,7 @@ type ListFilters struct {
 	To          *time.Time
 	Cursor      *uuid.UUID
 	Limit       int32
+	Q           *string
 	// ViewerID restricts results to cases accessible to this user (analyst/viewer access control).
 	// Non-nil only for analyst and viewer roles.
 	ViewerID *uuid.UUID

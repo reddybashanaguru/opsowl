@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 interface Props {
   breachAt: string | null;
   breached: boolean;
+  onBreach?: () => void;
 }
 
 function formatDuration(ms: number): string {
@@ -16,13 +17,21 @@ function formatDuration(ms: number): string {
   return `${m}m`;
 }
 
-export function SLACountdown({ breachAt, breached }: Props) {
+export function SLACountdown({ breachAt, breached, onBreach }: Props) {
   const [remaining, setRemaining] = useState<number | null>(null);
+  const breachFired = useState(false);
 
   useEffect(() => {
     if (!breachAt) return;
     const target = new Date(breachAt).getTime();
-    const tick = () => setRemaining(target - Date.now());
+    const tick = () => {
+      const rem = target - Date.now();
+      setRemaining(rem);
+      if (rem <= 0 && !breachFired[0] && onBreach) {
+        breachFired[1](true);
+        onBreach();
+      }
+    };
     tick();
     const id = setInterval(tick, 30000);
     // Re-sync immediately when the tab regains focus to correct any drift
@@ -32,7 +41,8 @@ export function SLACountdown({ breachAt, breached }: Props) {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [breachAt]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [breachAt, onBreach]);
 
   if (!breachAt) return <span className="text-slate-500 text-xs">No SLA</span>;
 

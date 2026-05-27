@@ -1,6 +1,7 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useRef, useEffect, useState } from "react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { api } from "@/lib/api";
@@ -124,6 +125,21 @@ function StatCard({
   );
 }
 
+interface QueueCase {
+  id: string;
+  case_number: string;
+  title: string;
+  status: string;
+  priority: string;
+  sla_breached: boolean;
+  sla_breach_at: string | null;
+}
+
+interface QueueResponse {
+  data: QueueCase[];
+  meta: { total_count: number; has_more: boolean };
+}
+
 interface RiskCase {
   id: string;
   case_number: string;
@@ -131,8 +147,8 @@ interface RiskCase {
   status: string;
   priority: string;
   sla_breached: boolean;
-  risk_score: { String: string; Valid: boolean } | null;
-  risk_level: { String: string; Valid: boolean } | null;
+  risk_score: string | null;
+  risk_level: string | null;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -142,15 +158,51 @@ const RISK_COLORS: Record<string, string> = {
   unknown: "text-slate-500 bg-slate-700/30",
 };
 
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
+function slaRemaining(breachAt: string | null): { label: string; urgent: boolean } {
+  if (!breachAt) return { label: "—", urgent: false };
+  const rem = new Date(breachAt).getTime() - Date.now();
+  if (rem <= 0) return { label: "Breached", urgent: true };
+  const hrs = Math.floor(rem / 3600000);
+  if (hrs < 1) return { label: `${Math.floor(rem / 60000)}m`, urgent: true };
+  if (hrs < 4) return { label: `${hrs}h`, urgent: true };
+  return { label: `${hrs}h`, urgent: false };
+}
+
+const PRIORITY_COLORS: Record<string, string> = {
+  critical: "text-red-400 bg-red-500/10 border-red-500/30",
+  high:     "text-orange-400 bg-orange-500/10 border-orange-500/30",
+  medium:   "text-amber-400 bg-amber-500/10 border-amber-500/30",
+  low:      "text-slate-400 bg-slate-700/40 border-slate-600/30",
+};
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const { user } = useAuth();
   const cfg = useConfig();
+  const prevBreached = useRef<number | null>(null);
+  const [breachPulse, setBreachPulse] = useState(false);
 
   const { data: stats } = useQuery<DashboardStats>({
     queryKey: ["dashboard-stats"],
     queryFn: () => api.get<DashboardStats>("/api/v1/dashboard/stats"),
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
+  });
+
+  const { data: myQueue } = useQuery<QueueResponse>({
+    queryKey: ["my-queue", user?.id],
+    queryFn: () => api.get<QueueResponse>(`/api/v1/cases?assigned_to=${user?.id}&limit=5`),
+    enabled: !!user?.id,
+    refetchInterval: 30_000,
   });
 
   const { data: riskCases } = useQuery<RiskCase[]>({
@@ -158,6 +210,16 @@ export default function DashboardPage() {
     queryFn: () => api.get<RiskCase[]>("/api/v1/analytics/risk?limit=5"),
     refetchInterval: 120_000,
   });
+
+  useEffect(() => {
+    if (stats?.sla_breached === undefined) return;
+    if (prevBreached.current !== null && stats.sla_breached > prevBreached.current) {
+      setBreachPulse(true);
+      const t = setTimeout(() => setBreachPulse(false), 5000);
+      return () => clearTimeout(t);
+    }
+    prevBreached.current = stats.sla_breached;
+  }, [stats?.sla_breached]);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
@@ -192,10 +254,10 @@ export default function DashboardPage() {
 
       {/* Top stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active Cases"    value={stats?.open_cases}       color="text-cyan-400"   href="/cases"   sub="open + in-progress" />
-        <StatCard label="Pending Tasks"   value={stats?.pending_tasks}     color="text-violet-400" href="/tasks"   sub="todo + in-progress" />
-        <StatCard label="AI Queries Today" value={stats?.ai_queries_today} color="text-amber-400"  href="/cases"   sub="across all cases" />
-        <StatCard label="SLA Breached"    value={stats?.sla_breached}      color={stats?.sla_breached ? "text-red-400" : "text-emerald-400"} href="/cases?priority=critical" sub="active cases" />
+        <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases"   sub="open + in-progress" />
+        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href="/tasks"   sub="todo + in-progress" />
+        <StatCard label="My Open Cases"  value={myQueue?.meta.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}`} sub="assigned to me" />
+        <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="active cases" />
       </div>
 
       {/* Charts row */}
@@ -230,7 +292,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Alert panel */}
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+        <div className={`bg-[#1e293b] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500 ring-1 ring-red-500/40 animate-pulse" : "border-slate-700"}`}>
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Attention Required</div>
           <div className="space-y-3">
             {stats ? (
@@ -280,8 +342,8 @@ export default function DashboardPage() {
           </div>
           <div className="space-y-2">
             {riskCases.map((c) => {
-              const level = c.risk_level?.Valid ? c.risk_level.String : "unknown";
-              const score = c.risk_score?.Valid ? parseFloat(c.risk_score.String) : null;
+              const level = c.risk_level ?? "unknown";
+              const score = c.risk_score ? parseFloat(c.risk_score) : null;
               const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
               return (
                 <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
@@ -298,63 +360,42 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Quick-action cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <Link
-          href="/cases"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-cyan-500/40 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-xl">⬡</span>
-            <h2 className="text-white font-semibold">{cfg.cases_label}</h2>
-            <span className="ml-auto text-cyan-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+      {/* My Queue */}
+      <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">My Queue</div>
+          <Link href={`/cases?assigned_to=${user?.id}`} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
+        </div>
+        {!myQueue ? (
+          <div className="space-y-2">
+            {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-slate-800 animate-pulse rounded" />)}
           </div>
-          <p className="text-slate-500 text-xs">
-            View, create and manage {cfg.cases_label.toLowerCase()}. Track {cfg.sla_label} breaches, escalations and resolutions.
-          </p>
-        </Link>
-
-        <Link
-          href="/tasks"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-violet-500/40 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-xl">✓</span>
-            <h2 className="text-white font-semibold">{cfg.tasks_label} Queue</h2>
-            <span className="ml-auto text-violet-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
+        ) : myQueue.data.length === 0 ? (
+          <div className="text-slate-500 text-sm py-4 text-center">All clear — no {cfg.cases_label.toLowerCase()} assigned to you.</div>
+        ) : (
+          <div className="space-y-1.5">
+            {myQueue.data.map((c) => {
+              const sla = slaRemaining(c.sla_breach_at);
+              const prioClass = PRIORITY_COLORS[c.priority] ?? PRIORITY_COLORS.low;
+              return (
+                <Link
+                  key={c.id}
+                  href={`/cases/${c.id}`}
+                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
+                >
+                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
+                    {c.priority}
+                  </span>
+                  <span className="font-mono text-cyan-400 text-xs w-28 flex-shrink-0">{c.case_number}</span>
+                  <span className="text-slate-300 text-sm flex-1 truncate group-hover:text-white">{c.title}</span>
+                  <span className={`text-xs tabular-nums flex-shrink-0 ${sla.urgent ? "text-red-400 font-semibold" : "text-slate-500"}`}>
+                    {sla.label}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
-          <p className="text-slate-500 text-xs">
-            Review and complete assigned {cfg.tasks_label.toLowerCase()}. Monitor overdue items and priority work.
-          </p>
-        </Link>
-
-        <Link
-          href="/workload"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-amber-500/40 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-xl">◑</span>
-            <h2 className="text-white font-semibold">Team Workload</h2>
-            <span className="ml-auto text-amber-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
-          </div>
-          <p className="text-slate-500 text-xs">
-            Monitor {cfg.analyst_label.toLowerCase()} capacity — active {cfg.cases_label.toLowerCase()}, open {cfg.tasks_label.toLowerCase()}, overdue items and average {cfg.case_label.toLowerCase()} age across the team.
-          </p>
-        </Link>
-
-        <Link
-          href="/sla"
-          className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-emerald-500/40 transition-colors group"
-        >
-          <div className="flex items-center gap-3 mb-1.5">
-            <span className="text-xl">◷</span>
-            <h2 className="text-white font-semibold">{cfg.sla_label} Policies</h2>
-            <span className="ml-auto text-emerald-400 text-sm opacity-0 group-hover:opacity-100 transition-opacity">Open →</span>
-          </div>
-          <p className="text-slate-500 text-xs">
-            Configure breach and warning thresholds per {cfg.case_label.toLowerCase()} priority. Keep {cfg.sla_label} compliance visible across operations.
-          </p>
-        </Link>
+        )}
       </div>
     </div>
   );
