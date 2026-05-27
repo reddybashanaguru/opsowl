@@ -409,7 +409,7 @@ func TestServiceDelete_Success(t *testing.T) {
 		t.Fatalf("create doc: %v", err)
 	}
 
-	if err := svc.Delete(context.Background(), claims, docID); err != nil {
+	if err := svc.Delete(context.Background(), claims, caseID, docID); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 
@@ -445,7 +445,7 @@ func TestServiceDelete_Forbidden(t *testing.T) {
 	}
 
 	otherClaims := makeAnalystClaims(otherID)
-	if err := svc.Delete(context.Background(), otherClaims, docID); err == nil {
+	if err := svc.Delete(context.Background(), otherClaims, caseID, docID); err == nil {
 		t.Fatal("expected forbidden error")
 	}
 }
@@ -476,7 +476,7 @@ func TestServiceDelete_ManagerCanDeleteAny(t *testing.T) {
 	}
 
 	managerClaims := makeManagerClaims(managerID)
-	if err := svc.Delete(context.Background(), managerClaims, docID); err != nil {
+	if err := svc.Delete(context.Background(), managerClaims, caseID, docID); err != nil {
 		t.Fatalf("manager delete: %v", err)
 	}
 }
@@ -1171,7 +1171,7 @@ func TestServiceDelete_DocNotFound(t *testing.T) {
 	svc := setupService(db, newMockStorage(), "")
 	claims := makeAnalystClaims(userID)
 
-	err := svc.Delete(context.Background(), claims, uuid.New())
+	err := svc.Delete(context.Background(), claims, uuid.New(), uuid.New())
 	if err == nil {
 		t.Fatal("expected not found error")
 	}

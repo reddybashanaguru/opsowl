@@ -101,6 +101,9 @@ func (s *Service) callAIService(ctx context.Context, docID, caseID uuid.UUID, st
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	if s.aiServiceSecret != "" {
+		req.Header.Set("Authorization", "Bearer "+s.aiServiceSecret)
+	}
 
 	resp, err := s.httpClient.Do(req)
 	if err != nil {

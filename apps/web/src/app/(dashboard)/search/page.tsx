@@ -96,12 +96,16 @@ const PRIORITY_COLOR: Record<string, string> = {
   low: "text-slate-400",
 };
 
+function escapeHTML(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+}
+
 function highlight(text: string, query: string): string {
-  if (!query || !text) return text;
+  if (!query || !text) return escapeHTML(text);
   const words = query.trim().split(/\s+/).filter(Boolean);
-  if (words.length === 0) return text;
+  if (words.length === 0) return escapeHTML(text);
   const pattern = words.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  return text.replace(new RegExp(`(${pattern})`, "gi"), "<mark>$1</mark>");
+  return escapeHTML(text).replace(new RegExp(`(${pattern})`, "gi"), "<mark>$1</mark>");
 }
 
 function HL({ text, query }: { text: string; query: string }) {

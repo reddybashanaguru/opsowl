@@ -101,6 +101,11 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 // GET /api/v1/cases/{caseId}/documents/{docId}
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
 	docID, err := uuid.Parse(chi.URLParam(r, "docId"))
 	if err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid document id")
@@ -117,11 +122,21 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if doc.CaseID != caseID {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "document not found")
+		return
+	}
+
 	response.JSON(w, http.StatusOK, doc)
 }
 
 // DELETE /api/v1/cases/{caseId}/documents/{docId}
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
 	docID, err := uuid.Parse(chi.URLParam(r, "docId"))
 	if err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid document id")
@@ -130,7 +145,7 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	claims := auth.ClaimsFromCtx(r.Context())
 
-	if err := h.svc.Delete(r.Context(), claims, docID); err != nil {
+	if err := h.svc.Delete(r.Context(), claims, caseID, docID); err != nil {
 		switch {
 		case errors.Is(err, ErrNotFound):
 			response.Err(w, http.StatusNotFound, "NOT_FOUND", "document not found")
@@ -147,13 +162,18 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/v1/cases/{caseId}/documents/{docId}/retry
 func (h *Handler) Retry(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
 	docID, err := uuid.Parse(chi.URLParam(r, "docId"))
 	if err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid document id")
 		return
 	}
 	claims := auth.ClaimsFromCtx(r.Context())
-	doc, err := h.svc.Retry(r.Context(), claims, docID)
+	doc, err := h.svc.Retry(r.Context(), claims, caseID, docID)
 	if err != nil {
 		switch err.Error() {
 		case "document is already being processed":

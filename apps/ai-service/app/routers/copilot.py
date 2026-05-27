@@ -37,6 +37,12 @@ def _check_injection(text: str) -> None:
             raise HTTPException(status_code=400, detail="Prompt injection detected. Request rejected.")
 
 
+def _scan_chunks_for_injection(chunks: list) -> None:
+    """Reject the request if any retrieved document chunk contains injection patterns."""
+    for chunk in chunks:
+        _check_injection(chunk.content)
+
+
 # ── Request / Response schemas ────────────────────────────────────────────────
 
 class AskRequest(BaseModel):
@@ -161,6 +167,7 @@ async def ask(req: AskRequest) -> CopilotResponse:
             prompt_text=masked.masked_text,
         )
 
+    _scan_chunks_for_injection(chunks)
     context = rag.build_context_block(chunks)
     prompt_text = f"Question: {masked.masked_text}\n\nContext from documents:\n{context}"
 
@@ -200,6 +207,7 @@ async def summarize(req: SummarizeRequest) -> CopilotResponse:
             prompt_text="[no documents available]",
         )
 
+    _scan_chunks_for_injection(chunks)
     context = rag.build_context_block(chunks)
     prompt_text = (
         "Please provide a structured case summary covering:\n"
@@ -254,6 +262,7 @@ async def generate_note(req: GenerateNoteRequest) -> CopilotResponse:
             prompt_text="[no documents available]",
         )
 
+    _scan_chunks_for_injection(chunks)
     context = rag.build_context_block(chunks)
     prompt_text = (
         "Draft a professional investigation note based on the following case documents. "
@@ -309,6 +318,7 @@ async def extract_actions(req: ExtractActionsRequest) -> CopilotResponse:
             prompt_text="[no documents available]",
         )
 
+    _scan_chunks_for_injection(chunks)
     context = rag.build_context_block(chunks)
     prompt_text = (
         "Analyze the following case documents and extract specific, actionable investigation tasks. "

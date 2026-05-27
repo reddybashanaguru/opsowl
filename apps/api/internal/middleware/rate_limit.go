@@ -3,6 +3,7 @@ package middleware
 import (
 	"container/list"
 	"fmt"
+	"net"
 	"net/http"
 	"strings"
 	"sync"
@@ -11,6 +12,46 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/response"
 )
+
+// trustedProxyRanges holds private and loopback CIDR blocks whose remoteAddr
+// we trust to set X-Real-IP / X-Forwarded-For accurately. Requests arriving
+// directly on the API port from a non-private IP must not be able to spoof
+// their apparent source address by sending forged proxy headers.
+var trustedProxyRanges = func() []*net.IPNet {
+	cidrs := []string{
+		"127.0.0.0/8",    // loopback
+		"10.0.0.0/8",     // private class A (Docker default bridge)
+		"172.16.0.0/12",  // private class B (Docker custom networks)
+		"192.168.0.0/16", // private class C
+		"::1/128",        // IPv6 loopback
+		"fc00::/7",       // IPv6 unique-local
+	}
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipNet, _ := net.ParseCIDR(c)
+		if ipNet != nil {
+			nets = append(nets, ipNet)
+		}
+	}
+	return nets
+}()
+
+func isTrustedProxy(remoteAddr string) bool {
+	host, _, err := net.SplitHostPort(remoteAddr)
+	if err != nil {
+		host = remoteAddr
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	for _, block := range trustedProxyRanges {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
 
 // maxBuckets is the maximum number of per-user/IP token buckets held in memory.
 // The LRU evicts the least-recently-seen entry when this limit is reached,
@@ -168,12 +209,24 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	})
 }
 
+// realIPFromRequest returns the true client IP. Proxy headers (X-Real-IP,
+// X-Forwarded-For) are only trusted when the direct peer (r.RemoteAddr) is
+// within a private/loopback range — i.e., a known nginx or Docker proxy.
+// Requests that arrive directly from a public IP cannot spoof their source
+// by injecting forged proxy headers.
 func realIPFromRequest(r *http.Request) string {
-	if ip := r.Header.Get("X-Real-IP"); ip != "" {
-		return ip
+	if isTrustedProxy(r.RemoteAddr) {
+		if ip := r.Header.Get("X-Real-IP"); ip != "" {
+			return strings.TrimSpace(ip)
+		}
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			// X-Forwarded-For may be "client, proxy1, proxy2" — take leftmost.
+			return strings.TrimSpace(strings.SplitN(xff, ",", 2)[0])
+		}
 	}
-	if ip := r.Header.Get("X-Forwarded-For"); ip != "" {
-		return strings.Split(ip, ",")[0]
+	host, _, err := net.SplitHostPort(r.RemoteAddr)
+	if err != nil {
+		return r.RemoteAddr
 	}
-	return r.RemoteAddr
+	return host
 }

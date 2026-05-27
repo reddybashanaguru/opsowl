@@ -79,8 +79,8 @@ func Load() (*Config, error) {
 		JWTAccessExpiry:   getEnv("JWT_ACCESS_EXPIRY", "1h"),
 		JWTRefreshExpiry:  getEnv("JWT_REFRESH_EXPIRY", "168h"),
 		StorageEndpoint:   getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-		StorageAccessKey:  getEnv("STORAGE_ACCESS_KEY", "minioadmin"),
-		StorageSecretKey:  getEnv("STORAGE_SECRET_KEY", "minioadmin123"),
+		StorageAccessKey:  getEnv("STORAGE_ACCESS_KEY", ""),
+		StorageSecretKey:  getEnv("STORAGE_SECRET_KEY", ""),
 		StorageBucket:     getEnv("STORAGE_BUCKET", "opsowl"),
 		StorageUseSSL:     getEnv("STORAGE_USE_SSL", "false") == "true",
 		AIServiceURL:      getEnv("AI_SERVICE_URL", "http://localhost:8000"),
@@ -123,6 +123,14 @@ func Load() (*Config, error) {
 // incorrectly-sized keys are detected. This prevents misconfigured deployments
 // from silently accepting plaintext or default-key encrypted data in production.
 func validateProductionSecrets(cfg *Config) error {
+	// Require storage credentials to be explicitly set.
+	if cfg.StorageAccessKey == "" {
+		return fmt.Errorf("SECURITY: STORAGE_ACCESS_KEY must be set in production")
+	}
+	if cfg.StorageSecretKey == "" {
+		return fmt.Errorf("SECURITY: STORAGE_SECRET_KEY must be set in production")
+	}
+
 	// Check known-weak credential values
 	checks := map[string]string{
 		"STORAGE_ACCESS_KEY": cfg.StorageAccessKey,

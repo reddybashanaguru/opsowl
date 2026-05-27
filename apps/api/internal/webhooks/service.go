@@ -9,9 +9,12 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -20,6 +23,74 @@ import (
 
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
+
+// privateRanges are CIDR blocks that must never be the target of an outbound
+// webhook — prevents SSRF attacks against cloud metadata endpoints, internal
+// databases, or other Docker-network services.
+var privateRanges = func() []*net.IPNet {
+	cidrs := []string{
+		"127.0.0.0/8",       // loopback
+		"10.0.0.0/8",        // private class A
+		"172.16.0.0/12",     // private class B (Docker default)
+		"192.168.0.0/16",    // private class C
+		"169.254.0.0/16",    // link-local / AWS IMDS
+		"100.64.0.0/10",     // shared address space (RFC 6598)
+		"::1/128",           // IPv6 loopback
+		"fc00::/7",          // IPv6 unique-local
+		"fe80::/10",         // IPv6 link-local
+	}
+	nets := make([]*net.IPNet, 0, len(cidrs))
+	for _, c := range cidrs {
+		_, ipNet, _ := net.ParseCIDR(c)
+		if ipNet != nil {
+			nets = append(nets, ipNet)
+		}
+	}
+	return nets
+}()
+
+// isPrivateIP returns true when ip is within any reserved/private range.
+func isPrivateIP(ip net.IP) bool {
+	for _, block := range privateRanges {
+		if block.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+// checkSSRF resolves the host in rawURL and rejects it if any resolved
+// address falls within a private or reserved range. DNS failures are treated
+// as non-blocking — we cannot confirm a private IP, so we allow the request
+// and block at delivery time when DNS is resolved again.
+func checkSSRF(rawURL string) error {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return errors.New("invalid URL")
+	}
+	host := u.Hostname()
+	if ip := net.ParseIP(host); ip != nil {
+		if isPrivateIP(ip) {
+			return errors.New("webhook URL resolves to a private/reserved address")
+		}
+		return nil
+	}
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		// DNS failure — cannot confirm private; allow creation, block at delivery.
+		return nil
+	}
+	for _, addr := range addrs {
+		ip := net.ParseIP(addr)
+		if ip == nil {
+			continue
+		}
+		if isPrivateIP(ip) {
+			return errors.New("webhook URL resolves to a private/reserved address")
+		}
+	}
+	return nil
+}
 
 // backoffSchedule controls retry delays after each failure.
 // 5 attempts: immediately, +30s, +5m, +30m, +2h → then exhausted.
@@ -226,6 +297,11 @@ func (s *Service) runBatch(ctx context.Context) {
 func (s *Service) deliver(hook db.OutboundWebhook, delivery db.OutboundWebhookDelivery) {
 	ctx := context.Background()
 
+	if err := checkSSRF(hook.URL); err != nil {
+		s.markFailed(ctx, delivery, 0, "SSRF: "+err.Error())
+		return
+	}
+
 	body := buildBody(delivery)
 	sig := sign(hook.SigningSecret, body)
 
@@ -300,6 +376,9 @@ func sign(secret string, body []byte) string {
 
 func validateRequest(rawURL, secret string) error {
 	if !strings.HasPrefix(rawURL, "https://") {
+		return ErrInvalidURL
+	}
+	if err := checkSSRF(rawURL); err != nil {
 		return ErrInvalidURL
 	}
 	if len(secret) < 16 {

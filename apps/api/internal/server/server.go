@@ -212,7 +212,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		// Documents module
 		docsRepo := documents.NewRepository(s.queries, s.sqlDB)
 		docsSvc := documents.NewService(docsRepo, s.store, timelineEmitter, s.logger, s.aiServiceURL).
-			WithScanner(scanner.FromEnv())
+			WithScanner(scanner.FromEnv()).
+			WithServiceSecret(s.aiServiceSecret)
 		go docsSvc.RecoverStuckDocuments(ctx)
 		docsHandler := documents.NewHandler(docsSvc)
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)

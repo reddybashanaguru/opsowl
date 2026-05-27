@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import DOMPurify from "dompurify";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { NoteEditor } from "./NoteEditor";
@@ -246,7 +247,7 @@ export function NoteCard({ note, caseId, onDeleted }: Props) {
       {/* Content */}
       <div
         className="px-4 pb-3 text-slate-300 text-sm leading-relaxed prose prose-invert prose-sm max-w-none prose-p:my-1 prose-headings:text-slate-200 prose-code:text-cyan-300 prose-code:bg-slate-800 prose-blockquote:border-slate-600 prose-blockquote:text-slate-400"
-        dangerouslySetInnerHTML={{ __html: note.content }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(note.content) }}
       />
 
       {/* Comment toggle */}

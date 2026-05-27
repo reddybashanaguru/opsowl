@@ -75,7 +75,10 @@ services:
     container_name: opsowl-api
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      # Bind only to loopback — all external traffic must flow through nginx.
+      # This prevents IP-spoofing attacks via forged X-Real-IP / X-Forwarded-For
+      # headers sent directly to the Go API port, bypassing the rate limiter.
+      - "127.0.0.1:8080:8080"
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
@@ -239,7 +242,8 @@ services:
     container_name: opsowl-prometheus
     restart: unless-stopped
     ports:
-      - "9090:9090"
+      # Localhost-only: exposes operational metrics — restrict to internal access.
+      - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
@@ -259,7 +263,8 @@ services:
     container_name: opsowl-alertmanager
     restart: unless-stopped
     ports:
-      - "9093:9093"
+      # Localhost-only: alert routing config contains SMTP credentials.
+      - "127.0.0.1:9093:9093"
     volumes:
       - ./alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager

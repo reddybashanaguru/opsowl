@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -24,14 +26,15 @@ import (
 )
 
 type Service struct {
-	repo         *Repository
-	store        storage.Client
-	emitter      timeline.Emitter
-	logger       *zap.Logger
-	httpClient   *http.Client
-	aiServiceURL string
-	av           scanner.Scanner
-	retryBackoff []time.Duration
+	repo            *Repository
+	store           storage.Client
+	emitter         timeline.Emitter
+	logger          *zap.Logger
+	httpClient      *http.Client
+	aiServiceURL    string
+	aiServiceSecret string
+	av              scanner.Scanner
+	retryBackoff    []time.Duration
 }
 
 func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter, logger *zap.Logger, aiServiceURL string) *Service {
@@ -45,6 +48,13 @@ func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter
 		av:           scanner.NoopScanner{},
 		retryBackoff: processBackoff,
 	}
+}
+
+// WithServiceSecret sets the shared secret used to authenticate calls to the
+// Python AI service. Must match the AI_SERVICE_SECRET environment variable.
+func (s *Service) WithServiceSecret(secret string) *Service {
+	s.aiServiceSecret = secret
+	return s
 }
 
 // WithScanner injects an antivirus scanner used during Upload.
@@ -94,6 +104,7 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	}
 
 	docID := uuid.New()
+	filename = sanitizeFilename(filename)
 	key := fmt.Sprintf("documents/%s/%s/%s", caseID.String(), docID.String(), filename)
 
 	// Compute SHA-256 while streaming to storage — no extra memory allocation.
@@ -303,10 +314,13 @@ func (s *Service) ListAll(ctx context.Context, status *db.DocumentProcessingStat
 	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
 
-func (s *Service) Delete(ctx context.Context, claims *auth.Claims, id uuid.UUID) error {
+func (s *Service) Delete(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, id uuid.UUID) error {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return err
+	}
+	if row.CaseID != caseID {
+		return ErrNotFound
 	}
 	if row.UploadedBy != claims.UserID &&
 		claims.Role != db.UserRoleManager &&
@@ -362,6 +376,19 @@ func (s *Service) emitTimeline(ctx context.Context, caseID uuid.UUID, evtType db
 	}); err != nil {
 		s.logger.Warn("failed to emit timeline event", zap.Error(err))
 	}
+}
+
+// sanitizeFilename strips directory traversal sequences and path separators so
+// the filename is safe to embed in a MinIO object key.
+func sanitizeFilename(name string) string {
+	name = filepath.Base(name)
+	name = strings.ReplaceAll(name, "..", "")
+	name = strings.ReplaceAll(name, "/", "_")
+	name = strings.ReplaceAll(name, "\\", "_")
+	if name == "" || name == "." {
+		name = "upload"
+	}
+	return name
 }
 
 func nullUUID(id *uuid.UUID) uuid.NullUUID {
@@ -422,9 +449,12 @@ func rowToGetRow(r db.ListDocumentsByCaseRow) db.GetDocumentByIDRow {
 }
 
 // Retry re-triggers async processing for a failed document.
-func (s *Service) Retry(ctx context.Context, claims *auth.Claims, docID uuid.UUID) (*DocumentResponse, error) {
+func (s *Service) Retry(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, docID uuid.UUID) (*DocumentResponse, error) {
 	row, err := s.repo.q.GetDocumentForRetry(ctx, docID)
 	if err != nil {
+		return nil, ErrNotFound
+	}
+	if row.CaseID != caseID {
 		return nil, ErrNotFound
 	}
 	if row.ProcessingStatus == db.DocumentProcessingStatusProcessing {
