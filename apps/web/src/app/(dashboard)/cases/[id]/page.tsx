@@ -240,57 +240,15 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Nav — simplified 5 tabs + More dropdown */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
+      {/* Row 1 — back link + action buttons */}
+      <div className="flex items-center justify-between mb-3">
         <button
           onClick={() => router.push("/cases")}
           className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
         >
           ← Cases
         </button>
-        <div className="h-4 border-l border-slate-700" />
-        {[
-          { label: "Notes", href: `/cases/${id}/notes` },
-          { label: "Tasks", href: `/cases/${id}/tasks` },
-          { label: "Documents", href: `/cases/${id}/documents` },
-          { label: "Comms", href: `/cases/${id}/comms` },
-        ].map(({ label, href }) => (
-          <button
-            key={href}
-            onClick={() => router.push(href)}
-            className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-          >
-            {label} →
-          </button>
-        ))}
-        {/* More dropdown */}
-        <div className="relative">
-          <button
-            onClick={() => setMoreMenuOpen((v) => !v)}
-            className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors flex items-center gap-1"
-          >
-            More ↓
-          </button>
-          {moreMenuOpen && (
-            <div className="absolute top-7 left-0 bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-20 min-w-[140px] py-1">
-              {[
-                { label: "AI Insights", href: `/cases/${id}/insights` },
-                { label: "Timeline", href: `/cases/${id}/timeline` },
-                { label: "AI Logs", href: `/cases/${id}/ai-logs` },
-                { label: "STR", href: `/cases/${id}/str` },
-              ].map(({ label, href }) => (
-                <button
-                  key={href}
-                  onClick={() => { router.push(href); setMoreMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors"
-                >
-                  {label} →
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="h-4 border-l border-slate-700" />
+        <div className="flex items-center gap-2">
         {/* Analyse button */}
         <button
           onClick={() => analyseMutation.mutate()}
@@ -343,6 +301,51 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             </>
           ) : "📄 Export PDF"}
         </button>
+        </div>
+      </div>
+
+      {/* Row 2 — sub-navigation */}
+      <div className="flex items-center gap-1 mb-4 border-b border-slate-700/50 pb-2">
+        {[
+          { label: "Notes", href: `/cases/${id}/notes` },
+          { label: "Tasks", href: `/cases/${id}/tasks` },
+          { label: "Documents", href: `/cases/${id}/documents` },
+          { label: "Comms", href: `/cases/${id}/comms` },
+        ].map(({ label, href }) => (
+          <button
+            key={href}
+            onClick={() => router.push(href)}
+            className="text-slate-500 hover:text-slate-300 text-xs font-medium px-3 py-1 rounded hover:bg-slate-700/40 transition-colors"
+          >
+            {label}
+          </button>
+        ))}
+        <div className="relative">
+          <button
+            onClick={() => setMoreMenuOpen((v) => !v)}
+            className="text-slate-500 hover:text-slate-300 text-xs font-medium px-3 py-1 rounded hover:bg-slate-700/40 transition-colors flex items-center gap-1"
+          >
+            More ↓
+          </button>
+          {moreMenuOpen && (
+            <div className="absolute top-7 left-0 bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-20 min-w-[140px] py-1">
+              {[
+                { label: "AI Insights", href: `/cases/${id}/insights` },
+                { label: "Timeline", href: `/cases/${id}/timeline` },
+                { label: "AI Logs", href: `/cases/${id}/ai-logs` },
+                { label: "STR", href: `/cases/${id}/str` },
+              ].map(({ label, href }) => (
+                <button
+                  key={href}
+                  onClick={() => { router.push(href); setMoreMenuOpen(false); }}
+                  className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Header */}
