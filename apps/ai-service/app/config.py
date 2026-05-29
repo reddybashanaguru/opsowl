@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     # ── Ollama on-premise config ──────────────────────────────────────────────
     # Used when default_provider=ollama. Point to the local Ollama instance.
     ollama_base_url: str = "http://ollama:11434"
-    ollama_model: str = "llama3.1:8b"
+    ollama_model: str = "qwen2.5:7b"
     ollama_embedding_model: str = "nomic-embed-text"
 
     # ── RAG settings ──────────────────────────────────────────────────────────
