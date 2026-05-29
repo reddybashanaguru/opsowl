@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"net/http"
 	"os"
 	"strconv"
@@ -179,6 +180,9 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		// Dashboard stats
 		r.With(auth.JWTValidate(s.jwtMgr)).Get("/dashboard/stats", s.handleDashboardStats)
 
+		// AI mode — proxies /config from the Python AI service
+		r.With(auth.JWTValidate(s.jwtMgr)).Get("/system/ai-mode", s.handleAIMode)
+
 		// Users module
 		usersRepo := users.NewRepository(s.queries).WithDB(s.sqlDB)
 		usersSvc := users.NewService(usersRepo, authSvc)
@@ -334,6 +338,27 @@ func (s *Server) handleDashboardStats(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, stats)
+}
+
+func (s *Server) handleAIMode(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, s.aiServiceURL+"/config", nil)
+	if err != nil {
+		response.JSON(w, http.StatusOK, map[string]string{"provider": "unknown", "mode": "unknown"})
+		return
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		response.JSON(w, http.StatusOK, map[string]string{"provider": "unknown", "mode": "unknown"})
+		return
+	}
+	defer resp.Body.Close()
+	var result map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		response.JSON(w, http.StatusOK, map[string]string{"provider": "unknown", "mode": "unknown"})
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
 }
 
 func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {

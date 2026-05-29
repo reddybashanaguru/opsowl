@@ -1013,3 +1013,17 @@ feat: inbound event log viewer UI (P6-5)
 ### Architectural Decisions
 - P6-3: EventSource API cannot set custom request headers, so last_event_id must arrive as a query param. Backend now reads `r.URL.Query().Get("last_event_id")` as fallback after checking the HTTP `Last-Event-ID` header.
 - P6-4: Cursor is an opaque base64-URL-encoded JSON blob `{so, ca, id}` to hide internal schema. `DecodeCursor` is exported for test use. The SQL predicate `(sort_order, created_at, id) > (…)` matches the ORDER BY exactly.
+
+---
+
+## HLD Backlog Items (from HLD completion review — 2026-05-27)
+
+These 3 items were specified in the original HLD but not yet implemented. Defer until client feedback confirms priority.
+
+| ID | Item | HLD Section | Effort | Notes |
+|----|------|-------------|--------|-------|
+| BL-1 | **PII Masking Pipeline** | MOD-11 Security | ~3 days | NER on AI prompts → tokenize PAN/Aadhaar/phone → send masked text to LLM → de-tokenize response. Protects customer data from leaving server unmasked. |
+| BL-2 | **Prompt Registry** | MOD-04 AI Copilot | ~2 days | DB-stored versioned prompts with Jinja2 templates. New prompt versions need human approval. Rollback without code deploy. Currently prompts are hardcoded in Python. |
+| BL-3 | **Sub-tasks (parent_task_id)** | F07 Task Management | ~2 days | HLD schema had `parent_task_id UUID` on tasks table. Complex investigations need task hierarchy. Add column + UI collapsible sub-task rows. |
+
+**Do not implement until a client demo surfaces this as a pain point.**

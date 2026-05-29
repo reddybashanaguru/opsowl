@@ -5,6 +5,7 @@ import { useConfigStore, DEFAULT_CONFIG, type AppConfig } from "@/lib/stores/con
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { QRCodeSVG } from "qrcode.react";
 
 const LABEL_FIELDS: { key: keyof AppConfig; label: string; hint: string }[] = [
   { key: "case_label",      label: "Case (singular)",       hint: "e.g. Case, Claim, Incident, Matter" },
@@ -161,17 +162,39 @@ function MFASection() {
 
       {step === "verifying" && enrollData && (
         <div className="space-y-4">
-          <div className="p-4 bg-slate-900/60 rounded-lg space-y-3">
-            <p className="text-slate-300 text-sm font-medium">1. Scan QR code or enter secret manually</p>
-            <div className="flex items-center gap-3">
-              {/* QR code rendered via a data URI or external QR lib; show URL as fallback */}
-              <div className="text-xs text-slate-400 font-mono break-all bg-slate-800 rounded px-3 py-2">
-                {enrollData.otpauth_url}
+          <div className="p-4 bg-slate-900/60 rounded-lg space-y-4">
+            <p className="text-slate-300 text-sm font-medium">1. Scan this QR code with your authenticator app</p>
+            <div className="flex items-start gap-6">
+              <div className="p-3 bg-white rounded-xl flex-shrink-0">
+                <QRCodeSVG
+                  value={enrollData.otpauth_url}
+                  size={160}
+                  level="M"
+                  includeMargin={false}
+                />
+              </div>
+              <div className="space-y-3 min-w-0">
+                <p className="text-slate-400 text-xs leading-relaxed">
+                  Open Google Authenticator, Authy, or any TOTP app. Tap the <strong className="text-slate-300">+</strong> button and scan the QR code.
+                </p>
+                <div>
+                  <p className="text-slate-500 text-xs mb-1">Can&apos;t scan? Enter this key manually:</p>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-xs text-cyan-400 bg-slate-800 rounded px-2 py-1 break-all">
+                      {enrollData.secret}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => navigator.clipboard.writeText(enrollData.secret)}
+                      className="text-xs text-slate-500 hover:text-slate-300 transition-colors flex-shrink-0"
+                      title="Copy secret"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
-            <p className="text-slate-500 text-xs">
-              Manual secret: <span className="font-mono text-cyan-400">{enrollData.secret}</span>
-            </p>
           </div>
 
           <div className="p-4 bg-slate-900/60 rounded-lg space-y-2">
@@ -254,6 +277,86 @@ function MFASection() {
               Cancel
             </button>
           </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// ─── AI Configuration Section ────────────────────────────────────────────────
+
+function AIConfigSection() {
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["ai-mode"],
+    queryFn: () => api.get<{ provider: string; mode: string; model?: string }>("/api/v1/system/ai-mode"),
+    staleTime: 60_000,
+  });
+
+  const isAirGapped = data?.mode === "air-gapped";
+
+  return (
+    <section className="mb-8 p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+        AI Configuration
+      </h2>
+      <p className="text-slate-500 text-xs mb-5">
+        Shows the active AI inference mode for this deployment. Change via environment variables — see <span className="font-mono text-slate-400">docs/AI_DATA_POLICY.md</span>.
+      </p>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-slate-500 text-sm">
+          <div className="w-3 h-3 rounded-full border-2 border-slate-500 border-t-transparent animate-spin" />
+          Checking AI service…
+        </div>
+      )}
+
+      {isError && (
+        <div className="flex items-center gap-2 text-amber-400 text-sm">
+          <span className="text-base">⚠</span>
+          AI service unreachable — cannot determine mode.
+        </div>
+      )}
+
+      {data && (
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            {isAirGapped ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/40 text-green-400 text-xs font-semibold tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+                Air-Gapped (Local AI)
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-semibold tracking-wide">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
+                Cloud AI — {data.provider.charAt(0).toUpperCase() + data.provider.slice(1)}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs max-w-sm">
+            <span className="text-slate-500">Provider</span>
+            <span className="text-slate-300 font-mono">{data.provider}</span>
+            {data.model && (
+              <>
+                <span className="text-slate-500">Model</span>
+                <span className="text-slate-300 font-mono">{data.model}</span>
+              </>
+            )}
+            <span className="text-slate-500">Data leaves network</span>
+            <span className={isAirGapped ? "text-green-400" : "text-amber-400"}>
+              {isAirGapped ? "No" : "Yes — TLS to provider"}
+            </span>
+            <span className="text-slate-500">RBI recommended</span>
+            <span className={isAirGapped ? "text-green-400" : "text-slate-400"}>
+              {isAirGapped ? "Yes" : "Use Air-Gapped for regulated clients"}
+            </span>
+          </div>
+
+          {!isAirGapped && (
+            <p className="text-amber-400/80 text-xs leading-relaxed max-w-md border border-amber-500/20 bg-amber-500/5 rounded-lg px-4 py-3">
+              Case documents and copilot queries are processed on {data.provider} infrastructure. Ensure a signed Data Processing Agreement (DPA) is in place. For RBI-regulated clients, set <span className="font-mono">DEFAULT_PROVIDER=ollama</span>.
+            </p>
+          )}
         </div>
       )}
     </section>
@@ -447,6 +550,11 @@ export default function SettingsPage() {
 
       {/* Change Password — available to all authenticated users */}
       <ChangePasswordSection />
+
+      {/* AI Configuration — admin only */}
+      <RBACGate allowedRoles={["admin", "super_admin"]} fallback={null}>
+        <AIConfigSection />
+      </RBACGate>
 
       {/* Workspace settings — admin only */}
       <RBACGate

@@ -52,3 +52,6 @@ infra/docker/minio-data/
 # TLS certificates (generated locally)
 infra/docker/nginx/ssl/
 backups/
+
+# ── Internal business docs (not for version control) ─────────────────────────
+docs/PRICING.md
