@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 const WRITER_ROLES = ["analyst", "manager", "admin", "super_admin"];
 
@@ -60,16 +61,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   return (
     <div className="min-h-screen bg-[#0D1117] text-slate-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Navigation */}
-        <div className="flex items-center gap-3 text-sm text-slate-400">
-          <button onClick={() => router.push("/cases")} className="hover:text-cyan-400 transition-colors">← Cases</button>
-          <div className="h-4 border-l border-slate-700" />
-          <button onClick={() => router.push(`/cases/${id}`)} className="hover:text-cyan-400 transition-colors">Case</button>
-          <div className="h-4 border-l border-slate-700" />
-          <span className="text-slate-300">AI Logs</span>
-          <div className="h-4 border-l border-slate-700" />
-          <button onClick={() => router.push(`/cases/${id}/documents`)} className="hover:text-cyan-400 transition-colors">Documents →</button>
-        </div>
+        <CaseSubNav caseId={id} activeTab="ai-logs" />
 
         {/* Header */}
         <div className="flex items-center justify-between">

@@ -4,6 +4,7 @@ import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface InsightsData {
   id?: string;
@@ -96,17 +97,10 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-4 mb-6">
-        <button
-          onClick={() => router.push(`/cases/${id}`)}
-          className="text-slate-400 hover:text-slate-200 text-sm"
-        >
-          ← Case Detail
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <span className="text-slate-300 text-sm font-semibold">AI Risk Insights</span>
-        <div className="ml-auto">
+      <CaseSubNav
+        caseId={id}
+        activeTab="insights"
+        action={
           <button
             onClick={() => analyseMutation.mutate()}
             disabled={analysing}
@@ -117,12 +111,10 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Analysing…
               </>
-            ) : (
-              "Run AI Analysis"
-            )}
+            ) : "Run AI Analysis"}
           </button>
-        </div>
-      </div>
+        }
+      />
 
       {!ins?.ai_available && !ins?.id && (
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-4 mb-6 text-sm">

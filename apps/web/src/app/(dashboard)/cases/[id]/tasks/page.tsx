@@ -12,6 +12,7 @@ import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { TaskCard, Task } from "@/components/tasks/TaskCard";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface ListMeta {
   total_count: number;
@@ -120,29 +121,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-4 mb-4">
-        <button
-          onClick={() => router.push("/cases")}
-          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
-        >
-          ← {cfg.cases_label}
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${caseId}`)}
-          className="text-slate-400 hover:text-slate-200 text-sm transition-colors"
-        >
-          {caseData?.case_number ?? "Case"}
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <button
-          onClick={() => router.push(`/cases/${caseId}/timeline`)}
-          className="text-slate-400 hover:text-cyan-400 text-sm font-medium transition-colors"
-        >
-          {cfg.timeline_label} →
-        </button>
-      </div>
+      <CaseSubNav caseId={caseId} activeTab="tasks" />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

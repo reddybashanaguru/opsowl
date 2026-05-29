@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteCard, Note } from "@/components/notes/NoteCard";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface ListMeta {
   next_cursor: string | null;
@@ -112,25 +113,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-3 mb-5 text-sm flex-wrap">
-        <button onClick={() => router.push(`/cases/${id}`)} className="text-slate-400 hover:text-slate-200 flex items-center gap-1">
-          ← {cfg.case_label}
-        </button>
-        {[
-          { label: `${cfg.timeline_label} →`, href: `/cases/${id}/timeline` },
-          { label: `${cfg.tasks_label} →`, href: `/cases/${id}/tasks` },
-          { label: `${cfg.documents_label} →`, href: `/cases/${id}/documents` },
-          { label: "AI Logs →", href: `/cases/${id}/ai-logs` },
-        ].map(({ label, href }) => (
-          <span key={href} className="flex items-center gap-3">
-            <span className="text-slate-700">|</span>
-            <button onClick={() => router.push(href)} className="text-slate-400 hover:text-cyan-400 font-medium transition-colors">
-              {label}
-            </button>
-          </span>
-        ))}
-      </div>
+      <CaseSubNav caseId={id} activeTab="notes" />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-5">

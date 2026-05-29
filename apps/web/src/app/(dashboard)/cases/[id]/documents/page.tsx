@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { DocumentCard, Document } from "@/components/documents/DocumentCard";
 import { DocumentUploadZone } from "@/components/documents/DocumentUploadZone";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface ListMeta {
   total_count: number;
@@ -97,38 +98,7 @@ export default function CaseDocumentsPage({
   return (
     <div className="min-h-screen bg-[#0D1117] text-slate-100 p-6">
       <div className="max-w-4xl mx-auto space-y-6">
-        {/* Navigation */}
-        <div className="flex items-center gap-3 text-sm text-slate-400">
-          <button
-            onClick={() => router.push("/cases")}
-            className="hover:text-cyan-400 transition-colors"
-          >
-            ← {cfg.cases_label}
-          </button>
-          <div className="h-4 border-l border-slate-700" />
-          <button
-            onClick={() => router.push(`/cases/${id}`)}
-            className="hover:text-cyan-400 transition-colors"
-          >
-            {cfg.case_label}
-          </button>
-          <div className="h-4 border-l border-slate-700" />
-          <span className="text-slate-300">{cfg.documents_label}</span>
-          <div className="h-4 border-l border-slate-700" />
-          <button
-            onClick={() => router.push(`/cases/${id}/tasks`)}
-            className="hover:text-cyan-400 transition-colors"
-          >
-            {cfg.tasks_label} →
-          </button>
-          <div className="h-4 border-l border-slate-700" />
-          <button
-            onClick={() => router.push(`/cases/${id}/timeline`)}
-            className="hover:text-cyan-400 transition-colors"
-          >
-            {cfg.timeline_label} →
-          </button>
-        </div>
+        <CaseSubNav caseId={id} activeTab="documents" />
 
         {/* Header */}
         <div>

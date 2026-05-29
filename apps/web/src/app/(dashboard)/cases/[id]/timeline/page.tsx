@@ -7,6 +7,7 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { useTimelineSSE, type TimelineEvent } from "@/lib/hooks/useTimelineSSE";
 import { TimelineEventCard } from "@/components/cases/TimelineEventCard";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { api } from "@/lib/api";
 
 interface TimelineMeta {
@@ -137,16 +138,14 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
   const activeFilters = selectedSources.size + selectedTypes.size;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-56px)]">
+    <>
+      <div className="px-6 pt-4">
+        <CaseSubNav caseId={id} activeTab="timeline" />
+      </div>
+      <div className="flex flex-col h-[calc(100vh-56px-68px)]">
       {/* Header */}
       <div className="border-b border-slate-700 bg-[#0f172a] px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
-          <button
-            onClick={() => router.push(`/cases/${id}`)}
-            className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
-          >
-            ← {cfg.case_label}
-          </button>
           <div>
             <h1 className="text-white font-semibold text-lg">Timeline</h1>
             <p className="text-slate-500 text-xs">{totalCount} events total</p>
@@ -286,5 +285,6 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
         )}
       </div>
     </div>
+    </>
   );
 }

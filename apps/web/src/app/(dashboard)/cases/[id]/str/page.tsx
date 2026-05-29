@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface STRFiling {
   id: string;
@@ -316,7 +317,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   if (!isManagerOrAbove) {
     return (
       <div className="p-6 max-w-4xl mx-auto">
-        <button onClick={() => router.back()} className="text-slate-400 hover:text-slate-200 text-sm mb-6">← Back</button>
+        <CaseSubNav caseId={caseId} activeTab="str" />
         <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-8 text-center">
           <p className="text-red-400 font-medium">Access Restricted</p>
           <p className="text-slate-500 text-sm mt-1">STR/SAR/CTR filings are restricted to compliance officers (manager role and above).</p>
@@ -327,17 +328,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-3 mb-6">
-        <button
-          onClick={() => router.push(`/cases/${caseId}`)}
-          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
-        >
-          ← Case Detail
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <span className="text-slate-400 text-sm">STR / SAR / CTR Filings</span>
-      </div>
+      <CaseSubNav caseId={caseId} activeTab="str" />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

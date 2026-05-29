@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface CommLog {
   id: string;
@@ -199,24 +200,18 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-4 mb-6">
-        <button onClick={() => router.push(`/cases/${id}`)} className="text-slate-400 hover:text-slate-200 text-sm">
-          ← Case Detail
-        </button>
-        <div className="h-4 border-l border-slate-700" />
-        <span className="text-slate-300 text-sm font-semibold">Communication Logs</span>
-        {canWrite && (
-          <div className="ml-auto">
-            <button
-              onClick={() => setShowForm(!showForm)}
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-            >
-              + Log Communication
-            </button>
-          </div>
-        )}
-      </div>
+      <CaseSubNav
+        caseId={id}
+        activeTab="comms"
+        action={canWrite ? (
+          <button
+            onClick={() => setShowForm(!showForm)}
+            className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+          >
+            + Log Communication
+          </button>
+        ) : undefined}
+      />
 
       {/* Log form */}
       {showForm && (
