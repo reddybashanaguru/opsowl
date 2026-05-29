@@ -138,11 +138,11 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
   const activeFilters = selectedSources.size + selectedTypes.size;
 
   return (
-    <>
-      <div className="px-6 pt-4">
+    <div className="flex flex-col h-full overflow-hidden">
+      <div className="px-6 pt-4 flex-shrink-0">
         <CaseSubNav caseId={id} activeTab="timeline" />
       </div>
-      <div className="flex flex-col h-[calc(100vh-56px-68px)]">
+      <div className="flex flex-col flex-1 overflow-hidden">
       {/* Header */}
       <div className="border-b border-slate-700 bg-[#0f172a] px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
@@ -285,6 +285,6 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
         )}
       </div>
     </div>
-    </>
+    </div>
   );
 }

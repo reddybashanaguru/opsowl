@@ -65,7 +65,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-100">AI Activity Log</h1>
+            <h1 className="text-xl font-bold text-white">AI Activity Log</h1>
             <p className="text-slate-400 text-sm mt-1">Every AI interaction for this case. Immutable audit trail.</p>
           </div>
         </div>

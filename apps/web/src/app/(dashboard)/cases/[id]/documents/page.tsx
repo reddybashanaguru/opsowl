@@ -101,7 +101,7 @@ export default function CaseDocumentsPage({
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-slate-100">{cfg.documents_label}</h1>
+          <h1 className="text-xl font-bold text-white">{cfg.documents_label}</h1>
           <p className="text-slate-400 text-sm mt-1">
             Upload files to extract intelligence and feed the AI copilot.
           </p>

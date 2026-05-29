@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str";
@@ -30,8 +30,20 @@ const MORE_TABS: { tab: Tab; label: string; path: string }[] = [
 export function CaseSubNav({ caseId, activeTab, action }: Props) {
   const router = useRouter();
   const [moreOpen, setMoreOpen] = useState(false);
+  const moreRef = useRef<HTMLDivElement>(null);
 
   const isMore = MORE_TABS.some((t) => t.tab === activeTab);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) {
+        setMoreOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [moreOpen]);
 
   return (
     <div className="mb-4">
@@ -63,7 +75,7 @@ export function CaseSubNav({ caseId, activeTab, action }: Props) {
         ))}
 
         {/* More dropdown */}
-        <div className="relative">
+        <div className="relative" ref={moreRef}>
           <button
             onClick={() => setMoreOpen((v) => !v)}
             className={`text-xs font-medium px-3 py-1 rounded transition-colors flex items-center gap-1 ${

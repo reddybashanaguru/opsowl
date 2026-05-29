@@ -8,6 +8,7 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
 import { TaskPriorityBadge } from "@/components/tasks/TaskPriorityBadge";
 import { Task } from "@/components/tasks/TaskCard";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface Comment {
   id: string;
@@ -175,31 +176,7 @@ export default function TaskDetailPage({
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Nav */}
-      <div className="flex items-center gap-4 mb-4 text-sm">
-        <button
-          onClick={() => router.push("/cases")}
-          className="text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          Cases
-        </button>
-        <span className="text-slate-700">/</span>
-        <button
-          onClick={() => router.push(`/cases/${caseId}`)}
-          className="text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          Case
-        </button>
-        <span className="text-slate-700">/</span>
-        <button
-          onClick={() => router.push(`/cases/${caseId}/tasks`)}
-          className="text-slate-500 hover:text-slate-300 transition-colors"
-        >
-          Tasks
-        </button>
-        <span className="text-slate-700">/</span>
-        <span className="text-slate-300 truncate max-w-xs">{task.title}</span>
-      </div>
+      <CaseSubNav caseId={caseId} activeTab="tasks" />
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main */}

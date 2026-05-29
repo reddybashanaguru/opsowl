@@ -213,6 +213,12 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
         ) : undefined}
       />
 
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-white">Communications</h1>
+        <p className="text-slate-400 text-sm mt-1">All contact logs for this case.</p>
+      </div>
+
       {/* Log form */}
       {showForm && (
         <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 mb-6">
@@ -322,8 +328,10 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Log list */}
       {isLoading ? (
-        <div className="flex items-center justify-center h-32">
-          <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-24 bg-slate-800/40 rounded-xl animate-pulse" />
+          ))}
         </div>
       ) : !logs || logs.length === 0 ? (
         <div className="text-center py-16 text-slate-600">
