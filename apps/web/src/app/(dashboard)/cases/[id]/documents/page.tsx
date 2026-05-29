@@ -96,8 +96,7 @@ export default function CaseDocumentsPage({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="min-h-screen bg-[#0D1117] text-slate-100 p-6">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="p-6 max-w-4xl mx-auto space-y-6">
         <CaseSubNav caseId={id} activeTab="documents" />
 
         {/* Header */}
@@ -183,6 +182,5 @@ export default function CaseDocumentsPage({
           </div>
         )}
       </div>
-    </div>
   );
 }
