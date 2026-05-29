@@ -421,7 +421,7 @@ export default function UsersPage() {
                         </span>
                       </td>
                       <td className="px-5 py-3.5 text-slate-500 text-xs tabular-nums">
-                        {new Date(u.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                        {new Date(u.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="px-5 py-3.5 text-right">
                         {u.id !== currentUser?.id && (

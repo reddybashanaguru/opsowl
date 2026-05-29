@@ -68,8 +68,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	f := ListFilters{Limit: 20}
 
 	if s := q.Get("status"); s != "" {
-		st := db.CaseStatus(s)
-		f.Status = &st
+		if s == "active" {
+			f.ActiveOnly = true
+		} else {
+			st := db.CaseStatus(s)
+			f.Status = &st
+		}
 	}
 	if p := q.Get("priority"); p != "" {
 		pr := db.CasePriority(p)

@@ -95,7 +95,7 @@ func (h *Handler) ListByCase(w http.ResponseWriter, r *http.Request) {
 	response.JSONWithMeta(w, http.StatusOK, tasks, meta)
 }
 
-// GET /api/v1/tasks (my tasks)
+// GET /api/v1/tasks (my tasks, or all tasks when scope=all for manager+)
 func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromCtx(r.Context())
 	q := r.URL.Query()
@@ -108,9 +108,23 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 		f.OverdueOnly = true
 	}
 	if l := q.Get("limit"); l != "" {
-		if n, _ := strconv.Atoi(l); n > 0 && n <= 100 {
+		if n, _ := strconv.Atoi(l); n > 0 && n <= 200 {
 			f.Limit = int32(n)
 		}
+	}
+
+	// scope=all lets managers and above see every task across all cases.
+	isPrivileged := claims.Role == db.UserRoleManager ||
+		claims.Role == db.UserRoleAdmin ||
+		claims.Role == db.UserRoleSuperAdmin
+	if q.Get("scope") == "all" && isPrivileged {
+		tasks, meta, err := h.svc.ListAllTasks(r.Context(), f)
+		if err != nil {
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+			return
+		}
+		response.JSONWithMeta(w, http.StatusOK, tasks, meta)
+		return
 	}
 
 	tasks, meta, err := h.svc.ListMyTasks(r.Context(), claims.UserID, f)

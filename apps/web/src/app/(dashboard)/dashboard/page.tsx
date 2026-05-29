@@ -251,14 +251,14 @@ export default function DashboardPage() {
           <span className="text-cyan-400">{user?.full_name?.split(" ")[0]}</span>
         </h1>
         <p className="text-slate-400 mt-1 text-sm">
-          Operations intelligence workspace — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          Operations intelligence workspace — {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
       {/* Top stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases"   sub="open + in-progress" />
-        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href="/tasks"   sub="todo + in-progress" />
+        <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases?status=active"   sub="open + in-progress" />
+        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"}   sub="todo + in-progress" />
         <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}`} sub="assigned to me" />
         <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="active cases" />
       </div>
@@ -304,7 +304,7 @@ export default function DashboardPage() {
                   icon="🔴"
                   label={`${cfg.sla_label} Breaches`}
                   value={stats.sla_breached}
-                  href="/cases"
+                  href="/cases?sla_breached=true"
                   critical={stats.sla_breached > 0}
                 />
                 <AlertRow

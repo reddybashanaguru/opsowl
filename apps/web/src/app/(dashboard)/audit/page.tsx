@@ -42,7 +42,7 @@ const SEVERITY_DOT: Record<string, string> = {
 };
 
 function timeFormat(dateStr: string): string {
-  return new Date(dateStr).toLocaleString("en-IN", {
+  return new Date(dateStr).toLocaleString(undefined, {
     day: "2-digit",
     month: "short",
     year: "numeric",

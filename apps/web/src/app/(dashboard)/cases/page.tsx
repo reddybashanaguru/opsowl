@@ -49,7 +49,7 @@ function timeAgo(iso: string): string {
   if (hrs < 24) return `${hrs}h ago`;
   const days = Math.floor(hrs / 24);
   if (days < 30) return `${days}d ago`;
-  return new Date(iso).toLocaleDateString("en-IN", { day: "2-digit", month: "short" });
+  return new Date(iso).toLocaleDateString(undefined, { day: "2-digit", month: "short" });
 }
 
 interface ListMeta {
@@ -75,11 +75,12 @@ interface BulkResult {
   failed: number;
 }
 
-const STATUSES = ["", "draft", "open", "in_progress", "pending_review", "escalated", "closed"];
+const STATUSES = ["", "active", "draft", "open", "in_progress", "pending_review", "escalated", "closed"];
 const PRIORITIES = ["", "critical", "high", "medium", "low"];
 
 const STATUS_LABELS: Record<string, string> = {
   "": "All Statuses",
+  active: "Active Cases",
   draft: "Draft",
   open: "Open",
   in_progress: "In Progress",
@@ -339,7 +340,13 @@ function CasesContent() {
   const [priority, setPriority] = useState(searchParams.get("priority") ?? "");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [myCasesOnly, setMyCasesOnly] = useState(() => user?.role === "analyst");
+  const [slaBreached, setSlaBreached] = useState(searchParams.get("sla_breached") === "true");
+  const [myCasesOnly, setMyCasesOnly] = useState(() => {
+    // If navigating from "My Open Cases" dashboard card, activate My Cases filter
+    const assignedTo = searchParams.get("assigned_to");
+    if (assignedTo && user?.id && assignedTo === user.id) return true;
+    return user?.role === "analyst";
+  });
 
   // Debounce search 300ms
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -363,16 +370,17 @@ function CasesContent() {
     const p = new URLSearchParams({ limit: "25" });
     if (status) p.set("status", status);
     if (priority) p.set("priority", priority);
+    if (slaBreached) p.set("sla_breached", "true");
     if (cursor) p.set("cursor", cursor);
     if (myCasesOnly && user?.id) p.set("assigned_to", user.id);
     return p.toString();
-  }, [status, priority, myCasesOnly, user?.id]);
+  }, [status, priority, slaBreached, myCasesOnly, user?.id]);
 
   const searchActive = debouncedSearch.trim().length >= 2;
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery<CasesPage>({
-      queryKey: ["cases", status, priority, myCasesOnly, user?.id],
+      queryKey: ["cases", status, priority, slaBreached, myCasesOnly, user?.id],
       queryFn: ({ pageParam }) =>
         api.getList<CaseRow, ListMeta>(`/api/v1/cases?${buildParams(pageParam as string | undefined)}`),
       initialPageParam: undefined,
@@ -583,9 +591,15 @@ function CasesContent() {
           </>
         )}
 
-        {(status || priority || search || myCasesOnly) && (
+        {slaBreached && (
+          <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2.5 py-1.5 rounded-lg flex items-center gap-1.5">
+            SLA Breached
+            <button onClick={() => setSlaBreached(false)} className="text-amber-400 hover:text-amber-200">✕</button>
+          </span>
+        )}
+        {(status || priority || search || myCasesOnly || slaBreached) && (
           <button
-            onClick={() => { setStatus(""); setPriority(""); setSearch(""); setMyCasesOnly(false); }}
+            onClick={() => { setStatus(""); setPriority(""); setSearch(""); setMyCasesOnly(false); setSlaBreached(false); }}
             className="text-xs text-slate-500 hover:text-slate-300 px-3 py-2 border border-slate-700 rounded-lg hover:border-slate-500 transition-colors"
           >
             Clear all
@@ -628,7 +642,7 @@ function CasesContent() {
                     <td className="px-4 py-3"><PriorityBadge priority={c.priority} /></td>
                     <td className="px-4 py-3 text-slate-400 text-sm">{c.created_by_name}</td>
                     <td className="px-4 py-3 text-slate-500 text-xs tabular-nums">
-                      {new Date(c.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                      {new Date(c.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}
                     </td>
                   </tr>
                 ))}
@@ -724,7 +738,7 @@ function CasesContent() {
                     </td>
                     <td
                       className="px-4 py-3 text-slate-500 text-xs tabular-nums cursor-pointer"
-                      title={new Date(c.updated_at).toLocaleString("en-IN")}
+                      title={new Date(c.updated_at).toLocaleString(undefined)}
                       onClick={() => router.push(`/cases/${c.id}`)}
                     >
                       {timeAgo(c.updated_at)}

@@ -207,12 +207,12 @@ function APIKeyRow({ keyData, onRevoke }: { keyData: APIKey; onRevoke: (id: stri
       </td>
       <td className="px-5 py-4 text-slate-400 text-xs tabular-nums">
         {keyData.expires_at
-          ? new Date(keyData.expires_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+          ? new Date(keyData.expires_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })
           : <span className="text-slate-600">No expiry</span>
         }
       </td>
       <td className="px-5 py-4 text-slate-500 text-xs tabular-nums">
-        {new Date(keyData.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+        {new Date(keyData.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}
       </td>
       <td className="px-5 py-4">
         {confirming ? (

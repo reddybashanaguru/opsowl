@@ -50,7 +50,7 @@ function CommentItem({ c }: { c: Comment }) {
         <div className="flex items-center gap-2">
           <span className="text-white text-xs font-medium">{c.author_name}</span>
           <span className="text-slate-600 text-xs">
-            {new Date(c.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+            {new Date(c.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short" })}
           </span>
         </div>
         <p className="text-slate-300 text-xs mt-0.5 leading-relaxed">{c.content}</p>
@@ -191,7 +191,7 @@ export function NoteCard({ note, caseId, onDeleted }: Props) {
             <span className="text-slate-500 text-xs">{note.author_name}</span>
             <span className="text-slate-700 text-xs">·</span>
             <span className="text-slate-600 text-xs">
-              {new Date(note.created_at).toLocaleDateString("en-IN", {
+              {new Date(note.created_at).toLocaleDateString(undefined, {
                 day: "2-digit", month: "short", year: "numeric",
               })}
             </span>

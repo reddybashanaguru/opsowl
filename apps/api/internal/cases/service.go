@@ -141,6 +141,10 @@ func (s *Service) Get(ctx context.Context, id, orgID uuid.UUID) (*CaseResponse, 
 }
 
 func (s *Service) List(ctx context.Context, f ListFilters) ([]CaseResponse, ListMeta, error) {
+	if f.ActiveOnly {
+		return s.listActive(ctx, f)
+	}
+
 	rows, err := s.repo.List(ctx, f, DefaultOrgID)
 	if err != nil {
 		return nil, ListMeta{}, err
@@ -157,6 +161,38 @@ func (s *Service) List(ctx context.Context, f ListFilters) ([]CaseResponse, List
 	}
 
 	total, _ := s.repo.Count(ctx, f, DefaultOrgID)
+
+	var nextCursor *uuid.UUID
+	if hasMore && len(rows) > 0 {
+		last := rows[len(rows)-1].ID
+		nextCursor = &last
+	}
+
+	out := make([]CaseResponse, 0, len(rows))
+	for _, r := range rows {
+		out = append(out, s.toResponseFromListRow(r))
+	}
+
+	return out, ListMeta{NextCursor: nextCursor, HasMore: hasMore, TotalCount: total}, nil
+}
+
+func (s *Service) listActive(ctx context.Context, f ListFilters) ([]CaseResponse, ListMeta, error) {
+	rows, err := s.repo.ListActive(ctx, f, DefaultOrgID)
+	if err != nil {
+		return nil, ListMeta{}, err
+	}
+
+	limit := int(f.Limit)
+	if limit <= 0 {
+		limit = 20
+	}
+
+	hasMore := len(rows) > limit
+	if hasMore {
+		rows = rows[:limit]
+	}
+
+	total, _ := s.repo.CountActive(ctx, f, DefaultOrgID)
 
 	var nextCursor *uuid.UUID
 	if hasMore && len(rows) > 0 {

@@ -210,7 +210,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		assignment.RegisterRoutes(r, assignHandler, s.jwtMgr)
 
 		// Cases module
-		casesRepo := cases.NewRepository(s.queries)
+		casesRepo := cases.NewRepository(s.queries).WithDB(s.sqlDB)
 		casesSvc := cases.NewService(casesRepo, s.sqlDB, timelineEmitter).
 			WithAssignmentEngine(assignEngineAdapter{assignEng})
 		casesHandler := cases.NewHandler(casesSvc)
@@ -218,7 +218,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// Tasks module
 		tasksRepo := tasks.NewRepository(s.queries)
-		tasksSvc := tasks.NewService(tasksRepo, timelineEmitter)
+		tasksSvc := tasks.NewService(tasksRepo, timelineEmitter).WithDB(s.sqlDB)
 		tasksHandler := tasks.NewHandler(tasksSvc)
 		tasks.RegisterRoutes(r, tasksHandler, s.jwtMgr)
 

@@ -2,6 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
@@ -61,15 +63,19 @@ function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
   );
 }
 
-export default function MyTasksPage() {
+function TasksPageContent() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
+  const searchParams = useSearchParams();
+
+  const scopeAll = searchParams.get("scope") === "all";
+  const apiUrl = scopeAll ? "/api/v1/tasks?limit=200&scope=all" : "/api/v1/tasks?limit=200";
 
   const { data, isLoading, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
-    queryKey: ["my-tasks"],
-    queryFn: () => api.getList<Task, ListMeta>("/api/v1/tasks?limit=200"),
+    queryKey: ["my-tasks", scopeAll],
+    queryFn: () => api.getList<Task, ListMeta>(apiUrl),
     enabled: !!user,
   });
 
@@ -111,7 +117,7 @@ export default function MyTasksPage() {
       {/* Header with progress summary */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-bold">My {cfg.tasks_label}</h1>
+          <h1 className="text-white text-xl font-bold">{scopeAll ? `All ${cfg.tasks_label}` : `My ${cfg.tasks_label}`}</h1>
           <p className="text-slate-500 text-sm mt-1">
             {active} active · {done} completed · {tasks.length} total
             {overdue > 0 && <span className="text-red-400 ml-2">· {overdue} overdue</span>}
@@ -139,7 +145,7 @@ export default function MyTasksPage() {
         <div className="text-center py-20">
           <div className="text-5xl mb-4">✓</div>
           <p className="text-slate-300 text-sm font-medium">All caught up!</p>
-          <p className="text-slate-600 text-xs mt-1">No tasks assigned to you.</p>
+          <p className="text-slate-600 text-xs mt-1">{scopeAll ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.` : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}</p>
         </div>
       ) : (
         <div className="space-y-7">
@@ -176,5 +182,20 @@ export default function MyTasksPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function MyTasksPage() {
+  return (
+    <Suspense fallback={
+      <div className="p-6 max-w-3xl mx-auto">
+        <div className="h-7 w-32 bg-slate-700 animate-pulse rounded mb-6" />
+        <div className="space-y-2">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-800 animate-pulse rounded-xl" />)}
+        </div>
+      </div>
+    }>
+      <TasksPageContent />
+    </Suspense>
   );
 }

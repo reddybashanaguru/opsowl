@@ -96,6 +96,8 @@ type ListFilters struct {
 	// ViewerID restricts results to cases accessible to this user (analyst/viewer access control).
 	// Non-nil only for analyst and viewer roles.
 	ViewerID *uuid.UUID
+	// ActiveOnly excludes draft and closed statuses — used by the "Active Cases" dashboard filter.
+	ActiveOnly bool
 }
 
 func nullTime(t *time.Time) sql.NullTime {

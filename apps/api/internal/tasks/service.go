@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -41,12 +42,18 @@ func DecodeCursor(s string) (sortOrder int32, createdAt time.Time, id uuid.UUID,
 
 type Service struct {
 	repo     *Repository
+	sqlDB    *sql.DB // for all-tasks view (manager+)
 	emitter  timeline.Emitter
 	notifSvc *notifications.Service
 }
 
 func NewService(repo *Repository, emitter timeline.Emitter) *Service {
 	return &Service{repo: repo, emitter: emitter}
+}
+
+func (s *Service) WithDB(sqlDB *sql.DB) *Service {
+	s.sqlDB = sqlDB
+	return s
 }
 
 func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
@@ -186,6 +193,120 @@ func (s *Service) ListMyTasks(ctx context.Context, userID uuid.UUID, f ListFilte
 		out = append(out, s.toResponseFromMyTaskRow(r))
 	}
 	return out, ListMeta{TotalCount: int64(len(out)), HasMore: hasMore}, nil
+}
+
+const listAllTasksSQL = `
+SELECT
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id,
+    t.title, t.description, t.status, t.priority, t.due_date, t.completed_at,
+    t.is_overdue, t.is_ai_suggested, t.sort_order,
+    t.created_at, t.updated_at, t.deleted_at, t.search_vector,
+    c.case_number, c.title AS case_title,
+    u_creator.full_name AS created_by_name,
+    u_assign.full_name  AS assigned_to_name,
+    u_assign.email      AS assigned_to_email
+FROM tasks t
+JOIN cases c ON c.id = t.case_id AND c.deleted_at IS NULL
+JOIN users u_creator ON u_creator.id = t.created_by
+LEFT JOIN users u_assign ON u_assign.id = t.assigned_to
+WHERE t.deleted_at IS NULL
+  AND ($1::text IS NULL OR t.status::text = $1)
+  AND ($2 IS NOT TRUE OR t.is_overdue = TRUE)
+ORDER BY t.is_overdue DESC, t.due_date ASC NULLS LAST, t.priority ASC
+LIMIT $3
+`
+
+func (s *Service) ListAllTasks(ctx context.Context, f ListFilters) ([]TaskResponse, ListMeta, error) {
+	if s.sqlDB == nil {
+		return nil, ListMeta{}, errors.New("database not available for all-tasks view")
+	}
+
+	limit := int32(50)
+	if f.Limit > 0 && f.Limit <= 200 {
+		limit = f.Limit
+	}
+
+	var statusVal interface{}
+	if f.Status != nil {
+		statusVal = string(*f.Status)
+	}
+
+	rows, err := s.sqlDB.QueryContext(ctx, listAllTasksSQL, statusVal, f.OverdueOnly, limit+1)
+	if err != nil {
+		return nil, ListMeta{}, err
+	}
+	defer rows.Close()
+
+	var tasks []TaskResponse
+	for rows.Next() {
+		var (
+			id, caseID, createdBy uuid.UUID
+			assignedTo            uuid.NullUUID
+			timelineEventID       uuid.NullUUID
+			title                 string
+			description           sql.NullString
+			status                db.TaskStatus
+			priority              db.TaskPriority
+			dueDate, completedAt  sql.NullTime
+			isOverdue, isAI       bool
+			sortOrder             int32
+			createdAt, updatedAt  time.Time
+			deletedAt             sql.NullTime
+			searchVector          interface{}
+			caseNumber, caseTitle string
+			createdByName         string
+			assignedToName        sql.NullString
+			assignedToEmail       sql.NullString
+		)
+		if err := rows.Scan(
+			&id, &caseID, &createdBy, &assignedTo, &timelineEventID,
+			&title, &description, &status, &priority, &dueDate, &completedAt,
+			&isOverdue, &isAI, &sortOrder,
+			&createdAt, &updatedAt, &deletedAt, &searchVector,
+			&caseNumber, &caseTitle,
+			&createdByName, &assignedToName, &assignedToEmail,
+		); err != nil {
+			return nil, ListMeta{}, err
+		}
+		r := TaskResponse{
+			ID:            id,
+			CaseID:        caseID,
+			CaseNumber:    caseNumber,
+			CaseTitle:     caseTitle,
+			Title:         title,
+			Description:   description.String,
+			Status:        status,
+			Priority:      priority,
+			IsOverdue:     isOverdue,
+			IsAISuggested: isAI,
+			SortOrder:     sortOrder,
+			DueDate:       timePtr(dueDate),
+			CompletedAt:   timePtr(completedAt),
+			CreatedBy:     UserRef{ID: createdBy, FullName: createdByName},
+			CreatedAt:     createdAt,
+			UpdatedAt:     updatedAt,
+		}
+		if assignedTo.Valid {
+			ref := &UserRef{ID: assignedTo.UUID}
+			if assignedToName.Valid {
+				ref.FullName = assignedToName.String
+			}
+			if assignedToEmail.Valid {
+				ref.Email = assignedToEmail.String
+			}
+			r.AssignedTo = ref
+		}
+		tasks = append(tasks, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, ListMeta{}, err
+	}
+
+	hasMore := len(tasks) > int(limit)
+	if hasMore {
+		tasks = tasks[:limit]
+	}
+	return tasks, ListMeta{TotalCount: int64(len(tasks)), HasMore: hasMore}, nil
 }
 
 func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID, req UpdateTaskRequest) (*TaskResponse, error) {
