@@ -154,6 +154,14 @@ class LLMRouter:
             return await self._embed_ollama(text)
         return await self._embed_openai(text)
 
+    async def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """Embed a list of texts. Ollama calls are parallelized; OpenAI uses batch API."""
+        if not texts:
+            return []
+        if settings.default_provider == Provider.OLLAMA:
+            return list(await asyncio.gather(*[self._embed_ollama(t) for t in texts]))
+        return await self._embed_openai_batch(texts)
+
     async def _embed_openai(self, text: str) -> list[float]:
         client = self._get_openai()
         response = await asyncio.to_thread(
@@ -162,6 +170,15 @@ class LLMRouter:
             input=text,
         )
         return response.data[0].embedding
+
+    async def _embed_openai_batch(self, texts: list[str]) -> list[list[float]]:
+        client = self._get_openai()
+        response = await asyncio.to_thread(
+            client.embeddings.create,
+            model=settings.embedding_model,
+            input=texts,
+        )
+        return [item.embedding for item in response.data]
 
     async def _embed_ollama(self, text: str) -> list[float]:
         """Embed text via Ollama nomic-embed-text (768-dim, pgvector compatible)."""

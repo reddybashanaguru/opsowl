@@ -1,30 +1,20 @@
-"""Embedding generation via OpenAI text-embedding-3-small."""
+"""Embedding helpers — thin sync wrappers over llm_router for legacy callers.
+
+The document processing pipeline (documents.py) now calls llm_router.embed_batch()
+directly. This module is retained for any remaining sync callers and test mocks.
+"""
 from __future__ import annotations
 
-from openai import OpenAI
+import asyncio
 
-from app.config import settings
-
-_client: OpenAI | None = None
-
-
-def _get_client() -> OpenAI:
-    global _client
-    if _client is None:
-        _client = OpenAI(api_key=settings.openai_api_key)
-    return _client
+from app.services.llm_router import llm_router
 
 
 def embed_texts(texts: list[str]) -> list[list[float]]:
-    """Return a list of 1536-dim embedding vectors, one per input text."""
+    """Synchronous batch embed — delegates to llm_router (provider-aware)."""
     if not texts:
         return []
-    client = _get_client()
-    response = client.embeddings.create(
-        model=settings.embedding_model,
-        input=texts,
-    )
-    return [item.embedding for item in response.data]
+    return asyncio.get_event_loop().run_until_complete(llm_router.embed_batch(texts))
 
 
 def embed_single(text: str) -> list[float]:

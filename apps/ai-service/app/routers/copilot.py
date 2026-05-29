@@ -9,6 +9,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
+from app.config import settings
 from app.service_auth import require_service_token
 from app.services import pii_masker, rag
 from app.services.llm_router import llm_router
@@ -181,7 +182,7 @@ async def ask(req: AskRequest) -> CopilotResponse:
         answer=answer,
         chunks=chunks,
         model_used=model,
-        provider="anthropic" if "claude" in model.lower() else "openai",
+        provider=settings.default_provider,
         tokens_input=tok_in,
         tokens_output=tok_out,
         latency_ms=latency_ms,
@@ -232,7 +233,7 @@ async def summarize(req: SummarizeRequest) -> CopilotResponse:
         answer=answer,
         chunks=chunks,
         model_used=model,
-        provider="anthropic" if "claude" in model.lower() else "openai",
+        provider=settings.default_provider,
         tokens_input=tok_in,
         tokens_output=tok_out,
         latency_ms=latency_ms,
@@ -289,7 +290,7 @@ async def generate_note(req: GenerateNoteRequest) -> CopilotResponse:
         answer=answer,
         chunks=chunks,
         model_used=model,
-        provider="anthropic" if "claude" in model.lower() else "openai",
+        provider=settings.default_provider,
         tokens_input=tok_in,
         tokens_output=tok_out,
         latency_ms=latency_ms,
@@ -346,7 +347,7 @@ async def extract_actions(req: ExtractActionsRequest) -> CopilotResponse:
         answer=answer,
         chunks=chunks,
         model_used=model,
-        provider="anthropic" if "claude" in model.lower() else "openai",
+        provider=settings.default_provider,
         tokens_input=tok_in,
         tokens_output=tok_out,
         latency_ms=latency_ms,

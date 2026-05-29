@@ -155,6 +155,51 @@ services:
           memory: 512M
           cpus: "1.0"
 
+  # ── Ollama (local LLM inference — air-gapped on-premise) ────────────────────
+  # Default provider for all AI features. No data leaves the network.
+  # Models: llama3.1:8b (LLM) + nomic-embed-text (768-dim embeddings).
+  # Hardware: 8 GB RAM minimum; Apple Silicon / NVIDIA GPU accelerated automatically.
+  ollama:
+    image: ollama/ollama:latest
+    container_name: opsowl-ollama
+    restart: unless-stopped
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: "4.0"
+
+  # ── Ollama model initializer (runs once; models cached in ollama_data volume) ─
+  # Pulls llama3.1:8b and nomic-embed-text on first boot. Subsequent starts skip
+  # the download because the volume already contains the model files.
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: opsowl-ollama-init
+    restart: "no"
+    entrypoint: >
+      sh -c "
+        echo '[ollama-init] waiting for Ollama to start...';
+        until curl -sf http://ollama:11434/api/version; do sleep 3; done;
+        echo '[ollama-init] pulling ${OLLAMA_MODEL:-llama3.1:8b}...';
+        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_MODEL:-llama3.1:8b}\"}' | tail -1;
+        echo '[ollama-init] pulling ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}...';
+        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}\"}' | tail -1;
+        echo '[ollama-init] models ready.';
+      "
+    depends_on:
+      ollama:
+        condition: service_started
+
   # ── Python AI Service ────────────────────────────────────────────────────────
   ai-service:
     build:
@@ -170,10 +215,19 @@ services:
       GO_API_URL: http://api:8080
       # Must match the Go API's AI_SERVICE_SECRET (P0-2).
       AI_SERVICE_SECRET: ${AI_SERVICE_SECRET}
+      # ── LLM provider — set to 'ollama' for air-gapped on-premise (default) ──
+      # Set to 'anthropic' or 'openai' only if the Cloud AI add-on is purchased.
+      DEFAULT_PROVIDER: ${DEFAULT_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      # Cloud AI credentials — leave empty for air-gapped deployments.
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      ollama:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
@@ -393,3 +447,4 @@ volumes:
   alertmanager_data:
   grafana_data:
   pg_backups:
+  ollama_data:

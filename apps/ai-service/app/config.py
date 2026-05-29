@@ -13,8 +13,8 @@ class Settings(BaseSettings):
     # ── LLM provider config ───────────────────────────────────────────────────
     # Set default_provider=ollama for fully air-gapped on-premise deployments.
     # When ollama is the provider, no data leaves the client's network.
-    default_provider: str = "anthropic"
-    default_model: str = "claude-opus-4-5"
+    default_provider: str = "ollama"
+    default_model: str = "claude-sonnet-4-6"
     embedding_model: str = "text-embedding-3-small"
 
     # ── Ollama on-premise config ──────────────────────────────────────────────

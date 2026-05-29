@@ -10,7 +10,8 @@ from pydantic import BaseModel
 from app.config import settings
 from app.db import get_pool
 from app.service_auth import require_service_token
-from app.services import chunker, embedder, extractor, storage_client
+from app.services import chunker, extractor, storage_client
+from app.services.llm_router import llm_router
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(require_service_token)])
@@ -75,13 +76,13 @@ async def process_document(req: ProcessDocumentRequest) -> ProcessDocumentRespon
                 error_message="chunking produced no content",
             )
 
-        # 4. Embed (batch in groups of 100 to stay within token limits)
+        # 4. Embed (batch in groups of 50; Ollama parallelizes, OpenAI uses batch API)
         texts = [c.content for c in chunks]
         all_embeddings: list[list[float]] = []
-        batch_size = 100
+        batch_size = 50
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
-            all_embeddings.extend(embedder.embed_texts(batch))
+            all_embeddings.extend(await llm_router.embed_batch(batch))
 
         # 5. Store chunks
         pool = await get_pool()
