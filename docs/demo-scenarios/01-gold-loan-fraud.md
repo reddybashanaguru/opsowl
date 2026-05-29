@@ -95,13 +95,17 @@ She exports the account list from the LMS, re-uploads as `rajan_pillai_all_accou
 
 Divya uploads KYC scans for the 18 Suresh Khatri-linked borrowers (Aadhaar + PAN PDFs, 36 documents).
 
-**Document Intelligence flags:**
-- 9 of 18 Aadhaar cards share the same font rendering artifact in the date field — consistent with a single batch print job
-- 4 PAN cards have identical metadata timestamps in the embedded PDF (suggesting the same scanner/device)
-- Address on 6 Aadhaar cards resolves to the same building (Sri Nagar Colony, Hyderabad) under different flat numbers
+**AI Copilot — Divya's first question:**
+> *"What addresses appear across these 18 KYC documents, and are any shared?"*
+
+**AI Response:**
+> *"6 of the 18 borrowers list H.No. 8-2-293/A, Sri Nagar Colony, Hyderabad — with different flat numbers (101, 102, 103, 201, 202, 204). Legitimate borrowers sharing a residential building is possible but rare at this concentration. The flat-number variation pattern — same building, sequential or near-sequential numbers — is a documented mule recruitment indicator where a single address is presented under slight variations to pass KYC deduplication checks. Recommend pulling all active loan accounts at this address across all branches."*
 
 **AI Copilot:**
-> *"6 borrowers claim different flat numbers at the same building (H.No. 8-2-293/A, Sri Nagar Colony). This is a known mule recruitment pattern — a single address is used with flat-number variations to make borrowers appear distinct in KYC checks. Recommend cross-referencing this address with your loan origination system for all active accounts."*
+> *"Do any of the 18 borrowers share phone numbers or Aadhaar last-4 digits with each other?"*
+
+**AI Response:**
+> *"3 borrowers share phone numbers across two different KYC submissions — AC-linked borrowers Pradeep Reddy and Mohammed Salim both list +91-98XXXXXXX12 as the contact number, and two others share the same Aadhaar last-4 (7834). Duplicate contact details across separate KYC documents is a strong indicator of a coordinated recruitment batch rather than independent applicants."*
 
 ---
 
@@ -231,9 +235,8 @@ Ravi reviews, adds the Principal Officer's digital signature field, and marks th
 | Feature | Where Used |
 |---------|-----------|
 | Document Intelligence (PDF OCR) | Audit report extraction, KYC batch analysis |
-| AI Copilot (Q&A) | Purity ratio analysis, address pattern query |
+| AI Copilot (Q&A) | Purity ratio analysis, shared address query, duplicate contact detection |
 | Communications Entity Extraction | WhatsApp chat — parties, amounts, red-flag phrases |
-| Cross-document pattern detection | Aadhaar print-artifact fingerprinting across 9 docs |
 | AI Risk Scoring (94/100) | Automated risk level + recommended actions |
 | Cross-branch CSV analysis | 312-row account data cross-referenced |
 | STR Generation (goAML XML) | One-click draft with all regulatory references |
