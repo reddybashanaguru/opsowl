@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { useConfig } from "@/lib/hooks/useConfig";
 
 type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str";
 
@@ -20,17 +21,22 @@ const PRIMARY_TABS: { tab: Tab; label: string; path: string }[] = [
   { tab: "comms",     label: "Comms",     path: "/comms" },
 ];
 
-const MORE_TABS: { tab: Tab; label: string; path: string }[] = [
+const MORE_TABS_BASE: { tab: Tab; label: string; path: string }[] = [
   { tab: "insights",  label: "AI Insights", path: "/insights" },
   { tab: "timeline",  label: "Timeline",    path: "/timeline" },
   { tab: "ai-logs",   label: "AI Logs",     path: "/ai-logs" },
-  { tab: "str",       label: "STR",         path: "/str" },
+  { tab: "str",       label: "",            path: "/str" },
 ];
 
 export function CaseSubNav({ caseId, activeTab, action }: Props) {
   const router = useRouter();
+  const cfg = useConfig();
   const [moreOpen, setMoreOpen] = useState(false);
   const moreRef = useRef<HTMLDivElement>(null);
+
+  const MORE_TABS = MORE_TABS_BASE.map((t) =>
+    t.tab === "str" ? { ...t, label: cfg.str_label } : t
+  );
 
   const isMore = MORE_TABS.some((t) => t.tab === activeTab);
 

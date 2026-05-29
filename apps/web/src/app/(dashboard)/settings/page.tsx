@@ -24,6 +24,14 @@ const LABEL_FIELDS: { key: keyof AppConfig; label: string; hint: string }[] = [
   { key: "notes_label",     label: "Note (plural)",         hint: "e.g. Notes, Remarks, Memos" },
 ];
 
+const REGULATORY_LABEL_FIELDS: { key: keyof AppConfig; label: string; hint: string }[] = [
+  { key: "str_label",           label: "Filing type short name",   hint: "e.g. STR (India/SG), SAR (US/UK), CTR" },
+  { key: "str_reference_label", label: "Regulator reference label",hint: "e.g. FIU Reference, FinCEN Reference, NCA Reference" },
+  { key: "str_regulator_label", label: "Regulator / Authority",    hint: "e.g. FIU, FinCEN, NCA, MAS, FINTRAC, goAML" },
+  { key: "str_law_reference",   label: "Applicable law",           hint: "e.g. PMLA 2002, BSA, POCA 2002, CDSA — leave blank if not applicable" },
+  { key: "str_id_label",        label: "Subject ID field label",   hint: "e.g. PAN, SSN/TIN, NI Number, TFN, NRIC" },
+];
+
 interface MFAEnrollResponse {
   secret: string;
   otpauth_url: string;
@@ -568,6 +576,30 @@ export default function SettingsPage() {
 
           <div className="grid grid-cols-2 gap-4">
             {LABEL_FIELDS.map(({ key, label, hint }) => (
+              <div key={key}>
+                <label className="block text-xs text-slate-400 mb-1">{label}</label>
+                <input
+                  type="text"
+                  value={form[key] as string}
+                  onChange={(e) => handleField(key, e.target.value)}
+                  placeholder={hint}
+                  className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+                />
+                <p className="text-slate-600 text-[10px] mt-0.5">{hint}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+            Regulatory Filings
+          </h2>
+          <p className="text-slate-500 text-xs mb-4">
+            Customise the terminology for your jurisdiction — India (FIU/PMLA), US (FinCEN/BSA), UK (NCA/POCA), SG (MAS/CDSA), etc.
+          </p>
+          <div className="grid grid-cols-2 gap-4">
+            {REGULATORY_LABEL_FIELDS.map(({ key, label, hint }) => (
               <div key={key}>
                 <label className="block text-xs text-slate-400 mb-1">{label}</label>
                 <input

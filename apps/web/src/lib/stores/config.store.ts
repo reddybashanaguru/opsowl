@@ -19,6 +19,11 @@ export interface AppConfig {
   timeline_label: string;
   note_label: string;
   notes_label: string;
+  str_label: string;
+  str_reference_label: string;
+  str_regulator_label: string;
+  str_law_reference: string;
+  str_id_label: string;
 }
 
 export const DEFAULT_CONFIG: AppConfig = {
@@ -38,6 +43,11 @@ export const DEFAULT_CONFIG: AppConfig = {
   timeline_label: "Timeline",
   note_label: "Note",
   notes_label: "Notes",
+  str_label: "STR",
+  str_reference_label: "FIU Reference",
+  str_regulator_label: "FIU",
+  str_law_reference: "PMLA 2002",
+  str_id_label: "PAN",
 };
 
 export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
@@ -57,6 +67,11 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     timeline_label: "Timeline",
     note_label: "Note",
     notes_label: "Notes",
+    str_label: "STR",
+    str_reference_label: "FIU Reference",
+    str_regulator_label: "FIU",
+    str_law_reference: "PMLA 2002",
+    str_id_label: "PAN",
   },
   insurance: {
     industry: "insurance",
@@ -74,6 +89,11 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     timeline_label: "Timeline",
     note_label: "Note",
     notes_label: "Notes",
+    str_label: "SAR",
+    str_reference_label: "Regulator Reference",
+    str_regulator_label: "Regulator",
+    str_law_reference: "",
+    str_id_label: "ID Number",
   },
   security_ops: {
     industry: "security_ops",
@@ -91,6 +111,11 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     timeline_label: "Timeline",
     note_label: "Note",
     notes_label: "Notes",
+    str_label: "Report",
+    str_reference_label: "Reference No.",
+    str_regulator_label: "Authority",
+    str_law_reference: "",
+    str_id_label: "ID Number",
   },
   legal: {
     industry: "legal",
@@ -108,6 +133,11 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     timeline_label: "Timeline",
     note_label: "Note",
     notes_label: "Notes",
+    str_label: "Report",
+    str_reference_label: "Reference No.",
+    str_regulator_label: "Authority",
+    str_law_reference: "",
+    str_id_label: "ID Number",
   },
   hr: {
     industry: "hr",
@@ -125,6 +155,11 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     timeline_label: "Timeline",
     note_label: "Note",
     notes_label: "Notes",
+    str_label: "Report",
+    str_reference_label: "Reference No.",
+    str_regulator_label: "Authority",
+    str_law_reference: "",
+    str_id_label: "ID Number",
   },
 };
 

@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useConfig } from "@/lib/hooks/useConfig";
 
 interface STRFiling {
   id: string;
@@ -59,6 +60,7 @@ function FilingCard({
   onAction: () => void;
 }) {
   const qc = useQueryClient();
+  const cfg = useConfig();
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
@@ -103,7 +105,7 @@ function FilingCard({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `STR-${filing.id.slice(0, 8)}.xml`;
+      a.download = `${cfg.str_label}-${filing.id.slice(0, 8)}.xml`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -154,7 +156,7 @@ function FilingCard({
           </span>
         )}
         {filing.fiu_reference && (
-          <span>FIU Ref: <span className="text-cyan-300 font-mono">{filing.fiu_reference}</span></span>
+          <span>{cfg.str_reference_label}: <span className="text-cyan-300 font-mono">{filing.fiu_reference}</span></span>
         )}
         {filing.rejection_reason && (
           <span className="text-red-400">Rejected: {filing.rejection_reason}</span>
@@ -199,7 +201,7 @@ function FilingCard({
 
           {filing.status === "submitted" && isSelf && (
             <span className="text-xs text-amber-400/70 italic py-1.5">
-              PMLA s.12: you submitted this filing — a different officer must approve
+              {cfg.str_law_reference ? `${cfg.str_law_reference}: ` : ""}You submitted this filing — a different officer must approve
             </span>
           )}
 
@@ -209,7 +211,7 @@ function FilingCard({
               disabled={filedMut.isPending}
               className="text-xs px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg transition-colors disabled:opacity-60"
             >
-              {filedMut.isPending ? "Filing…" : "Mark as Filed with FIU"}
+              {filedMut.isPending ? "Filing…" : `Mark as Filed with ${cfg.str_regulator_label}`}
             </button>
           )}
 
@@ -218,7 +220,7 @@ function FilingCard({
               onClick={handleExport}
               className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
             >
-              Export FINnet XML
+              Export XML
             </button>
           )}
         </div>
@@ -228,7 +230,7 @@ function FilingCard({
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
           <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h3 className="text-white font-semibold mb-3">Reject STR Filing</h3>
+            <h3 className="text-white font-semibold mb-3">Reject {cfg.str_label} Filing</h3>
             <textarea
               rows={3}
               value={rejectReason}
@@ -264,6 +266,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 
+  const cfg = useConfig();
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -320,7 +323,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         <CaseSubNav caseId={caseId} activeTab="str" />
         <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-8 text-center">
           <p className="text-red-400 font-medium">Access Restricted</p>
-          <p className="text-slate-500 text-sm mt-1">STR/SAR/CTR filings are restricted to compliance officers (manager role and above).</p>
+          <p className="text-slate-500 text-sm mt-1">Regulatory filings are restricted to compliance officers (manager role and above).</p>
         </div>
       </div>
     );
@@ -335,7 +338,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         <div>
           <h1 className="text-white text-xl font-bold">Regulatory Filings</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            PMLA 2002 · Dual-authorization maker-checker workflow · FIU-IND FINnet 2.0
+            {[cfg.str_law_reference, "Dual-authorization maker-checker workflow", cfg.str_regulator_label].filter(Boolean).join(" · ")}
           </p>
         </div>
         {isManagerOrAbove && (
@@ -348,18 +351,19 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         )}
       </div>
 
-      {/* PMLA info banner */}
+      {/* Compliance info banner */}
       <div className="bg-amber-900/10 border border-amber-800/20 rounded-xl p-4 mb-6 text-xs text-amber-300/80 leading-relaxed">
-        <strong className="text-amber-300">PMLA s.12</strong> — Records must be retained for 10 years.
+        {cfg.str_law_reference && <><strong className="text-amber-300">{cfg.str_law_reference}</strong> — </>}
+        Records must be retained for 10 years.
         A filing must be <em>submitted</em> by one officer and <em>approved</em> by a different officer (maker-checker).
-        Analysts are excluded from this workflow (PMLA s.8A tipping-off restriction).
+        Analysts are excluded from this workflow (tipping-off restriction).
       </div>
 
       {/* Create form */}
       {showCreate && (
         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-white font-semibold">New STR/SAR/CTR Draft</h2>
+            <h2 className="text-white font-semibold">New Regulatory Filing Draft</h2>
             <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
           </div>
 
@@ -422,13 +426,12 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">PAN</label>
+              <label className="text-slate-400 text-xs mb-1.5 block">{cfg.str_id_label}</label>
               <input
                 type="text"
                 value={subjectPAN}
                 onChange={(e) => setSubjectPAN(e.target.value)}
-                placeholder="ABCDE1234F"
-                maxLength={10}
+                placeholder={cfg.str_id_label}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 font-mono uppercase focus:outline-none focus:border-cyan-500"
               />
             </div>
@@ -489,7 +492,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         <div className="text-center py-16 text-slate-500">
           <p className="text-4xl mb-3">📋</p>
           <p className="font-medium">No filings yet</p>
-          <p className="text-sm mt-1">Create a new draft to start the STR/SAR/CTR workflow.</p>
+          <p className="text-sm mt-1">Create a new draft to start the {cfg.str_label} workflow.</p>
         </div>
       ) : (
         <div className="flex flex-col gap-4">

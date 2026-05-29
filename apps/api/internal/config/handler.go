@@ -28,6 +28,13 @@ type AppConfig struct {
 	TimelineLabel  string `json:"timeline_label"`
 	NoteLabel      string `json:"note_label"`
 	NotesLabel     string `json:"notes_label"`
+
+	// Regulatory filing labels — jurisdiction-specific
+	StrLabel           string `json:"str_label"`            // "STR" (India), "SAR" (US/UK)
+	StrReferenceLabel  string `json:"str_reference_label"`  // "FIU Reference", "FinCEN Reference"
+	StrRegulatorLabel  string `json:"str_regulator_label"`  // "FIU", "FinCEN", "NCA", "MAS"
+	StrLawReference    string `json:"str_law_reference"`    // "PMLA 2002", "BSA", "POCA 2002"
+	StrIDLabel         string `json:"str_id_label"`         // "PAN", "SSN/TIN", "NI Number"
 }
 
 // envOr returns the env var value if set and non-empty, otherwise fallback.
@@ -57,8 +64,13 @@ func deploymentDefaults() AppConfig {
 		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
 		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
 		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
-		NoteLabel:      envOr("NOTE_LABEL", "Note"),
-		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		NoteLabel:          envOr("NOTE_LABEL", "Note"),
+		NotesLabel:         envOr("NOTES_LABEL", "Notes"),
+		StrLabel:           envOr("STR_LABEL", "STR"),
+		StrReferenceLabel:  envOr("STR_REFERENCE_LABEL", "FIU Reference"),
+		StrRegulatorLabel:  envOr("STR_REGULATOR_LABEL", "FIU"),
+		StrLawReference:    envOr("STR_LAW_REFERENCE", "PMLA 2002"),
+		StrIDLabel:         envOr("STR_ID_LABEL", "PAN"),
 	}
 }
 
