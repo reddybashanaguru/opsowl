@@ -199,6 +199,6 @@ export const api = {
  * in URLs. This endpoint requires an authenticated session (cookie-based).
  */
 export async function getSseTicket(): Promise<string> {
-  const data = await api.get<{ ticket: string; expires_in: number }>("/api/v1/auth/sse-ticket");
+  const data = await api.post<{ ticket: string; expires_in: number }>("/api/v1/auth/sse-ticket", {});
   return data.ticket;
 }
