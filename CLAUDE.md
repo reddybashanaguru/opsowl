@@ -1053,3 +1053,38 @@ These 3 items were specified in the original HLD but not yet implemented. Defer 
 
 ### Test Coverage Added
 - `TestHandlerListCases_MultiStatusFilter` — 3 sub-tests: single status filter, multi-status returns both, multi-status excludes unselected
+
+---
+
+## Full-App UX Audit — Navigation & Layout Consistency (2026-05-30)
+
+### Problems Fixed
+
+**Case detail navigation inconsistency (high priority)**
+- The overview page (`/cases/:id`) used a custom inline two-row nav (back link + action buttons in row 1; Notes/Tasks/Docs/Comms/More buttons in row 2)
+- None of the tabs highlighted as active — user couldn't tell they were on the "Case" overview tab
+- Back button was in a different position vs. all sub-pages
+- **Fix**: Replaced custom nav with `<CaseSubNav caseId={id} activeTab="case" action={...} />` — action buttons (⚡ Analyse, 🤖 AI Copilot, 📄 Export PDF) moved to the `action` prop; `moreMenuOpen` state removed
+
+**Layout shift between overview and sub-pages (high priority)**
+- Case detail overview used `max-w-6xl`; every sub-page used `max-w-4xl` — jarring 2-column → narrow transition on every tab click
+- **Fix**: All sub-pages changed from `max-w-4xl` → `max-w-5xl` for a gentler step-down
+  - Affected: notes, tasks, documents, comms, ai-logs, insights, str pages
+
+**Dashboard "My Open Cases" link mismatch (medium)**
+- StatCard and My Queue "View all →" linked to `/cases?assigned_to={id}` (all statuses)
+- **Fix**: Both links now include `&status=active` — lands on active cases only, matching the card's label
+
+**Sidebar Reports icon (low)**
+- Reports nav item used `✉` (envelope — looks like email/comms)
+- **Fix**: Changed to `⊞` (grid — better represents scheduled reports dashboard)
+
+### Pages Verified Functional (no changes needed)
+- Global documents page (`/documents`) — grid layout, status filter, filename search, infinite scroll
+- Search page (`/search`) — debounced query, skeleton states, per-type result cards
+- Workload page (`/workload`) — analyst workload table + risk rows
+- Users page (`/users`) — invite form, role change, user list
+- Cases new/import pages — back navigation, multi-step import flow
+- All settings sub-pages — webhooks, reports, templates, assignment rules, api-keys, retention
+- Audit logs page — infinite scroll, date/actor/action filters
+- 404 catch-all — clear error state with "← Back to Dashboard" link
