@@ -44,20 +44,20 @@ function classifyTask(task: Task): Group {
   return "later";
 }
 
-function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
+function ProgressRing({ pct, size = 44 }: { pct: number; size?: number }) {
   const r = (size - 6) / 2;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
   const color = pct === 100 ? "#4ade80" : pct >= 60 ? "#22d3ee" : pct >= 30 ? "#f59e0b" : "#f87171";
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#1e293b" strokeWidth={4} />
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#334155" strokeWidth={4} />
       <circle
-        cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={4}
+        cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={4}
         strokeDasharray={`${dash} ${circ}`} strokeLinecap="round"
-        style={{ transform: `rotate(-90deg)`, transformOrigin: `${size/2}px ${size/2}px`, transition: "stroke-dasharray 0.5s ease" }}
+        style={{ transform: "rotate(-90deg)", transformOrigin: `${size / 2}px ${size / 2}px`, transition: "stroke-dasharray 0.5s ease" }}
       />
-      <text x={size/2} y={size/2+4} textAnchor="middle" fill={color} fontSize="9" fontWeight="bold" fontFamily="monospace">
+      <text x={size / 2} y={size / 2 + 4} textAnchor="middle" fill={color} fontSize="9" fontWeight="bold" fontFamily="monospace">
         {Math.round(pct)}%
       </text>
     </svg>
@@ -65,6 +65,20 @@ function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
 }
 
 const PRIVILEGED_ROLES = ["manager", "admin", "super_admin"];
+
+function SkeletonCard() {
+  return (
+    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-2.5">
+      <div className="h-4 w-24 bg-slate-700 rounded animate-pulse" />
+      <div className="h-4 w-3/4 bg-slate-700/80 rounded animate-pulse" />
+      <div className="h-3 w-full bg-slate-800 rounded animate-pulse" />
+      <div className="flex gap-2 mt-1">
+        <div className="h-5 w-14 bg-slate-800 rounded animate-pulse" />
+        <div className="h-5 w-16 bg-slate-800 rounded animate-pulse" />
+      </div>
+    </div>
+  );
+}
 
 function TasksPageContent() {
   const router = useRouter();
@@ -75,12 +89,8 @@ function TasksPageContent() {
 
   const isPrivileged = PRIVILEGED_ROLES.includes(user?.role ?? "");
 
-  // For privileged roles: default to "all" unless explicitly set to "mine"
-  // For analysts: always "mine"
   const scopeParam = searchParams.get("scope");
-  const defaultAll = isPrivileged
-    ? scopeParam !== "mine"  // privileged default = all, unless ?scope=mine
-    : false;                 // analysts always see their own tasks
+  const defaultAll = isPrivileged ? scopeParam !== "mine" : false;
 
   const [viewAll, setViewAll] = useState(defaultAll);
 
@@ -114,104 +124,133 @@ function TasksPageContent() {
   );
   tasks.forEach((t) => groups[classifyTask(t)].push(t));
 
-  if (isLoading) {
-    return (
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="h-7 w-32 bg-slate-700 animate-pulse rounded mb-6" />
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-800 animate-pulse rounded-xl" />)}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div className="p-6 max-w-3xl mx-auto">
-      {/* Header with progress summary */}
-      <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-white text-xl font-bold">{viewAll ? `All ${cfg.tasks_label}` : `My ${cfg.tasks_label}`}</h1>
-            {isPrivileged && (
-              <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-xs">
-                <button
-                  onClick={() => setViewAll(false)}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${!viewAll ? "bg-slate-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                >
-                  Mine
-                </button>
-                <button
-                  onClick={() => setViewAll(true)}
-                  className={`px-2.5 py-1 rounded-md transition-colors ${viewAll ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
-                >
-                  All
-                </button>
+    <div className="flex flex-col" style={{ height: "100%" }}>
+      {/* ── Sticky header ─────────────────────────────────── */}
+      <div className="sticky top-0 z-10 flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50 bg-[#0f172a]">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+          {/* Left: title + toggle + stats */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-3 mb-1">
+              <h1 className="text-white text-xl font-bold">
+                {viewAll ? `All ${cfg.tasks_label}` : `My ${cfg.tasks_label}`}
+              </h1>
+              {isPrivileged && (
+                <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-xs">
+                  <button
+                    onClick={() => setViewAll(false)}
+                    className={`px-3 py-1 rounded-md transition-colors font-medium ${
+                      !viewAll ? "bg-slate-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    Mine
+                  </button>
+                  <button
+                    onClick={() => setViewAll(true)}
+                    className={`px-3 py-1 rounded-md transition-colors font-medium ${
+                      viewAll ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    All
+                  </button>
+                </div>
+              )}
+            </div>
+            <p className="text-slate-500 text-sm">
+              <span className="text-slate-300 font-medium">{active}</span> active
+              {" · "}
+              <span className="text-slate-300 font-medium">{done}</span> completed
+              {" · "}
+              <span className="text-slate-400">{tasks.length} total</span>
+              {overdue > 0 && (
+                <span className="text-red-400 ml-2 font-medium">· {overdue} overdue</span>
+              )}
+            </p>
+          </div>
+
+          {/* Right: progress ring + bar */}
+          <div className="flex items-center gap-4">
+            {tasks.length > 0 && (
+              <div className="hidden sm:block w-40">
+                <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <span>Completion</span>
+                  <span className="tabular-nums">{Math.round(pct)}%</span>
+                </div>
+                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-cyan-500 to-green-400 rounded-full transition-all duration-700"
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
               </div>
             )}
+            <ProgressRing pct={pct} size={44} />
           </div>
-          <p className="text-slate-500 text-sm mt-1">
-            {active} active · {done} completed · {tasks.length} total
-            {overdue > 0 && <span className="text-red-400 ml-2">· {overdue} overdue</span>}
-          </p>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <ProgressRing pct={pct} size={52} />
-          <span className="text-slate-600 text-xs">completion</span>
         </div>
       </div>
 
-      {/* Progress bar */}
-      {tasks.length > 0 && (
-        <div className="mb-6">
-          <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-cyan-500 to-green-400 rounded-full transition-all duration-700"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
-      )}
-
-      {tasks.length === 0 ? (
-        <div className="text-center py-20">
-          <div className="text-5xl mb-4">✓</div>
-          <p className="text-slate-300 text-sm font-medium">All caught up!</p>
-          <p className="text-slate-600 text-xs mt-1">{viewAll ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.` : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}</p>
-        </div>
-      ) : (
-        <div className="space-y-7">
-          {GROUP_ORDER.map((group) => {
-            const groupTasks = groups[group];
-            if (groupTasks.length === 0) return null;
-            const cfg = GROUP_CONFIG[group];
-            return (
-              <div key={group}>
-                <div className={`flex items-center gap-2 mb-2.5 py-1.5 px-2 rounded-lg ${cfg.bgColor}`}>
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${cfg.dotColor}`} />
-                  <h2 className={`text-xs font-bold uppercase tracking-widest ${cfg.color}`}>
-                    {cfg.label}
-                  </h2>
-                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full bg-slate-800 ${cfg.color}`}>
-                    {groupTasks.length}
-                  </span>
+      {/* ── Scrollable task body ───────────────────────────── */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="max-w-7xl mx-auto px-6 py-5">
+          {isLoading ? (
+            <div className="space-y-6">
+              {[...Array(2)].map((_, g) => (
+                <div key={g}>
+                  <div className="h-6 w-32 bg-slate-700 animate-pulse rounded mb-3" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    {[...Array(4)].map((_, i) => <SkeletonCard key={i} />)}
+                  </div>
                 </div>
-                <div className="space-y-2">
-                  {groupTasks.map((task) => (
-                    <TaskCard
-                      key={task.id}
-                      task={task}
-                      showCase
-                      onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
-                      onComplete={() => completeMutation.mutate(task.id)}
-                      onDelete={() => deleteMutation.mutate(task.id)}
-                    />
-                  ))}
-                </div>
-              </div>
-            );
-          })}
+              ))}
+            </div>
+          ) : tasks.length === 0 ? (
+            <div className="text-center py-24">
+              <div className="text-5xl mb-4">✓</div>
+              <p className="text-slate-300 text-sm font-medium">All caught up!</p>
+              <p className="text-slate-500 text-xs mt-1">
+                {viewAll
+                  ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.`
+                  : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {GROUP_ORDER.map((group) => {
+                const groupTasks = groups[group];
+                if (groupTasks.length === 0) return null;
+                const gcfg = GROUP_CONFIG[group];
+                return (
+                  <div key={group}>
+                    {/* Group header — full width */}
+                    <div className={`flex items-center gap-2 mb-3 py-1.5 px-2 rounded-lg ${gcfg.bgColor}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${gcfg.dotColor}`} />
+                      <h2 className={`text-xs font-bold uppercase tracking-widest ${gcfg.color}`}>
+                        {gcfg.label}
+                      </h2>
+                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full bg-slate-800/80 ${gcfg.color}`}>
+                        {groupTasks.length}
+                      </span>
+                    </div>
+                    {/* 2-column card grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {groupTasks.map((task) => (
+                        <TaskCard
+                          key={task.id}
+                          task={task}
+                          showCase
+                          onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
+                          onComplete={() => completeMutation.mutate(task.id)}
+                          onDelete={() => deleteMutation.mutate(task.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -219,10 +258,19 @@ function TasksPageContent() {
 export default function MyTasksPage() {
   return (
     <Suspense fallback={
-      <div className="p-6 max-w-3xl mx-auto">
-        <div className="h-7 w-32 bg-slate-700 animate-pulse rounded mb-6" />
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-16 bg-slate-800 animate-pulse rounded-xl" />)}
+      <div className="flex flex-col h-full overflow-hidden">
+        <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50">
+          <div className="max-w-7xl mx-auto">
+            <div className="h-7 w-40 bg-slate-700 animate-pulse rounded mb-2" />
+            <div className="h-4 w-56 bg-slate-800 animate-pulse rounded" />
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto px-6 py-5">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="h-28 bg-slate-800 animate-pulse rounded-xl" />
+            ))}
+          </div>
         </div>
       </div>
     }>
