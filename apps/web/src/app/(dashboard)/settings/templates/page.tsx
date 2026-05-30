@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
+import { RBACGate } from "@/components/auth/RBACGate";
 
 interface TaskStub {
   title: string;
@@ -429,6 +430,13 @@ export default function TemplatesPage() {
   const templates = data?.templates ?? [];
 
   return (
+    <RBACGate allowedRoles={["manager", "admin", "super_admin"]} fallback={
+      <div className="p-12 flex flex-col items-center justify-center text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <p className="text-slate-200 font-semibold">Access Denied</p>
+        <p className="text-slate-500 text-sm mt-2">Manager or higher privileges required to manage templates.</p>
+      </div>
+    }>
     <div className="p-6">
       <div className="flex items-start justify-between mb-6">
         <div>
@@ -497,5 +505,6 @@ export default function TemplatesPage() {
         </div>
       )}
     </div>
+    </RBACGate>
   );
 }

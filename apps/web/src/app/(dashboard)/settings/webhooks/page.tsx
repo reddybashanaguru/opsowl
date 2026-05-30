@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
+import { RBACGate } from "@/components/auth/RBACGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -449,6 +450,13 @@ export default function WebhooksPage() {
   const allEventTypes = typesData?.event_types ?? [];
 
   return (
+    <RBACGate allowedRoles={["admin", "super_admin"]} fallback={
+      <div className="p-12 flex flex-col items-center justify-center text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <p className="text-slate-200 font-semibold">Access Denied</p>
+        <p className="text-slate-500 text-sm mt-2">Admin privileges required to manage webhooks.</p>
+      </div>
+    }>
     <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -516,5 +524,6 @@ export default function WebhooksPage() {
         </div>
       )}
     </div>
+    </RBACGate>
   );
 }

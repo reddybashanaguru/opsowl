@@ -126,10 +126,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             {nav.map((item) => <NavLink key={item.href} item={item} />)}
 
-            <div className="px-4 mt-5 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
-              Intelligence
-            </div>
-            {insightsNav.map((item) => <NavLink key={item.href} item={item} />)}
+            <RBACGate allowedRoles={["manager", "admin", "super_admin"]}>
+              <div className="px-4 mt-5 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+                Intelligence
+              </div>
+              {insightsNav.map((item) => <NavLink key={item.href} item={item} />)}
+            </RBACGate>
 
             <RBACGate allowedRoles={["admin", "super_admin"]}>
               <div className="px-4 mt-5 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">

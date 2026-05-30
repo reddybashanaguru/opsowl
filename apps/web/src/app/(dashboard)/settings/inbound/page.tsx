@@ -3,6 +3,7 @@
 import { Fragment, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
+import { RBACGate } from "@/components/auth/RBACGate";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -562,6 +563,13 @@ export default function InboundPage() {
   });
 
   return (
+    <RBACGate allowedRoles={["admin", "super_admin"]} fallback={
+      <div className="p-12 flex flex-col items-center justify-center text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <p className="text-slate-200 font-semibold">Access Denied</p>
+        <p className="text-slate-500 text-sm mt-2">Admin privileges required to manage inbound integrations.</p>
+      </div>
+    }>
     <div className="p-8">
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-100 mb-1">Inbound Integrations</h1>
@@ -637,5 +645,6 @@ export default function InboundPage() {
         />
       )}
     </div>
+    </RBACGate>
   );
 }

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { ExportButton } from "@/components/analytics/ExportButton";
 import { LoadBar } from "@/components/analytics/LoadBar";
+import { RBACGate } from "@/components/auth/RBACGate";
 
 interface AnalystWorkload {
   id: string;
@@ -85,18 +86,20 @@ export default function WorkloadPage() {
 
   const today = new Date().toISOString().slice(0, 10);
 
-  if (error) {
-    return (
-      <div className="p-6">
-        <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 text-sm">
-          Access denied or failed to load workload data. Manager role required.
-        </div>
-      </div>
-    );
-  }
-
   return (
+    <RBACGate allowedRoles={["manager", "admin", "super_admin"]} fallback={
+      <div className="p-12 flex flex-col items-center justify-center text-center">
+        <div className="text-5xl mb-4">🔒</div>
+        <p className="text-slate-200 font-semibold">Access Denied</p>
+        <p className="text-slate-500 text-sm mt-2">Manager or higher privileges required to view team workload.</p>
+      </div>
+    }>
     <div className="p-6 space-y-8">
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 text-sm">
+          Failed to load workload data. Please try again.
+        </div>
+      )}
       {/* ── Workload section ── */}
       <div>
         <div className="flex items-start justify-between mb-6">
@@ -290,5 +293,6 @@ export default function WorkloadPage() {
         <p className="text-slate-600 text-xs text-center mt-3">Risk data updates every 60 seconds</p>
       </div>
     </div>
+    </RBACGate>
   );
 }

@@ -476,6 +476,7 @@ function CasesContent() {
   const cfg = useConfig();
   const qc = useQueryClient();
   const { user } = useAuth();
+  const canWrite = (user?.role ?? "viewer") !== "viewer";
 
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => {
     const s = searchParams.get("status");
@@ -684,12 +685,14 @@ function CasesContent() {
               ↑ Import CSV
             </Link>
           )}
-          <Link
-            href="/cases/new"
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
-          >
-            + New {cfg.case_label}
-          </Link>
+          {canWrite && (
+            <Link
+              href="/cases/new"
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              + New {cfg.case_label}
+            </Link>
+          )}
         </div>
       </div>
 
@@ -811,16 +814,18 @@ function CasesContent() {
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">
-              <th className="px-4 py-3 w-8">
-                <input
-                  type="checkbox"
-                  aria-label="Select all"
-                  checked={allSelected}
-                  ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
-                  onChange={toggleAll}
-                  className="accent-cyan-500 cursor-pointer"
-                />
-              </th>
+              {canWrite && (
+                <th className="px-4 py-3 w-8">
+                  <input
+                    type="checkbox"
+                    aria-label="Select all"
+                    checked={allSelected}
+                    ref={(el) => { if (el) el.indeterminate = someSelected && !allSelected; }}
+                    onChange={toggleAll}
+                    className="accent-cyan-500 cursor-pointer"
+                  />
+                </th>
+              )}
               <th className="text-left px-4 py-3 font-medium">Case</th>
               <th className="text-left px-4 py-3 font-medium">Status</th>
               <th className="text-left px-4 py-3 font-medium">Priority</th>
@@ -847,9 +852,11 @@ function CasesContent() {
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center">
                   <p className="text-slate-400 text-sm mb-2">No cases found</p>
-                  <Link href="/cases/new" className="text-cyan-400 hover:text-cyan-300 text-sm">
-                    Create your first case →
-                  </Link>
+                  {canWrite && (
+                    <Link href="/cases/new" className="text-cyan-400 hover:text-cyan-300 text-sm">
+                      Create your first case →
+                    </Link>
+                  )}
                 </td>
               </tr>
             ) : (
@@ -862,7 +869,7 @@ function CasesContent() {
                       isChecked ? "bg-cyan-500/5" : ""
                     }`}
                   >
-                    <td className="px-4 py-3 w-8" onClick={(e) => e.stopPropagation()}>
+                    {canWrite && <td className="px-4 py-3 w-8" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         aria-label={`Select ${c.case_number}`}
@@ -870,7 +877,7 @@ function CasesContent() {
                         onChange={() => toggleOne(c.id)}
                         className="accent-cyan-500 cursor-pointer"
                       />
-                    </td>
+                    </td>}
                     <td
                       className="px-4 py-3 max-w-xs cursor-pointer"
                       onClick={() => router.push(`/cases/${c.id}`)}

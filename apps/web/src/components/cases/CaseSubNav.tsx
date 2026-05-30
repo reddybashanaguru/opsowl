@@ -27,9 +27,10 @@ export function CaseSubNav({ caseId, activeTab, action }: Props) {
   const router = useRouter();
   const cfg = useConfig();
   const { user } = useAuth();
-  const isAnalyst = user?.role === "analyst";
+  const ROLE_HIERARCHY: Record<string, number> = { super_admin: 5, admin: 4, manager: 3, analyst: 2, viewer: 1 };
+  const userLevel = ROLE_HIERARCHY[user?.role ?? "viewer"] ?? 0;
 
-  const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; analystVisible?: boolean }[] = [
+  const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; minLevel?: number }[] = [
     { tab: "case",      label: "Case",        path: "",          Icon: LayoutGrid },
     { tab: "notes",     label: "Notes",       path: "/notes",    Icon: StickyNote },
     { tab: "tasks",     label: "Tasks",       path: "/tasks",    Icon: CheckSquare },
@@ -38,10 +39,10 @@ export function CaseSubNav({ caseId, activeTab, action }: Props) {
     { tab: "insights",  label: "AI Insights", path: "/insights", Icon: Sparkles },
     { tab: "timeline",  label: "Timeline",    path: "/timeline", Icon: Activity },
     { tab: "ai-logs",   label: "AI Logs",     path: "/ai-logs",  Icon: ScrollText },
-    { tab: "str",       label: cfg.str_label, path: "/str",      Icon: ClipboardList, analystVisible: false },
+    { tab: "str",       label: cfg.str_label, path: "/str",      Icon: ClipboardList, minLevel: 3 },
   ];
 
-  const TABS = ALL_TABS.filter((t) => !isAnalyst || t.analystVisible !== false);
+  const TABS = ALL_TABS.filter((t) => userLevel >= (t.minLevel ?? 0));
 
   return (
     <div className="mb-4">
