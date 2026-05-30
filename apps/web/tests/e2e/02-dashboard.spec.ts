@@ -14,7 +14,7 @@ test.describe("Dashboard", () => {
     // Labels are hardcoded, render immediately after hydration
     await expect(page.getByText("Active Cases").first()).toBeVisible();
     await expect(page.getByText("Pending Tasks").first()).toBeVisible();
-    await expect(page.getByText("AI Queries Today").first()).toBeVisible();
+    await expect(page.getByText("My Open Cases").first()).toBeVisible();
     await expect(page.getByText("SLA Breached").first()).toBeVisible();
     // Each is inside a link
     const link = page.locator("a").filter({ hasText: "Active Cases" }).first();

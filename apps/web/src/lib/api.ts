@@ -30,6 +30,25 @@ export class APIError extends Error {
   }
 }
 
+// Attempt a silent token refresh when the access_token has expired.
+// Only one refresh is in-flight at a time; concurrent callers share the same promise.
+let _refreshPromise: Promise<void> | null = null;
+
+async function silentRefresh(): Promise<void> {
+  if (_refreshPromise) return _refreshPromise;
+  _refreshPromise = fetch(`${API_BASE}/api/v1/auth/refresh`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  }).then((r) => {
+    if (!r.ok) throw new Error("refresh failed");
+  }).finally(() => {
+    _refreshPromise = null;
+  });
+  return _refreshPromise;
+}
+
 async function request<T>(
   path: string,
   options: RequestInit = {},
@@ -44,6 +63,27 @@ async function request<T>(
       ...options.headers,
     },
   });
+
+  // On 401, attempt a silent token refresh and retry the request once.
+  // Skip refresh-retry for the auth endpoints themselves to avoid loops.
+  if (response.status === 401 && !path.includes("/auth/")) {
+    try {
+      await silentRefresh();
+      const retried = await fetch(url, {
+        ...options,
+        credentials: "include",
+        headers: { "Content-Type": "application/json", ...options.headers },
+      });
+      if (retried.status === 204) return undefined as T;
+      const env2 = await retried.json() as { data?: T; error?: { code: string; message: string; details?: unknown } };
+      if (!retried.ok || env2.error) {
+        throw new APIError(env2.error?.code ?? "UNKNOWN", env2.error?.message ?? "Session expired", retried.status, env2.error?.details);
+      }
+      return env2.data as T;
+    } catch {
+      // Refresh failed — let the original 401 propagate below
+    }
+  }
 
   if (response.status === 204) {
     return undefined as T;

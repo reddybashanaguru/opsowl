@@ -24,8 +24,16 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    // Always attempt silent refresh via the httpOnly refresh_token cookie.
-    // This recovers auth state even when sessionStorage is empty (new tab, Playwright restore).
+    if (user) {
+      // User already hydrated from sessionStorage — render immediately.
+      // The access_token cookie (1h TTL) is still valid; the API client handles
+      // 401 → refresh → retry for long-running sessions (see api.ts).
+      setChecking(false);
+      return;
+    }
+
+    // No user in sessionStorage (new tab, Playwright cookie-only restore).
+    // Attempt to recover via the httpOnly refresh_token cookie before redirecting.
     api
       .post<{ user?: { id: string; email: string; full_name: string; role: string } }>(
         "/api/v1/auth/refresh",

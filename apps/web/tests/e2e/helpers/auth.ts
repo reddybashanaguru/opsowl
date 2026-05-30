@@ -1,20 +1,38 @@
 import { Page } from "@playwright/test";
+import fs from "fs";
+import path from "path";
 
 export const ADMIN = { email: "admin@opsowl.dev", password: "OpsOwl@2024" };
 export const BASE_URL = "http://localhost:3001";
 export const API_URL = "http://localhost:8080/api/v1";
 
-/** Full UI login flow — use this per-spec in beforeAll/beforeEach.
+const AUTH_FILE = path.join(__dirname, "../.auth/admin.json");
+
+interface StoredAuth {
+  cookies: Array<{ name: string; value: string; domain: string; path: string; expires: number; httpOnly: boolean; secure: boolean; sameSite: string }>;
+  user?: { id: string; email: string; full_name: string; role: string; last_login_at?: string };
+}
+
+function loadAuthState(): StoredAuth | null {
+  if (!fs.existsSync(AUTH_FILE)) return null;
+  try {
+    const state: StoredAuth = JSON.parse(fs.readFileSync(AUTH_FILE, "utf-8"));
+    const accessToken = state.cookies?.find((c) => c.name === "access_token");
+    if (!accessToken || accessToken.expires * 1000 <= Date.now() + 60_000) return null;
+    return state;
+  } catch {
+    return null;
+  }
+}
+
+/** Login helper.
  *
- * Pass `targetUrl` (e.g. "/settings/webhooks") to land directly on that page
- * after login. This avoids the double-refresh race where ProtectedRoute on
- * /dashboard rotates the refresh token before the subsequent page.goto() can
- * receive the new httpOnly cookie.
+ * Fast path (valid admin.json): injects the access_token cookie AND pre-populates
+ * sessionStorage with the user object via addInitScript. ProtectedRoute sees the
+ * user immediately and renders without calling /auth/refresh — no token rotation,
+ * no rate-limit hits, no race conditions.
  *
- * After the URL resolves we wait for the sidebar <aside> element — this is
- * rendered by DashboardLayout only after ProtectedRoute's /auth/refresh call
- * completes and sets checking=false, so it reliably signals that the full auth
- * handshake is done before any test assertions run.
+ * Slow path (expired tokens): falls back to the full UI login form.
  */
 export async function login(
   page: Page,
@@ -22,6 +40,24 @@ export async function login(
   password = ADMIN.password,
   targetUrl?: string,
 ) {
+  const auth = loadAuthState();
+  const destination = targetUrl || "/dashboard";
+
+  if (auth?.user) {
+    // Pre-populate sessionStorage before the page loads so ProtectedRoute skips
+    // the /auth/refresh call entirely — avoids token rotation conflicts across tests.
+    const user = auth.user;
+    await page.addInitScript((u) => {
+      sessionStorage.setItem("opsowl_user", JSON.stringify(u));
+    }, user);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await page.context().addCookies(auth.cookies as any[]);
+    await page.goto(destination);
+    await page.waitForSelector("aside", { timeout: 15_000 });
+    return;
+  }
+
+  // Slow path: full UI login (only needed when tokens have expired).
   const loginUrl = targetUrl
     ? `/login?returnUrl=${encodeURIComponent(targetUrl)}`
     : "/login";
@@ -29,8 +65,6 @@ export async function login(
   await page.getByLabel("Email address").fill(email);
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
-  // Wait for URL then for the sidebar — sidebar only renders after ProtectedRoute
-  // clears its checking state, ensuring the /auth/refresh rotation is complete.
   await page.waitForURL(targetUrl ? `**${targetUrl}` : "**/dashboard", { timeout: 15_000 });
   await page.waitForSelector("aside", { timeout: 15_000 });
 }

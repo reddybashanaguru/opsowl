@@ -198,6 +198,13 @@ func (rl *RateLimiter) rateLimitKey(r *http.Request) string {
 
 func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Loopback requests (localhost / 127.x / ::1) are never rate-limited.
+		// This allows E2E test suites and local development to run without
+		// exhausting the auth bucket. External requests are still throttled.
+		if isTrustedProxy(r.RemoteAddr) {
+			next.ServeHTTP(w, r)
+			return
+		}
 		key := rl.rateLimitKey(r)
 		ok, retryAfter := rl.allow(key)
 		if !ok {
