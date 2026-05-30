@@ -6,6 +6,7 @@ import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
   total_count: number;
@@ -24,7 +25,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error, refetch } =
     useInfiniteQuery({
       queryKey: ["ai-logs", id, statusFilter],
       queryFn: async ({ pageParam }) => {
@@ -58,7 +59,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   });
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav caseId={id} activeTab="ai-logs" />
 
       {/* Header */}
@@ -122,11 +123,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
       )}
 
       {/* Error */}
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-          {error instanceof APIError ? error.message : "Failed to load AI logs"}
-        </div>
-      )}
+      {error && <PageError error={error as Error | null} onRetry={() => refetch()} />}
 
       {/* Empty state */}
       {!isLoading && allLogs.length === 0 && (

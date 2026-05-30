@@ -56,7 +56,7 @@ export default function SLAPage() {
   const [editForm, setEditForm] = useState({ warning_hours: 0, breach_hours: 0, warn_pct: 80 });
   const [saveError, setSaveError] = useState("");
 
-  const { data: policies, isLoading } = useQuery<SLAPolicy[]>({
+  const { data: policies, isLoading, isError, error, refetch } = useQuery<SLAPolicy[]>({
     queryKey: ["sla-policies"],
     queryFn: () => api.get<SLAPolicy[]>("/api/v1/sla/policies"),
   });
@@ -83,7 +83,7 @@ export default function SLAPage() {
   };
 
   return (
-    <div className="p-6 max-w-3xl mx-auto">
+    <div className="p-6">
       <div className="mb-6">
         <h1 className="text-white text-2xl font-bold">SLA Policy Engine</h1>
         <p className="text-slate-400 text-sm mt-1">
@@ -100,6 +100,11 @@ export default function SLAPage() {
       {isLoading ? (
         <div className="flex items-center justify-center h-32">
           <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : isError ? (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-6 text-center">
+          <p className="text-red-400 text-sm font-medium">{error instanceof Error ? error.message : "Failed to load SLA policies"}</p>
+          <button onClick={() => refetch()} className="mt-3 text-cyan-400 hover:text-cyan-300 text-sm">Try again →</button>
         </div>
       ) : (
         <div className="space-y-4">

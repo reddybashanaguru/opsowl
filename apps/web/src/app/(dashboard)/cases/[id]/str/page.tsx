@@ -318,7 +318,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   if (!isManagerOrAbove) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6">
         <CaseSubNav caseId={caseId} activeTab="str" />
         <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-8 text-center">
           <p className="text-red-400 font-medium">Access Restricted</p>
@@ -329,7 +329,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav caseId={caseId} activeTab="str" />
 
       {/* Header */}

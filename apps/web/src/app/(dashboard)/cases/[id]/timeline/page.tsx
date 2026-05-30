@@ -9,6 +9,7 @@ import { useTimelineSSE, type TimelineEvent } from "@/lib/hooks/useTimelineSSE";
 import { TimelineEventCard } from "@/components/cases/TimelineEventCard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { api } from "@/lib/api";
+import { PageError } from "@/components/ui/PageError";
 
 interface TimelineMeta {
   total_count: number;
@@ -73,6 +74,8 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
     hasNextPage,
     isFetchingNextPage,
     isLoading,
+    isError,
+    error,
     refetch,
   } = useInfiniteQuery<TimelinePage>({
     queryKey: ["timeline", id, [...selectedSources].sort(), [...selectedTypes].sort()],
@@ -247,6 +250,8 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
           <div className="flex justify-center py-12">
             <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
           </div>
+        ) : isError ? (
+          <PageError error={error as Error | null} onRetry={() => refetch()} />
         ) : (
           <>
             {/* Live events prepended at top */}

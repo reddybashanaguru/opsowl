@@ -342,7 +342,7 @@ export default function ReportSchedulesPage() {
   const schedules = data?.schedules ?? [];
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="p-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

@@ -87,7 +87,7 @@ export default function WorkloadPage() {
 
   if (error) {
     return (
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6">
         <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 text-sm">
           Access denied or failed to load workload data. Manager role required.
         </div>
@@ -96,7 +96,7 @@ export default function WorkloadPage() {
   }
 
   return (
-    <div className="p-6 max-w-5xl mx-auto space-y-8">
+    <div className="p-6 space-y-8">
       {/* ── Workload section ── */}
       <div>
         <div className="flex items-start justify-between mb-6">

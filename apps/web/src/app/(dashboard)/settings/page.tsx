@@ -545,7 +545,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="p-8 max-w-3xl">
+    <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-slate-100 mb-1">Settings</h1>
         <p className="text-slate-400 text-sm">

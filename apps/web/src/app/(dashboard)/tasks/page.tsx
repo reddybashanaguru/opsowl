@@ -114,7 +114,7 @@ function TasksPageContent() {
   });
   const usersList = usersData?.data ?? [];
 
-  const { data, isLoading, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
+  const { data, isLoading, isError, error, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
     queryKey: ["my-tasks", viewAll, filterAssignee, unassignedOnly],
     queryFn: () => api.getList<Task, ListMeta>(buildApiUrl()),
     enabled: !!user,
@@ -257,7 +257,7 @@ function TasksPageContent() {
 
       {/* ── Sticky header ─────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50 bg-[#0f172a]">
-        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+        <div className="flex items-center justify-between gap-4">
           {/* Left: title + toggle + stats */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-1">
@@ -318,7 +318,7 @@ function TasksPageContent() {
         </div>
 
         {/* Active / Done tab bar */}
-        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-3 border-b border-slate-700/50 pb-0">
+        <div className="flex items-center gap-1 mt-3 border-b border-slate-700/50 pb-0">
           <button
             onClick={() => setDoneTab(false)}
             className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -349,7 +349,7 @@ function TasksPageContent() {
 
         {/* All-view filters: assignee + unassigned */}
         {viewAll && isPrivileged && !doneTab && (
-          <div className="max-w-7xl mx-auto flex items-center gap-3 mt-3 flex-wrap">
+          <div className="flex items-center gap-3 mt-3 flex-wrap">
             <select
               value={filterAssignee}
               onChange={(e) => { setFilterAssignee(e.target.value); setUnassignedOnly(false); }}
@@ -383,7 +383,7 @@ function TasksPageContent() {
 
       {/* ── Scrollable task body ───────────────────────────── */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="max-w-7xl mx-auto px-6 py-5">
+        <div className="px-6 py-5">
           {isLoading ? (
             <div className="space-y-6">
               {[...Array(2)].map((_, g) => (
@@ -394,6 +394,11 @@ function TasksPageContent() {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : isError ? (
+            <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-8 text-center">
+              <p className="text-red-400 text-sm font-medium">{error instanceof Error ? error.message : "Failed to load tasks"}</p>
+              <button onClick={() => refetch()} className="mt-3 text-cyan-400 hover:text-cyan-300 text-sm">Try again →</button>
             </div>
           ) : doneTab ? (
             /* ── Done tab ─────────────────────────────────────── */
@@ -477,13 +482,13 @@ export default function MyTasksPage() {
     <Suspense fallback={
       <div className="flex flex-col h-full overflow-hidden">
         <div className="flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50">
-          <div className="max-w-7xl mx-auto">
+          <div className="">
             <div className="h-7 w-40 bg-slate-700 animate-pulse rounded mb-2" />
             <div className="h-4 w-56 bg-slate-800 animate-pulse rounded" />
           </div>
         </div>
         <div className="flex-1 overflow-y-auto px-6 py-5">
-          <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             {[...Array(8)].map((_, i) => (
               <div key={i} className="h-28 bg-slate-800 animate-pulse rounded-xl" />
             ))}

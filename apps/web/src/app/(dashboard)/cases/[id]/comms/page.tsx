@@ -3,9 +3,10 @@
 import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api } from "@/lib/api";
+import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface CommLog {
   id: string;
@@ -173,10 +174,14 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   });
   const [formError, setFormError] = useState("");
 
-  const { data: logs, isLoading } = useQuery<CommLog[]>({
+  const { data: logs, isLoading, isError, error, refetch: refetchLogs } = useQuery<CommLog[]>({
     queryKey: ["comms", id],
     queryFn: () => api.get<CommLog[]>(`/api/v1/cases/${id}/comms?limit=50`),
     refetchInterval: 10000,
+    retry: (failureCount, err) => {
+      if (err instanceof APIError && err.status === 404) return false;
+      return failureCount < 2;
+    },
   });
 
   const createMutation = useMutation({
@@ -208,7 +213,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav
         caseId={id}
         activeTab="comms"
@@ -338,14 +343,30 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
       {/* Log list */}
       {isLoading ? (
         <div className="space-y-3">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 bg-slate-800/40 rounded-xl animate-pulse" />
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-4 animate-pulse">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-lg bg-slate-700" />
+                <div className="flex-1 space-y-1.5">
+                  <div className="h-3.5 bg-slate-700 rounded w-1/3" />
+                  <div className="h-2.5 bg-slate-700/60 rounded w-1/5" />
+                </div>
+                <div className="h-2.5 bg-slate-700/40 rounded w-12" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="h-2.5 bg-slate-700/40 rounded w-full" />
+                <div className="h-2.5 bg-slate-700/40 rounded w-4/5" />
+              </div>
+            </div>
           ))}
         </div>
+      ) : isError ? (
+        <PageError error={error as Error | null} onRetry={() => refetchLogs()} />
       ) : !logs || logs.length === 0 ? (
-        <div className="text-center py-16 text-slate-600">
+        <div className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-16 text-center">
           <p className="text-4xl mb-3">📋</p>
-          <p className="text-sm">No communication logs yet.</p>
+          <p className="text-slate-400 text-sm font-medium">No communication logs yet.</p>
+          <p className="text-slate-600 text-xs mt-1">Record calls, emails, and field visits with AI-powered extraction.</p>
           {canWrite && (
             <button
               onClick={() => setShowForm(true)}

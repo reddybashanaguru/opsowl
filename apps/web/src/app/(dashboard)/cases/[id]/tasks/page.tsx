@@ -13,6 +13,7 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { TaskCard, Task } from "@/components/tasks/TaskCard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
   total_count: number;
@@ -71,7 +72,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     return p.toString();
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error, refetch } =
     useInfiniteQuery<{ data: Task[]; meta: ListMeta }>({
       queryKey: ["case-tasks", caseId, taskTab, filterPriority, overdueOnly],
       queryFn: ({ pageParam }) => {
@@ -81,6 +82,10 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       },
       initialPageParam: undefined as string | undefined,
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
+      retry: (failureCount, err) => {
+        if (err instanceof APIError && err.status === 404) return false;
+        return failureCount < 2;
+      },
     });
 
   const allFetched = data?.pages.flatMap((p) => p.data) ?? [];
@@ -217,8 +222,17 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-6">
+        <CaseSubNav caseId={caseId} activeTab="tasks" />
+        <PageError error={error as Error | null} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav caseId={caseId} activeTab="tasks" />
 
       {/* Header */}
@@ -316,15 +330,17 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
       {/* Task list */}
       {tasks.length === 0 ? (
-        <div className="text-center py-16">
+        <div className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-16 text-center">
           {taskTab === "done" ? (
             <>
               <div className="text-4xl mb-3">✓</div>
-              <p className="text-slate-600 text-sm">No completed tasks yet.</p>
+              <p className="text-slate-500 text-sm font-medium">No completed tasks yet.</p>
             </>
           ) : (
             <>
-              <p className="text-slate-600 text-sm">No active tasks.</p>
+              <div className="text-4xl mb-3">📋</div>
+              <p className="text-slate-400 text-sm font-medium">No active tasks.</p>
+              <p className="text-slate-600 text-xs mt-1">Track work items and assign them to team members.</p>
               {canCreate && (
                 <button
                   onClick={() => setShowCreate(true)}

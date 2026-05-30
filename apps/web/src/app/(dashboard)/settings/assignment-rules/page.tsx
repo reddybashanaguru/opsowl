@@ -278,7 +278,7 @@ function AssignmentRulesContent() {
   }
 
   return (
-    <div className="p-8 max-w-5xl">
+    <div className="p-8">
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-100 mb-1">Assignment Rules</h1>

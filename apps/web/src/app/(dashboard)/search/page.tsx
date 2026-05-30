@@ -346,7 +346,7 @@ export default function SearchPage() {
   const isEmpty = data && data.total === 0 && debouncedQuery.length >= 2 && !isFetching;
 
   return (
-    <div className="max-w-3xl mx-auto px-6 py-8">
+    <div className="px-6 py-8">
       {/* Search bar */}
       <div className="mb-6">
         <div className="relative">

@@ -514,7 +514,7 @@ function CasesContent() {
 
   const searchActive = debouncedSearch.trim().length >= 2;
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, isError: isCasesError, error: casesError, fetchNextPage, hasNextPage, isFetchingNextPage, refetch: refetchCases } =
     useInfiniteQuery<CasesPage>({
       queryKey: ["cases", selectedStatuses.join(","), priority, slaBreached, myCasesOnly, user?.id],
       queryFn: ({ pageParam }) =>
@@ -639,7 +639,7 @@ function CasesContent() {
   const bulkPending = bulkStatusMutation.isPending || bulkAssignMutation.isPending || bulkDeleteMutation.isPending;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* Header */}
@@ -805,6 +805,17 @@ function CasesContent() {
           <tbody>
             {isLoading ? (
               [...Array(8)].map((_, i) => <SkeletonRow key={i} withCheckbox />)
+            ) : isCasesError ? (
+              <tr>
+                <td colSpan={7} className="px-4 py-16 text-center">
+                  <p className="text-red-400 text-sm mb-2">
+                    {casesError instanceof APIError ? casesError.message : "Failed to load cases"}
+                  </p>
+                  <button onClick={() => refetchCases()} className="text-cyan-400 hover:text-cyan-300 text-sm">
+                    Try again →
+                  </button>
+                </td>
+              </tr>
             ) : filtered.length === 0 ? (
               <tr>
                 <td colSpan={7} className="px-4 py-16 text-center">

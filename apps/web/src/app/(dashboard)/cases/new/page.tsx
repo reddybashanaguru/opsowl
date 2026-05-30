@@ -116,7 +116,7 @@ export default function NewCasePage() {
   const errorMsg = error instanceof APIError ? error.message : error ? "Something went wrong" : null;
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <div className="p-6">
       <div className="mb-6">
         <button
           onClick={() => router.back()}

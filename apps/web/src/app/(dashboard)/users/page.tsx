@@ -290,7 +290,7 @@ export default function UsersPage() {
         <div className="p-8 text-slate-400">You don&apos;t have permission to view this page.</div>
       }
     >
-      <div className="p-6 max-w-5xl mx-auto">
+      <div className="p-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div>

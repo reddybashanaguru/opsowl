@@ -11,6 +11,7 @@ import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteCard, Note } from "@/components/notes/NoteCard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
   next_cursor: string | null;
@@ -47,7 +48,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const [showEditor, setShowEditor] = useState(false);
   const [filterType, setFilterType] = useState("");
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
+  const { data, isLoading, isError, error, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfiniteQuery<NotesPage>({
       queryKey: ["case-notes", id, filterType],
       queryFn: ({ pageParam }) => {
@@ -58,26 +59,54 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
       },
       initialPageParam: undefined,
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
+      retry: (failureCount, err: unknown) => {
+        if ((err as { status?: number })?.status === 404) return false;
+        return failureCount < 2;
+      },
     });
 
   const allNotes = data?.pages.flatMap((p) => p.data) ?? [];
   const total = data?.pages[0]?.meta.total_count ?? 0;
 
-  // SSE for real-time updates — use short-lived ticket so the access token is
-  // never exposed in a URL.
+  // SSE for real-time note updates. We manage reconnect manually so the browser
+  // never retries with a stale/expired token (onerror → close → backoff → new ticket).
   useEffect(() => {
     let es: EventSource | null = null;
-    getSseTicket()
-      .then((ticket) => {
-        const url = `${API_BASE}/api/v1/cases/${id}/notes/stream?token=${ticket}`;
-        es = new EventSource(url);
-        es.onmessage = () => {
-          qc.invalidateQueries({ queryKey: ["case-notes", id] });
-        };
-      })
-      .catch(() => {/* ignore — notes fall back to manual refresh */});
-    return () => es?.close();
-  }, [id, qc]);
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryDelay = 2000;
+    let destroyed = false;
+
+    function cleanup() {
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+      if (es) { es.close(); es = null; }
+    }
+
+    async function connect() {
+      if (destroyed) return;
+      cleanup();
+      let ticket: string;
+      try { ticket = await getSseTicket(); }
+      catch { return; }
+      if (destroyed) return;
+      es = new EventSource(`${API_BASE}/api/v1/cases/${id}/notes/stream?token=${ticket}`);
+      es.onmessage = () => {
+        qc.invalidateQueries({ queryKey: ["case-notes", id] });
+        retryDelay = 2000;
+      };
+      es.onerror = () => {
+        es?.close(); es = null;
+        if (destroyed) return;
+        retryTimer = setTimeout(() => {
+          retryDelay = Math.min(retryDelay * 2, 60_000);
+          connect();
+        }, retryDelay);
+      };
+    }
+
+    connect();
+    return () => { destroyed = true; cleanup(); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const createMutation = useMutation({
     mutationFn: (body: {
@@ -115,7 +144,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const canWrite = hasRole("analyst");
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav caseId={id} activeTab="notes" />
 
       {/* Header */}
@@ -160,7 +189,9 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
 
       {/* Notes list */}
       <div className="space-y-4">
-        {isLoading ? (
+        {isError ? (
+          <PageError error={error as Error | null} onRetry={() => refetch()} />
+        ) : isLoading ? (
           [...Array(3)].map((_, i) => <SkeletonNote key={i} />)
         ) : allNotes.length === 0 ? (
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-16 text-center">

@@ -37,10 +37,18 @@ export function useTimelineSSE({ caseId, enabled = true, onEvent }: UseTimelineS
 
   const connect = useCallback(async () => {
     if (!enabled) return;
+
+    // Close any existing connection before opening a new one.
+    if (esRef.current) {
+      esRef.current.close();
+      esRef.current = null;
+    }
+
     let token: string;
     try {
       token = await getSseTicket();
     } catch {
+      // Session likely expired — stop reconnecting.
       setStatus("error");
       return;
     }
@@ -75,6 +83,7 @@ export function useTimelineSSE({ caseId, enabled = true, onEvent }: UseTimelineS
     });
 
     es.onerror = () => {
+      // Always close immediately so the browser never auto-retries with a stale token.
       es.close();
       esRef.current = null;
       setStatus("reconnecting");

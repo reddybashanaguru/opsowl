@@ -117,23 +117,63 @@ export function NotificationBell() {
     },
   });
 
-  // SSE for real-time notifications — use a short-lived SSE ticket so the full
-  // access token never appears in a URL (browser history / server access logs).
+  // SSE for real-time notifications.
+  // We manage reconnect ourselves (close + new ticket) so the browser's built-in
+  // EventSource retry never fires with a stale/expired token.
   useEffect(() => {
     if (!user) return;
+
     let es: EventSource | null = null;
-    getSseTicket()
-      .then((ticket) => {
-        const url = `${API_BASE}/api/v1/notifications/stream?token=${ticket}`;
-        es = new EventSource(url);
-        es.onmessage = () => {
-          qc.invalidateQueries({ queryKey: ["notifications"] });
-          qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
-        };
-      })
-      .catch(() => {/* ignore — bell falls back to polling */});
-    return () => es?.close();
-  }, [user, qc]);
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let retryDelay = 2000;
+    let destroyed = false;
+
+    function cleanup() {
+      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
+      if (es) { es.close(); es = null; }
+    }
+
+    async function connect() {
+      if (destroyed) return;
+      cleanup();
+      let ticket: string;
+      try {
+        ticket = await getSseTicket();
+      } catch {
+        // Can't get a ticket (session may have expired) — stop.
+        return;
+      }
+      if (destroyed) return;
+
+      const url = `${API_BASE}/api/v1/notifications/stream?token=${ticket}`;
+      es = new EventSource(url);
+
+      es.onmessage = () => {
+        qc.invalidateQueries({ queryKey: ["notifications"] });
+        qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
+        retryDelay = 2000; // reset backoff on successful message
+      };
+
+      es.onerror = () => {
+        // Close immediately so the browser does NOT auto-retry with the stale URL.
+        es?.close();
+        es = null;
+        if (destroyed) return;
+        // Exponential backoff: 2s → 4s → 8s → … cap at 60s
+        retryTimer = setTimeout(() => {
+          retryDelay = Math.min(retryDelay * 2, 60_000);
+          connect();
+        }, retryDelay);
+      };
+    }
+
+    connect();
+    return () => {
+      destroyed = true;
+      cleanup();
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   // Close on outside click
   useEffect(() => {

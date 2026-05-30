@@ -11,6 +11,7 @@ import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CopilotPanel } from "@/components/ai/CopilotPanel";
 import { useTimelineSSE, TimelineEvent } from "@/lib/hooks/useTimelineSSE";
+import { PageError } from "@/components/ui/PageError";
 
 interface CaseDetail {
   id: string;
@@ -152,9 +153,14 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   };
   useTimelineSSE({ caseId: id, onEvent: handleTimelineEvent });
 
-  const { data: c, isLoading } = useQuery<CaseDetail>({
+  const { data: c, isLoading, isError, error, refetch } = useQuery<CaseDetail>({
     queryKey: ["case", id],
     queryFn: () => api.get<CaseDetail>(`/api/v1/cases/${id}`),
+    retry: (failureCount, err) => {
+      // Don't retry on 404 — the case genuinely doesn't exist.
+      if (err instanceof APIError && err.status === 404) return false;
+      return failureCount < 2;
+    },
     // Poll at 3s while AI analysis is in-flight to pick up risk score quickly.
     refetchInterval: isAnalysing ? 3_000 : 30_000,
   });
@@ -232,7 +238,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     },
   });
 
-  if (isLoading || !c) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
@@ -240,10 +246,19 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  if (isError || !c) {
+    return (
+      <div className="p-6">
+        <CaseSubNav caseId={id} activeTab="case" />
+        <PageError error={error as Error | null} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
   const nextStatuses = VALID_TRANSITIONS[c.status] ?? [];
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6">
       <CaseSubNav
         caseId={id}
         activeTab="case"

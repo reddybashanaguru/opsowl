@@ -9,6 +9,7 @@ import { useConfig } from "@/lib/hooks/useConfig";
 import { DocumentCard, Document } from "@/components/documents/DocumentCard";
 import { DocumentUploadZone } from "@/components/documents/DocumentUploadZone";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
   total_count: number;
@@ -35,7 +36,7 @@ export default function CaseDocumentsPage({
   const canUpload = hasRole("analyst");
 
   // ── List documents ─────────────────────────────────────────────────────────
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error, refetch } =
     useInfiniteQuery({
       queryKey: ["documents", id, statusFilter],
       queryFn: async ({ pageParam }) => {
@@ -49,6 +50,10 @@ export default function CaseDocumentsPage({
       initialPageParam: null as string | null,
       getNextPageParam: (last) =>
         last.meta.has_more ? last.meta.next_cursor : undefined,
+      retry: (failureCount, err) => {
+        if (err instanceof APIError && err.status === 404) return false;
+        return failureCount < 2;
+      },
     });
 
   const seen = new Set<string>();
@@ -95,7 +100,7 @@ export default function CaseDocumentsPage({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav caseId={id} activeTab="documents" />
 
       {/* Header */}
@@ -143,10 +148,8 @@ export default function CaseDocumentsPage({
         </div>
       )}
 
-      {error && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-          {error instanceof APIError ? error.message : "Failed to load documents"}
-        </div>
+      {isError && (
+        <PageError error={error as Error | null} onRetry={() => refetch()} />
       )}
 
       {!isLoading && allDocs.length === 0 && (

@@ -1,9 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "@/lib/api";
+import { api, APIError } from "@/lib/api";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { PageError } from "@/components/ui/PageError";
 
 interface InsightsData {
   id?: string;
@@ -69,19 +70,32 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const qc = useQueryClient();
-  const [analysing, setAnalysing] = useState(false);
+  const [polling, setPolling] = useState(false);
 
-  const { data: ins, isLoading } = useQuery<InsightsData>({
+  const { data: ins, isLoading, isError, error, refetch } = useQuery<InsightsData>({
     queryKey: ["insights", id],
     queryFn: () => api.get<InsightsData>(`/api/v1/cases/${id}/insights`),
+    refetchInterval: polling ? 3_000 : false,
+    retry: (failureCount, err) => {
+      if (err instanceof APIError && err.status === 404) return false;
+      return failureCount < 2;
+    },
   });
+
+  // Stop polling once analysis result arrives
+  useEffect(() => {
+    if (polling && ins?.ai_available) setPolling(false);
+  }, [polling, ins?.ai_available]);
 
   const analyseMutation = useMutation({
     mutationFn: () => api.post<InsightsData>(`/api/v1/cases/${id}/insights/analyse`, {}),
-    onMutate: () => setAnalysing(true),
-    onSettled: () => setAnalysing(false),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["insights", id] }),
+    onSuccess: () => {
+      setPolling(true);
+      qc.invalidateQueries({ queryKey: ["insights", id] });
+    },
   });
+
+  const analysing = analyseMutation.isPending || polling;
 
   const riskColorClass = RISK_COLORS[ins?.risk_level ?? "unknown"] ?? RISK_COLORS.unknown;
 
@@ -93,8 +107,17 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
     );
   }
 
+  if (isError) {
+    return (
+      <div className="p-6">
+        <CaseSubNav caseId={id} activeTab="insights" />
+        <PageError error={error as Error | null} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav
         caseId={id}
         activeTab="insights"
@@ -114,10 +137,15 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
         }
       />
 
-      {!ins?.ai_available && !ins?.id && (
+      {polling && (
+        <div className="bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-xl p-4 mb-6 text-sm flex items-center gap-3">
+          <div className="w-4 h-4 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin flex-shrink-0" />
+          AI analysis in progress — results will appear automatically when complete…
+        </div>
+      )}
+      {!polling && !ins?.ai_available && !ins?.id && (
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-4 mb-6 text-sm">
           No analysis available yet. Click <strong>Run AI Analysis</strong> to analyse this case.
-          {!ins?.ai_available && " AI service may be unavailable — analysis will use document data when service is online."}
         </div>
       )}
 

@@ -206,7 +206,7 @@ export default function DocumentsPage() {
   const totalCount = data?.pages[0]?.meta.total_count ?? 0;
 
   return (
-    <div className="px-6 py-8 max-w-7xl mx-auto">
+    <div className="px-6 py-8">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
