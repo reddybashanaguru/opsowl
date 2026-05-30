@@ -34,6 +34,13 @@ const EVENT_CONFIG: Record<string, EventConfig> = {
   sla_warning:             { icon: "⚠",  label: "SLA Warning",            accent: "text-amber-400",  bg: "bg-amber-900/30" },
   sla_breached:            { icon: "⚠",  label: "SLA Breached",           accent: "text-red-400",    bg: "bg-red-900/30" },
   notification_sent:       { icon: "✉",  label: "Notification Sent",      accent: "text-slate-400",  bg: "bg-slate-700/30" },
+  ai_insights_generated:   { icon: "◈",  label: "AI Analysis Complete",   accent: "text-violet-400", bg: "bg-violet-900/30" },
+  str_draft_created:       { icon: "⊡",  label: "STR Draft Created",      accent: "text-orange-400", bg: "bg-orange-900/20" },
+  str_submitted:           { icon: "⊡",  label: "STR Submitted",          accent: "text-amber-400",  bg: "bg-amber-900/30" },
+  str_approved:            { icon: "✔",  label: "STR Approved",           accent: "text-green-400",  bg: "bg-green-900/30" },
+  str_rejected:            { icon: "✖",  label: "STR Rejected",           accent: "text-red-400",    bg: "bg-red-900/20" },
+  str_filed:               { icon: "⊡",  label: "STR Filed with FIU",     accent: "text-cyan-400",   bg: "bg-cyan-900/30" },
+  comm_logged:             { icon: "✉",  label: "Comm Logged",            accent: "text-blue-400",   bg: "bg-blue-900/20" },
 };
 
 const SOURCE_COLORS: Record<string, string> = {

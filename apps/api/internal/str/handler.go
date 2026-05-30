@@ -1,25 +1,46 @@
 package str
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
+	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 type Handler struct {
-	repo *Repository
+	repo    *Repository
+	emitter timeline.Emitter
 }
 
-func NewHandler(repo *Repository) *Handler {
-	return &Handler{repo: repo}
+func NewHandler(repo *Repository, emitter timeline.Emitter) *Handler {
+	return &Handler{repo: repo, emitter: emitter}
+}
+
+func (h *Handler) emitSTR(caseID uuid.UUID, actorID uuid.UUID, evtType db.TimelineEventType, f *filing) {
+	payload := map[string]any{
+		"str_id":      f.ID.String(),
+		"report_type": f.ReportType,
+		"status":      f.Status,
+	}
+	_ = h.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:     caseID,
+		EventType:  evtType,
+		Source:     db.TimelineEventSourceUser,
+		ActorID:    &actorID,
+		OccurredAt: time.Now(),
+		Payload:    payload,
+	})
 }
 
 // POST /api/v1/cases/{id}/str
@@ -45,6 +66,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to create STR draft")
 		return
 	}
+	claims := auth.ClaimsFromCtx(r.Context())
+	h.emitSTR(caseID, claims.UserID, db.TimelineEventTypeStrDraftCreated, f)
 	response.JSON(w, http.StatusCreated, toResponse(f))
 }
 
@@ -107,6 +130,7 @@ func (h *Handler) Submit(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to submit STR filing")
 		return
 	}
+	h.emitSTR(f.CaseID, claims.UserID, db.TimelineEventTypeStrSubmitted, f)
 	response.JSON(w, http.StatusOK, toResponse(f))
 }
 
@@ -137,6 +161,7 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to approve STR filing")
 		return
 	}
+	h.emitSTR(f.CaseID, claims.UserID, db.TimelineEventTypeStrApproved, f)
 	response.JSON(w, http.StatusOK, toResponse(f))
 }
 
@@ -159,6 +184,8 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to reject STR filing")
 		return
 	}
+	rejectClaims := auth.ClaimsFromCtx(r.Context())
+	h.emitSTR(f.CaseID, rejectClaims.UserID, db.TimelineEventTypeStrRejected, f)
 	response.JSON(w, http.StatusOK, toResponse(f))
 }
 
@@ -181,6 +208,8 @@ func (h *Handler) MarkFiled(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to mark STR as filed")
 		return
 	}
+	fileClaims := auth.ClaimsFromCtx(r.Context())
+	h.emitSTR(f.CaseID, fileClaims.UserID, db.TimelineEventTypeStrFiled, f)
 	response.JSON(w, http.StatusOK, toResponse(f))
 }
 

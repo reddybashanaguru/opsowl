@@ -9,21 +9,23 @@ import (
 	"github.com/google/uuid"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 var (
-	ErrNotFound    = errors.New("not found")
-	ErrForbidden   = errors.New("forbidden")
-	ErrBadRequest  = errors.New("bad request")
+	ErrNotFound   = errors.New("not found")
+	ErrForbidden  = errors.New("forbidden")
+	ErrBadRequest = errors.New("bad request")
 )
 
 type Service struct {
-	q      *db.Queries
-	broker *Broker
+	q       *db.Queries
+	broker  *Broker
+	emitter timeline.Emitter
 }
 
-func NewService(q *db.Queries, broker *Broker) *Service {
-	return &Service{q: q, broker: broker}
+func NewService(q *db.Queries, broker *Broker, emitter timeline.Emitter) *Service {
+	return &Service{q: q, broker: broker, emitter: emitter}
 }
 
 // ── Notes ────────────────────────────────────────────────────────────────────
@@ -123,6 +125,20 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		},
 	})
 
+	actorID := claims.UserID
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:     caseID,
+		EventType:  db.TimelineEventTypeNoteAdded,
+		Source:     db.TimelineEventSourceUser,
+		ActorID:    &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"note_id":   note.ID.String(),
+			"title":     note.Title,
+			"note_type": string(note.NoteType),
+		},
+	})
+
 	return toNoteResponse(full), nil
 }
 
@@ -217,6 +233,20 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, noteID uuid.U
 	if err != nil {
 		return NoteResponse{}, err
 	}
+
+	actorID := claims.UserID
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:     full.CaseID,
+		EventType:  db.TimelineEventTypeNoteEdited,
+		Source:     db.TimelineEventSourceUser,
+		ActorID:    &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"note_id": noteID.String(),
+			"title":   full.Title,
+		},
+	})
+
 	return toNoteResponse(full), nil
 }
 

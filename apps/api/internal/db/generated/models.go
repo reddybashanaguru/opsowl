@@ -530,6 +530,13 @@ const (
 	TimelineEventTypeSlaWarning         TimelineEventType = "sla_warning"
 	TimelineEventTypeSlaBreached        TimelineEventType = "sla_breached"
 	TimelineEventTypeNotificationSent   TimelineEventType = "notification_sent"
+	TimelineEventTypeAiInsightsGenerated TimelineEventType = "ai_insights_generated"
+	TimelineEventTypeStrDraftCreated    TimelineEventType = "str_draft_created"
+	TimelineEventTypeStrSubmitted       TimelineEventType = "str_submitted"
+	TimelineEventTypeStrApproved        TimelineEventType = "str_approved"
+	TimelineEventTypeStrRejected        TimelineEventType = "str_rejected"
+	TimelineEventTypeStrFiled           TimelineEventType = "str_filed"
+	TimelineEventTypeCommLogged         TimelineEventType = "comm_logged"
 )
 
 func (e *TimelineEventType) Scan(src interface{}) error {

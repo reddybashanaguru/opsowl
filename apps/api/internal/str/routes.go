@@ -6,11 +6,12 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
-func RegisterRoutes(r chi.Router, sqlDB *sql.DB, jwtMgr *auth.JWTManager) {
+func RegisterRoutes(r chi.Router, sqlDB *sql.DB, jwtMgr *auth.JWTManager, emitter timeline.Emitter) {
 	repo := NewRepository(sqlDB)
-	h := NewHandler(repo)
+	h := NewHandler(repo, emitter)
 
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTValidate(jwtMgr))

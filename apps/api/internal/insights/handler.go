@@ -11,8 +11,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/response"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
@@ -20,13 +22,15 @@ type Handler struct {
 	queries      *db.Queries
 	aiServiceURL string
 	httpClient   *http.Client
+	emitter      timeline.Emitter
 }
 
-func NewHandler(queries *db.Queries, aiServiceURL string) *Handler {
+func NewHandler(queries *db.Queries, aiServiceURL string, emitter timeline.Emitter) *Handler {
 	return &Handler{
 		queries:      queries,
 		aiServiceURL: aiServiceURL,
 		httpClient:   &http.Client{Timeout: 120 * time.Second},
+		emitter:      emitter,
 	}
 }
 
@@ -97,6 +101,8 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	claims := auth.ClaimsFromCtx(r.Context())
+
 	worker.TrySubmit(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
@@ -104,13 +110,39 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 		if aiErr != nil {
 			return
 		}
-		_ = h.storeInsights(context.Background(), caseID, aiResp)
+		if err := h.storeInsights(context.Background(), caseID, aiResp); err != nil {
+			return
+		}
+		_ = h.emitter.Emit(context.Background(), timeline.Event{
+			CaseID:     caseID,
+			EventType:  db.TimelineEventTypeAiInsightsGenerated,
+			Source:     db.TimelineEventSourceAi,
+			ActorID:    &claims.UserID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"risk_level":  riskLevelFromScore(aiResp.RiskScore),
+				"risk_score":  aiResp.RiskScore,
+				"model_used":  aiResp.ModelUsed,
+				"confidence":  aiResp.Confidence,
+			},
+		})
 	})
 
 	response.JSON(w, http.StatusAccepted, map[string]any{
 		"queued":  true,
 		"case_id": caseID.String(),
 	})
+}
+
+func riskLevelFromScore(score float64) string {
+	switch {
+	case score >= 75:
+		return "high"
+	case score >= 40:
+		return "medium"
+	default:
+		return "low"
+	}
 }
 
 // storeInsights persists AI analysis results to the database.

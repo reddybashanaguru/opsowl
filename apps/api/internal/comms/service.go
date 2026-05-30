@@ -12,6 +12,7 @@ import (
 	"go.uber.org/zap"
 
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 type Service struct {
@@ -19,14 +20,16 @@ type Service struct {
 	aiServiceURL string
 	httpClient   *http.Client
 	logger       *zap.Logger
+	emitter      timeline.Emitter
 }
 
-func NewService(queries *db.Queries, aiServiceURL string, logger *zap.Logger) *Service {
+func NewService(queries *db.Queries, aiServiceURL string, logger *zap.Logger, emitter timeline.Emitter) *Service {
 	return &Service{
 		queries:      queries,
 		aiServiceURL: aiServiceURL,
 		httpClient:   &http.Client{Timeout: 30 * time.Second},
 		logger:       logger,
+		emitter:      emitter,
 	}
 }
 
@@ -106,6 +109,22 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (*CommLogResponse,
 
 	// Async AI extraction — don't block the response
 	go s.extractAI(row.ID, p.Body, p.Subject, string(p.Channel))
+
+	actorID := p.LoggedBy
+	go s.emitter.Emit(context.Background(), timeline.Event{
+		CaseID:     p.CaseID,
+		EventType:  db.TimelineEventTypeCommLogged,
+		Source:     db.TimelineEventSourceUser,
+		ActorID:    &actorID,
+		OccurredAt: time.Now(),
+		Payload: map[string]any{
+			"comm_id":   row.ID.String(),
+			"channel":   string(p.Channel),
+			"direction": string(p.Direction),
+			"contact":   p.ContactName,
+			"subject":   p.Subject,
+		},
+	})
 
 	return resp, nil
 }

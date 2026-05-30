@@ -242,7 +242,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// Notes & Collaboration module (Feature 6)
 		notesBroker := notes.NewBroker()
-		notesSvc := notes.NewService(s.queries, notesBroker)
+		notesSvc := notes.NewService(s.queries, notesBroker, timelineEmitter)
 		notesHandler := notes.NewHandler(notesSvc, notesBroker, s.jwtMgr)
 		notes.RegisterRoutes(r, notesHandler, s.jwtMgr)
 
@@ -266,11 +266,11 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		audit.RegisterRoutes(r, auditHandler, s.jwtMgr)
 
 		// AI Insights module (P2-2)
-		insightsHandler := insights.NewHandler(s.queries, s.aiServiceURL)
+		insightsHandler := insights.NewHandler(s.queries, s.aiServiceURL, timelineEmitter)
 		insights.RegisterRoutes(r, insightsHandler, s.jwtMgr)
 
 		// Communication Logs module (P2-4)
-		commsSvc := comms.NewService(s.queries, s.aiServiceURL, s.logger)
+		commsSvc := comms.NewService(s.queries, s.aiServiceURL, s.logger, timelineEmitter)
 		commsHandler := comms.NewHandler(commsSvc)
 		comms.RegisterRoutes(r, commsHandler, s.jwtMgr)
 
@@ -287,7 +287,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		report.RegisterRoutes(r, reportHandler, s.jwtMgr)
 
 		// STR/SAR/CTR dual-authorization workflow + FINnet 2.0 XML export
-		str.RegisterRoutes(r, s.sqlDB, s.jwtMgr)
+		str.RegisterRoutes(r, s.sqlDB, s.jwtMgr, timelineEmitter)
 
 		// Dynamic config (industry labels)
 		configHandler := config.NewHandler(s.sqlDB)

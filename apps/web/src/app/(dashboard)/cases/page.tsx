@@ -484,6 +484,21 @@ function CasesContent() {
     return user?.role === "analyst";
   });
 
+  // Sync filter state → URL so filters are shareable / bookmarkable
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (selectedStatuses.length > 0) {
+      const isActive = ACTIVE_STATUSES.every((s) => selectedStatuses.includes(s)) && selectedStatuses.length === ACTIVE_STATUSES.length;
+      p.set("status", isActive ? "active" : selectedStatuses.join(","));
+    }
+    if (priority) p.set("priority", priority);
+    if (slaBreached) p.set("sla_breached", "true");
+    if (myCasesOnly && user?.id) p.set("assigned_to", user.id);
+    const qs = p.toString();
+    router.replace(qs ? `/cases?${qs}` : "/cases", { scroll: false });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStatuses, priority, slaBreached, myCasesOnly, user?.id]);
+
   // Debounce search 300ms
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
   useEffect(() => {
