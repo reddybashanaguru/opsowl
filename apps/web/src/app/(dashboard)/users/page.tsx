@@ -292,7 +292,7 @@ export default function UsersPage() {
     >
       <div className="p-6 max-w-5xl mx-auto">
         {/* Header */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-6">
           <div>
             <h1 className="text-2xl font-bold text-white">User Management</h1>
             <p className="text-slate-400 text-sm mt-1">

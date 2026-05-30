@@ -2,7 +2,6 @@
 
 import { use, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
@@ -69,7 +68,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 export default function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const router = useRouter();
   const qc = useQueryClient();
   const [analysing, setAnalysing] = useState(false);
 

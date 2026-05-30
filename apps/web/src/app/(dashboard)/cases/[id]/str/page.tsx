@@ -1,7 +1,6 @@
 "use client";
 
 import { use, useState } from "react";
-import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
@@ -262,7 +261,6 @@ function FilingCard({
 
 export default function STRFilingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
-  const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
 

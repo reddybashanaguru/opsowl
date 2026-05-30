@@ -643,7 +643,7 @@ function CasesContent() {
       {toast && <Toast message={toast.message} type={toast.type} />}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-2xl font-bold">{cfg.cases_label}</h1>
           <p className="text-slate-400 text-sm mt-0.5">

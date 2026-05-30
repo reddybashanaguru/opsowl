@@ -22,6 +22,8 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
   const [result, setResult] = useState<AILog | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState("");
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const canReview = WRITER_ROLES.includes(user?.role ?? "");
@@ -203,6 +205,38 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
             </div>
           )}
 
+          {/* Inline reject form */}
+          {rejectingLogId && (
+            <div className="bg-[#1e293b] border border-red-500/30 rounded-xl p-4">
+              <p className="text-sm text-slate-300 mb-2 font-medium">Rejection reason</p>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={2}
+                placeholder="Optional — describe why this response is being rejected"
+                className="w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-200 placeholder-slate-500 focus:outline-none focus:border-red-400 resize-none"
+              />
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => {
+                    rejectMutation.mutate({ logId: rejectingLogId, reason: rejectReason });
+                    setRejectingLogId(null);
+                    setRejectReason("");
+                  }}
+                  className="text-xs bg-red-600 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg transition-colors"
+                >
+                  Confirm Rejection
+                </button>
+                <button
+                  onClick={() => { setRejectingLogId(null); setRejectReason(""); }}
+                  className="text-xs text-slate-400 hover:text-slate-200 px-3 py-1.5 rounded-lg border border-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Current result */}
           {result && (
             <div>
@@ -211,10 +245,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
                 log={result}
                 canReview={canReview}
                 onApprove={(id) => approveMutation.mutate(id)}
-                onReject={(id) => {
-                  const reason = window.prompt("Rejection reason:");
-                  if (reason) rejectMutation.mutate({ logId: id, reason });
-                }}
+                onReject={(id) => { setRejectingLogId(id); setRejectReason(""); }}
                 onEdit={(id, text) => editMutation.mutate({ logId: id, edited_response: text })}
               />
             </div>
@@ -231,10 +262,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
                     log={log}
                     canReview={canReview}
                     onApprove={(id) => approveMutation.mutate(id)}
-                    onReject={(id) => {
-                      const reason = window.prompt("Rejection reason:");
-                      if (reason) rejectMutation.mutate({ logId: id, reason });
-                    }}
+                    onReject={(id) => { setRejectingLogId(id); setRejectReason(""); }}
                     onEdit={(id, text) => editMutation.mutate({ logId: id, edited_response: text })}
                   />
                 ))}
