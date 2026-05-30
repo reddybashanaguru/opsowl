@@ -34,8 +34,26 @@ type NavItem = {
   exact?: boolean;
 };
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+function NavLink({ item }: { item: NavItem }) {
   const pathname = usePathname();
+  const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  const Icon = item.icon;
+  return (
+    <Link
+      href={item.href}
+      className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
+        isActive
+          ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
+          : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
+      }`}
+    >
+      <Icon size={16} className="flex-shrink-0" />
+      {item.label}
+    </Link>
+  );
+}
+
+export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const cfg = useConfig();
 
@@ -80,24 +98,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     analyst:     "Analyst",
     viewer:      "Viewer",
   };
-
-  function NavLink({ item }: { item: NavItem }) {
-    const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
-    const Icon = item.icon;
-    return (
-      <Link
-        href={item.href}
-        className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
-          isActive
-            ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
-            : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
-        }`}
-      >
-        <Icon size={16} className="flex-shrink-0" />
-        {item.label}
-      </Link>
-    );
-  }
 
   return (
     <ProtectedRoute>

@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { api, getSseTicket } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
 interface Notification {
   id: string;
   type: string;
@@ -122,7 +124,7 @@ export function NotificationBell() {
     let es: EventSource | null = null;
     getSseTicket()
       .then((ticket) => {
-        const url = `http://localhost:8080/api/v1/notifications/stream?token=${ticket}`;
+        const url = `${API_BASE}/api/v1/notifications/stream?token=${ticket}`;
         es = new EventSource(url);
         es.onmessage = () => {
           qc.invalidateQueries({ queryKey: ["notifications"] });

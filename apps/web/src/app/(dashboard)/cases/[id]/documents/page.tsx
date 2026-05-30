@@ -16,8 +16,6 @@ interface ListMeta {
   next_cursor: string | null;
 }
 
-const WRITER_ROLES = ["analyst", "manager", "admin", "super_admin"];
-
 export default function CaseDocumentsPage({
   params,
 }: {
@@ -27,13 +25,14 @@ export default function CaseDocumentsPage({
   const router = useRouter();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
   const cfg = useConfig();
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const canUpload = WRITER_ROLES.includes(user?.role ?? "");
+  const canUpload = hasRole("analyst");
 
   // ── List documents ─────────────────────────────────────────────────────────
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, error } =

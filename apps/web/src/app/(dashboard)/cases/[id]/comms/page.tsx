@@ -156,8 +156,9 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
 
-  const canWrite = ["analyst", "manager", "admin", "super_admin"].includes(user?.role ?? "");
+  const canWrite = hasRole("analyst");
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({

@@ -7,8 +7,6 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
-const WRITER_ROLES = ["analyst", "manager", "admin", "super_admin"];
-
 interface ListMeta {
   total_count: number;
   has_more: boolean;
@@ -19,7 +17,8 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   const { id } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canReview = WRITER_ROLES.includes(user?.role ?? "");
+  const hasRole = useAuthStore((s) => s.hasRole);
+  const canReview = hasRole("analyst");
 
   const [statusFilter, setStatusFilter] = useState("");
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);

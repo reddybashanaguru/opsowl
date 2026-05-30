@@ -34,6 +34,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   const cfg = useConfig();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
 
   const [showCreate, setShowCreate] = useState(false);
   const [taskTab, setTaskTab] = useState<"active" | "done">("active");
@@ -206,7 +207,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
   });
 
-  const canCreate = user?.role && ["analyst", "manager", "admin", "super_admin"].includes(user.role);
+  const canCreate = hasRole("analyst");
 
   if (isLoading) {
     return (

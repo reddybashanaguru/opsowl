@@ -62,6 +62,7 @@ function CommentItem({ c }: { c: Comment }) {
 export function NoteCard({ note, caseId, onDeleted }: Props) {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
   const [showComments, setShowComments] = useState(false);
   const [commentText, setCommentText] = useState("");
   const [isEditing, setIsEditing] = useState(false);
@@ -155,7 +156,7 @@ export function NoteCard({ note, caseId, onDeleted }: Props) {
   }
 
   const isAuthor = user?.id === note.author_id;
-  const canEdit = isAuthor || ["manager", "admin", "super_admin"].includes(user?.role ?? "");
+  const canEdit = isAuthor || hasRole("manager");
 
   return (
     <div className={`bg-[#1e293b] border rounded-xl overflow-hidden transition-colors ${

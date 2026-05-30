@@ -49,7 +49,8 @@ function SLAProgressBar({ warnPct }: { warnPct: number }) {
 export default function SLAPage() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canEdit = ["admin", "super_admin"].includes(user?.role ?? "");
+  const hasRole = useAuthStore((s) => s.hasRole);
+  const canEdit = hasRole("admin");
 
   const [editingPriority, setEditingPriority] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ warning_hours: 0, breach_hours: 0, warn_pct: 80 });

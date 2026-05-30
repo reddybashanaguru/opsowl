@@ -5,6 +5,8 @@ import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-q
 import { useRouter } from "next/navigation";
 import { api, getSseTicket } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteCard, Note } from "@/components/notes/NoteCard";
@@ -67,7 +69,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
     let es: EventSource | null = null;
     getSseTicket()
       .then((ticket) => {
-        const url = `http://localhost:8080/api/v1/cases/${id}/notes/stream?token=${ticket}`;
+        const url = `${API_BASE}/api/v1/cases/${id}/notes/stream?token=${ticket}`;
         es = new EventSource(url);
         es.onmessage = () => {
           qc.invalidateQueries({ queryKey: ["case-notes", id] });
@@ -109,7 +111,8 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
     });
   }, [createMutation]);
 
-  const canWrite = ["analyst", "manager", "admin", "super_admin"].includes(user?.role ?? "");
+  const hasRole = useAuthStore((s) => s.hasRole);
+  const canWrite = hasRole("analyst");
 
   return (
     <div className="p-6 max-w-5xl mx-auto">

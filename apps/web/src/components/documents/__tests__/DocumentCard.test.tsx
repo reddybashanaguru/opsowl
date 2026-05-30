@@ -70,22 +70,20 @@ describe("DocumentCard", () => {
     expect(screen.queryByText("Download")).not.toBeInTheDocument();
   });
 
-  it("calls onDelete with confirmation", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(true);
+  it("calls onDelete after inline confirmation", () => {
     const onDelete = vi.fn();
     render(<DocumentCard document={makeDoc()} onDelete={onDelete} />);
     fireEvent.click(screen.getByText("Delete"));
+    fireEvent.click(screen.getByText("Confirm"));
     expect(onDelete).toHaveBeenCalledWith("doc-001");
-    vi.restoreAllMocks();
   });
 
-  it("does not call onDelete when confirmation is cancelled", () => {
-    vi.spyOn(window, "confirm").mockReturnValue(false);
+  it("does not call onDelete when inline confirmation is cancelled", () => {
     const onDelete = vi.fn();
     render(<DocumentCard document={makeDoc()} onDelete={onDelete} />);
     fireEvent.click(screen.getByText("Delete"));
+    fireEvent.click(screen.getByText("Cancel"));
     expect(onDelete).not.toHaveBeenCalled();
-    vi.restoreAllMocks();
   });
 
   it("hides delete button when onDelete is not provided", () => {

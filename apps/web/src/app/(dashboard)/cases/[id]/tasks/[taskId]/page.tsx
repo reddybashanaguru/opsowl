@@ -60,6 +60,7 @@ export default function TaskDetailPage({
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
@@ -178,8 +179,7 @@ export default function TaskDetailPage({
     updateMutation.mutate(body);
   }
 
-  const canEdit =
-    user?.role && ["analyst", "manager", "admin", "super_admin"].includes(user.role);
+  const canEdit = hasRole("analyst");
   const isDone = task?.status === "done";
   const isCancelled = task?.status === "cancelled";
   const nextStatuses = task ? VALID_TRANSITIONS[task.status] ?? [] : [];

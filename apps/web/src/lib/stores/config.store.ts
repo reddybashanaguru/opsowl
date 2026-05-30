@@ -166,26 +166,34 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
 interface ConfigState {
   config: AppConfig;
   loaded: boolean;
+  fetching: boolean;
   fetch: () => Promise<void>;
   setConfig: (cfg: AppConfig) => void;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
-export const useConfigStore = create<ConfigState>((set) => ({
+export const useConfigStore = create<ConfigState>((set, get) => ({
   config: DEFAULT_CONFIG,
   loaded: false,
+  fetching: false,
 
   fetch: async () => {
+    if (get().fetching || get().loaded) return;
+    set({ fetching: true });
     try {
       const res = await fetch(`${API_BASE}/api/v1/config`);
       if (res.ok) {
         const body = await res.json();
         const cfg = (body.data ?? body) as AppConfig;
         set({ config: cfg, loaded: true });
+      } else {
+        set({ loaded: true });
       }
     } catch {
       set({ loaded: true });
+    } finally {
+      set({ fetching: false });
     }
   },
 

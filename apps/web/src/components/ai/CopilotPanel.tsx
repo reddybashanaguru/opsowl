@@ -14,7 +14,6 @@ interface CopilotPanelProps {
 
 type Tab = "ask" | "summarize" | "note" | "actions";
 
-const WRITER_ROLES = ["analyst", "manager", "admin", "super_admin"];
 
 export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
   const [tab, setTab] = useState<Tab>("ask");
@@ -26,7 +25,8 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
   const [rejectReason, setRejectReason] = useState("");
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const canReview = WRITER_ROLES.includes(user?.role ?? "");
+  const hasRole = useAuthStore((s) => s.hasRole);
+  const canReview = hasRole("analyst");
 
   // Cmd+Shift+A shortcut to toggle
   useEffect(() => {

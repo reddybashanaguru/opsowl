@@ -64,7 +64,6 @@ function ProgressRing({ pct, size = 44 }: { pct: number; size?: number }) {
   );
 }
 
-const PRIVILEGED_ROLES = ["manager", "admin", "super_admin"];
 
 function SkeletonCard() {
   return (
@@ -84,10 +83,11 @@ function TasksPageContent() {
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
   const cfg = useConfig();
   const searchParams = useSearchParams();
 
-  const isPrivileged = PRIVILEGED_ROLES.includes(user?.role ?? "");
+  const isPrivileged = hasRole("manager");
 
   const scopeParam = searchParams.get("scope");
   const defaultAll = isPrivileged ? scopeParam !== "mine" : false;
