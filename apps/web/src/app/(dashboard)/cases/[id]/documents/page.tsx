@@ -100,7 +100,7 @@ export default function CaseDocumentsPage({
       <CaseSubNav caseId={id} activeTab="documents" />
 
       {/* Header */}
-      <div className="mt-5 mb-4">
+      <div className="mb-6">
         <h1 className="text-xl font-bold text-white">{cfg.documents_label}</h1>
         <p className="text-slate-500 text-sm mt-0.5">
           Upload files to extract intelligence and feed the AI copilot.

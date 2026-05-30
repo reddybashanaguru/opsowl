@@ -222,7 +222,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
       />
 
       {/* Header */}
-      <div>
+      <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Communications</h1>
         <p className="text-slate-400 text-sm mt-1">All contact logs for this case.</p>
       </div>

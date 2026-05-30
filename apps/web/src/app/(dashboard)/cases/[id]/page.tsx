@@ -167,7 +167,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const { data: tasksPreview } = useQuery<{ data: PreviewTask[] }>({
     queryKey: ["case-tasks-preview", id],
-    queryFn: () => api.getList<PreviewTask>(`/api/v1/cases/${id}/tasks?limit=3&status=todo,in_progress`),
+    queryFn: () => api.getList<PreviewTask>(`/api/v1/cases/${id}/tasks?limit=3`),
     enabled: !!id,
   });
 

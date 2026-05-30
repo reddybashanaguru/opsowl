@@ -116,7 +116,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
       <CaseSubNav caseId={id} activeTab="notes" />
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-white text-xl font-bold">{cfg.notes_label}</h1>
           <p className="text-slate-500 text-sm mt-0.5">{total} {total !== 1 ? cfg.notes_label.toLowerCase() : cfg.note_label.toLowerCase()}</p>
