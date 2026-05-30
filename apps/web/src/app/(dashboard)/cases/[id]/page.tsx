@@ -210,7 +210,11 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const noteMutation = useMutation({
     mutationFn: (content: string) =>
-      api.post(`/api/v1/cases/${id}/notes`, { content_text: content, note_type: "internal" }),
+      api.post(`/api/v1/cases/${id}/notes`, {
+        content: `<p>${content.replace(/\n/g, "</p><p>")}</p>`,
+        content_text: content,
+        note_type: "internal",
+      }),
     onSuccess: () => {
       setNoteText("");
       qc.invalidateQueries({ queryKey: ["case-activity", id] });

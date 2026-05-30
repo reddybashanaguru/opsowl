@@ -24,13 +24,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   });
 
   useEffect(() => {
-    if (!user) {
-      router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
-      return;
-    }
-
-    // Attempt silent refresh via the httpOnly refresh_token cookie.
-    // If successful the server issues a new access_token cookie automatically.
+    // Always attempt silent refresh via the httpOnly refresh_token cookie.
+    // This recovers auth state even when sessionStorage is empty (new tab, Playwright restore).
     api
       .post<{ user?: { id: string; email: string; full_name: string; role: string } }>(
         "/api/v1/auth/refresh",
@@ -39,8 +34,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
       .then((data) => {
         if (data?.user) {
           setAuth(data.user as Parameters<typeof setAuth>[0]);
+          setChecking(false);
+        } else {
+          clearAuth();
+          router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`);
         }
-        setChecking(false);
       })
       .catch(() => {
         clearAuth();

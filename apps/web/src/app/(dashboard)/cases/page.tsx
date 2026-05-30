@@ -529,8 +529,8 @@ function CasesContent() {
   const { data: searchResults, isFetching: isSearching } = useQuery<SearchCaseResult[]>({
     queryKey: ["cases-search", debouncedSearch],
     queryFn: () =>
-      api.get<{ results: SearchCaseResult[] }>(`/api/v1/search?q=${encodeURIComponent(debouncedSearch)}&filter=cases&limit=50`)
-        .then((r) => r.results ?? []),
+      api.get<{ cases: SearchCaseResult[] }>(`/api/v1/search?q=${encodeURIComponent(debouncedSearch)}&filter=cases&limit=50`)
+        .then((r) => r.cases ?? []),
     enabled: searchActive,
     staleTime: 10_000,
   });

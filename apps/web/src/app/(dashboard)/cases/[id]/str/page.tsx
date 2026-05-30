@@ -278,10 +278,11 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const [entityName, setEntityName] = useState("");
   const [reportingOfficer, setReportingOfficer] = useState("");
 
-  const { data: filingData, isLoading } = useQuery<{ filings: STRFiling[] }>({
+  const { data: filingData, isLoading, isError } = useQuery<{ filings: STRFiling[] }>({
     queryKey: ["str-filings", caseId],
     queryFn: () => api.get<{ filings: STRFiling[] }>(`/api/v1/cases/${caseId}/str`),
     enabled: !!caseId,
+    retry: 1,
   });
 
   const filings = filingData?.filings ?? [];
@@ -485,6 +486,12 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
           {Array.from({ length: 2 }).map((_, i) => (
             <div key={i} className="h-40 bg-slate-800/40 rounded-xl animate-pulse" />
           ))}
+        </div>
+      ) : isError ? (
+        <div className="text-center py-16 text-slate-500">
+          <p className="text-4xl mb-3">⚠️</p>
+          <p className="font-medium text-red-400">Could not load filings</p>
+          <p className="text-sm mt-1">The {cfg.str_label} service is temporarily unavailable. Try refreshing the page.</p>
         </div>
       ) : filings.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
