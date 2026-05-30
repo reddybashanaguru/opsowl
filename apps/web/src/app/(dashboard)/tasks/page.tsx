@@ -410,7 +410,7 @@ function TasksPageContent() {
                     task={task}
                     showCase
                     onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
-                    onDelete={() => { if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id); }}
+                    onDelete={() => deleteMutation.mutate(task.id)}
                   />
                 ))}
               </div>
@@ -443,7 +443,7 @@ function TasksPageContent() {
                             showCase
                             onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
                             onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
-                            onDelete={() => { if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id); }}
+                            onDelete={() => deleteMutation.mutate(task.id)}
                             onAssignToMe={viewAll && !task.assigned_to && !justCompleted.has(task.id) ? () => assignMutation.mutate(task.id) : undefined}
                             onUnassign={task.assigned_to && !justCompleted.has(task.id) ? () => unassignMutation.mutate(task.id) : undefined}
                           />

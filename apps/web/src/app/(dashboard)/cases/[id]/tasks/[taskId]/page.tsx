@@ -70,6 +70,7 @@ export default function TaskDetailPage({
   const [editAssignedTo, setEditAssignedTo] = useState("");
   const [editError, setEditError] = useState("");
   const [reassigning, setReassigning] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -316,12 +317,19 @@ export default function TaskDetailPage({
                       </button>
                     )}
                     {canEdit && !isDone && !isCancelled && (
-                      <button
-                        onClick={() => { if (confirm("Delete this task?")) deleteMutation.mutate(); }}
-                        className="text-slate-500 hover:text-red-400 text-xs px-2 py-1 rounded border border-slate-700 hover:border-red-500/50 transition-colors"
-                      >
-                        Delete
-                      </button>
+                      confirmDelete ? (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => deleteMutation.mutate()} className="text-xs text-white bg-red-600 hover:bg-red-500 px-3 py-1 rounded transition-colors">Confirm Delete</button>
+                          <button onClick={() => setConfirmDelete(false)} className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded border border-slate-700 transition-colors">Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => setConfirmDelete(true)}
+                          className="text-slate-500 hover:text-red-400 text-xs px-2 py-1 rounded border border-slate-700 hover:border-red-500/50 transition-colors"
+                        >
+                          Delete
+                        </button>
+                      )
                     )}
                   </div>
                 </div>

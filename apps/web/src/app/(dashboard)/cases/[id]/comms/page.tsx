@@ -55,6 +55,7 @@ function timeAgo(iso: string) {
 
 function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: string) => void; canDelete: boolean }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
     <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors">
@@ -89,13 +90,20 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
           )}
           <span className="text-slate-500 text-xs">{timeAgo(log.occurred_at)}</span>
           {canDelete && (
-            <button
-              onClick={() => { if (window.confirm("Delete this communication log?")) onDelete(log.id); }}
-              className="text-slate-600 hover:text-red-400 text-xs transition-colors"
-              title="Delete"
-            >
-              ✕
-            </button>
+            confirmDelete ? (
+              <div className="flex items-center gap-1">
+                <button onClick={() => { onDelete(log.id); setConfirmDelete(false); }} className="text-[10px] text-white bg-red-600 hover:bg-red-500 px-2 py-0.5 rounded transition-colors">Delete</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 transition-colors">✕</button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-slate-600 hover:text-red-400 text-xs transition-colors"
+                title="Delete"
+              >
+                ✕
+              </button>
+            )
           )}
         </div>
       </div>

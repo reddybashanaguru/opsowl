@@ -294,6 +294,7 @@ function TemplateCard({
   onEdit: (t: Template) => void;
   onDelete: (id: string) => void;
 }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   return (
     <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
@@ -319,19 +320,26 @@ function TemplateCard({
             <p className="text-slate-400 text-xs line-clamp-2">{template.description_skeleton}</p>
           )}
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex gap-2 shrink-0 items-center">
           <button
             onClick={() => onEdit(template)}
             className="text-slate-400 hover:text-cyan-400 text-xs transition-colors"
           >
             Edit
           </button>
-          <button
-            onClick={() => onDelete(template.id)}
-            className="text-slate-400 hover:text-red-400 text-xs transition-colors"
-          >
-            Delete
-          </button>
+          {confirmDelete ? (
+            <>
+              <button onClick={() => { onDelete(template.id); setConfirmDelete(false); }} className="text-[10px] text-white bg-red-600 hover:bg-red-500 px-2 py-0.5 rounded transition-colors">Confirm</button>
+              <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 transition-colors">✕</button>
+            </>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-slate-400 hover:text-red-400 text-xs transition-colors"
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -414,9 +422,7 @@ export default function TemplatesPage() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm("Delete this template? This action cannot be undone.")) {
-      deleteMut.mutate(id);
-    }
+    deleteMut.mutate(id);
   };
 
   const isModalLoading = createMut.isPending || updateMut.isPending;

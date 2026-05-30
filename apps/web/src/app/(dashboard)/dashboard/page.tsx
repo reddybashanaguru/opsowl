@@ -2,6 +2,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useEffect, useState } from "react";
+import { AlertTriangle, TrendingUp, Bot, ClipboardList, FolderOpen, CheckSquare, Users, Clock } from "lucide-react";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { api } from "@/lib/api";
@@ -106,13 +107,17 @@ function HorizontalBars({ items }: { items: BarItem[] }) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({
-  label, value, color, href, sub,
+  label, value, color, href, sub, Icon,
 }: {
   label: string; value: number | undefined; color: string; href: string; sub?: string;
+  Icon?: React.ElementType;
 }) {
   return (
-    <Link href={href} className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-500 transition-colors group">
-      <div className="text-slate-400 text-sm mb-1">{label}</div>
+    <Link href={href} className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-500 hover:bg-[#243347] transition-colors group">
+      <div className="flex items-start justify-between mb-2">
+        <div className="text-slate-400 text-sm">{label}</div>
+        {Icon && <Icon size={16} className="text-slate-600 group-hover:text-slate-500 transition-colors flex-shrink-0" />}
+      </div>
       <div className={`text-3xl font-bold tabular-nums ${color}`}>
         {value === undefined ? (
           <span className="inline-block w-14 h-8 bg-slate-700 animate-pulse rounded" />
@@ -120,7 +125,7 @@ function StatCard({
           value.toLocaleString()
         )}
       </div>
-      {sub && <div className="text-slate-500 text-xs mt-1">{sub}</div>}
+      {sub && <div className="text-slate-500 text-xs mt-1.5 flex items-center gap-1">{sub}</div>}
     </Link>
   );
 }
@@ -202,7 +207,7 @@ export default function DashboardPage() {
     queryKey: ["my-queue", user?.id],
     queryFn: () =>
       api.getList<QueueCase, { total_count: number; has_more: boolean }>(
-        `/api/v1/cases?assigned_to=${user?.id}&limit=5`,
+        `/api/v1/cases?assigned_to=${user?.id}&status=active&limit=5`,
       ).then((r) => ({ data: r.data, meta: r.meta as { total_count: number; has_more: boolean } })),
     enabled: !!user?.id,
     refetchInterval: 30_000,
@@ -257,10 +262,10 @@ export default function DashboardPage() {
 
       {/* Top stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases?status=active"   sub="open + in-progress" />
-        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"}   sub="todo + in-progress" />
-        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}&status=active`} sub="assigned to me" />
-        <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="active cases" />
+        <StatCard label="Active Cases"    value={stats?.open_cases}         color="text-cyan-400"   href="/cases?status=active"                          sub="open · in progress · escalated" Icon={FolderOpen} />
+        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"} sub="todo + in-progress" Icon={CheckSquare} />
+        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"   href={`/cases?assigned_to=${user?.id}&status=active`}        sub="assigned to me"    Icon={Users} />
+        <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="requires immediate action" Icon={Clock} />
       </div>
 
       {/* Charts row */}
@@ -301,28 +306,28 @@ export default function DashboardPage() {
             {stats ? (
               <>
                 <AlertRow
-                  icon="🔴"
+                  Icon={AlertTriangle}
                   label={`${cfg.sla_label} Breaches`}
                   value={stats.sla_breached}
                   href="/cases?sla_breached=true"
                   critical={stats.sla_breached > 0}
                 />
                 <AlertRow
-                  icon="⚠️"
+                  Icon={TrendingUp}
                   label={`Escalated ${cfg.cases_label}`}
                   value={stats.status_escalated}
                   href="/cases?status=escalated"
                   critical={stats.status_escalated > 0}
                 />
                 <AlertRow
-                  icon="🤖"
+                  Icon={Bot}
                   label="Pending AI Reviews"
                   value={stats.pending_ai_reviews}
                   href="/cases"
                   critical={false}
                 />
                 <AlertRow
-                  icon="📋"
+                  Icon={ClipboardList}
                   label={`Pending Review ${cfg.cases_label}`}
                   value={stats.status_pending_review}
                   href="/cases?status=pending_review"
@@ -405,18 +410,18 @@ export default function DashboardPage() {
 }
 
 function AlertRow({
-  icon, label, value, href, critical,
+  Icon, label, value, href, critical,
 }: {
-  icon: string; label: string; value: number; href: string; critical: boolean;
+  Icon: React.ElementType; label: string; value: number; href: string; critical: boolean;
 }) {
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 py-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/20 -mx-1 px-1 rounded transition-colors"
+      className="flex items-center gap-3 py-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/20 -mx-1 px-1 rounded transition-colors group"
     >
-      <span className="text-sm">{icon}</span>
+      <Icon size={14} className={`flex-shrink-0 ${critical && value > 0 ? "text-red-400" : "text-slate-500"}`} />
       <span className="text-slate-300 text-sm flex-1">{label}</span>
-      <span className={`text-sm font-bold tabular-nums ${critical && value > 0 ? "text-red-400" : "text-slate-300"}`}>
+      <span className={`text-sm font-bold tabular-nums px-2 py-0.5 rounded ${critical && value > 0 ? "text-red-400 bg-red-500/10" : "text-slate-400 bg-slate-700/40"}`}>
         {value}
       </span>
     </Link>

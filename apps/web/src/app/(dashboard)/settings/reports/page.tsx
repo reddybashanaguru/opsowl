@@ -213,6 +213,7 @@ function ScheduleForm({
 function ScheduleCard({ sched, onUpdated }: { sched: Schedule; onUpdated: () => void }) {
   const qc = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/api/v1/report-schedules/${sched.id}`),
@@ -311,9 +312,14 @@ function ScheduleCard({ sched, onUpdated }: { sched: Schedule; onUpdated: () => 
             </button>
             <button onClick={() => setEditing(true)}
               className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors">Edit</button>
-            <button onClick={() => { if (confirm(`Delete "${sched.name}"?`)) deleteMutation.mutate(); }}
-              disabled={deleteMutation.isPending}
-              className="text-xs text-red-400 hover:text-red-300 transition-colors disabled:opacity-50">Delete</button>
+            {confirmDelete ? (
+              <>
+                <button onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} className="text-xs text-white bg-red-600 hover:bg-red-500 px-2 py-0.5 rounded transition-colors disabled:opacity-50">Confirm</button>
+                <button onClick={() => setConfirmDelete(false)} className="text-xs text-slate-400 hover:text-slate-200 px-2 py-0.5 rounded border border-slate-700 transition-colors">Cancel</button>
+              </>
+            ) : (
+              <button onClick={() => setConfirmDelete(true)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Delete</button>
+            )}
           </div>
         </div>
       </div>
@@ -375,7 +381,7 @@ export default function ReportSchedulesPage() {
         </div>
       ) : schedules.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
-          <p className="text-4xl mb-3">📧</p>
+          <p className="text-4xl mb-3">📊</p>
           <p className="font-medium">No report schedules configured</p>
           <p className="text-sm mt-1">Create one to start sending automated summaries.</p>
         </div>

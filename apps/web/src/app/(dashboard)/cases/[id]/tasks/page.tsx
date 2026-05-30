@@ -345,9 +345,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 task={displayTask}
                 onClick={() => router.push(`/cases/${caseId}/tasks/${task.id}`)}
                 onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
-                onDelete={() => {
-                  if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id);
-                }}
+                onDelete={() => deleteMutation.mutate(task.id)}
                 onAssignToMe={!task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => assignToMeMutation.mutate(task.id) : undefined}
                 onUnassign={task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => unassignMutation.mutate(task.id) : undefined}
               />

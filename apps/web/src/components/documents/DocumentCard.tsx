@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { DocumentProcessingBadge } from "./DocumentProcessingBadge";
 
 export interface Document {
@@ -45,6 +46,7 @@ const FILE_ICONS: Record<string, string> = {
 };
 
 export function DocumentCard({ document: doc, onDelete, onRetry, retrying }: Props) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const icon = FILE_ICONS[doc.file_type] ?? "📎";
 
   return (
@@ -96,16 +98,29 @@ export function DocumentCard({ document: doc, onDelete, onRetry, retrying }: Pro
             </button>
           )}
           {onDelete && (
-            <button
-              onClick={() => {
-                if (window.confirm(`Delete "${doc.original_filename}"?`)) {
-                  onDelete(doc.id);
-                }
-              }}
-              className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded border border-red-500/30 hover:border-red-400/60 transition-colors"
-            >
-              Delete
-            </button>
+            confirmDelete ? (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => { onDelete(doc.id); setConfirmDelete(false); }}
+                  className="text-xs text-white bg-red-600 hover:bg-red-500 px-2 py-1 rounded transition-colors"
+                >
+                  Confirm
+                </button>
+                <button
+                  onClick={() => setConfirmDelete(false)}
+                  className="text-xs text-slate-400 hover:text-slate-200 px-2 py-1 rounded border border-slate-600 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="text-xs text-red-400 hover:text-red-300 px-2 py-1 rounded border border-red-500/30 hover:border-red-400/60 transition-colors"
+              >
+                Delete
+              </button>
+            )
           )}
         </div>
       </div>

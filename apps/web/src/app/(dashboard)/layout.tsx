@@ -2,61 +2,120 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  FileText,
+  Search,
+  BarChart2,
+  Users,
+  ScrollText,
+  Timer,
+  Inbox,
+  Webhook,
+  BarChart3,
+  LayoutTemplate,
+  KeyRound,
+  Shuffle,
+  Archive,
+  Settings,
+} from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 
+type NavItem = {
+  label: string;
+  href: string;
+  icon: React.ElementType;
+  exact?: boolean;
+};
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const cfg = useConfig();
 
-  const nav = [
-    { label: "Dashboard", href: "/dashboard", icon: "▦" },
-    { label: cfg.cases_label, href: "/cases", icon: "⬡" },
-    { label: cfg.tasks_label, href: "/tasks", icon: "✓" },
-    { label: cfg.documents_label, href: "/documents", icon: "◻" },
-    { label: "Search", href: "/search", icon: "⌕" },
+  const nav: NavItem[] = [
+    { label: "Dashboard",           href: "/dashboard",  icon: LayoutDashboard },
+    { label: cfg.cases_label,        href: "/cases",      icon: FolderKanban },
+    { label: cfg.tasks_label,        href: "/tasks",      icon: CheckSquare },
+    { label: cfg.documents_label,    href: "/documents",  icon: FileText },
+    { label: "Search",               href: "/search",     icon: Search },
   ];
 
-  const insightsNav = [
-    { label: "Workload", href: "/workload", icon: "◑" },
+  const insightsNav: NavItem[] = [
+    { label: "Workload",             href: "/workload",   icon: BarChart2 },
   ];
 
-  const adminNav = [
-    { label: "Users", href: "/users", icon: "◎" },
-    { label: "Audit Logs", href: "/audit", icon: "◈" },
-    { label: cfg.sla_label + " Policies", href: "/sla", icon: "◷" },
-    { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
-    { label: "Webhooks", href: "/settings/webhooks", icon: "⇥" },
-    { label: "Reports", href: "/settings/reports", icon: "⊞" },
-    { label: "Templates", href: "/settings/templates", icon: "◫" },
-    { label: "API Keys", href: "/settings/api-keys", icon: "⌗" },
-    { label: "Assignment Rules", href: "/settings/assignment-rules", icon: "⇢" },
-    { label: "Retention", href: "/settings/retention", icon: "⌛" },
-    { label: "Settings", href: "/settings", icon: "⚙", exact: true },
+  const adminNav: NavItem[] = [
+    { label: "Users",                href: "/users",                      icon: Users },
+    { label: "Audit Logs",           href: "/audit",                      icon: ScrollText },
+    { label: cfg.sla_label + " Policies", href: "/sla",                  icon: Timer },
+    { label: "Inbound Events",       href: "/settings/inbound",           icon: Inbox },
+    { label: "Webhooks",             href: "/settings/webhooks",          icon: Webhook },
+    { label: "Scheduled Reports",    href: "/settings/reports",           icon: BarChart3 },
+    { label: "Templates",            href: "/settings/templates",         icon: LayoutTemplate },
+    { label: "API Keys",             href: "/settings/api-keys",          icon: KeyRound },
+    { label: "Auto-Assignment",      href: "/settings/assignment-rules",  icon: Shuffle },
+    { label: "Data Retention",       href: "/settings/retention",         icon: Archive },
+    { label: "Settings",             href: "/settings",                   icon: Settings, exact: true },
   ];
 
   const roleColor: Record<string, string> = {
     super_admin: "text-red-400",
-    admin: "text-amber-400",
-    manager: "text-violet-400",
-    analyst: "text-cyan-400",
-    viewer: "text-slate-400",
+    admin:       "text-amber-400",
+    manager:     "text-violet-400",
+    analyst:     "text-cyan-400",
+    viewer:      "text-slate-400",
   };
+
+  const roleLabel: Record<string, string> = {
+    super_admin: "Super Admin",
+    admin:       "Admin",
+    manager:     "Manager",
+    analyst:     "Analyst",
+    viewer:      "Viewer",
+  };
+
+  function NavLink({ item }: { item: NavItem }) {
+    const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
+    const Icon = item.icon;
+    return (
+      <Link
+        href={item.href}
+        className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
+          isActive
+            ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
+            : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
+        }`}
+      >
+        <Icon size={16} className="flex-shrink-0" />
+        {item.label}
+      </Link>
+    );
+  }
 
   return (
     <ProtectedRoute>
       <div className="h-screen bg-[#0f172a] flex overflow-hidden">
-        {/* Sidebar — fixed height, independent scroll */}
+        {/* Sidebar */}
         <aside className="w-60 min-w-60 bg-[#1e293b] border-r border-slate-700 flex flex-col overflow-y-auto flex-shrink-0">
           {/* Brand */}
           <div className="px-5 py-5 border-b border-slate-700">
-            <div className="text-cyan-400 font-bold text-lg tracking-tight">OpsOwl AI</div>
-            <div className="text-slate-500 text-[10px] uppercase tracking-widest mt-0.5">
-              Operations Intelligence
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 bg-cyan-500/20 rounded-lg flex items-center justify-center border border-cyan-500/30 flex-shrink-0">
+                <span className="text-cyan-400 text-sm font-bold leading-none">O</span>
+              </div>
+              <div>
+                <div className="text-cyan-400 font-bold text-base tracking-tight leading-none">OpsOwl AI</div>
+                <div className="text-slate-500 text-[10px] uppercase tracking-widest mt-0.5">
+                  Operations Intelligence
+                </div>
+              </div>
             </div>
           </div>
 
@@ -65,80 +124,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="px-4 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
               Workspace
             </div>
-            {nav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
-                  pathname.startsWith(item.href)
-                    ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
-                    : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
-                }`}
-              >
-                <span className="text-base">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+            {nav.map((item) => <NavLink key={item.href} item={item} />)}
 
-            {/* Intelligence section */}
-            <div className="px-4 mt-4 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+            <div className="px-4 mt-5 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
               Intelligence
             </div>
-            {insightsNav.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
-                  pathname.startsWith(item.href)
-                    ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
-                    : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
-                }`}
-              >
-                <span className="text-base">{item.icon}</span>
-                {item.label}
-              </Link>
-            ))}
+            {insightsNav.map((item) => <NavLink key={item.href} item={item} />)}
 
             <RBACGate allowedRoles={["admin", "super_admin"]}>
-              <div className="px-4 mt-4 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
+              <div className="px-4 mt-5 mb-2 text-[10px] font-semibold text-slate-500 uppercase tracking-widest">
                 Administration
               </div>
-              {adminNav.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
-                    ("exact" in item && item.exact ? pathname === item.href : pathname.startsWith(item.href))
-                      ? "text-cyan-400 bg-cyan-400/5 border-cyan-400"
-                      : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-slate-700/40"
-                  }`}
-                >
-                  <span className="text-base">{item.icon}</span>
-                  {item.label}
-                </Link>
-              ))}
+              {adminNav.map((item) => <NavLink key={item.href} item={item} />)}
             </RBACGate>
           </nav>
 
-          {/* User + Notification Bell */}
+          {/* User footer */}
           <div className="px-4 py-4 border-t border-slate-700">
             <div className="flex items-center justify-between mb-1">
               <div className="text-slate-200 text-sm font-medium truncate flex-1 min-w-0">{user?.full_name}</div>
               <NotificationBell />
             </div>
             <div className={`text-xs mt-0.5 ${roleColor[user?.role ?? "viewer"] ?? "text-slate-400"}`}>
-              {user?.role?.replace("_", " ")}
+              {roleLabel[user?.role ?? "viewer"] ?? user?.role}
             </div>
             <button
               onClick={() => logout()}
-              className="mt-3 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
             >
-              Sign out →
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign out
             </button>
           </div>
         </aside>
 
-        {/* Main */}
+        {/* Main content */}
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
     </ProtectedRoute>
