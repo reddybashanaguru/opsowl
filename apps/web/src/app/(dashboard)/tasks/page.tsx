@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -63,6 +64,8 @@ function ProgressRing({ pct, size = 36 }: { pct: number; size?: number }) {
   );
 }
 
+const PRIVILEGED_ROLES = ["manager", "admin", "super_admin"];
+
 function TasksPageContent() {
   const router = useRouter();
   const qc = useQueryClient();
@@ -70,11 +73,21 @@ function TasksPageContent() {
   const cfg = useConfig();
   const searchParams = useSearchParams();
 
-  const scopeAll = searchParams.get("scope") === "all";
-  const apiUrl = scopeAll ? "/api/v1/tasks?limit=200&scope=all" : "/api/v1/tasks?limit=200";
+  const isPrivileged = PRIVILEGED_ROLES.includes(user?.role ?? "");
+
+  // For privileged roles: default to "all" unless explicitly set to "mine"
+  // For analysts: always "mine"
+  const scopeParam = searchParams.get("scope");
+  const defaultAll = isPrivileged
+    ? scopeParam !== "mine"  // privileged default = all, unless ?scope=mine
+    : false;                 // analysts always see their own tasks
+
+  const [viewAll, setViewAll] = useState(defaultAll);
+
+  const apiUrl = viewAll ? "/api/v1/tasks?limit=200&scope=all" : "/api/v1/tasks?limit=200";
 
   const { data, isLoading, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
-    queryKey: ["my-tasks", scopeAll],
+    queryKey: ["my-tasks", viewAll],
     queryFn: () => api.getList<Task, ListMeta>(apiUrl),
     enabled: !!user,
   });
@@ -117,7 +130,25 @@ function TasksPageContent() {
       {/* Header with progress summary */}
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-white text-xl font-bold">{scopeAll ? `All ${cfg.tasks_label}` : `My ${cfg.tasks_label}`}</h1>
+          <div className="flex items-center gap-3 mb-1">
+            <h1 className="text-white text-xl font-bold">{viewAll ? `All ${cfg.tasks_label}` : `My ${cfg.tasks_label}`}</h1>
+            {isPrivileged && (
+              <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5 text-xs">
+                <button
+                  onClick={() => setViewAll(false)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${!viewAll ? "bg-slate-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  Mine
+                </button>
+                <button
+                  onClick={() => setViewAll(true)}
+                  className={`px-2.5 py-1 rounded-md transition-colors ${viewAll ? "bg-cyan-600 text-white" : "text-slate-400 hover:text-slate-200"}`}
+                >
+                  All
+                </button>
+              </div>
+            )}
+          </div>
           <p className="text-slate-500 text-sm mt-1">
             {active} active · {done} completed · {tasks.length} total
             {overdue > 0 && <span className="text-red-400 ml-2">· {overdue} overdue</span>}
@@ -145,7 +176,7 @@ function TasksPageContent() {
         <div className="text-center py-20">
           <div className="text-5xl mb-4">✓</div>
           <p className="text-slate-300 text-sm font-medium">All caught up!</p>
-          <p className="text-slate-600 text-xs mt-1">{scopeAll ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.` : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}</p>
+          <p className="text-slate-600 text-xs mt-1">{viewAll ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.` : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}</p>
         </div>
       ) : (
         <div className="space-y-7">
