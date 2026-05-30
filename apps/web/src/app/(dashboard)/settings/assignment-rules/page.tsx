@@ -96,12 +96,6 @@ function RuleModal({
     setForm((prev) => ({ ...prev, [k]: v }));
   }
 
-  const assignTarget = form.assign_to_role
-    ? "role"
-    : form.assign_to_user
-    ? "user"
-    : "role";
-
   const [targetType, setTargetType] = useState<"role" | "user">(
     rule?.assign_to_user ? "user" : "role"
   );
@@ -254,8 +248,6 @@ function RuleModal({
           </button>
         </div>
 
-        {/* suppress unused var lint */}
-        <span className="hidden">{assignTarget}</span>
       </div>
     </div>
   );

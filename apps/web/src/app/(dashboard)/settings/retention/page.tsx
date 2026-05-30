@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -99,6 +100,7 @@ function PolicyRow({ policy, onToggle }: { policy: RetentionPolicy; onToggle: (r
 
 function RetentionContent() {
   const qc = useQueryClient();
+  const [toggleError, setToggleError] = useState<string | null>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["retention-policies"],
@@ -109,9 +111,12 @@ function RetentionContent() {
   const toggleMutation = useMutation({
     mutationFn: ({ resource_type, purge_enabled }: { resource_type: string; purge_enabled: boolean }) =>
       api.put(`/api/v1/retention/policies/${resource_type}`, { purge_enabled }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["retention-policies"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["retention-policies"] });
+      setToggleError(null);
+    },
     onError: (e) => {
-      alert(e instanceof APIError ? e.message : "Failed to update policy");
+      setToggleError(e instanceof APIError ? e.message : "Failed to update policy");
     },
   });
 
@@ -141,6 +146,12 @@ function RetentionContent() {
           </div>
         ))}
       </div>
+
+      {toggleError && (
+        <div className="mb-4 px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+          {toggleError}
+        </div>
+      )}
 
       {/* Table */}
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">

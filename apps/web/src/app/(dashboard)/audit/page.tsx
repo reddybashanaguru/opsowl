@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -106,6 +106,7 @@ function MetaCell({ meta }: { meta: Record<string, unknown> }) {
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AuditPage() {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [severity, setSeverity] = useState("");
   const [eventFilter, setEventFilter] = useState("");
   const [debouncedEvent, setDebouncedEvent] = useState("");
@@ -134,8 +135,8 @@ export default function AuditPage() {
 
   function handleEventInputChange(val: string) {
     setEventFilter(val);
-    clearTimeout((window as unknown as Record<string, unknown>)._auditDebounce as ReturnType<typeof setTimeout>);
-    (window as unknown as Record<string, unknown>)._auditDebounce = setTimeout(() => setDebouncedEvent(val), 400);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedEvent(val), 400);
   }
 
   async function handleExportCSV() {

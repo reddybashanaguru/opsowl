@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 
@@ -468,9 +468,8 @@ function EventLog({ sources }: { sources: Source[] }) {
             </thead>
             <tbody className="divide-y divide-slate-700/50">
               {visible.map(evt => (
-                <>
+                <Fragment key={evt.id}>
                   <tr
-                    key={evt.id}
                     onClick={() => setExpandedID(expandedID === evt.id ? null : evt.id)}
                     className={`cursor-pointer transition-colors ${
                       evt.status === "failed" ? "hover:bg-red-950/20" : "hover:bg-slate-800/30"
@@ -507,7 +506,7 @@ function EventLog({ sources }: { sources: Source[] }) {
                     </td>
                   </tr>
                   {expandedID === evt.id && (
-                    <tr key={`${evt.id}-payload`}>
+                    <tr>
                       <td colSpan={6} className="px-4 pb-3 bg-slate-900/60">
                         <div className="text-xs text-slate-400 mb-1 font-medium pt-2">Payload</div>
                         <pre className="text-xs font-mono text-slate-300 bg-slate-900 border border-slate-700 rounded-lg p-3 overflow-x-auto max-h-48">
@@ -521,7 +520,7 @@ function EventLog({ sources }: { sources: Source[] }) {
                       </td>
                     </tr>
                   )}
-                </>
+                </Fragment>
               ))}
             </tbody>
           </table>

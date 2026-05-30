@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
@@ -158,6 +158,7 @@ const STATUSES = ["", "pending", "processing", "completed", "failed"] as const;
 
 export default function DocumentsPage() {
   const router = useRouter();
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [fileTypeFilter, setFileTypeFilter] = useState("");
   const [debouncedFileType, setDebouncedFileType] = useState("");
@@ -198,11 +199,8 @@ export default function DocumentsPage() {
 
   function handleFileTypeInput(val: string) {
     setFileTypeFilter(val);
-    clearTimeout((window as unknown as Record<string, unknown>)._docDebounce as ReturnType<typeof setTimeout>);
-    (window as unknown as Record<string, unknown>)._docDebounce = setTimeout(
-      () => setDebouncedFileType(val),
-      350,
-    );
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setDebouncedFileType(val), 350);
   }
 
   const totalCount = data?.pages[0]?.meta.total_count ?? 0;
