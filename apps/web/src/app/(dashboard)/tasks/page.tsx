@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -102,9 +102,35 @@ function TasksPageContent() {
     enabled: !!user,
   });
 
+  // Tasks completed optimistically — stay in their current group with done styling,
+  // then move to Done section after a short delay so the UI doesn't jerk.
+  const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set());
+  const completionTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = completionTimers.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
+  }, []);
+
   const completeMutation = useMutation({
     mutationFn: (taskId: string) => api.post<Task>(`/api/v1/tasks/${taskId}/complete`, {}),
-    onSuccess: () => { refetch(); qc.invalidateQueries({ queryKey: ["dashboard-stats"] }); },
+    onSuccess: (_data, taskId) => {
+      // Show completed styling in place immediately
+      setJustCompleted((prev) => new Set([...prev, taskId]));
+      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+
+      // After 1.5s move the task to the Done group by refetching
+      const timer = setTimeout(() => {
+        setJustCompleted((prev) => {
+          const next = new Set(prev);
+          next.delete(taskId);
+          return next;
+        });
+        completionTimers.current.delete(taskId);
+        refetch();
+      }, 1500);
+      completionTimers.current.set(taskId, timer);
+    },
   });
 
   const deleteMutation = useMutation({
@@ -233,16 +259,21 @@ function TasksPageContent() {
                     </div>
                     {/* 2-column card grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {groupTasks.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          showCase
-                          onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
-                          onComplete={() => completeMutation.mutate(task.id)}
-                          onDelete={() => deleteMutation.mutate(task.id)}
-                        />
-                      ))}
+                      {groupTasks.map((task) => {
+                        const displayTask = justCompleted.has(task.id)
+                          ? { ...task, status: "done" }
+                          : task;
+                        return (
+                          <TaskCard
+                            key={task.id}
+                            task={displayTask}
+                            showCase
+                            onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
+                            onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
+                            onDelete={() => deleteMutation.mutate(task.id)}
+                          />
+                        );
+                      })}
                     </div>
                   </div>
                 );
