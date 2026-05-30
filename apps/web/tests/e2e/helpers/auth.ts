@@ -80,6 +80,17 @@ export async function apiToken(): Promise<string> {
   return json.data.access_token;
 }
 
+/** Returns an access_token for any email/password pair. Useful for role-specific API tests. */
+export async function apiTokenAs(email: string, password: string): Promise<string> {
+  const res = await fetch(`${API_URL}/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  });
+  const json = await res.json() as { data: { access_token: string } };
+  return json.data.access_token;
+}
+
 /** Create a case via API and return its id. */
 export async function createCase(
   token: string,

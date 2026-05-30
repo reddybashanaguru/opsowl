@@ -6,6 +6,7 @@ import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useConfig } from "@/lib/hooks/useConfig";
+import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 
 interface STRFiling {
   id: string;
@@ -31,6 +32,16 @@ interface STRFiling {
   updated_at: string;
 }
 
+interface GoAMLValidationError {
+  field: string;
+  message: string;
+}
+
+interface GoAMLReadiness {
+  ready: boolean;
+  errors: GoAMLValidationError[];
+}
+
 const STATUS_COLORS: Record<string, string> = {
   draft:     "bg-slate-700 text-slate-300",
   submitted: "bg-amber-900/50 text-amber-300 border border-amber-500/30",
@@ -45,18 +56,241 @@ const REPORT_TYPE_LABELS: Record<string, string> = {
   CTR: "Cash Transaction Report",
 };
 
+const TRANSMODE_OPTIONS = [
+  { value: "C", label: "C — Cash" },
+  { value: "T", label: "T — Transfer" },
+  { value: "W", label: "W — Wire Transfer" },
+  { value: "D", label: "D — Deposit" },
+  { value: "X", label: "X — Other" },
+];
+
+const ID_TYPE_OPTIONS = ["PAN", "PASSPORT", "DRIVING_LICENSE", "VOTER_ID", "AADHAAR_REF"];
+
+// ── goAML Readiness panel ───────────────────────────────────────────────────
+
+function GoAMLReadinessPanel({ caseId, filingId }: { caseId: string; filingId: string }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, refetch } = useQuery<GoAMLReadiness>({
+    queryKey: ["goaml-readiness", filingId],
+    queryFn: () => api.get<GoAMLReadiness>(`/api/v1/cases/${caseId}/str/${filingId}/validate/goaml`),
+    enabled: open,
+    staleTime: 0,
+  });
+
+  return (
+    <div className="border border-slate-700/50 rounded-lg overflow-hidden">
+      <button
+        onClick={() => { setOpen((v) => !v); if (!open) refetch(); }}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-slate-800/40 hover:bg-slate-800/70 transition-colors text-xs text-slate-400"
+      >
+        <span className="flex items-center gap-1.5">
+          {data?.ready === true && <CheckCircle size={13} className="text-emerald-400" />}
+          {data?.ready === false && <AlertTriangle size={13} className="text-amber-400" />}
+          {!data && <AlertTriangle size={13} className="text-slate-500" />}
+          goAML 4.0 Readiness Check
+        </span>
+        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+      </button>
+
+      {open && (
+        <div className="px-3 py-3 space-y-1.5 bg-slate-900/40">
+          {isLoading && <p className="text-slate-500 text-xs">Checking…</p>}
+          {data?.ready && (
+            <p className="text-emerald-400 text-xs flex items-center gap-1.5">
+              <CheckCircle size={13} /> All required fields present — ready to export goAML XML
+            </p>
+          )}
+          {data && !data.ready && (
+            <div className="space-y-1">
+              <p className="text-amber-400 text-xs font-medium mb-2">
+                {data.errors.length} field{data.errors.length !== 1 ? "s" : ""} required before export:
+              </p>
+              {data.errors.map((e) => (
+                <div key={e.field} className="flex items-start gap-1.5 text-xs">
+                  <XCircle size={12} className="text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-300">{e.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Transaction row input ────────────────────────────────────────────────────
+
+interface TxRow {
+  date: string;
+  amount: string;
+  transmode_code: string;
+  description: string;
+  transaction_number: string;
+  transaction_location: string;
+  from_account_number: string;
+  from_institution: string;
+  to_account_number: string;
+  to_institution: string;
+}
+
+function emptyTx(): TxRow {
+  return {
+    date: "", amount: "", transmode_code: "C", description: "",
+    transaction_number: "", transaction_location: "",
+    from_account_number: "", from_institution: "",
+    to_account_number: "", to_institution: "",
+  };
+}
+
+function TransactionRows({ rows, onChange }: { rows: TxRow[]; onChange: (rows: TxRow[]) => void }) {
+  const update = (i: number, field: keyof TxRow, val: string) => {
+    const next = rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
+    onChange(next);
+  };
+  const add = () => onChange([...rows, emptyTx()]);
+  const remove = (i: number) => onChange(rows.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="col-span-2 space-y-3">
+      <div className="flex items-center justify-between">
+        <label className="text-slate-400 text-xs font-medium">
+          Transactions <span className="text-red-400">*</span>
+          <span className="text-slate-600 ml-1">(goAML requires ≥ 1)</span>
+        </label>
+        <button
+          type="button"
+          onClick={add}
+          className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors"
+        >
+          + Add transaction
+        </button>
+      </div>
+
+      {rows.length === 0 && (
+        <p className="text-slate-600 text-xs italic">No transactions added yet.</p>
+      )}
+
+      {rows.map((tx, i) => (
+        <div key={i} className="bg-slate-900/60 border border-slate-700/50 rounded-lg p-3 space-y-2">
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-xs text-slate-500 font-medium">Transaction #{i + 1}</span>
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={() => remove(i)}
+                className="text-xs text-red-400/60 hover:text-red-400 transition-colors"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">Date <span className="text-red-400">*</span></label>
+              <input
+                type="date"
+                value={tx.date}
+                onChange={(e) => update(i, "date", e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">Amount (INR) <span className="text-red-400">*</span></label>
+              <input
+                type="number"
+                value={tx.amount}
+                onChange={(e) => update(i, "amount", e.target.value)}
+                placeholder="e.g. 1500000"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">Mode <span className="text-red-400">*</span></label>
+              <select
+                value={tx.transmode_code}
+                onChange={(e) => update(i, "transmode_code", e.target.value)}
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white focus:outline-none focus:border-cyan-500"
+              >
+                {TRANSMODE_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{o.label}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">Transaction Number</label>
+              <input
+                type="text"
+                value={tx.transaction_number}
+                onChange={(e) => update(i, "transaction_number", e.target.value)}
+                placeholder="e.g. TXN-A"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div className="col-span-2">
+              <label className="text-slate-500 text-[11px] mb-1 block">Description</label>
+              <input
+                type="text"
+                value={tx.description}
+                onChange={(e) => update(i, "description", e.target.value)}
+                placeholder="e.g. Cash deposit at teller window"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">Branch / Location</label>
+              <input
+                type="text"
+                value={tx.transaction_location}
+                onChange={(e) => update(i, "transaction_location", e.target.value)}
+                placeholder="e.g. Mumbai Fort Branch"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">From Account No.</label>
+              <input
+                type="text"
+                value={tx.from_account_number}
+                onChange={(e) => update(i, "from_account_number", e.target.value)}
+                placeholder="Account number"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">To Account No.</label>
+              <input
+                type="text"
+                value={tx.to_account_number}
+                onChange={(e) => update(i, "to_account_number", e.target.value)}
+                placeholder="If transfer — destination account"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-slate-500 text-[11px] mb-1 block">To Institution</label>
+              <input
+                type="text"
+                value={tx.to_institution}
+                onChange={(e) => update(i, "to_institution", e.target.value)}
+                placeholder="Destination bank name"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
+              />
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Filing card ──────────────────────────────────────────────────────────────
+
 function FilingCard({
-  filing,
-  caseId,
-  userId,
-  userRole,
-  onAction,
+  filing, caseId, userId, userRole, onAction,
 }: {
-  filing: STRFiling;
-  caseId: string;
-  userId: string;
-  userRole: string;
-  onAction: () => void;
+  filing: STRFiling; caseId: string; userId: string; userRole: string; onAction: () => void;
 }) {
   const qc = useQueryClient();
   const cfg = useConfig();
@@ -67,44 +301,47 @@ function FilingCard({
 
   const isManagerOrAbove = ["manager", "admin", "super_admin"].includes(userRole);
   const isAdminOrAbove = ["admin", "super_admin"].includes(userRole);
+  const canExport = isAdminOrAbove && (filing.status === "approved" || filing.status === "filed");
 
   const mutOpts = {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["str-filings", caseId] }); onAction(); setActionError(""); },
     onError: (err: unknown) => setActionError(err instanceof APIError ? err.message : "Action failed"),
   };
 
-  const submitMut = useMutation({
-    mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/submit`, {}),
-    ...mutOpts,
-  });
-
-  const approveMut = useMutation({
-    mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/approve`, {}),
-    ...mutOpts,
-  });
-
-  const rejectMut = useMutation({
+  const submitMut  = useMutation({ mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/submit`, {}), ...mutOpts });
+  const approveMut = useMutation({ mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/approve`, {}), ...mutOpts });
+  const rejectMut  = useMutation({
     mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/reject`, { reason: rejectReason }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["str-filings", caseId] }); onAction(); setShowRejectModal(false); setRejectReason(""); setActionError(""); },
     onError: (err: unknown) => setActionError(err instanceof APIError ? err.message : "Reject failed"),
   });
+  const filedMut = useMutation({ mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/file`, {}), ...mutOpts });
 
-  const filedMut = useMutation({
-    mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/file`, {}),
-    ...mutOpts,
-  });
+  const handleExport = async (format: "finnet" | "goaml") => {
+    const path = format === "goaml"
+      ? `/api/v1/cases/${caseId}/str/${filing.id}/export/goaml`
+      : `/api/v1/cases/${caseId}/str/${filing.id}/export`;
+    const filename = format === "goaml"
+      ? `goAML-STR-${filing.id.slice(0, 8)}.xml`
+      : `${cfg.str_label}-${filing.id.slice(0, 8)}.xml`;
 
-  const handleExport = async () => {
     try {
-      const res = await fetch(`${apiBase}/api/v1/cases/${caseId}/str/${filing.id}/export`, {
-        credentials: "include",
-      });
-      if (!res.ok) throw new Error("Export failed");
+      const res = await fetch(`${apiBase}${path}`, { credentials: "include" });
+      if (!res.ok) {
+        // goAML export returns 422 with JSON validation errors
+        if (res.status === 422) {
+          const body = await res.json();
+          const msgs = (body?.errors ?? []).map((e: GoAMLValidationError) => e.message).join("; ");
+          setActionError(`goAML validation failed: ${msgs}`);
+          return;
+        }
+        throw new Error("Export failed");
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${cfg.str_label}-${filing.id.slice(0, 8)}.xml`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -118,7 +355,7 @@ function FilingCard({
 
   return (
     <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 flex flex-col gap-4">
-      {/* Header row */}
+      {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -161,6 +398,11 @@ function FilingCard({
           <span className="text-red-400">Rejected: {filing.rejection_reason}</span>
         )}
       </div>
+
+      {/* goAML readiness — shown to manager+ when filing is in draft or submitted */}
+      {isManagerOrAbove && (filing.status === "draft" || filing.status === "submitted") && (
+        <GoAMLReadinessPanel caseId={caseId} filingId={filing.id} />
+      )}
 
       {/* Error */}
       {actionError && (
@@ -214,13 +456,23 @@ function FilingCard({
             </button>
           )}
 
-          {isAdminOrAbove && (filing.status === "approved" || filing.status === "filed") && (
-            <button
-              onClick={handleExport}
-              className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
-            >
-              Export XML
-            </button>
+          {canExport && (
+            <div className="flex gap-2 ml-auto">
+              <button
+                onClick={() => handleExport("goaml")}
+                className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors font-medium"
+                title="Export goAML 4.0 XML for FIU-IND portal submission"
+              >
+                Export goAML XML
+              </button>
+              <button
+                onClick={() => handleExport("finnet")}
+                className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
+                title="Export FINnet 2.0 XML (legacy format)"
+              >
+                Export FINnet XML
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -259,24 +511,59 @@ function FilingCard({
   );
 }
 
+// ── Page ─────────────────────────────────────────────────────────────────────
+
 export default function STRFilingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
-
   const cfg = useConfig();
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
 
-  // Draft form fields
+  // Basic fields
   const [reportType, setReportType] = useState("STR");
   const [suspicionBasis, setSuspicionBasis] = useState("");
   const [narrative, setNarrative] = useState("");
   const [evidenceSummary, setEvidenceSummary] = useState("");
-  const [subjectName, setSubjectName] = useState("");
-  const [subjectPAN, setSubjectPAN] = useState("");
+
+  // Subject fields
+  const [subjectFirstName, setSubjectFirstName] = useState("");
+  const [subjectLastName, setSubjectLastName] = useState("");
+  const [subjectGender, setSubjectGender] = useState("");
+  const [subjectTitle, setSubjectTitle] = useState("");
+  const [subjectBirthdate, setSubjectBirthdate] = useState("");
+  const [subjectIDType, setSubjectIDType] = useState("PAN");
+  const [subjectIDNumber, setSubjectIDNumber] = useState("");
+  const [subjectAccountNumber, setSubjectAccountNumber] = useState("");
+  const [subjectAccountName, setSubjectAccountName] = useState("");
+  const [subjectClientNumber, setSubjectClientNumber] = useState("");
+
+  // Filing entity / reporting officer fields
   const [entityName, setEntityName] = useState("");
-  const [reportingOfficer, setReportingOfficer] = useState("");
+  const [rentityID, setRentityID] = useState("");
+  const [rentityBranch, setRentityBranch] = useState("");
+  const [swiftCode, setSwiftCode] = useState("");
+  const [submissionCode, setSubmissionCode] = useState("E");
+  const [officerTitle, setOfficerTitle] = useState("Mr");
+  const [officerFirstName, setOfficerFirstName] = useState("");
+  const [officerLastName, setOfficerLastName] = useState("");
+  const [officerGender, setOfficerGender] = useState("M");
+  const [officerIDNumber, setOfficerIDNumber] = useState("");
+  const [officerIDType, setOfficerIDType] = useState("PAN");
+  const [officerPhone, setOfficerPhone] = useState("");
+  const [officerEmail, setOfficerEmail] = useState("");
+  const [officerOccupation, setOfficerOccupation] = useState("Chief Compliance Officer");
+  const [entityAddress, setEntityAddress] = useState("");
+  const [entityCity, setEntityCity] = useState("");
+  const [entityState, setEntityState] = useState("");
+  const [entityZip, setEntityZip] = useState("");
+
+  // Transactions
+  const [txRows, setTxRows] = useState<TxRow[]>([emptyTx()]);
+
+  // goAML section toggle
+  const [showGoAMLFields, setShowGoAMLFields] = useState(false);
 
   const { data: filingData, isLoading, isError } = useQuery<{ filings: STRFiling[] }>({
     queryKey: ["str-filings", caseId],
@@ -287,27 +574,83 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   const filings = filingData?.filings ?? [];
 
+  const buildPayload = () => ({
+    report_type: reportType,
+    suspicion_basis: suspicionBasis,
+    narrative,
+    evidence_summary: evidenceSummary,
+    filing_entity: {
+      name: entityName,
+      rentity_id: rentityID,
+      rentity_branch: rentityBranch,
+      swift_code: swiftCode,
+      submission_code: submissionCode,
+      officer_title: officerTitle,
+      officer_first_name: officerFirstName,
+      officer_last_name: officerLastName,
+      officer_gender: officerGender,
+      officer_id_number: officerIDNumber,
+      officer_id_type: officerIDType,
+      officer_phone: officerPhone,
+      officer_email: officerEmail,
+      officer_occupation: officerOccupation,
+      entity_address: entityAddress,
+      entity_city: entityCity,
+      entity_state: entityState,
+      entity_zip: entityZip,
+    },
+    subject: {
+      first_name: subjectFirstName,
+      last_name: subjectLastName,
+      name: `${subjectFirstName} ${subjectLastName}`.trim(),
+      gender: subjectGender,
+      title: subjectTitle,
+      birthdate: subjectBirthdate,
+      id_type: subjectIDType,
+      id_number: subjectIDNumber,
+      pan: subjectIDType === "PAN" ? subjectIDNumber : "",
+      account_number: subjectAccountNumber,
+      account_name: subjectAccountName,
+      client_number: subjectClientNumber,
+    },
+    transactions: txRows
+      .filter((t) => t.date && parseFloat(t.amount) > 0)
+      .map((t) => ({
+        date: t.date,
+        amount: parseFloat(t.amount) || 0,
+        currency: "INR",
+        description: t.description,
+        transaction_number: t.transaction_number,
+        transaction_location: t.transaction_location,
+        transmode_code: t.transmode_code,
+        from_account_number: t.from_account_number,
+        from_institution: t.from_institution || entityName,
+        to_account_number: t.to_account_number,
+        to_institution: t.to_institution,
+      })),
+  });
+
+  const resetForm = () => {
+    setSuspicionBasis(""); setNarrative(""); setEvidenceSummary("");
+    setSubjectFirstName(""); setSubjectLastName(""); setSubjectGender(""); setSubjectTitle("");
+    setSubjectBirthdate(""); setSubjectIDType("PAN"); setSubjectIDNumber("");
+    setSubjectAccountNumber(""); setSubjectAccountName(""); setSubjectClientNumber("");
+    setEntityName(""); setRentityID(""); setRentityBranch(""); setSwiftCode(""); setSubmissionCode("E");
+    setOfficerTitle("Mr"); setOfficerFirstName(""); setOfficerLastName(""); setOfficerGender("M");
+    setOfficerIDNumber(""); setOfficerIDType("PAN"); setOfficerPhone(""); setOfficerEmail("");
+    setOfficerOccupation("Chief Compliance Officer");
+    setEntityAddress(""); setEntityCity(""); setEntityState(""); setEntityZip("");
+    setTxRows([emptyTx()]);
+    setShowGoAMLFields(false);
+    setCreateError("");
+  };
+
   const createMut = useMutation({
-    mutationFn: () => api.post<STRFiling>(`/api/v1/cases/${caseId}/str`, {
-      report_type: reportType,
-      suspicion_basis: suspicionBasis,
-      narrative,
-      evidence_summary: evidenceSummary,
-      filing_entity: { name: entityName, reporting_officer: reportingOfficer },
-      subject: { name: subjectName, pan: subjectPAN },
-      transactions: [],
-    }),
+    mutationFn: () => api.post<STRFiling>(`/api/v1/cases/${caseId}/str`, buildPayload()),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["str-filings", caseId] });
       setShowCreate(false);
-      setSuspicionBasis("");
-      setNarrative("");
-      setEvidenceSummary("");
-      setSubjectName("");
-      setSubjectPAN("");
-      setEntityName("");
-      setReportingOfficer("");
-      setCreateError("");
+      resetForm();
     },
     onError: (err) => {
       setCreateError(err instanceof APIError ? err.message : "Failed to create filing");
@@ -328,8 +671,11 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
     );
   }
 
+  const inputCls = "w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500";
+  const labelCls = "text-slate-400 text-xs mb-1.5 block";
+
   return (
-    <div className="p-6">
+    <div className="p-6 max-w-5xl">
       <CaseSubNav caseId={caseId} activeTab="str" />
 
       {/* Header */}
@@ -337,7 +683,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         <div>
           <h1 className="text-white text-xl font-bold">Regulatory Filings</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {[cfg.str_law_reference, "Dual-authorization maker-checker workflow", cfg.str_regulator_label].filter(Boolean).join(" · ")}
+            {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 / FIU-IND"].filter(Boolean).join(" · ")}
           </p>
         </div>
         {isManagerOrAbove && (
@@ -350,30 +696,28 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         )}
       </div>
 
-      {/* Compliance info banner */}
+      {/* Compliance banner */}
       <div className="bg-amber-900/10 border border-amber-800/20 rounded-xl p-4 mb-6 text-xs text-amber-300/80 leading-relaxed">
         {cfg.str_law_reference && <><strong className="text-amber-300">{cfg.str_law_reference}</strong> — </>}
         Records must be retained for 10 years.
-        A filing must be <em>submitted</em> by one officer and <em>approved</em> by a different officer (maker-checker).
+        Maker-checker: submitted by one officer, approved by a different officer.
+        Export <strong className="text-amber-300">goAML XML</strong> for direct upload to the FIU-IND portal.
         Analysts are excluded from this workflow (tipping-off restriction).
       </div>
 
       {/* Create form */}
       {showCreate && (
         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-5">
             <h2 className="text-white font-semibold">New Regulatory Filing Draft</h2>
-            <button onClick={() => setShowCreate(false)} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
+            <button onClick={() => { setShowCreate(false); resetForm(); }} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
+            {/* ── Basic fields ── */}
             <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">Report Type</label>
-              <select
-                value={reportType}
-                onChange={(e) => setReportType(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-cyan-500"
-              >
+              <label className={labelCls}>Report Type</label>
+              <select value={reportType} onChange={(e) => setReportType(e.target.value)} className={inputCls}>
                 <option value="STR">STR — Suspicious Transaction Report</option>
                 <option value="SAR">SAR — Suspicious Activity Report</option>
                 <option value="CTR">CTR — Cash Transaction Report</option>
@@ -381,81 +725,239 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
             </div>
 
             <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">Suspicion Basis <span className="text-red-400">*</span></label>
+              <label className={labelCls}>Submission Type</label>
+              <select value={submissionCode} onChange={(e) => setSubmissionCode(e.target.value)} className={inputCls}>
+                <option value="E">E — New (first submission)</option>
+                <option value="S">S — Supplementary (additional info)</option>
+                <option value="C">C — Correction (amends previous)</option>
+              </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className={labelCls}>Suspicion Basis <span className="text-red-400">*</span></label>
               <input
                 type="text"
                 value={suspicionBasis}
                 onChange={(e) => setSuspicionBasis(e.target.value)}
-                placeholder="e.g. Unusual cash transactions inconsistent with profile"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
+                placeholder="e.g. Unusual cash transactions inconsistent with customer profile"
+                className={inputCls}
               />
             </div>
 
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs mb-1.5 block">Narrative</label>
+              <label className={labelCls}>Narrative / Reason <span className="text-red-400">*</span></label>
               <textarea
                 rows={3}
                 value={narrative}
                 onChange={(e) => setNarrative(e.target.value)}
                 placeholder="Detailed description of suspicious activity…"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-cyan-500"
+                className={`${inputCls} resize-none`}
               />
             </div>
 
             <div className="col-span-2">
-              <label className="text-slate-400 text-xs mb-1.5 block">Evidence Summary</label>
+              <label className={labelCls}>Evidence Summary</label>
               <textarea
                 rows={2}
                 value={evidenceSummary}
                 onChange={(e) => setEvidenceSummary(e.target.value)}
-                placeholder="Supporting evidence (transaction records, documents, etc.)…"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 resize-none focus:outline-none focus:border-cyan-500"
+                placeholder="Supporting evidence (transaction records, documents, KYC anomalies)…"
+                className={`${inputCls} resize-none`}
               />
             </div>
 
-            <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">Subject Name</label>
-              <input
-                type="text"
-                value={subjectName}
-                onChange={(e) => setSubjectName(e.target.value)}
-                placeholder="Individual or entity name"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-              />
+            {/* ── Subject ── */}
+            <div className="col-span-2">
+              <div className="border-t border-slate-700/50 pt-4 mb-3">
+                <p className="text-slate-300 text-xs font-semibold uppercase tracking-widest">Subject</p>
+              </div>
             </div>
 
             <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">{cfg.str_id_label}</label>
+              <label className={labelCls}>First Name <span className="text-red-400">*</span></label>
+              <input type="text" value={subjectFirstName} onChange={(e) => setSubjectFirstName(e.target.value)} placeholder="First name" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Last Name</label>
+              <input type="text" value={subjectLastName} onChange={(e) => setSubjectLastName(e.target.value)} placeholder="Last name" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>ID Type</label>
+              <select value={subjectIDType} onChange={(e) => setSubjectIDType(e.target.value)} className={inputCls}>
+                {ID_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>ID Number <span className="text-red-400">*</span></label>
               <input
                 type="text"
-                value={subjectPAN}
-                onChange={(e) => setSubjectPAN(e.target.value)}
-                placeholder={cfg.str_id_label}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 font-mono uppercase focus:outline-none focus:border-cyan-500"
+                value={subjectIDNumber}
+                onChange={(e) => setSubjectIDNumber(e.target.value.toUpperCase())}
+                placeholder={subjectIDType === "PAN" ? "ABCDE1234F" : "Identifier value"}
+                className={`${inputCls} font-mono uppercase`}
               />
+            </div>
+            <div>
+              <label className={labelCls}>Title</label>
+              <select value={subjectTitle} onChange={(e) => setSubjectTitle(e.target.value)} className={inputCls}>
+                <option value="">— select —</option>
+                <option value="Mr">Mr</option>
+                <option value="Ms">Ms</option>
+                <option value="Dr">Dr</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Gender</label>
+              <select value={subjectGender} onChange={(e) => setSubjectGender(e.target.value)} className={inputCls}>
+                <option value="">— select —</option>
+                <option value="M">M — Male</option>
+                <option value="F">F — Female</option>
+                <option value="U">U — Undisclosed</option>
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Date of Birth</label>
+              <input type="date" value={subjectBirthdate} onChange={(e) => setSubjectBirthdate(e.target.value)} className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Account Number</label>
+              <input type="text" value={subjectAccountNumber} onChange={(e) => setSubjectAccountNumber(e.target.value)} placeholder="Primary account" className={`${inputCls} font-mono`} />
+            </div>
+            <div>
+              <label className={labelCls}>Account Name</label>
+              <input type="text" value={subjectAccountName} onChange={(e) => setSubjectAccountName(e.target.value)} placeholder="Account holder name" className={inputCls} />
+            </div>
+            <div>
+              <label className={labelCls}>Customer / Client ID</label>
+              <input type="text" value={subjectClientNumber} onChange={(e) => setSubjectClientNumber(e.target.value)} placeholder="Internal customer ID" className={inputCls} />
             </div>
 
-            <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">Filing Entity</label>
-              <input
-                type="text"
-                value={entityName}
-                onChange={(e) => setEntityName(e.target.value)}
-                placeholder="Bank / NBFC name"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-              />
+            {/* ── Transactions ── */}
+            <div className="col-span-2">
+              <div className="border-t border-slate-700/50 pt-4 mb-3">
+                <p className="text-slate-300 text-xs font-semibold uppercase tracking-widest">Transactions</p>
+              </div>
+            </div>
+            <TransactionRows rows={txRows} onChange={setTxRows} />
+
+            {/* ── Reporting officer / goAML fields (collapsible) ── */}
+            <div className="col-span-2">
+              <div className="border-t border-slate-700/50 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowGoAMLFields((v) => !v)}
+                  className="flex items-center gap-2 text-xs font-semibold text-slate-300 hover:text-white uppercase tracking-widest transition-colors"
+                >
+                  {showGoAMLFields ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                  Reporting Officer &amp; Entity Details
+                  <span className="text-slate-500 font-normal normal-case tracking-normal ml-1">(required for goAML export)</span>
+                </button>
+              </div>
             </div>
 
-            <div>
-              <label className="text-slate-400 text-xs mb-1.5 block">Reporting Officer</label>
-              <input
-                type="text"
-                value={reportingOfficer}
-                onChange={(e) => setReportingOfficer(e.target.value)}
-                placeholder="Officer name"
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500"
-              />
-            </div>
+            {showGoAMLFields && (
+              <>
+                <div>
+                  <label className={labelCls}>Filing Entity / Bank Name</label>
+                  <input type="text" value={entityName} onChange={(e) => setEntityName(e.target.value)} placeholder="Your bank / NBFC name" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>FIU-IND Entity ID <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={rentityID}
+                    onChange={(e) => setRentityID(e.target.value)}
+                    placeholder="e.g. FIU-IN-BANK-0001"
+                    className={`${inputCls} font-mono`}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Branch Identifier</label>
+                  <input type="text" value={rentityBranch} onChange={(e) => setRentityBranch(e.target.value)} placeholder="e.g. BRANCH-MUM-001" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>SWIFT Code</label>
+                  <input type="text" value={swiftCode} onChange={(e) => setSwiftCode(e.target.value.toUpperCase())} placeholder="e.g. TESTINBB" className={`${inputCls} font-mono uppercase`} />
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mt-2 mb-2">Reporting Officer</p>
+                </div>
+
+                <div>
+                  <label className={labelCls}>Title</label>
+                  <select value={officerTitle} onChange={(e) => setOfficerTitle(e.target.value)} className={inputCls}>
+                    <option value="Mr">Mr</option>
+                    <option value="Ms">Ms</option>
+                    <option value="Dr">Dr</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Gender</label>
+                  <select value={officerGender} onChange={(e) => setOfficerGender(e.target.value)} className={inputCls}>
+                    <option value="M">M — Male</option>
+                    <option value="F">F — Female</option>
+                    <option value="U">U — Undisclosed</option>
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>First Name <span className="text-red-400">*</span></label>
+                  <input type="text" value={officerFirstName} onChange={(e) => setOfficerFirstName(e.target.value)} placeholder="Officer first name" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Last Name <span className="text-red-400">*</span></label>
+                  <input type="text" value={officerLastName} onChange={(e) => setOfficerLastName(e.target.value)} placeholder="Officer last name" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>ID Type</label>
+                  <select value={officerIDType} onChange={(e) => setOfficerIDType(e.target.value)} className={inputCls}>
+                    {ID_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>ID Number (PAN) <span className="text-red-400">*</span></label>
+                  <input
+                    type="text"
+                    value={officerIDNumber}
+                    onChange={(e) => setOfficerIDNumber(e.target.value.toUpperCase())}
+                    placeholder="Officer PAN"
+                    className={`${inputCls} font-mono uppercase`}
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Phone</label>
+                  <input type="text" value={officerPhone} onChange={(e) => setOfficerPhone(e.target.value)} placeholder="+91-9876543210" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Email</label>
+                  <input type="email" value={officerEmail} onChange={(e) => setOfficerEmail(e.target.value)} placeholder="officer@bank.com" className={inputCls} />
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Designation / Occupation</label>
+                  <input type="text" value={officerOccupation} onChange={(e) => setOfficerOccupation(e.target.value)} placeholder="Chief Compliance Officer" className={inputCls} />
+                </div>
+
+                <div className="col-span-2">
+                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mt-2 mb-2">Entity Address</p>
+                </div>
+                <div className="col-span-2">
+                  <label className={labelCls}>Street Address</label>
+                  <input type="text" value={entityAddress} onChange={(e) => setEntityAddress(e.target.value)} placeholder="Head office address" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>City</label>
+                  <input type="text" value={entityCity} onChange={(e) => setEntityCity(e.target.value)} placeholder="Mumbai" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>State</label>
+                  <input type="text" value={entityState} onChange={(e) => setEntityState(e.target.value)} placeholder="MH" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>PIN Code</label>
+                  <input type="text" value={entityZip} onChange={(e) => setEntityZip(e.target.value)} placeholder="400001" className={`${inputCls} font-mono`} />
+                </div>
+              </>
+            )}
           </div>
 
           {createError && (
@@ -464,14 +966,14 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
           <div className="flex justify-end gap-2 mt-5">
             <button
-              onClick={() => setShowCreate(false)}
+              onClick={() => { setShowCreate(false); resetForm(); }}
               className="px-4 py-2 text-sm text-slate-400 hover:text-white transition-colors"
             >
               Cancel
             </button>
             <button
               onClick={() => createMut.mutate()}
-              disabled={!suspicionBasis.trim() || createMut.isPending}
+              disabled={!suspicionBasis.trim() || !narrative.trim() || createMut.isPending}
               className="px-4 py-2 text-sm bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg transition-colors disabled:opacity-60"
             >
               {createMut.isPending ? "Saving…" : "Save Draft"}

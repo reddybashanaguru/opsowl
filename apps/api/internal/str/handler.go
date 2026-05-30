@@ -213,6 +213,66 @@ func (h *Handler) MarkFiled(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, toResponse(f))
 }
 
+// GET /api/v1/cases/{id}/str/{str_id}/validate/goaml
+// Returns a JSON list of validation errors — empty array means ready to export.
+func (h *Handler) ValidateGoAML(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+
+	f, err := h.repo.GetByID(r.Context(), strID, cases.DefaultOrgID)
+	if errors.Is(err, ErrNotFound) {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "STR filing not found")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR filing")
+		return
+	}
+
+	errs := ValidateGoAMLReadiness(toResponse(f))
+	response.JSON(w, http.StatusOK, map[string]any{
+		"ready":  len(errs) == 0,
+		"errors": errs,
+	})
+}
+
+// GET /api/v1/cases/{id}/str/{str_id}/export/goaml
+func (h *Handler) ExportGoAML(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+
+	f, err := h.repo.GetByID(r.Context(), strID, cases.DefaultOrgID)
+	if errors.Is(err, ErrNotFound) {
+		response.Err(w, http.StatusNotFound, "NOT_FOUND", "STR filing not found")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR filing")
+		return
+	}
+
+	xmlData, validationErrs := BuildGoAMLXML(toResponse(f))
+	if len(validationErrs) > 0 {
+		response.JSON(w, http.StatusUnprocessableEntity, map[string]any{
+			"error":  "GOAML_VALIDATION_FAILED",
+			"errors": validationErrs,
+		})
+		return
+	}
+
+	filename := fmt.Sprintf("goAML-STR-%s.xml", strID.String()[:8])
+	w.Header().Set("Content-Type", "application/xml; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(xmlData)
+}
+
 // GET /api/v1/cases/{id}/str/{str_id}/export
 func (h *Handler) ExportFINnet(w http.ResponseWriter, r *http.Request) {
 	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))

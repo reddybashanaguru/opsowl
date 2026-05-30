@@ -77,6 +77,12 @@ func (e *DBEmitter) Emit(ctx context.Context, evt Event) error {
 	return nil
 }
 
+// NoopEmitter satisfies the Emitter interface without doing anything.
+// Useful in tests that don't care about timeline side-effects.
+type NoopEmitter struct{}
+
+func (NoopEmitter) Emit(_ context.Context, _ Event) error { return nil }
+
 func marshalJSON(m map[string]any) ([]byte, error) {
 	if m == nil {
 		return []byte("{}"), nil

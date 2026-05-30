@@ -8,6 +8,7 @@ import (
 	"encoding/xml"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +24,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/str"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 // ── test infra ────────────────────────────────────────────────────────────────
@@ -130,7 +132,7 @@ func bearer(t *testing.T, mgr *auth.JWTManager, id uuid.UUID, email string, role
 
 func newRouter(db *sql.DB, jwtMgr *auth.JWTManager) http.Handler {
 	r := chi.NewRouter()
-	str.RegisterRoutes(r, db, jwtMgr)
+	str.RegisterRoutes(r, db, jwtMgr, timeline.NoopEmitter{})
 	return r
 }
 
@@ -375,6 +377,294 @@ func TestSTR_FINnetXML_Structure(t *testing.T) {
 	}
 	if doc.Certification.ApprovedBy != "Bob Admin" {
 		t.Errorf("ApprovedBy: want 'Bob Admin', got %s", doc.Certification.ApprovedBy)
+	}
+}
+
+// ── goAML 4.0 XML export ──────────────────────────────────────────────────────
+
+func fullGoAMLFiling() *str.FilingResponse {
+	now := time.Now()
+	f := &str.FilingResponse{
+		ID:              uuid.New(),
+		CaseID:          uuid.New(),
+		ReportType:      "STR",
+		Status:          "approved",
+		SuspicionBasis:  "Unusual cash transactions",
+		Narrative:       "Subject made three cash deposits exceeding ₹10L within five business days",
+		EvidenceSummary: "Transaction records: refs TXN-A, TXN-B, TXN-C",
+		SubmittedByName: "Alice Manager",
+		ApprovedByName:  "Bob Admin",
+		FilingEntity: json.RawMessage(`{
+			"name": "Test Bank Ltd",
+			"rentity_id": "FIU-IN-TEST-0001",
+			"rentity_branch": "BRANCH-MUM-001",
+			"swift_code": "TESTINBB",
+			"officer_first_name": "Alice",
+			"officer_last_name": "Manager",
+			"officer_gender": "F",
+			"officer_title": "Ms",
+			"officer_id_number": "ABCDE1234F",
+			"officer_id_type": "PAN",
+			"officer_phone": "+91-9876543210",
+			"officer_email": "alice@testbank.com",
+			"officer_occupation": "Chief Compliance Officer",
+			"entity_address": "123 Fort Road",
+			"entity_city": "Mumbai",
+			"entity_state": "MH",
+			"entity_zip": "400001"
+		}`),
+		Subject: json.RawMessage(`{
+			"first_name": "John",
+			"last_name": "Doe",
+			"gender": "M",
+			"title": "Mr",
+			"birthdate": "1985-06-15",
+			"id_type": "PAN",
+			"id_number": "QWERT5678Y",
+			"nationality": "IN",
+			"account_number": "1234567890",
+			"account_name": "John Doe",
+			"client_number": "CUST-001",
+			"account_opened": "2020-01-15",
+			"account_balance": 250000,
+			"account_status": "A"
+		}`),
+		Transactions: json.RawMessage(`[
+			{
+				"date": "2026-04-01",
+				"amount": 1500000,
+				"currency": "INR",
+				"description": "Cash deposit — teller window",
+				"transmode_code": "C",
+				"transaction_number": "TXN-A",
+				"transaction_location": "Mumbai Fort Branch",
+				"from_institution": "Test Bank Ltd",
+				"from_swift": "TESTINBB",
+				"from_account_number": "1234567890"
+			},
+			{
+				"date": "2026-04-03",
+				"amount": 1200000,
+				"currency": "INR",
+				"description": "Cash deposit — ATM lobby",
+				"transmode_code": "C",
+				"transaction_number": "TXN-B",
+				"transaction_location": "Mumbai Fort Branch"
+			}
+		]`),
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+	f.SubmittedAt = &now
+	f.ApprovedAt = &now
+	return f
+}
+
+func TestGoAML_Validation_PassesOnCompleteData(t *testing.T) {
+	errs := str.ValidateGoAMLReadiness(fullGoAMLFiling())
+	if len(errs) != 0 {
+		t.Errorf("expected no validation errors on complete filing, got: %+v", errs)
+	}
+}
+
+func TestGoAML_Validation_FailsOnMissingRentityID(t *testing.T) {
+	f := fullGoAMLFiling()
+	f.FilingEntity = json.RawMessage(`{
+		"officer_first_name": "Alice",
+		"officer_last_name": "Manager",
+		"officer_id_number": "ABCDE1234F",
+		"officer_id_type": "PAN"
+	}`)
+	errs := str.ValidateGoAMLReadiness(f)
+	found := false
+	for _, e := range errs {
+		if e.Field == "filing_entity.rentity_id" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected validation error for missing rentity_id")
+	}
+}
+
+func TestGoAML_Validation_FailsOnNoTransactions(t *testing.T) {
+	f := fullGoAMLFiling()
+	f.Transactions = json.RawMessage(`[]`)
+	errs := str.ValidateGoAMLReadiness(f)
+	found := false
+	for _, e := range errs {
+		if e.Field == "transactions" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected validation error for zero transactions")
+	}
+}
+
+func TestGoAML_Validation_FailsOnMissingTransactionMode(t *testing.T) {
+	f := fullGoAMLFiling()
+	f.Transactions = json.RawMessage(`[{"date":"2026-04-01","amount":1500000}]`)
+	errs := str.ValidateGoAMLReadiness(f)
+	found := false
+	for _, e := range errs {
+		if strings.Contains(e.Field, "transmode_code") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("expected validation error for missing transmode_code")
+	}
+}
+
+func TestGoAML_XML_Structure(t *testing.T) {
+	xmlData, errs := str.BuildGoAMLXML(fullGoAMLFiling())
+	if len(errs) > 0 {
+		t.Fatalf("expected no errors, got: %+v", errs)
+	}
+	if xmlData == nil {
+		t.Fatal("expected XML data, got nil")
+	}
+
+	var doc str.GoAMLReport
+	if err := xml.Unmarshal(xmlData, &doc); err != nil {
+		t.Fatalf("invalid XML output: %v\n---\n%s", err, xmlData)
+	}
+
+	if doc.RentityID != "FIU-IN-TEST-0001" {
+		t.Errorf("RentityID: want FIU-IN-TEST-0001, got %s", doc.RentityID)
+	}
+	if doc.ReportCode != "STR" {
+		t.Errorf("ReportCode: want STR, got %s", doc.ReportCode)
+	}
+	if doc.SubmissionCode != "E" {
+		t.Errorf("SubmissionCode: want E, got %s", doc.SubmissionCode)
+	}
+	if doc.ReportingPerson.FirstName != "Alice" {
+		t.Errorf("OfficerFirstName: want Alice, got %s", doc.ReportingPerson.FirstName)
+	}
+	if doc.ReportingPerson.IDNumber != "ABCDE1234F" {
+		t.Errorf("OfficerIDNumber: want ABCDE1234F, got %s", doc.ReportingPerson.IDNumber)
+	}
+	if doc.Reason == "" {
+		t.Error("Reason must not be empty")
+	}
+	if len(doc.Transactions) != 2 {
+		t.Errorf("expected 2 transactions, got %d", len(doc.Transactions))
+	}
+	if doc.Transactions[0].TransmodeCode != "C" {
+		t.Errorf("TransmodeCode: want C, got %s", doc.Transactions[0].TransmodeCode)
+	}
+	if doc.Transactions[0].AmountLocal != "1500000.00" {
+		t.Errorf("AmountLocal: want 1500000.00, got %s", doc.Transactions[0].AmountLocal)
+	}
+	if doc.Transactions[0].FromMyClient == nil {
+		t.Error("FromMyClient must not be nil")
+	}
+	if doc.Transactions[0].FromMyClient.FromPerson.FirstName != "John" {
+		t.Errorf("FromPerson.FirstName: want John, got %s", doc.Transactions[0].FromMyClient.FromPerson.FirstName)
+	}
+	if len(doc.Indicators.Indicators) == 0 {
+		t.Error("Indicators must not be empty")
+	}
+}
+
+func TestGoAML_XML_SubjectNameFallback(t *testing.T) {
+	f := fullGoAMLFiling()
+	// subject has only "name" (not split first/last)
+	f.Subject = json.RawMessage(`{
+		"name": "Jane Smith",
+		"id_number": "PQRST9012Z",
+		"id_type": "PAN"
+	}`)
+	xmlData, errs := str.BuildGoAMLXML(f)
+	if len(errs) > 0 {
+		t.Fatalf("expected no errors, got: %+v", errs)
+	}
+	var doc str.GoAMLReport
+	_ = xml.Unmarshal(xmlData, &doc)
+	if doc.Transactions[0].FromMyClient.FromPerson.FirstName != "Jane" {
+		t.Errorf("name split: want first=Jane, got %s", doc.Transactions[0].FromMyClient.FromPerson.FirstName)
+	}
+	if doc.Transactions[0].FromMyClient.FromPerson.LastName != "Smith" {
+		t.Errorf("name split: want last=Smith, got %s", doc.Transactions[0].FromMyClient.FromPerson.LastName)
+	}
+}
+
+func TestGoAML_HTTP_ValidateEndpoint(t *testing.T) {
+	db, teardown := testDB(t)
+	defer teardown()
+	jwtMgr := newJWT(t)
+
+	mgrID := seedUser(t, db, "mgr@goaml.test", dbgen.UserRoleManager)
+	caseID := seedCase(t, db, mgrID)
+	router := newRouter(db, jwtMgr)
+
+	// Create a minimal draft (missing goAML fields)
+	req := httptest.NewRequest(http.MethodPost, "/cases/"+caseID.String()+"/str",
+		bytes.NewReader(draftBody("Unusual cash")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", bearer(t, jwtMgr, mgrID, "mgr@goaml.test", dbgen.UserRoleManager))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	var created str.FilingResponse
+	decodeData(t, rr.Body.Bytes(), &created)
+
+	// Validate — expect errors since rentity_id and transactions are missing
+	req = httptest.NewRequest(http.MethodGet,
+		"/cases/"+caseID.String()+"/str/"+created.ID.String()+"/validate/goaml", nil)
+	req.Header.Set("Authorization", bearer(t, jwtMgr, mgrID, "mgr@goaml.test", dbgen.UserRoleManager))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("validate: expected 200, got %d — %s", rr.Code, rr.Body.String())
+	}
+
+	var body struct {
+		Data struct {
+			Ready  bool                      `json:"ready"`
+			Errors []str.GoAMLValidationError `json:"errors"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if body.Data.Ready {
+		t.Error("expected ready=false for incomplete filing")
+	}
+	if len(body.Data.Errors) == 0 {
+		t.Error("expected validation errors, got none")
+	}
+}
+
+func TestGoAML_HTTP_ExportBlockedForAnalyst(t *testing.T) {
+	db, teardown := testDB(t)
+	defer teardown()
+	jwtMgr := newJWT(t)
+
+	mgrID := seedUser(t, db, "mgr@exp.test", dbgen.UserRoleManager)
+	analystID := seedUser(t, db, "ana@exp.test", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, mgrID)
+	router := newRouter(db, jwtMgr)
+
+	req := httptest.NewRequest(http.MethodPost, "/cases/"+caseID.String()+"/str",
+		bytes.NewReader(draftBody("Test")))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", bearer(t, jwtMgr, mgrID, "mgr@exp.test", dbgen.UserRoleManager))
+	rr := httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	var created str.FilingResponse
+	decodeData(t, rr.Body.Bytes(), &created)
+
+	// Analyst tries to export goAML — must be 403
+	req = httptest.NewRequest(http.MethodGet,
+		"/cases/"+caseID.String()+"/str/"+created.ID.String()+"/export/goaml", nil)
+	req.Header.Set("Authorization", bearer(t, jwtMgr, analystID, "ana@exp.test", dbgen.UserRoleAnalyst))
+	rr = httptest.NewRecorder()
+	router.ServeHTTP(rr, req)
+	if rr.Code != http.StatusForbidden {
+		t.Errorf("analyst must get 403 on goAML export, got %d", rr.Code)
 	}
 }
 

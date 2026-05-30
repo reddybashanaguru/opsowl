@@ -38,5 +38,11 @@ func RegisterRoutes(r chi.Router, sqlDB *sql.DB, jwtMgr *auth.JWTManager, emitte
 			Post("/cases/{id}/str/{str_id}/file", h.MarkFiled)
 		r.With(auth.RequireRole("admin", "super_admin")).
 			Get("/cases/{id}/str/{str_id}/export", h.ExportFINnet)
+
+		// goAML 4.0 export — validate (manager+) and export (admin+)
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Get("/cases/{id}/str/{str_id}/validate/goaml", h.ValidateGoAML)
+		r.With(auth.RequireRole("admin", "super_admin")).
+			Get("/cases/{id}/str/{str_id}/export/goaml", h.ExportGoAML)
 	})
 }

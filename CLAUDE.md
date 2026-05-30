@@ -1121,3 +1121,122 @@ These 3 items were specified in the original HLD but not yet implemented. Defer 
 
 ### Icon Notes
 - `lucide-react` v1.16.0 is installed in `apps/web`. All icons are imported directly: `import { IconName } from "lucide-react"`. Always use Lucide for new icon needs — do not add Unicode glyphs or emoji for UI icons.
+
+---
+
+## RBAC Security Hardening (2026-05-30)
+
+Full persona audit + backend and frontend gaps closed.
+
+### Backend API Security Fixes
+
+**API Keys endpoints had NO role guard** — any authenticated user could list, create, and revoke API keys.
+- `apps/api/internal/apikeys/routes.go`: Added `r.Use(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin))` after JWT validation.
+
+**Scheduled Reports allowed `manager` role** — config-level action that should be admin-only.
+- `apps/api/internal/scheduled_reports/routes.go`: Removed `db.UserRoleManager` from `RequireRole`.
+
+### Performance Fix — 34-Second API Load
+
+**Root cause**: HTTP/1.1 browser connection pool limit is 6 concurrent connections per host. `NotificationBell` held a permanent SSE connection (in addition to the case timeline SSE). On the AI Insights page with 6+ concurrent queries, all connection slots were occupied — each new fetch queued behind them causing up to 34-second waits.
+
+**Fix**: `apps/web/src/components/notifications/NotificationBell.tsx`
+- Removed entire SSE `useEffect` (~55 lines) that created a permanent `EventSource`
+- Retained the existing `refetchInterval: 30000` polling on `notif-unread-count` — sufficient for notification count freshness
+- Net result: freed 1 permanent HTTP slot; max page load time dropped to <2 seconds
+
+### Frontend RBAC Gaps Closed
+
+**Bulk action bar** (`apps/web/src/app/(dashboard)/cases/page.tsx`):
+- `Change Status` and `Reassign` buttons hidden for `analyst` role (they can't reassign via API)
+- `Delete` button hidden for everyone below `admin`
+
+**Cases list structural controls**:
+- Import CSV button gated to `admin`/`super_admin` only
+- "New Case" button hidden for `viewer` (`canWrite` flag: `user?.role !== "viewer"`)
+- Checkbox column and row checkboxes hidden for `viewer`
+- Empty-state "Create your first case" link hidden for `viewer`
+
+**Case detail** (`apps/web/src/app/(dashboard)/cases/[id]/page.tsx`):
+- Assignee dropdown replaced with static text for `analyst` role (analyst cannot reassign)
+
+**CaseSubNav** (`apps/web/src/components/cases/CaseSubNav.tsx`):
+- STR tab uses numeric role hierarchy (`minLevel: 3` = manager+); previously only hid for exact `analyst` string match, leaving `viewer` able to see it
+
+### Page-Level RBAC Gates (Direct URL Access)
+
+Any authenticated user could navigate to admin/manager pages by pasting URLs directly. Backend blocks API calls but the UI rendered, causing confusion. Added `RBACGate` to all unprotected admin pages:
+
+| Page | File | Allowed Roles | Message |
+|------|------|---------------|---------|
+| Webhooks | `settings/webhooks/page.tsx` | admin, super_admin | "Admin privileges required to manage webhooks." |
+| Inbound Events | `settings/inbound/page.tsx` | admin, super_admin | "Admin privileges required to manage inbound integrations." |
+| Templates | `settings/templates/page.tsx` | manager, admin, super_admin | "Manager or higher privileges required to manage templates." |
+| Scheduled Reports | `settings/reports/page.tsx` | admin, super_admin | "Admin privileges required to manage scheduled reports." |
+| Workload | `workload/page.tsx` | manager, admin, super_admin | "Manager or higher privileges required to view team workload." |
+
+Also: Sidebar "Intelligence" section (Workload link) wrapped in `RBACGate allowedRoles={["manager", "admin", "super_admin"]}` so viewer/analyst never see the link.
+
+### Complete RBAC Permission Matrix
+
+| Feature | viewer | analyst | manager | admin | super_admin |
+|---------|--------|---------|---------|-------|-------------|
+| Cases read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Cases create/edit/status | ❌ | ✅ | ✅ | ✅ | ✅ |
+| Cases assign | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Cases delete | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Bulk status/reassign | ❌ hidden | ❌ hidden | ✅ | ✅ | ✅ |
+| Bulk delete | ❌ hidden | ❌ hidden | ❌ hidden | ✅ | ✅ |
+| Checkboxes in cases list | ❌ hidden | ✅ | ✅ | ✅ | ✅ |
+| New Case button | ❌ hidden | ✅ | ✅ | ✅ | ✅ |
+| Import CSV | ❌ hidden | ❌ hidden | ❌ hidden | ✅ | ✅ |
+| Notes/Tasks/Docs/Comms read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Notes/Tasks/Docs/Comms write | ❌ | ✅ | ✅ | ✅ | ✅ |
+| AI Insights read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| AI analysis trigger | ❌ | ✅ | ✅ | ✅ | ✅ |
+| STR tab visible | ❌ hidden | ❌ hidden | ✅ | ✅ | ✅ |
+| STR create/submit/approve | ❌ | ❌ | ✅ | ✅ | ✅ |
+| STR file/FINnet export | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Workload page | ❌ locked | ❌ locked | ✅ | ✅ | ✅ |
+| Users management | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Audit logs | ❌ | ❌ | ❌ | ✅ | ✅ |
+| API Keys | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Webhooks | ❌ locked | ❌ locked | ❌ locked | ✅ | ✅ |
+| Inbound Events | ❌ locked | ❌ locked | ❌ locked | ✅ | ✅ |
+| Scheduled Reports | ❌ locked | ❌ locked | ❌ locked | ✅ | ✅ |
+| Assignment Rules | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Data Retention | ❌ | ❌ | ❌ | ✅ | ✅ |
+| Templates | ❌ locked | ❌ locked | ✅ | ✅ | ✅ |
+| SLA Policies read | ✅ | ✅ | ✅ | ✅ | ✅ |
+| SLA Policies edit | ❌ | ❌ | ❌ | ✅ | ✅ |
+
+Legend: `hidden` = UI element not rendered. `locked` = page shows 🔒 Access Denied screen. Backend independently enforces all restrictions via `auth.RequireRole()` middleware.
+
+### E2E Test Updates (2026-05-30)
+
+**`apps/web/tests/e2e/04-case-detail.spec.ts`** — Fixed stale selectors after CaseSubNav redesign removed arrow-style tab labels. Updated all tab navigation selectors from `/Notes →/` style to `/^Notes$/i` exact match:
+```typescript
+await page.getByRole("button", { name: /^Notes$/i }).click();
+```
+
+**`apps/web/tests/e2e/25-timeline-events.spec.ts`** — New spec asserting timeline events appear after real actions (API-seeded, not UI-driven):
+- `case_created` on page load
+- `note_added` after POST /notes
+- `task_created` after POST /tasks
+- `comm_logged` after POST /comms
+- `case_status_changed` after PATCH /cases/:id
+- Source filter and event_type filter behavior
+
+### Commits
+- `7f34812` — Fix RBAC gaps, resolve 34s API load, add timeline E2E assertions
+- `122b45e` — Enforce RBAC on all pages — block direct URL access by role
+
+### All User Credentials (5 Roles)
+
+| Role | Email | Password |
+|------|-------|----------|
+| super_admin | superadmin@opsowl.dev | OpsOwl@2024 |
+| admin | admin@opsowl.dev | OpsOwl@2024 |
+| manager | manager@opsowl.dev | OpsOwl@2024 |
+| analyst | analyst@opsowl.dev | OpsOwl@2024 |
+| viewer | viewer@opsowl.dev | OpsOwl@2024 |
