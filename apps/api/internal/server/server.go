@@ -46,6 +46,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 	"github.com/reddybashanaguru/opsowl/internal/csvimport"
+	"github.com/reddybashanaguru/opsowl/internal/playbooks"
 	scheduled_reports "github.com/reddybashanaguru/opsowl/internal/scheduled_reports"
 	"github.com/reddybashanaguru/opsowl/internal/templates"
 	"github.com/reddybashanaguru/opsowl/internal/users"
@@ -313,6 +314,13 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		templateSvc := templates.NewService(s.queries, tasksSvc)
 		templateHandler := templates.NewHandler(templateSvc)
 		templates.RegisterRoutes(r, templateHandler, s.jwtMgr)
+
+		// Investigation Playbooks — ordered task sequences auto-applied on case create
+		playbooksRepo := playbooks.NewRepository(s.sqlDB)
+		playbooksSvc := playbooks.NewService(playbooksRepo).WithTaskCreator(tasksSvc)
+		playbooksHandler := playbooks.NewHandler(playbooksSvc)
+		playbooks.RegisterRoutes(r, playbooksHandler, s.jwtMgr)
+		casesSvc.WithPlaybookApplier(playbooksSvc)
 
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)

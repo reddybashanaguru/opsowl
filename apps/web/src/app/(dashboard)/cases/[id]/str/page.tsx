@@ -64,7 +64,7 @@ const TRANSMODE_OPTIONS = [
   { value: "X", label: "X — Other" },
 ];
 
-const ID_TYPE_OPTIONS = ["PAN", "PASSPORT", "DRIVING_LICENSE", "VOTER_ID", "AADHAAR_REF"];
+const ID_TYPE_OPTIONS = ["PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE", "PAN", "AADHAAR_REF", "VOTER_ID", "OTHER"];
 
 // ── goAML Readiness panel ───────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ function TransactionRows({ rows, onChange }: { rows: TxRow[]; onChange: (rows: T
               />
             </div>
             <div>
-              <label className="text-slate-500 text-[11px] mb-1 block">Amount (INR) <span className="text-red-400">*</span></label>
+              <label className="text-slate-500 text-[11px] mb-1 block">Amount (local currency) <span className="text-red-400">*</span></label>
               <input
                 type="number"
                 value={tx.amount}
@@ -244,7 +244,7 @@ function TransactionRows({ rows, onChange }: { rows: TxRow[]; onChange: (rows: T
                 type="text"
                 value={tx.transaction_location}
                 onChange={(e) => update(i, "transaction_location", e.target.value)}
-                placeholder="e.g. Mumbai Fort Branch"
+                placeholder="e.g. Downtown Branch"
                 className="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1.5 text-xs text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
               />
             </div>
@@ -461,7 +461,7 @@ function FilingCard({
               <button
                 onClick={() => handleExport("goaml")}
                 className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors font-medium"
-                title="Export goAML 4.0 XML for FIU-IND portal submission"
+                title="Export goAML 4.0 XML for FIU portal submission"
               >
                 Export goAML XML
               </button>
@@ -533,7 +533,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const [subjectGender, setSubjectGender] = useState("");
   const [subjectTitle, setSubjectTitle] = useState("");
   const [subjectBirthdate, setSubjectBirthdate] = useState("");
-  const [subjectIDType, setSubjectIDType] = useState("PAN");
+  const [subjectIDType, setSubjectIDType] = useState("NATIONAL_ID");
   const [subjectIDNumber, setSubjectIDNumber] = useState("");
   const [subjectAccountNumber, setSubjectAccountNumber] = useState("");
   const [subjectAccountName, setSubjectAccountName] = useState("");
@@ -550,7 +550,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const [officerLastName, setOfficerLastName] = useState("");
   const [officerGender, setOfficerGender] = useState("M");
   const [officerIDNumber, setOfficerIDNumber] = useState("");
-  const [officerIDType, setOfficerIDType] = useState("PAN");
+  const [officerIDType, setOfficerIDType] = useState("NATIONAL_ID");
   const [officerPhone, setOfficerPhone] = useState("");
   const [officerEmail, setOfficerEmail] = useState("");
   const [officerOccupation, setOfficerOccupation] = useState("Chief Compliance Officer");
@@ -558,6 +558,9 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const [entityCity, setEntityCity] = useState("");
   const [entityState, setEntityState] = useState("");
   const [entityZip, setEntityZip] = useState("");
+  const [entityCountry, setEntityCountry] = useState("");
+  const [fiuName, setFiuName] = useState("");
+  const [localCurrency, setLocalCurrency] = useState("");
 
   // Transactions
   const [txRows, setTxRows] = useState<TxRow[]>([emptyTx()]);
@@ -598,6 +601,9 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
       entity_city: entityCity,
       entity_state: entityState,
       entity_zip: entityZip,
+      entity_country: entityCountry,
+      fiu_name: fiuName,
+      local_currency: localCurrency,
     },
     subject: {
       first_name: subjectFirstName,
@@ -618,7 +624,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
       .map((t) => ({
         date: t.date,
         amount: parseFloat(t.amount) || 0,
-        currency: "INR",
+        currency: localCurrency || "",
         description: t.description,
         transaction_number: t.transaction_number,
         transaction_location: t.transaction_location,
@@ -633,13 +639,14 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const resetForm = () => {
     setSuspicionBasis(""); setNarrative(""); setEvidenceSummary("");
     setSubjectFirstName(""); setSubjectLastName(""); setSubjectGender(""); setSubjectTitle("");
-    setSubjectBirthdate(""); setSubjectIDType("PAN"); setSubjectIDNumber("");
+    setSubjectBirthdate(""); setSubjectIDType("NATIONAL_ID"); setSubjectIDNumber("");
     setSubjectAccountNumber(""); setSubjectAccountName(""); setSubjectClientNumber("");
     setEntityName(""); setRentityID(""); setRentityBranch(""); setSwiftCode(""); setSubmissionCode("E");
     setOfficerTitle("Mr"); setOfficerFirstName(""); setOfficerLastName(""); setOfficerGender("M");
-    setOfficerIDNumber(""); setOfficerIDType("PAN"); setOfficerPhone(""); setOfficerEmail("");
+    setOfficerIDNumber(""); setOfficerIDType("NATIONAL_ID"); setOfficerPhone(""); setOfficerEmail("");
     setOfficerOccupation("Chief Compliance Officer");
     setEntityAddress(""); setEntityCity(""); setEntityState(""); setEntityZip("");
+    setEntityCountry(""); setFiuName(""); setLocalCurrency("");
     setTxRows([emptyTx()]);
     setShowGoAMLFields(false);
     setCreateError("");
@@ -683,7 +690,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         <div>
           <h1 className="text-white text-xl font-bold">Regulatory Filings</h1>
           <p className="text-slate-400 text-sm mt-0.5">
-            {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 / FIU-IND"].filter(Boolean).join(" · ")}
+            {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 (UNODC)"].filter(Boolean).join(" · ")}
           </p>
         </div>
         {isManagerOrAbove && (
@@ -701,7 +708,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         {cfg.str_law_reference && <><strong className="text-amber-300">{cfg.str_law_reference}</strong> — </>}
         Records must be retained for 10 years.
         Maker-checker: submitted by one officer, approved by a different officer.
-        Export <strong className="text-amber-300">goAML XML</strong> for direct upload to the FIU-IND portal.
+        Export <strong className="text-amber-300">goAML XML</strong> for direct upload to your FIU portal.
         Analysts are excluded from this workflow (tipping-off restriction).
       </div>
 
@@ -862,12 +869,12 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                   <input type="text" value={entityName} onChange={(e) => setEntityName(e.target.value)} placeholder="Your bank / NBFC name" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>FIU-IND Entity ID <span className="text-red-400">*</span></label>
+                  <label className={labelCls}>FIU Registration ID <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={rentityID}
                     onChange={(e) => setRentityID(e.target.value)}
-                    placeholder="e.g. FIU-IN-BANK-0001"
+                    placeholder="e.g. FIU-IN-BANK-0001, UAEFIU-BANK-001"
                     className={`${inputCls} font-mono`}
                   />
                 </div>
@@ -878,6 +885,18 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <label className={labelCls}>SWIFT Code</label>
                   <input type="text" value={swiftCode} onChange={(e) => setSwiftCode(e.target.value.toUpperCase())} placeholder="e.g. TESTINBB" className={`${inputCls} font-mono uppercase`} />
+                </div>
+                <div>
+                  <label className={labelCls}>Entity Country <span className="text-slate-500 font-normal">(ISO 2-letter)</span></label>
+                  <input type="text" maxLength={2} value={entityCountry} onChange={(e) => setEntityCountry(e.target.value.toUpperCase())} placeholder="e.g. IN, AE, KE, US" className={`${inputCls} font-mono uppercase`} />
+                </div>
+                <div>
+                  <label className={labelCls}>FIU Name <span className="text-slate-500 font-normal">(optional)</span></label>
+                  <input type="text" value={fiuName} onChange={(e) => setFiuName(e.target.value)} placeholder="e.g. FIU-IND, UAEFIU, FIU Kenya" className={inputCls} />
+                </div>
+                <div>
+                  <label className={labelCls}>Local Currency <span className="text-slate-500 font-normal">(ISO 4217)</span></label>
+                  <input type="text" maxLength={3} value={localCurrency} onChange={(e) => setLocalCurrency(e.target.value.toUpperCase())} placeholder="e.g. INR, AED, KES, USD" className={`${inputCls} font-mono uppercase`} />
                 </div>
 
                 <div className="col-span-2">
@@ -915,18 +934,18 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                   </select>
                 </div>
                 <div>
-                  <label className={labelCls}>ID Number (PAN) <span className="text-red-400">*</span></label>
+                  <label className={labelCls}>Officer ID Number <span className="text-red-400">*</span></label>
                   <input
                     type="text"
                     value={officerIDNumber}
                     onChange={(e) => setOfficerIDNumber(e.target.value.toUpperCase())}
-                    placeholder="Officer PAN"
+                    placeholder="National ID / Tax ID"
                     className={`${inputCls} font-mono uppercase`}
                   />
                 </div>
                 <div>
                   <label className={labelCls}>Phone</label>
-                  <input type="text" value={officerPhone} onChange={(e) => setOfficerPhone(e.target.value)} placeholder="+91-9876543210" className={inputCls} />
+                  <input type="text" value={officerPhone} onChange={(e) => setOfficerPhone(e.target.value)} placeholder="+1-555-0100" className={inputCls} />
                 </div>
                 <div>
                   <label className={labelCls}>Email</label>
@@ -946,15 +965,15 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 </div>
                 <div>
                   <label className={labelCls}>City</label>
-                  <input type="text" value={entityCity} onChange={(e) => setEntityCity(e.target.value)} placeholder="Mumbai" className={inputCls} />
+                  <input type="text" value={entityCity} onChange={(e) => setEntityCity(e.target.value)} placeholder="City" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>State</label>
-                  <input type="text" value={entityState} onChange={(e) => setEntityState(e.target.value)} placeholder="MH" className={inputCls} />
+                  <label className={labelCls}>State / Province</label>
+                  <input type="text" value={entityState} onChange={(e) => setEntityState(e.target.value)} placeholder="State / Province" className={inputCls} />
                 </div>
                 <div>
-                  <label className={labelCls}>PIN Code</label>
-                  <input type="text" value={entityZip} onChange={(e) => setEntityZip(e.target.value)} placeholder="400001" className={`${inputCls} font-mono`} />
+                  <label className={labelCls}>Postal Code</label>
+                  <input type="text" value={entityZip} onChange={(e) => setEntityZip(e.target.value)} placeholder="Postal code" className={`${inputCls} font-mono`} />
                 </div>
               </>
             )}

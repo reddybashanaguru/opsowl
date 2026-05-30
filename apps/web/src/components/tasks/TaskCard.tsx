@@ -15,6 +15,9 @@ export interface Task {
   priority: string;
   is_overdue: boolean;
   is_ai_suggested: boolean;
+  is_blocked: boolean;
+  playbook_step_order: number;
+  depends_on_step: number;
   due_date: string | null;
   completed_at: string | null;
   sort_order: number;
@@ -103,6 +106,20 @@ export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, on
             {task.is_overdue && !isDone && (
               <span className="inline-flex items-center rounded-full border border-red-500/40 bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-400">
                 Overdue
+              </span>
+            )}
+            {task.is_blocked && !isDone && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-orange-500/40 bg-orange-500/10 px-2 py-0.5 text-xs font-medium text-orange-400">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth="2">
+                  <path d="M8 3v5m0 2.5v.5" strokeLinecap="round" />
+                  <circle cx="8" cy="8" r="7" />
+                </svg>
+                Blocked
+              </span>
+            )}
+            {task.playbook_step_order > 0 && (
+              <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400">
+                Step {task.playbook_step_order}
               </span>
             )}
             {task.is_ai_suggested && (

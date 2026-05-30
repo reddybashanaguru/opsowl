@@ -146,7 +146,7 @@ func (h *Handler) Approve(w http.ResponseWriter, r *http.Request) {
 	f, err := h.repo.Approve(r.Context(), strID, cases.DefaultOrgID, claims.UserID)
 	if errors.Is(err, ErrMakerChecker) {
 		response.Err(w, http.StatusForbidden, "MAKER_CHECKER_VIOLATION",
-			"PMLA s.12: the approver must be a different person from the submitter")
+			"AML/CFT regulations: the approver must be a different person from the submitter")
 		return
 	}
 	if errors.Is(err, ErrWrongStatus) {

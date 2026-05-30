@@ -182,6 +182,8 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusForbidden, "FORBIDDEN", err.Error())
 		case errors.Is(err, ErrInvalidTransition):
 			response.Err(w, http.StatusUnprocessableEntity, "INVALID_TRANSITION", err.Error())
+		case errors.Is(err, ErrBlocked):
+			response.Err(w, http.StatusConflict, "TASK_BLOCKED", err.Error())
 		default:
 			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}
@@ -206,6 +208,8 @@ func (h *Handler) Complete(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusNotFound, "NOT_FOUND", err.Error())
 		case errors.Is(err, ErrInvalidTransition):
 			response.Err(w, http.StatusUnprocessableEntity, "INVALID_TRANSITION", err.Error())
+		case errors.Is(err, ErrBlocked):
+			response.Err(w, http.StatusConflict, "TASK_BLOCKED", err.Error())
 		default:
 			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}

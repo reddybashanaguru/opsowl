@@ -12,6 +12,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 	"github.com/reddybashanaguru/opsowl/internal/notifications"
+	"github.com/reddybashanaguru/opsowl/internal/playbooks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
@@ -335,6 +336,10 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		if err := validateTransition(existing.Status, *req.Status); err != nil {
 			return nil, err
 		}
+		// Block in_progress if a prerequisite playbook step is not yet done
+		if *req.Status == db.TaskStatusInProgress && s.isBlocked(ctx, id) {
+			return nil, ErrBlocked
+		}
 	}
 
 	p := db.UpdateTaskParams{ID: id}
@@ -505,6 +510,56 @@ func (s *Service) ListComments(ctx context.Context, taskID uuid.UUID, cursorID *
 		})
 	}
 	return out, hasMore, nextCursor, nil
+}
+
+// ── Playbook task creation ────────────────────────────────────────────────────
+
+const createPlaybookTaskSQL = `
+INSERT INTO tasks (case_id, created_by, title, description, priority, due_date, playbook_step_id, playbook_step_order, depends_on_step)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+`
+
+// CreateRaw implements playbooks.TaskCreator, creating tasks with playbook metadata.
+func (s *Service) CreateRaw(ctx context.Context, p playbooks.CreateTaskRawParams) error {
+	if s.sqlDB == nil {
+		return errors.New("database not available for raw task creation")
+	}
+	var dueDate sql.NullTime
+	if p.DueDate != nil {
+		dueDate = sql.NullTime{Time: *p.DueDate, Valid: true}
+	}
+	var stepID interface{}
+	if p.PlaybookStepID != nil {
+		stepID = *p.PlaybookStepID
+	}
+	_, err := s.sqlDB.ExecContext(ctx, createPlaybookTaskSQL,
+		p.CaseID, p.CreatedBy, p.Title, p.Description, p.Priority,
+		dueDate, stepID, p.PlaybookStepOrder, p.DependsOnStep,
+	)
+	return err
+}
+
+const getTaskDependsOnSQL = `SELECT depends_on_step, case_id FROM tasks WHERE id = $1 AND deleted_at IS NULL`
+
+const checkBlockedSQL = `
+SELECT EXISTS(
+  SELECT 1 FROM tasks
+  WHERE case_id = $1 AND playbook_step_order = $2 AND status != 'done' AND deleted_at IS NULL
+)`
+
+// isBlocked returns true if a task with depends_on_step > 0 has an incomplete predecessor.
+func (s *Service) isBlocked(ctx context.Context, taskID uuid.UUID) bool {
+	if s.sqlDB == nil {
+		return false
+	}
+	var dependsOn int32
+	var caseID uuid.UUID
+	if err := s.sqlDB.QueryRowContext(ctx, getTaskDependsOnSQL, taskID).Scan(&dependsOn, &caseID); err != nil || dependsOn == 0 {
+		return false
+	}
+	var blocked bool
+	s.sqlDB.QueryRowContext(ctx, checkBlockedSQL, caseID, dependsOn).Scan(&blocked) //nolint:errcheck
+	return blocked
 }
 
 // ── Response builders ─────────────────────────────────────────────────────────

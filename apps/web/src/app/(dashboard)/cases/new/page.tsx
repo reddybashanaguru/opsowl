@@ -49,10 +49,18 @@ interface TemplatesResponse {
   templates: Template[];
 }
 
+interface PlaybookOption {
+  id: string;
+  name: string;
+  case_type: string;
+  steps: { id: string }[];
+}
+
 export default function NewCasePage() {
   const router = useRouter();
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [showPicker, setShowPicker] = useState(false);
+  const [selectedCaseType, setSelectedCaseType] = useState("");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -66,6 +74,13 @@ export default function NewCasePage() {
     queryFn: () => api.get<TemplatesResponse>("/api/v1/templates?active=true"),
   });
   const templates = templatesData?.templates ?? [];
+
+  const { data: playbooksData } = useQuery<PlaybookOption[]>({
+    queryKey: ["playbooks-list"],
+    queryFn: () => api.get<PlaybookOption[]>("/api/v1/playbooks"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const playbooks = (playbooksData ?? []).filter((p) => p.steps?.length > 0);
 
   const applyTemplate = (tmpl: Template) => {
     setSelectedTemplate(tmpl);
@@ -98,6 +113,7 @@ export default function NewCasePage() {
         title: values.title,
         description: values.description ?? "",
         priority: values.priority,
+        case_type: selectedCaseType || undefined,
         tags,
       }, idempotencyKey);
     },
@@ -186,6 +202,33 @@ export default function NewCasePage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
+          )}
+
+          {/* Case Type / Playbook */}
+          {playbooks.length > 0 && (
+            <div>
+              <label className="block text-slate-300 text-sm font-medium mb-1.5">
+                Case Type{" "}
+                <span className="text-slate-500 font-normal text-xs">(auto-applies a playbook)</span>
+              </label>
+              <select
+                value={selectedCaseType}
+                onChange={(e) => setSelectedCaseType(e.target.value)}
+                className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              >
+                <option value="">— No playbook —</option>
+                {playbooks.map((p) => (
+                  <option key={p.id} value={p.case_type}>
+                    {p.case_type} · {p.name} ({p.steps.length} steps)
+                  </option>
+                ))}
+              </select>
+              {selectedCaseType && (
+                <p className="text-violet-400 text-xs mt-1">
+                  Playbook tasks will be auto-created when the case is opened.
+                </p>
               )}
             </div>
           )}

@@ -36,12 +36,19 @@ type AssignmentInput struct {
 	SourceID *uuid.UUID
 }
 
+// PlaybookApplier is the narrow interface used to trigger playbook auto-apply
+// after case creation without importing the playbooks package directly.
+type PlaybookApplier interface {
+	ApplyToCase(ctx context.Context, caseID uuid.UUID, createdBy uuid.UUID, caseType string, caseCreatedAt time.Time) error
+}
+
 type Service struct {
 	repo       *Repository
 	sqlDB      *sql.DB // needed for bulk-op transactions
 	emitter    timeline.Emitter
 	notifSvc   *notifications.Service
 	assignEng  AssignmentEngine
+	playbookApplier PlaybookApplier
 }
 
 func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
@@ -55,6 +62,11 @@ func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
 
 func (s *Service) WithAssignmentEngine(e AssignmentEngine) *Service {
 	s.assignEng = e
+	return s
+}
+
+func (s *Service) WithPlaybookApplier(pa PlaybookApplier) *Service {
+	s.playbookApplier = pa
 	return s
 }
 
@@ -102,6 +114,10 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 		return nil, err
 	}
 
+	if req.CaseType != "" {
+		s.sqlDB.ExecContext(ctx, `UPDATE cases SET case_type = $1 WHERE id = $2`, req.CaseType, c.ID) //nolint:errcheck
+	}
+
 	caseID, caseTitle, casePriority, caseNumber, caseCreatedAt := c.ID, c.Title, c.Priority, c.CaseNumber, c.CreatedAt
 	worker.TrySubmit(func() {
 		s.repo.CreateActivity(context.Background(), caseID, creatorID, "case_created", map[string]interface{}{ //nolint:errcheck
@@ -124,7 +140,16 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 		})
 	})
 
-	return s.toCaseResponse(c, "", claims.Email, nil, nil, nil), nil
+	if s.playbookApplier != nil && req.CaseType != "" {
+		caseType := req.CaseType
+		worker.TrySubmit(func() {
+			s.playbookApplier.ApplyToCase(context.Background(), caseID, creatorID, caseType, caseCreatedAt) //nolint:errcheck
+		})
+	}
+
+	resp := s.toCaseResponse(c, "", claims.Email, nil, nil, nil)
+	resp.CaseType = req.CaseType
+	return resp, nil
 }
 
 func (s *Service) Get(ctx context.Context, id, orgID uuid.UUID) (*CaseResponse, error) {

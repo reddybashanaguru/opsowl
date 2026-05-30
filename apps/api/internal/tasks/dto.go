@@ -14,6 +14,7 @@ var (
 	ErrForbidden          = errors.New("forbidden")
 	ErrInvalidTransition  = errors.New("invalid status transition")
 	ErrTitleRequired      = errors.New("title is required")
+	ErrBlocked            = errors.New("task is blocked: prerequisite step not completed")
 )
 
 // ── Request / Response types ──────────────────────────────────────────────────
@@ -67,24 +68,27 @@ type UserRef struct {
 }
 
 type TaskResponse struct {
-	ID              uuid.UUID        `json:"id"`
-	CaseID          uuid.UUID        `json:"case_id"`
-	CaseNumber      string           `json:"case_number,omitempty"`
-	CaseTitle       string           `json:"case_title,omitempty"`
-	Title           string           `json:"title"`
-	Description     string           `json:"description,omitempty"`
-	Status          db.TaskStatus    `json:"status"`
-	Priority        db.TaskPriority  `json:"priority"`
-	IsOverdue       bool             `json:"is_overdue"`
-	IsAISuggested   bool             `json:"is_ai_suggested"`
-	SortOrder       int32            `json:"sort_order"`
-	DueDate         *time.Time       `json:"due_date"`
-	CompletedAt     *time.Time       `json:"completed_at"`
-	CreatedBy       UserRef          `json:"created_by"`
-	AssignedTo      *UserRef         `json:"assigned_to"`
-	CommentCount    int64            `json:"comment_count"`
-	CreatedAt       time.Time        `json:"created_at"`
-	UpdatedAt       time.Time        `json:"updated_at"`
+	ID                uuid.UUID        `json:"id"`
+	CaseID            uuid.UUID        `json:"case_id"`
+	CaseNumber        string           `json:"case_number,omitempty"`
+	CaseTitle         string           `json:"case_title,omitempty"`
+	Title             string           `json:"title"`
+	Description       string           `json:"description,omitempty"`
+	Status            db.TaskStatus    `json:"status"`
+	Priority          db.TaskPriority  `json:"priority"`
+	IsOverdue         bool             `json:"is_overdue"`
+	IsAISuggested     bool             `json:"is_ai_suggested"`
+	IsBlocked         bool             `json:"is_blocked"`
+	PlaybookStepOrder int32            `json:"playbook_step_order,omitempty"`
+	DependsOnStep     int32            `json:"depends_on_step,omitempty"`
+	SortOrder         int32            `json:"sort_order"`
+	DueDate           *time.Time       `json:"due_date"`
+	CompletedAt       *time.Time       `json:"completed_at"`
+	CreatedBy         UserRef          `json:"created_by"`
+	AssignedTo        *UserRef         `json:"assigned_to"`
+	CommentCount      int64            `json:"comment_count"`
+	CreatedAt         time.Time        `json:"created_at"`
+	UpdatedAt         time.Time        `json:"updated_at"`
 }
 
 type CommentResponse struct {

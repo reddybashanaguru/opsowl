@@ -12,6 +12,7 @@ type CreateCaseRequest struct {
 	Title       string          `json:"title"`
 	Description string          `json:"description"`
 	Priority    db.CasePriority `json:"priority"`
+	CaseType    string          `json:"case_type,omitempty"`
 	AssignedTo  *uuid.UUID      `json:"assigned_to,omitempty"`
 	DueDate     *time.Time      `json:"due_date,omitempty"`
 	Tags        []string        `json:"tags"`
@@ -53,6 +54,7 @@ type CaseResponse struct {
 	Description    string          `json:"description"`
 	Status         db.CaseStatus   `json:"status"`
 	Priority       db.CasePriority `json:"priority"`
+	CaseType       string          `json:"case_type,omitempty"`
 	AssignedTo     *UserRef        `json:"assigned_to"`
 	CreatedBy      UserRef         `json:"created_by"`
 	OrganizationID uuid.UUID       `json:"organization_id"`

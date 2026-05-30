@@ -8,9 +8,10 @@ import (
 	"time"
 )
 
-// goAML 4.0 XML structures — FIU-IND India submission format.
-// Schema reference: UNODC goAML 4.0 / FIU-IND Technical Specification v4.0 (2023).
-// All element names exactly match the FIU-IND goAML portal schema.
+// goAML 4.0 XML structures — UNODC global standard.
+// Schema reference: UNODC goAML 4.0 Technical Specification.
+// Used by 60+ FIUs worldwide (FIU-IND, UAEFIU, FIU Kenya, FIU Mauritius, etc.).
+// Element names match the UNODC goAML 4.0 schema exactly.
 
 // GoAMLReport is the root report element.
 type GoAMLReport struct {
@@ -23,7 +24,7 @@ type GoAMLReport struct {
 	EntityReference string `xml:"entity_reference"` // our internal reference
 	FIURefNumber    string `xml:"fiu_ref_number,omitempty"`
 	SubmissionDate  string `xml:"submission_date"`
-	CurrencyLocal   string `xml:"currency_code_local"` // INR
+	CurrencyLocal   string `xml:"currency_code_local"` // ISO 4217, e.g. INR, AED, KES
 
 	ReportingPerson goAMLPerson    `xml:"reporting_person"`
 	Location        goAMLLocation  `xml:"location"`
@@ -40,8 +41,8 @@ type goAMLPerson struct {
 	LastName    string `xml:"last_name"`
 	Birthdate   string `xml:"birthdate,omitempty"`
 	IDNumber    string `xml:"id_number"`
-	IDType      string `xml:"id_type"`               // PAN, PASSPORT, DRIVING_LICENSE
-	Nationality string `xml:"nationality1,omitempty"` // IN
+	IDType      string `xml:"id_type"`               // PASSPORT, NATIONAL_ID, TAX_ID, DRIVING_LICENSE, PAN, etc.
+	Nationality string `xml:"nationality1,omitempty"` // ISO 3166-1 alpha-2 country code
 	Email       string `xml:"email,omitempty"`
 	Phone       string `xml:"phone,omitempty"`
 	Occupation  string `xml:"occupation,omitempty"`
@@ -51,7 +52,7 @@ type goAMLLocation struct {
 	AddressType string `xml:"address_type,omitempty"` // H=HQ, B=Branch
 	Address     string `xml:"address,omitempty"`
 	City        string `xml:"city,omitempty"`
-	CountryCode string `xml:"country_code,omitempty"` // IN
+	CountryCode string `xml:"country_code,omitempty"` // ISO 3166-1 alpha-2
 	State       string `xml:"state,omitempty"`
 	Zip         string `xml:"zip,omitempty"`
 }
@@ -129,10 +130,14 @@ type goAMLEntityJSON struct {
 	ContactEmail     string `json:"contact_email"`
 
 	// goAML-specific
-	RentityID      string `json:"rentity_id"`     // FIU-IND registered entity ID — REQUIRED
+	RentityID      string `json:"rentity_id"`     // FIU registration number — REQUIRED (format varies by country)
 	RentityBranch  string `json:"rentity_branch"` // branch identifier
 	SWIFTCode      string `json:"swift_code"`
-	SubmissionCode string `json:"submission_code"` // E/S/C — default E
+	SubmissionCode string `json:"submission_code"` // E=new, S=supplementary, C=correction
+
+	// Jurisdiction / currency — configurable per client country
+	FIUName       string `json:"fiu_name"`       // e.g. FIU-IND, UAEFIU, FIU Kenya (used in action text)
+	LocalCurrency string `json:"local_currency"` // ISO 4217, e.g. INR, AED, KES, USD (overrides country default)
 
 	// Reporting officer details
 	OfficerTitle      string `json:"officer_title"`
@@ -140,8 +145,8 @@ type goAMLEntityJSON struct {
 	OfficerLastName   string `json:"officer_last_name"`  // REQUIRED
 	OfficerGender     string `json:"officer_gender"`
 	OfficerBirthdate  string `json:"officer_birthdate"`
-	OfficerIDNumber   string `json:"officer_id_number"` // PAN of officer — REQUIRED
-	OfficerIDType     string `json:"officer_id_type"`   // PAN / DRIVING_LICENSE / PASSPORT
+	OfficerIDNumber   string `json:"officer_id_number"` // national ID / tax ID of officer — REQUIRED
+	OfficerIDType     string `json:"officer_id_type"`   // PASSPORT, NATIONAL_ID, TAX_ID, DRIVING_LICENSE, PAN, etc.
 	OfficerPhone      string `json:"officer_phone"`
 	OfficerEmail      string `json:"officer_email"`
 	OfficerOccupation string `json:"officer_occupation"`
@@ -151,27 +156,27 @@ type goAMLEntityJSON struct {
 	EntityCity    string `json:"entity_city"`
 	EntityState   string `json:"entity_state"`
 	EntityZip     string `json:"entity_zip"`
-	EntityCountry string `json:"entity_country"` // IN
+	EntityCountry string `json:"entity_country"` // ISO 3166-1 alpha-2, e.g. IN, AE, KE
 }
 
 type goAMLSubjectJSON struct {
-	// FINnet-compatible
+	// FINnet-compatible (kept for backward compat with existing data)
 	Name         string `json:"name"`
 	Relationship string `json:"relationship"`
 	AccountRef   string `json:"account_ref"`
-	PAN          string `json:"pan"`
-	AadhaarRef   string `json:"aadhaar_ref"`
+	PAN          string `json:"pan"`         // India-specific; maps to id_number when IDType not set
+	AadhaarRef   string `json:"aadhaar_ref"` // India-specific auxiliary field
 	RiskRating   string `json:"risk_rating"`
 
 	// goAML-specific — split name
-	FirstName   string `json:"first_name"` // REQUIRED (or fallback to Name)
+	FirstName   string `json:"first_name"` // REQUIRED (or fallback to Name split)
 	LastName    string `json:"last_name"`
 	Gender      string `json:"gender"`
 	Title       string `json:"title"`
 	Birthdate   string `json:"birthdate"`
-	IDType      string `json:"id_type"`   // PAN, PASSPORT, etc.
-	IDNumber    string `json:"id_number"` // the identifier value
-	Nationality string `json:"nationality"`
+	IDType      string `json:"id_type"`   // PASSPORT, NATIONAL_ID, TAX_ID, DRIVING_LICENSE, PAN, etc.
+	IDNumber    string `json:"id_number"` // the identifier value — REQUIRED
+	Nationality string `json:"nationality"` // ISO 3166-1 alpha-2
 
 	// Account details
 	AccountNumber  string  `json:"account_number"`
@@ -239,7 +244,7 @@ func ValidateGoAMLReadiness(f *FilingResponse) []GoAMLValidationError {
 
 	// Entity / reporting officer — required
 	if entity.RentityID == "" {
-		errs = append(errs, GoAMLValidationError{"filing_entity.rentity_id", "Reporting entity ID (FIU-IND registration number) is required"})
+		errs = append(errs, GoAMLValidationError{"filing_entity.rentity_id", "Reporting entity FIU registration ID is required"})
 	}
 	if entity.OfficerFirstName == "" {
 		errs = append(errs, GoAMLValidationError{"filing_entity.officer_first_name", "Reporting officer first name is required"})
@@ -248,10 +253,10 @@ func ValidateGoAMLReadiness(f *FilingResponse) []GoAMLValidationError {
 		errs = append(errs, GoAMLValidationError{"filing_entity.officer_last_name", "Reporting officer last name is required"})
 	}
 	if entity.OfficerIDNumber == "" {
-		errs = append(errs, GoAMLValidationError{"filing_entity.officer_id_number", "Reporting officer ID number (PAN) is required"})
+		errs = append(errs, GoAMLValidationError{"filing_entity.officer_id_number", "Reporting officer national ID / tax ID number is required"})
 	}
 	if entity.OfficerIDType == "" {
-		errs = append(errs, GoAMLValidationError{"filing_entity.officer_id_type", "Reporting officer ID type is required (e.g. PAN)"})
+		errs = append(errs, GoAMLValidationError{"filing_entity.officer_id_type", "Reporting officer ID type is required (e.g. PASSPORT, NATIONAL_ID, TAX_ID)"})
 	}
 
 	// Subject — required
@@ -264,10 +269,10 @@ func ValidateGoAMLReadiness(f *FilingResponse) []GoAMLValidationError {
 	}
 	subjID := subj.IDNumber
 	if subjID == "" {
-		subjID = subj.PAN
+		subjID = subj.PAN // backward compat: PAN maps to id_number for India clients
 	}
 	if subjID == "" {
-		errs = append(errs, GoAMLValidationError{"subject.id_number", "Subject identifier (PAN or other ID) is required"})
+		errs = append(errs, GoAMLValidationError{"subject.id_number", "Subject identifier (national ID, passport, tax ID, etc.) is required"})
 	}
 
 	// Narrative
@@ -295,11 +300,43 @@ func ValidateGoAMLReadiness(f *FilingResponse) []GoAMLValidationError {
 	return errs
 }
 
+// ── Country → currency lookup ─────────────────────────────────────────────────
+// ISO 4217 defaults by country code for goAML currency_code_local.
+// Covers all known goAML-using jurisdictions. Falls back to "USD" if unknown.
+var countryCurrency = map[string]string{
+	"IN": "INR", "AE": "AED", "BH": "BHD", "JO": "JOD",
+	"KW": "KWD", "OM": "OMR", "QA": "QAR", "SA": "SAR",
+	"KE": "KES", "RW": "RWF", "TZ": "TZS", "UG": "UGX",
+	"MU": "MUR", "GH": "GHS", "NG": "NGN", "ZA": "ZAR",
+	"MA": "MAD", "TN": "TND", "EG": "EGP",
+	"PK": "PKR", "LK": "LKR", "BD": "BDT", "MM": "MMK",
+	"KH": "KHR", "PH": "PHP", "TH": "THB", "VN": "VND",
+	"ID": "IDR", "MY": "MYR", "SG": "SGD",
+	"US": "USD", "GB": "GBP", "EU": "EUR", "AU": "AUD",
+}
+
+func localCurrency(entity goAMLEntityJSON) string {
+	if entity.LocalCurrency != "" {
+		return entity.LocalCurrency
+	}
+	if c, ok := countryCurrency[strings.ToUpper(entity.EntityCountry)]; ok {
+		return c
+	}
+	return "USD" // international fallback
+}
+
+func fiuActionText(entity goAMLEntityJSON) string {
+	if entity.FIUName != "" {
+		return "Filed with " + entity.FIUName + " pursuant to applicable AML/CFT reporting obligations"
+	}
+	return "Filed with Financial Intelligence Unit pursuant to applicable AML/CFT reporting obligations"
+}
+
 // ── Builder ───────────────────────────────────────────────────────────────────
 
-// BuildGoAMLXML produces a valid goAML 4.0 XML document for FIU-IND submission.
-// Returns a validation error list if the filing is incomplete; XML is only
-// returned when errs is empty.
+// BuildGoAMLXML produces a valid goAML 4.0 XML document for submission to any
+// UNODC-compatible FIU. Returns a validation error list if the filing is
+// incomplete; XML is only returned when errs is empty.
 func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 	errs := ValidateGoAMLReadiness(f)
 	if len(errs) > 0 {
@@ -322,7 +359,7 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 
 	officerIDType := entity.OfficerIDType
 	if officerIDType == "" {
-		officerIDType = "PAN"
+		officerIDType = "NATIONAL_ID" // generic fallback; FIU-specific forms override this
 	}
 
 	// Resolve subject name fields
@@ -341,22 +378,26 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 	subjIDNumber := subj.IDNumber
 	subjIDType := subj.IDType
 	if subjIDNumber == "" && subj.PAN != "" {
+		// backward compat: Indian clients stored PAN separately
 		subjIDNumber = subj.PAN
 		subjIDType = "PAN"
 	}
 	if subjIDType == "" {
-		subjIDType = "PAN"
+		subjIDType = "NATIONAL_ID"
 	}
 
 	// Indicators from suspicion basis
 	indicators := mapGoAMLIndicators(f.SuspicionBasis)
+
+	// Resolve local currency once; applies to all transactions unless overridden
+	entityCurrency := localCurrency(entity)
 
 	// Build transactions
 	goTxs := make([]goAMLTransaction, 0, len(txs))
 	for i, tx := range txs {
 		cur := tx.Currency
 		if cur == "" {
-			cur = "INR"
+			cur = entityCurrency
 		}
 		transmode := tx.TransmodeCode
 		transmodeComment := tx.TransmodeComment
@@ -378,7 +419,7 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 			Birthdate:   subj.Birthdate,
 			IDNumber:    subjIDNumber,
 			IDType:      subjIDType,
-			Nationality: defaultStr(subj.Nationality, "IN"),
+			Nationality: defaultStr(subj.Nationality, entity.EntityCountry),
 		}
 
 		fromAccount := buildFromAccount(tx, entity, subj, cur)
@@ -416,28 +457,25 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 		goTxs = append(goTxs, goTx)
 	}
 
-	fIURef := f.FIUReference
-	action := "Referred to FIU-IND under PMLA Section 12"
-
 	report := GoAMLReport{
 		RentityID:       entity.RentityID,
 		RentityBranch:   defaultStr(entity.RentityBranch, entity.BranchCode),
 		SubmissionCode:  submissionCode,
 		ReportCode:      f.ReportType,
 		EntityReference: fmt.Sprintf("OWL-%s", f.ID.String()[:8]),
-		FIURefNumber:    fIURef,
+		FIURefNumber:    f.FIUReference,
 		SubmissionDate:  time.Now().UTC().Format("2006-01-02"),
-		CurrencyLocal:   "INR",
+		CurrencyLocal:   entityCurrency,
 
 		ReportingPerson: goAMLPerson{
-			Gender:      defaultStr(entity.OfficerGender, "M"),
-			Title:       defaultStr(entity.OfficerTitle, "Mr"),
+			Gender:      entity.OfficerGender,
+			Title:       entity.OfficerTitle,
 			FirstName:   entity.OfficerFirstName,
 			LastName:    entity.OfficerLastName,
 			Birthdate:   entity.OfficerBirthdate,
 			IDNumber:    entity.OfficerIDNumber,
 			IDType:      officerIDType,
-			Nationality: "IN",
+			Nationality: entity.EntityCountry, // officer assumed same country as entity
 			Email:       defaultStr(entity.OfficerEmail, entity.ContactEmail),
 			Phone:       entity.OfficerPhone,
 			Occupation:  defaultStr(entity.OfficerOccupation, "Compliance Officer"),
@@ -447,14 +485,14 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 			AddressType: "H",
 			Address:     entity.EntityAddress,
 			City:        entity.EntityCity,
-			CountryCode: defaultStr(entity.EntityCountry, "IN"),
+			CountryCode: entity.EntityCountry,
 			State:       entity.EntityState,
 			Zip:         entity.EntityZip,
 		},
 
-		Reason:     f.Narrative,
-		Action:     action,
-		Indicators: goAMLIndicators{Indicators: indicators},
+		Reason:       f.Narrative,
+		Action:       fiuActionText(entity),
+		Indicators:   goAMLIndicators{Indicators: indicators},
 		Transactions: goTxs,
 	}
 

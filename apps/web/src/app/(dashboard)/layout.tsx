@@ -20,6 +20,7 @@ import {
   Shuffle,
   Archive,
   Settings,
+  BookOpen,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -77,6 +78,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Webhooks",             href: "/settings/webhooks",          icon: Webhook },
     { label: "Scheduled Reports",    href: "/settings/reports",           icon: BarChart3 },
     { label: "Templates",            href: "/settings/templates",         icon: LayoutTemplate },
+    { label: "Playbooks",            href: "/settings/playbooks",         icon: BookOpen },
     { label: "API Keys",             href: "/settings/api-keys",          icon: KeyRound },
     { label: "Auto-Assignment",      href: "/settings/assignment-rules",  icon: Shuffle },
     { label: "Data Retention",       href: "/settings/retention",         icon: Archive },
