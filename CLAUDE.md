@@ -1088,3 +1088,36 @@ These 3 items were specified in the original HLD but not yet implemented. Defer 
 - All settings sub-pages — webhooks, reports, templates, assignment rules, api-keys, retention
 - Audit logs page — infinite scroll, date/actor/action filters
 - 404 catch-all — clear error state with "← Back to Dashboard" link
+
+---
+
+## UX Polish Sprint — Icons, Inline Confirms, Dashboard (2026-05-30)
+
+### Sidebar Redesign
+- Replaced all Unicode glyph icons with Lucide SVG icons (`lucide-react` was installed but unused)
+- Icons used: `LayoutDashboard`, `FolderKanban`, `CheckSquare`, `FileText`, `Search`, `BarChart2`, `Users`, `ScrollText`, `Timer`, `Inbox`, `Webhook`, `BarChart3`, `LayoutTemplate`, `KeyRound`, `Shuffle`, `Archive`, `Settings`
+- Added brand icon box to OpsOwl logo area
+- Renamed sidebar labels: "Inbound" → "Inbound Events", "Reports" → "Scheduled Reports", "Retention" → "Data Retention", "Assignment Rules" → "Auto-Assignment"
+- Role label now humanised: `super_admin` → "Super Admin" etc.
+
+### CaseSubNav Upgrade
+- Primary tabs (Case/Notes/Tasks/Documents/Comms) now show Lucide icons before label text
+- "More" dropdown chevron animates 180° when open
+- Back link uses proper `<` chevron SVG instead of ← text char
+
+### Dashboard Improvements
+- `AlertRow`: replaced 🔴 ⚠️ 🤖 📋 emoji with `AlertTriangle`, `TrendingUp`, `Bot`, `ClipboardList` Lucide icons; red-coloured when critical
+- `StatCard`: added contextual top-right icon (`FolderOpen`, `CheckSquare`, `Users`, `Clock`)
+- My Queue API call now includes `&status=active` (was showing all statuses incl. closed)
+
+### Inline Delete Confirms (all `window.confirm()` removed)
+- `DocumentCard`: Delete → Confirm / Cancel inline
+- `TaskCard`: trash icon → Delete / Cancel inline in card (confirm state in component)
+- `CommCard` (comms page): ✕ → Delete / ✕ inline
+- Task detail page: Delete → Confirm Delete / Cancel
+- `ScheduleCard` (reports): Delete → Confirm / Cancel
+- `WebhookRow`: Delete → Confirm / Cancel
+- `TemplateCard`: Delete → Confirm / ✕
+
+### Icon Notes
+- `lucide-react` v1.16.0 is installed in `apps/web`. All icons are imported directly: `import { IconName } from "lucide-react"`. Always use Lucide for new icon needs — do not add Unicode glyphs or emoji for UI icons.
