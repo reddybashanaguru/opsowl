@@ -29,6 +29,8 @@ interface Props {
   onClick?: () => void;
   onComplete?: () => void;
   onDelete?: () => void;
+  onAssignToMe?: () => void;
+  onUnassign?: () => void;
   showCase?: boolean;
 }
 
@@ -42,7 +44,7 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function TaskCard({ task, onClick, onComplete, onDelete, showCase }: Props) {
+export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, onUnassign, showCase }: Props) {
   const isDone = task.status === "done";
   const isCancelled = task.status === "cancelled";
 
@@ -109,21 +111,49 @@ export function TaskCard({ task, onClick, onComplete, onDelete, showCase }: Prop
           </div>
 
           {/* Footer */}
-          <div className="flex items-center gap-3 mt-2 text-slate-600 text-xs">
+          <div className="flex items-center gap-3 mt-2 text-xs">
             {task.assigned_to ? (
-              <span>→ {task.assigned_to.full_name}</span>
+              <span className="flex items-center gap-1 text-slate-400">
+                <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
+                </svg>
+                {task.assigned_to.full_name}
+                {onUnassign && !isDone && !isCancelled && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUnassign(); }}
+                    className="opacity-0 group-hover:opacity-100 ml-0.5 text-slate-600 hover:text-red-400 transition-all leading-none"
+                    title="Unassign"
+                  >
+                    ×
+                  </button>
+                )}
+              </span>
             ) : (
-              <span className="italic">Unassigned</span>
+              <span className="flex items-center gap-1 text-slate-600 italic">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 20 20" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                </svg>
+                {onAssignToMe ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onAssignToMe(); }}
+                    className="text-cyan-500 hover:text-cyan-400 not-italic font-medium transition-colors"
+                  >
+                    Assign to me
+                  </button>
+                ) : (
+                  "Unassigned"
+                )}
+              </span>
             )}
             {task.due_date && (
-              <span className={task.is_overdue && !isDone ? "text-red-400" : ""}>
+              <span className={task.is_overdue && !isDone ? "text-red-400" : "text-slate-600"}>
                 Due {new Date(task.due_date).toLocaleDateString()}
               </span>
             )}
             {task.comment_count > 0 && (
-              <span>💬 {task.comment_count}</span>
+              <span className="text-slate-600">💬 {task.comment_count}</span>
             )}
-            <span className="ml-auto">{relativeTime(task.updated_at)}</span>
+            <span className="ml-auto text-slate-600">{relativeTime(task.updated_at)}</span>
           </div>
         </div>
 

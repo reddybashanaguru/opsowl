@@ -107,6 +107,14 @@ func (h *Handler) ListMine(w http.ResponseWriter, r *http.Request) {
 	if q.Get("overdue") == "true" {
 		f.OverdueOnly = true
 	}
+	if q.Get("unassigned") == "true" {
+		f.UnassignedOnly = true
+	}
+	if a := q.Get("assigned_to"); a != "" {
+		if id, err := uuid.Parse(a); err == nil {
+			f.AssignedTo = &id
+		}
+	}
 	if l := q.Get("limit"); l != "" {
 		if n, _ := strconv.Atoi(l); n > 0 && n <= 200 {
 			f.Limit = int32(n)

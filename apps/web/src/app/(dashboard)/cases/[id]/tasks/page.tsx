@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   useQuery,
@@ -27,7 +27,6 @@ interface CaseSummary {
 }
 
 const PRIORITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
-const STATUS_OPTIONS = ["todo", "in_progress", "done", "cancelled"] as const;
 
 export default function CaseTasksPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
@@ -37,7 +36,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   const user = useAuthStore((s) => s.user);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<string>("");
+  const [taskTab, setTaskTab] = useState<"active" | "done">("active");
   const [filterPriority, setFilterPriority] = useState<string>("");
   const [overdueOnly, setOverdueOnly] = useState(false);
 
@@ -46,6 +45,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState("medium");
   const [newDueDate, setNewDueDate] = useState("");
+  const [newAssignedTo, setNewAssignedTo] = useState("");
   const [createError, setCreateError] = useState("");
 
   const { data: caseData } = useQuery<CaseSummary>({
@@ -53,18 +53,26 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
   });
 
+  const { data: usersData } = useQuery<{ data: { id: string; full_name: string }[] }>({
+    queryKey: ["users-list"],
+    queryFn: () => api.get<{ data: { id: string; full_name: string }[] }>("/api/v1/users?limit=100"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const users = usersData?.data ?? [];
+
   const buildQueryString = () => {
     const p = new URLSearchParams();
-    if (filterStatus) p.set("status", filterStatus);
+    // Done tab: fetch only done tasks; active tab: fetch all then filter client-side
+    if (taskTab === "done") p.set("status", "done");
     if (filterPriority) p.set("priority", filterPriority);
-    if (overdueOnly) p.set("overdue", "true");
-    p.set("limit", "20");
+    if (overdueOnly && taskTab === "active") p.set("overdue", "true");
+    p.set("limit", "50");
     return p.toString();
   };
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch } =
     useInfiniteQuery<{ data: Task[]; meta: ListMeta }>({
-      queryKey: ["case-tasks", caseId, filterStatus, filterPriority, overdueOnly],
+      queryKey: ["case-tasks", caseId, taskTab, filterPriority, overdueOnly],
       queryFn: ({ pageParam }) => {
         const qs = buildQueryString();
         const cursor = pageParam ? `&cursor=${pageParam}` : "";
@@ -74,8 +82,11 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
     });
 
-  const tasks = data?.pages.flatMap((p) => p.data) ?? [];
-  const totalCount = data?.pages[0]?.meta.total_count ?? 0;
+  const allFetched = data?.pages.flatMap((p) => p.data) ?? [];
+  const tasks = taskTab === "active"
+    ? allFetched.filter((t) => t.status !== "done" && t.status !== "cancelled")
+    : allFetched;
+  const totalCount = tasks.length;
 
   const createMutation = useMutation({
     mutationFn: () =>
@@ -84,6 +95,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
         description: newDesc,
         priority: newPriority,
         due_date: newDueDate ? new Date(newDueDate).toISOString() : undefined,
+        assigned_to: newAssignedTo || undefined,
       }),
     onSuccess: () => {
       setShowCreate(false);
@@ -91,6 +103,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       setNewDesc("");
       setNewPriority("medium");
       setNewDueDate("");
+      setNewAssignedTo("");
       setCreateError("");
       refetch();
     },
@@ -99,14 +112,98 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     },
   });
 
+  const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set());
+  const [undoToast, setUndoToast] = useState<{ taskId: string; title: string } | null>(null);
+  const completionTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  useEffect(() => {
+    const timers = completionTimers.current;
+    return () => { timers.forEach((t) => clearTimeout(t)); };
+  }, []);
+
+  const undoMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { status: "todo" }),
+    onSuccess: (_data, taskId) => {
+      const timer = completionTimers.current.get(taskId);
+      if (timer) { clearTimeout(timer); completionTimers.current.delete(taskId); }
+      setJustCompleted((prev) => { const next = new Set(prev); next.delete(taskId); return next; });
+      setUndoToast(null);
+      refetch();
+    },
+  });
+
+  const dismissUndo = useCallback((taskId: string) => {
+    const timer = completionTimers.current.get(taskId);
+    if (timer) { clearTimeout(timer); completionTimers.current.delete(taskId); }
+    setJustCompleted((prev) => { const next = new Set(prev); next.delete(taskId); return next; });
+    setUndoToast(null);
+    refetch();
+  }, [refetch]);
+
   const completeMutation = useMutation({
     mutationFn: (taskId: string) => api.post<Task>(`/api/v1/tasks/${taskId}/complete`, {}),
-    onSuccess: () => refetch(),
+    onSuccess: (_data, taskId) => {
+      const task = tasks.find((t) => t.id === taskId);
+      setJustCompleted((prev) => new Set([...prev, taskId]));
+      setUndoToast({ taskId, title: task?.title ?? "Task" });
+      const timer = setTimeout(() => dismissUndo(taskId), 5000);
+      completionTimers.current.set(taskId, timer);
+    },
   });
 
   const deleteMutation = useMutation({
     mutationFn: (taskId: string) => api.delete(`/api/v1/tasks/${taskId}`),
     onSuccess: () => refetch(),
+  });
+
+  const assignToMeMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { assigned_to: user?.id }),
+    onMutate: async (taskId) => {
+      await qc.cancelQueries({ queryKey: ["case-tasks", caseId] });
+      const queryKey = ["case-tasks", caseId, taskTab, filterPriority, overdueOnly];
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, (old: { pages: { data: Task[]; meta: ListMeta }[]; pageParams: unknown[] } | undefined) =>
+        old ? {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((t) =>
+              t.id === taskId
+                ? { ...t, assigned_to: { id: user?.id ?? "", full_name: user?.full_name ?? "", email: user?.email ?? "" } }
+                : t
+            ),
+          })),
+        } : old
+      );
+      return { prev, queryKey };
+    },
+    onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
+  });
+
+  const unassignMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { clear_assigned_to: true }),
+    onMutate: async (taskId) => {
+      await qc.cancelQueries({ queryKey: ["case-tasks", caseId] });
+      const queryKey = ["case-tasks", caseId, taskTab, filterPriority, overdueOnly];
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, (old: { pages: { data: Task[]; meta: ListMeta }[]; pageParams: unknown[] } | undefined) =>
+        old ? {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((t) => t.id === taskId ? { ...t, assigned_to: null } : t),
+          })),
+        } : old
+      );
+      return { prev, queryKey };
+    },
+    onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
   });
 
   const canCreate = user?.role && ["analyst", "manager", "admin", "super_admin"].includes(user.role);
@@ -141,67 +238,121 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
         )}
       </div>
 
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-4 flex-wrap">
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-[#1e293b] border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+      {/* Active / Done tab bar */}
+      <div className="flex items-center gap-1 mb-4 border-b border-slate-700/50">
+        <button
+          onClick={() => setTaskTab("active")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            taskTab === "active" ? "border-cyan-400 text-cyan-400" : "border-transparent text-slate-500 hover:text-slate-300"
+          }`}
         >
-          <option value="">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>{s.replace("_", " ")}</option>
-          ))}
-        </select>
-
-        <select
-          value={filterPriority}
-          onChange={(e) => setFilterPriority(e.target.value)}
-          className="bg-[#1e293b] border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+          Active
+        </button>
+        <button
+          onClick={() => setTaskTab("done")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            taskTab === "done" ? "border-green-400 text-green-400" : "border-transparent text-slate-500 hover:text-slate-300"
+          }`}
         >
-          <option value="">All priorities</option>
-          {PRIORITY_OPTIONS.map((p) => (
-            <option key={p} value={p}>{p}</option>
-          ))}
-        </select>
-
-        <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={overdueOnly}
-            onChange={(e) => setOverdueOnly(e.target.checked)}
-            className="accent-cyan-400"
-          />
-          Overdue only
-        </label>
-
-        <span className="text-slate-600 text-xs ml-auto">{totalCount} task{totalCount !== 1 ? "s" : ""}</span>
+          Done
+        </button>
+        <div className="ml-auto flex items-center gap-3 pb-1">
+          {taskTab === "active" && (
+            <>
+              <select
+                value={filterPriority}
+                onChange={(e) => setFilterPriority(e.target.value)}
+                className="bg-[#1e293b] border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+              >
+                <option value="">All priorities</option>
+                {PRIORITY_OPTIONS.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={overdueOnly}
+                  onChange={(e) => setOverdueOnly(e.target.checked)}
+                  className="accent-cyan-400"
+                />
+                Overdue only
+              </label>
+            </>
+          )}
+          <span className="text-slate-600 text-xs">{totalCount} task{totalCount !== 1 ? "s" : ""}</span>
+        </div>
       </div>
+
+      {/* Undo toast */}
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 shadow-2xl text-sm">
+          <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-slate-300">
+            <span className="text-white font-medium truncate max-w-[200px] inline-block align-bottom">{undoToast.title}</span>
+            {" "}marked done
+          </span>
+          <button
+            onClick={() => undoMutation.mutate(undoToast.taskId)}
+            disabled={undoMutation.isPending}
+            className="ml-1 px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 font-semibold transition-colors disabled:opacity-50"
+          >
+            {undoMutation.isPending ? "Undoing…" : "Undo"}
+          </button>
+          <button
+            onClick={() => dismissUndo(undoToast.taskId)}
+            className="text-slate-500 hover:text-slate-300 transition-colors"
+            aria-label="Dismiss"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Task list */}
       {tasks.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-slate-600 text-sm">No tasks yet.</p>
-          {canCreate && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="mt-3 text-cyan-400 hover:text-cyan-300 text-sm font-medium"
-            >
-              Create the first task →
-            </button>
+          {taskTab === "done" ? (
+            <>
+              <div className="text-4xl mb-3">✓</div>
+              <p className="text-slate-600 text-sm">No completed tasks yet.</p>
+            </>
+          ) : (
+            <>
+              <p className="text-slate-600 text-sm">No active tasks.</p>
+              {canCreate && (
+                <button
+                  onClick={() => setShowCreate(true)}
+                  className="mt-3 text-cyan-400 hover:text-cyan-300 text-sm font-medium"
+                >
+                  Create the first task →
+                </button>
+              )}
+            </>
           )}
         </div>
       ) : (
         <div className="space-y-3">
-          {tasks.map((task) => (
-            <TaskCard
-              key={task.id}
-              task={task}
-              onClick={() => router.push(`/cases/${caseId}/tasks/${task.id}`)}
-              onComplete={() => completeMutation.mutate(task.id)}
-              onDelete={() => deleteMutation.mutate(task.id)}
-            />
-          ))}
+          {tasks.map((task) => {
+            const displayTask = justCompleted.has(task.id) ? { ...task, status: "done" } : task;
+            return (
+              <TaskCard
+                key={task.id}
+                task={displayTask}
+                onClick={() => router.push(`/cases/${caseId}/tasks/${task.id}`)}
+                onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
+                onDelete={() => {
+                  if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id);
+                }}
+                onAssignToMe={!task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => assignToMeMutation.mutate(task.id) : undefined}
+                onUnassign={task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => unassignMutation.mutate(task.id) : undefined}
+              />
+            );
+          })}
 
           {hasNextPage && (
             <div className="text-center pt-2">
@@ -269,6 +420,20 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                     className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="text-slate-400 text-xs mb-1 block">Assign To</label>
+                <select
+                  value={newAssignedTo}
+                  onChange={(e) => setNewAssignedTo(e.target.value)}
+                  className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="">— Unassigned —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                  ))}
+                </select>
               </div>
             </div>
 

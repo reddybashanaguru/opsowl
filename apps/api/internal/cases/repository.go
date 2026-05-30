@@ -147,6 +147,135 @@ func (r *Repository) CountActive(ctx context.Context, f ListFilters, orgID uuid.
 	return count, err
 }
 
+const listByStatusesSQL = `
+SELECT
+  c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at, c.search_vector,
+  creator.full_name  AS created_by_name,
+  assignee.full_name AS assigned_to_name,
+  ci.risk_score, ci.risk_level
+FROM cases c
+JOIN users creator ON creator.id = c.created_by
+LEFT JOIN users assignee ON assignee.id = c.assigned_to
+LEFT JOIN LATERAL (
+  SELECT risk_score, risk_level FROM case_ai_insights
+  WHERE case_id = c.id ORDER BY analysed_at DESC LIMIT 1
+) ci ON true
+WHERE c.deleted_at IS NULL
+  AND c.organization_id = $1
+  AND c.status = ANY($2::case_status[])
+  AND ($3::case_priority IS NULL OR c.priority = $3::case_priority)
+  AND ($4::uuid IS NULL OR c.assigned_to = $4)
+  AND ($5::boolean IS NULL OR c.sla_breached = $5)
+  AND ($6::uuid IS NULL OR c.id < $6)
+  AND (
+    $7::uuid IS NULL
+    OR c.assigned_to = $7
+    OR c.created_by  = $7
+    OR EXISTS (SELECT 1 FROM case_watchers cw WHERE cw.case_id = c.id AND cw.user_id = $7)
+  )
+ORDER BY c.created_at DESC
+LIMIT $8
+`
+
+const countByStatusesSQL = `
+SELECT COUNT(*) FROM cases c
+WHERE c.deleted_at IS NULL
+  AND c.organization_id = $1
+  AND c.status = ANY($2::case_status[])
+  AND ($3::case_priority IS NULL OR c.priority = $3::case_priority)
+  AND ($4::uuid IS NULL OR c.assigned_to = $4)
+  AND ($5::boolean IS NULL OR c.sla_breached = $5)
+  AND (
+    $6::uuid IS NULL
+    OR c.assigned_to = $6
+    OR c.created_by  = $6
+    OR EXISTS (SELECT 1 FROM case_watchers cw WHERE cw.case_id = c.id AND cw.user_id = $6)
+  )
+`
+
+func (r *Repository) ListByStatuses(ctx context.Context, f ListFilters, orgID uuid.UUID) ([]db.ListCasesRow, error) {
+	limit := f.Limit
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	statuses := make([]string, len(f.Statuses))
+	for i, s := range f.Statuses {
+		statuses[i] = string(s)
+	}
+	var priority interface{}
+	if f.Priority != nil {
+		priority = string(*f.Priority)
+	}
+	var assignedTo interface{}
+	if f.AssignedTo != nil {
+		assignedTo = *f.AssignedTo
+	}
+	var slaBreached interface{}
+	if f.SLABreached != nil {
+		slaBreached = *f.SLABreached
+	}
+	var cursor interface{}
+	if f.Cursor != nil {
+		cursor = *f.Cursor
+	}
+	var viewerID interface{}
+	if f.ViewerID != nil {
+		viewerID = *f.ViewerID
+	}
+
+	rows, err := r.sqlDB.QueryContext(ctx, listByStatusesSQL,
+		orgID, pq.Array(statuses), priority, assignedTo, slaBreached, cursor, viewerID, limit+1,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []db.ListCasesRow
+	for rows.Next() {
+		var i db.ListCasesRow
+		if err := rows.Scan(
+			&i.ID, &i.CaseNumber, &i.Title, &i.Description, &i.Status, &i.Priority,
+			&i.AssignedTo, &i.CreatedBy, &i.OrganizationID, &i.DueDate, &i.SlaBreachAt,
+			&i.SlaBreached, pq.Array(&i.Tags), &i.CreatedAt, &i.UpdatedAt, &i.DeletedAt,
+			&i.SearchVector, &i.CreatedByName, &i.AssignedToName, &i.RiskScore, &i.RiskLevel,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	return items, rows.Err()
+}
+
+func (r *Repository) CountByStatuses(ctx context.Context, f ListFilters, orgID uuid.UUID) (int64, error) {
+	statuses := make([]string, len(f.Statuses))
+	for i, s := range f.Statuses {
+		statuses[i] = string(s)
+	}
+	var priority interface{}
+	if f.Priority != nil {
+		priority = string(*f.Priority)
+	}
+	var assignedTo interface{}
+	if f.AssignedTo != nil {
+		assignedTo = *f.AssignedTo
+	}
+	var slaBreached interface{}
+	if f.SLABreached != nil {
+		slaBreached = *f.SLABreached
+	}
+	var viewerID interface{}
+	if f.ViewerID != nil {
+		viewerID = *f.ViewerID
+	}
+
+	var count int64
+	err := r.sqlDB.QueryRowContext(ctx, countByStatusesSQL,
+		orgID, pq.Array(statuses), priority, assignedTo, slaBreached, viewerID,
+	).Scan(&count)
+	return count, err
+}
+
 func (r *Repository) Create(ctx context.Context, p db.CreateCaseParams) (db.Case, error) {
 	return r.q.CreateCase(ctx, p)
 }

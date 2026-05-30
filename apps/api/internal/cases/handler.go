@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -70,6 +71,12 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	if s := q.Get("status"); s != "" {
 		if s == "active" {
 			f.ActiveOnly = true
+		} else if strings.Contains(s, ",") {
+			for _, part := range strings.Split(s, ",") {
+				if part = strings.TrimSpace(part); part != "" {
+					f.Statuses = append(f.Statuses, db.CaseStatus(part))
+				}
+			}
 		} else {
 			st := db.CaseStatus(s)
 			f.Status = &st

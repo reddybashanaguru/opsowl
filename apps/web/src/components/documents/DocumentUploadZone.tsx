@@ -60,11 +60,11 @@ export function DocumentUploadZone({ onUpload, uploading = false }: Props) {
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         className={`
-          border-2 border-dashed rounded-xl p-8 text-center cursor-pointer
-          transition-colors select-none
+          border-2 border-dashed rounded-xl p-5 text-center cursor-pointer
+          transition-colors select-none flex items-center justify-center gap-3
           ${dragging
             ? "border-cyan-400 bg-cyan-500/10"
-            : "border-slate-600 bg-slate-800/30 hover:border-slate-500 hover:bg-slate-800/50"
+            : "border-slate-700 bg-slate-800/20 hover:border-slate-600 hover:bg-slate-800/40"
           }
           ${uploading ? "opacity-60 cursor-not-allowed" : ""}
         `}
@@ -78,13 +78,15 @@ export function DocumentUploadZone({ onUpload, uploading = false }: Props) {
           disabled={uploading}
           data-testid="file-input"
         />
-        <div className="text-3xl mb-2">{uploading ? "⏳" : "📂"}</div>
-        <p className="text-sm text-slate-300 font-medium">
-          {uploading ? "Uploading…" : "Drop a file here or click to browse"}
-        </p>
-        <p className="text-xs text-slate-500 mt-1">
-          PDF, DOCX, XLSX, TXT, PNG, JPG — up to {MAX_SIZE_MB} MB
-        </p>
+        <span className="text-xl flex-shrink-0">{uploading ? "⏳" : "📂"}</span>
+        <div className="text-left">
+          <p className="text-sm text-slate-300 font-medium">
+            {uploading ? "Uploading…" : "Drop a file here or click to browse"}
+          </p>
+          <p className="text-xs text-slate-500 mt-0.5">
+            PDF, DOCX, XLSX, TXT, PNG, JPG — up to {MAX_SIZE_MB} MB
+          </p>
+        </div>
       </div>
 
       {error && (

@@ -41,11 +41,12 @@ type UpdateTaskRequest struct {
 }
 
 type ListFilters struct {
-	Status      *db.TaskStatus
-	Priority    *db.TaskPriority
-	AssignedTo  *uuid.UUID
-	OverdueOnly bool
-	Limit       int32
+	Status         *db.TaskStatus
+	Priority       *db.TaskPriority
+	AssignedTo     *uuid.UUID
+	UnassignedOnly bool
+	OverdueOnly    bool
+	Limit          int32
 	// Composite cursor decoded from the opaque cursor token.
 	CursorSortOrder *int32
 	CursorTime      *time.Time
@@ -104,7 +105,7 @@ type CreateCommentRequest struct {
 var validTransitions = map[db.TaskStatus][]db.TaskStatus{
 	db.TaskStatusTodo:       {db.TaskStatusInProgress, db.TaskStatusCancelled},
 	db.TaskStatusInProgress: {db.TaskStatusDone, db.TaskStatusCancelled},
-	db.TaskStatusDone:       {},
+	db.TaskStatusDone:       {db.TaskStatusTodo}, // allows undo/reopen
 	db.TaskStatusCancelled:  {},
 }
 

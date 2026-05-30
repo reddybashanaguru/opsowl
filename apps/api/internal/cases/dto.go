@@ -98,6 +98,8 @@ type ListFilters struct {
 	ViewerID *uuid.UUID
 	// ActiveOnly excludes draft and closed statuses — used by the "Active Cases" dashboard filter.
 	ActiveOnly bool
+	// Statuses filters to cases matching any of the listed statuses (multi-select).
+	Statuses []db.CaseStatus
 }
 
 func nullTime(t *time.Time) sql.NullTime {

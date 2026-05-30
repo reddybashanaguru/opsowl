@@ -96,91 +96,93 @@ export default function CaseDocumentsPage({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-        <CaseSubNav caseId={id} activeTab="documents" />
+    <div className="p-6 max-w-4xl mx-auto">
+      <CaseSubNav caseId={id} activeTab="documents" />
 
-        {/* Header */}
-        <div>
-          <h1 className="text-xl font-bold text-white">{cfg.documents_label}</h1>
-          <p className="text-slate-400 text-sm mt-1">
-            Upload files to extract intelligence and feed the AI copilot.
+      {/* Header */}
+      <div className="mt-5 mb-4">
+        <h1 className="text-xl font-bold text-white">{cfg.documents_label}</h1>
+        <p className="text-slate-500 text-sm mt-0.5">
+          Upload files to extract intelligence and feed the AI copilot.
+        </p>
+      </div>
+
+      {/* Upload zone */}
+      {canUpload && (
+        <div className="mb-4">
+          <DocumentUploadZone onUpload={handleUpload} uploading={uploading} />
+          {uploadError && (
+            <p className="text-xs text-red-400 mt-1.5">{uploadError}</p>
+          )}
+        </div>
+      )}
+
+      {/* List header row: count + filter */}
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs text-slate-500">
+          {isLoading ? "" : `${allDocs.length} document${allDocs.length !== 1 ? "s" : ""}`}
+        </p>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="text-xs bg-slate-800 border border-slate-700 rounded-lg px-2.5 py-1.5 text-slate-300 focus:outline-none focus:border-cyan-500"
+        >
+          <option value="">All statuses</option>
+          <option value="pending">Pending</option>
+          <option value="processing">Processing</option>
+          <option value="completed">Completed</option>
+          <option value="failed">Failed</option>
+        </select>
+      </div>
+
+      {/* List */}
+      {isLoading && (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="h-20 bg-slate-800/40 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
+          {error instanceof APIError ? error.message : "Failed to load documents"}
+        </div>
+      )}
+
+      {!isLoading && allDocs.length === 0 && (
+        <div className="text-center py-12 text-slate-500">
+          <div className="text-3xl mb-2">📂</div>
+          <p className="text-sm font-medium">No documents yet</p>
+          <p className="text-xs mt-1">
+            {canUpload ? "Upload a file above to get started." : "No files have been uploaded to this case."}
           </p>
         </div>
+      )}
 
-        {/* Upload zone */}
-        {canUpload && (
-          <div className="space-y-2">
-            <DocumentUploadZone onUpload={handleUpload} uploading={uploading} />
-            {uploadError && (
-              <p className="text-xs text-red-400">{uploadError}</p>
-            )}
-          </div>
-        )}
+      {allDocs.length > 0 && (
+        <div className="space-y-2.5">
+          {allDocs.map((doc) => (
+            <DocumentCard
+              key={doc.id}
+              document={doc}
+              onDelete={canUpload ? (docId) => deleteMutation.mutate(docId) : undefined}
+              onRetry={canUpload ? (docId) => retryMutation.mutate(docId) : undefined}
+              retrying={retryMutation.isPending && retryMutation.variables === doc.id}
+            />
+          ))}
 
-        {/* Filter */}
-        <div className="flex items-center gap-3">
-          <label className="text-xs text-slate-400">Filter by status:</label>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="text-xs bg-slate-800 border border-slate-700 rounded px-2 py-1 text-slate-300 focus:outline-none focus:border-cyan-500"
-          >
-            <option value="">All</option>
-            <option value="pending">Pending</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-          </select>
+          {hasNextPage && (
+            <button
+              onClick={() => fetchNextPage()}
+              disabled={isFetchingNextPage}
+              className="w-full py-2 text-sm text-slate-400 hover:text-cyan-400 border border-slate-700/50 rounded-lg hover:border-slate-600 transition-colors disabled:opacity-50"
+            >
+              {isFetchingNextPage ? "Loading…" : "Load more"}
+            </button>
+          )}
         </div>
-
-        {/* List */}
-        {isLoading && (
-          <div className="space-y-3">
-            {Array.from({ length: 3 }).map((_, i) => (
-              <div key={i} className="h-20 bg-slate-800/40 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-400">
-            {error instanceof APIError ? error.message : "Failed to load documents"}
-          </div>
-        )}
-
-        {!isLoading && allDocs.length === 0 && (
-          <div className="text-center py-16 text-slate-500">
-            <div className="text-4xl mb-3">📂</div>
-            <p className="text-sm font-medium">No documents yet</p>
-            <p className="text-xs mt-1">
-              {canUpload ? "Upload a file above to get started." : "No files have been uploaded to this case."}
-            </p>
-          </div>
-        )}
-
-        {allDocs.length > 0 && (
-          <div className="space-y-3">
-            {allDocs.map((doc) => (
-              <DocumentCard
-                key={doc.id}
-                document={doc}
-                onDelete={canUpload ? (docId) => deleteMutation.mutate(docId) : undefined}
-                onRetry={canUpload ? (docId) => retryMutation.mutate(docId) : undefined}
-                retrying={retryMutation.isPending && retryMutation.variables === doc.id}
-              />
-            ))}
-
-            {hasNextPage && (
-              <button
-                onClick={() => fetchNextPage()}
-                disabled={isFetchingNextPage}
-                className="w-full py-2 text-sm text-slate-400 hover:text-cyan-400 border border-slate-700/50 rounded-lg hover:border-slate-600 transition-colors disabled:opacity-50"
-              >
-                {isFetchingNextPage ? "Loading…" : "Load more"}
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
+    </div>
   );
 }

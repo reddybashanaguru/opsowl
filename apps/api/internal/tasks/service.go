@@ -128,7 +128,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		})
 	}
 
-	return s.toResponse(t, "", claims.Email, nil), nil
+	return s.Get(ctx, t.ID)
 }
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (*TaskResponse, error) {
@@ -212,8 +212,10 @@ LEFT JOIN users u_assign ON u_assign.id = t.assigned_to
 WHERE t.deleted_at IS NULL
   AND ($1::text IS NULL OR t.status::text = $1)
   AND ($2 IS NOT TRUE OR t.is_overdue = TRUE)
+  AND ($3::uuid IS NULL OR t.assigned_to = $3)
+  AND ($4 IS NOT TRUE OR t.assigned_to IS NULL)
 ORDER BY t.is_overdue DESC, t.due_date ASC NULLS LAST, t.priority ASC
-LIMIT $3
+LIMIT $5
 `
 
 func (s *Service) ListAllTasks(ctx context.Context, f ListFilters) ([]TaskResponse, ListMeta, error) {
@@ -230,8 +232,12 @@ func (s *Service) ListAllTasks(ctx context.Context, f ListFilters) ([]TaskRespon
 	if f.Status != nil {
 		statusVal = string(*f.Status)
 	}
+	var assignedToVal interface{}
+	if f.AssignedTo != nil {
+		assignedToVal = *f.AssignedTo
+	}
 
-	rows, err := s.sqlDB.QueryContext(ctx, listAllTasksSQL, statusVal, f.OverdueOnly, limit+1)
+	rows, err := s.sqlDB.QueryContext(ctx, listAllTasksSQL, statusVal, f.OverdueOnly, assignedToVal, f.UnassignedOnly, limit+1)
 	if err != nil {
 		return nil, ListMeta{}, err
 	}
@@ -365,13 +371,30 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		p.SortOrder = sql.NullInt32{Int32: *req.SortOrder, Valid: true}
 	}
 
-	t, err := s.repo.Update(ctx, p)
-	if err != nil {
+	if _, err := s.repo.Update(ctx, p); err != nil {
 		return nil, err
 	}
 
-	count, _ := s.repo.CountComments(ctx, id)
-	return s.toResponse(t, existing.CreatedByName, existing.CreatedByEmail, &count), nil
+	// Notify new assignee if the assignment changed
+	if s.notifSvc != nil && req.AssignedTo != nil {
+		newAssignee := *req.AssignedTo
+		prevAssignee := existing.AssignedTo
+		if newAssignee != claims.UserID && (!prevAssignee.Valid || prevAssignee.UUID != newAssignee) {
+			caseID := existing.CaseID
+			go s.notifSvc.NotifyAsync(context.Background(), notifications.NotifyInput{
+				RecipientID: newAssignee,
+				Type:        db.NotificationTypeTaskAssigned,
+				Priority:    db.NotificationPriorityMedium,
+				Title:       "Task assigned to you",
+				Message:     existing.Title,
+				LinkURL:     "/cases/" + caseID.String() + "/tasks/" + id.String(),
+				CaseID:      &caseID,
+				TaskID:      &id,
+			})
+		}
+	}
+
+	return s.Get(ctx, id)
 }
 
 func (s *Service) Complete(ctx context.Context, claims *auth.Claims, id uuid.UUID) (*TaskResponse, error) {
@@ -389,8 +412,7 @@ func (s *Service) Complete(ctx context.Context, claims *auth.Claims, id uuid.UUI
 		return nil, ErrInvalidTransition
 	}
 
-	t, err := s.repo.Complete(ctx, id)
-	if err != nil {
+	if _, err := s.repo.Complete(ctx, id); err != nil {
 		return nil, err
 	}
 
@@ -407,8 +429,7 @@ func (s *Service) Complete(ctx context.Context, claims *auth.Claims, id uuid.UUI
 		},
 	})
 
-	count, _ := s.repo.CountComments(ctx, id)
-	return s.toResponse(t, existing.CreatedByName, existing.CreatedByEmail, &count), nil
+	return s.Get(ctx, id)
 }
 
 func (s *Service) Delete(ctx context.Context, claims *auth.Claims, id uuid.UUID) error {

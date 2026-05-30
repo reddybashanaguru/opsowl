@@ -1027,3 +1027,29 @@ These 3 items were specified in the original HLD but not yet implemented. Defer 
 | BL-3 | **Sub-tasks (parent_task_id)** | F07 Task Management | ~2 days | HLD schema had `parent_task_id UUID` on tasks table. Complex investigations need task hierarchy. Add column + UI collapsible sub-task rows. |
 
 **Do not implement until a client demo surfaces this as a pain point.**
+
+---
+
+## UX Sprint — Task & Cases Improvements (2026-05-30)
+
+### Task Management UX Fixes
+- **Undo on accidental complete**: 5-second undo toast on task completion; `done → todo` transition added to state machine
+- **Done tab**: Active/Done tab strip on both `/tasks` and `/cases/:id/tasks` — done tasks no longer buried at the bottom
+- **Assignment end-to-end**: Create modal assignee select, inline picker in task detail sidebar, edit form field, "Assign to me" shortcut on unassigned cards, `×` unassign button on hover
+- **My Tasks SQL fix**: Changed `WHERE assigned_to = $1 OR created_by = $1` → `WHERE assigned_to = $1 OR (created_by = $1 AND assigned_to IS NULL)` — excludes delegated tasks from personal queue
+- **Reassignment notifications**: `Update()` service fires `NotifyAsync(NotificationTypeTaskAssigned)` when assignee changes
+- **Optimistic unassign**: `unassignMutation` uses `onMutate` cache patch + `onSettled` broad invalidation — task appears immediately in "Unassigned only" filter without waiting for a round-trip
+
+### Cases List Filter Overhaul
+- **Multi-select status filter**: Replaced single `<select>` with a custom `StatusMultiSelect` checkbox dropdown — users can now filter by multiple statuses simultaneously (e.g., Open + In Progress)
+- **"Active Cases" explained**: The preset is now a checkbox shortcut in the dropdown labeled "Active Cases — excl. Draft & Closed"; previously it was an opaque dropdown option
+- **Backend multi-status**: `GET /api/v1/cases?status=open,in_progress` — comma-separated values parse into `f.Statuses []db.CaseStatus`; new `ListByStatuses` / `CountByStatuses` raw SQL methods using `ANY($2::case_status[])`
+- **URL compat**: `?status=active` (from dashboard card links) still maps to the active preset via frontend translation
+
+### Documents Page Spacing
+- **Compact upload zone**: Changed from tall centered block (`p-8`, stacked layout) to horizontal row (`p-5`, icon + text inline) — saves ~80px vertical space
+- **Filter moved inline**: "Filter by status" select is now right-aligned next to the document count in the list header row — no longer a disconnected label/select pair
+- **Spacing tightened**: `space-y-6` → explicit `mb-4` / `mb-3` gaps; empty state reduced from `py-16` to `py-12`
+
+### Test Coverage Added
+- `TestHandlerListCases_MultiStatusFilter` — 3 sub-tests: single status filter, multi-status returns both, multi-status excludes unselected

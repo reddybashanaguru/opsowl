@@ -90,7 +90,7 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
           <span className="text-slate-500 text-xs">{timeAgo(log.occurred_at)}</span>
           {canDelete && (
             <button
-              onClick={() => onDelete(log.id)}
+              onClick={() => { if (window.confirm("Delete this communication log?")) onDelete(log.id); }}
               className="text-slate-600 hover:text-red-400 text-xs transition-colors"
               title="Delete"
             >

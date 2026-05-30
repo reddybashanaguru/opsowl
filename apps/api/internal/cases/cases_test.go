@@ -1295,5 +1295,97 @@ func TestHandlerInvalidIDPaths(t *testing.T) {
 	}
 }
 
+func TestHandlerListCases_MultiStatusFilter(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	r, jwtMgr := setupRouter(t, db)
+	token := loginToken(t, db, jwtMgr, "multistat@handler.com", dbgen.UserRoleAdmin)
+
+	svc := newTestService(t, db)
+	analystID := seedUser(t, db, "mseed@handler.com", dbgen.UserRoleAnalyst)
+	claims := claimsFor(analystID, "mseed@handler.com", dbgen.UserRoleAnalyst)
+
+	ctx := context.Background()
+
+	// Create cases in different statuses
+	draftCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Draft case for multi-filter", Priority: dbgen.CasePriorityLow})
+	openCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Open case for multi-filter", Priority: dbgen.CasePriorityMedium})
+	closedCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Closed case for multi-filter", Priority: dbgen.CasePriorityHigh})
+
+	adminID := seedUser(t, db, "mseedadmin@handler.com", dbgen.UserRoleAdmin)
+	adminClaims := claimsFor(adminID, "mseedadmin@handler.com", dbgen.UserRoleAdmin)
+	_, _ = svc.ChangeStatus(ctx, adminClaims, openCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen, Reason: ""})
+	_, _ = svc.ChangeStatus(ctx, adminClaims, closedCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusClosed, Reason: "done"})
+	_ = draftCase
+
+	t.Run("single status filter returns only matching", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var resp struct {
+			Data []struct {
+				Status string `json:"status"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		for _, c := range resp.Data {
+			if c.Status != "open" {
+				t.Errorf("expected only open cases, got status=%s", c.Status)
+			}
+		}
+	})
+
+	t.Run("multi-status filter returns cases matching any selected status", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open,closed", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+		}
+		var resp struct {
+			Data []struct {
+				Status string `json:"status"`
+			} `json:"data"`
+		}
+		if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		if len(resp.Data) == 0 {
+			t.Fatal("expected at least one case")
+		}
+		for _, c := range resp.Data {
+			if c.Status != "open" && c.Status != "closed" {
+				t.Errorf("expected only open or closed cases, got status=%s", c.Status)
+			}
+		}
+	})
+
+	t.Run("multi-status excludes unselected statuses", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open,closed", nil)
+		req.Header.Set("Authorization", "Bearer "+token)
+		rec := httptest.NewRecorder()
+		r.ServeHTTP(rec, req)
+		var resp struct {
+			Data []struct {
+				ID     string `json:"id"`
+				Status string `json:"status"`
+			} `json:"data"`
+		}
+		_ = json.NewDecoder(rec.Body).Decode(&resp)
+		for _, c := range resp.Data {
+			if c.ID == draftCase.ID.String() {
+				t.Error("draft case should not appear in open,closed filter")
+			}
+		}
+	})
+}
+
 // compile check
 var _ = fmt.Sprintf

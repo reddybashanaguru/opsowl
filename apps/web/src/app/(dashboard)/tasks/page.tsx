@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "next/navigation";
@@ -93,18 +93,61 @@ function TasksPageContent() {
   const defaultAll = isPrivileged ? scopeParam !== "mine" : false;
 
   const [viewAll, setViewAll] = useState(defaultAll);
+  const [filterAssignee, setFilterAssignee] = useState("");
+  const [unassignedOnly, setUnassignedOnly] = useState(false);
 
-  const apiUrl = viewAll ? "/api/v1/tasks?limit=200&scope=all" : "/api/v1/tasks?limit=200";
+  const buildApiUrl = () => {
+    const p = new URLSearchParams({ limit: "200" });
+    if (viewAll) {
+      p.set("scope", "all");
+      if (filterAssignee) p.set("assigned_to", filterAssignee);
+      if (unassignedOnly) p.set("unassigned", "true");
+    }
+    return `/api/v1/tasks?${p.toString()}`;
+  };
+
+  const { data: usersData } = useQuery<{ data: { id: string; full_name: string }[] }>({
+    queryKey: ["users-list"],
+    queryFn: () => api.get<{ data: { id: string; full_name: string }[] }>("/api/v1/users?limit=100"),
+    staleTime: 5 * 60 * 1000,
+    enabled: isPrivileged,
+  });
+  const usersList = usersData?.data ?? [];
 
   const { data, isLoading, refetch } = useQuery<{ data: Task[]; meta: ListMeta }>({
-    queryKey: ["my-tasks", viewAll],
-    queryFn: () => api.getList<Task, ListMeta>(apiUrl),
+    queryKey: ["my-tasks", viewAll, filterAssignee, unassignedOnly],
+    queryFn: () => api.getList<Task, ListMeta>(buildApiUrl()),
     enabled: !!user,
   });
 
+  const assignMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { assigned_to: user?.id }),
+    onMutate: async (taskId) => {
+      await qc.cancelQueries({ queryKey: ["my-tasks"] });
+      const queryKey = ["my-tasks", viewAll, filterAssignee, unassignedOnly];
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, (old: { data: Task[]; meta: ListMeta } | undefined) =>
+        old ? {
+          ...old,
+          data: old.data.map((t) =>
+            t.id === taskId
+              ? { ...t, assigned_to: { id: user?.id ?? "", full_name: user?.full_name ?? user?.email ?? "", email: user?.email ?? "" } }
+              : t
+          ),
+        } : old
+      );
+      return { prev, queryKey };
+    },
+    onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["my-tasks"] }),
+  });
+
   // Tasks completed optimistically — stay in their current group with done styling,
-  // then move to Done section after a short delay so the UI doesn't jerk.
+  // then move to Done section after 5s (undo window). User can undo within that window.
   const [justCompleted, setJustCompleted] = useState<Set<string>>(new Set());
+  const [undoToast, setUndoToast] = useState<{ taskId: string; title: string } | null>(null);
   const completionTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   useEffect(() => {
@@ -112,23 +155,37 @@ function TasksPageContent() {
     return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
+  const undoMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { status: "todo" }),
+    onSuccess: (_data, taskId) => {
+      const timer = completionTimers.current.get(taskId);
+      if (timer) { clearTimeout(timer); completionTimers.current.delete(taskId); }
+      setJustCompleted((prev) => { const next = new Set(prev); next.delete(taskId); return next; });
+      setUndoToast(null);
+      refetch();
+    },
+  });
+
+  const dismissUndo = useCallback((taskId: string) => {
+    const timer = completionTimers.current.get(taskId);
+    if (timer) { clearTimeout(timer); completionTimers.current.delete(taskId); }
+    setJustCompleted((prev) => { const next = new Set(prev); next.delete(taskId); return next; });
+    setUndoToast(null);
+    refetch();
+  }, [refetch]);
+
+  const [doneTab, setDoneTab] = useState(false);
+
   const completeMutation = useMutation({
     mutationFn: (taskId: string) => api.post<Task>(`/api/v1/tasks/${taskId}/complete`, {}),
     onSuccess: (_data, taskId) => {
-      // Show completed styling in place immediately
+      const task = tasks.find((t) => t.id === taskId);
       setJustCompleted((prev) => new Set([...prev, taskId]));
+      setUndoToast({ taskId, title: task?.title ?? "Task" });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
 
-      // After 1.5s move the task to the Done group by refetching
-      const timer = setTimeout(() => {
-        setJustCompleted((prev) => {
-          const next = new Set(prev);
-          next.delete(taskId);
-          return next;
-        });
-        completionTimers.current.delete(taskId);
-        refetch();
-      }, 1500);
+      // After 5s move the task to the Done group — user loses undo window
+      const timer = setTimeout(() => dismissUndo(taskId), 5000);
       completionTimers.current.set(taskId, timer);
     },
   });
@@ -136,6 +193,23 @@ function TasksPageContent() {
   const deleteMutation = useMutation({
     mutationFn: (taskId: string) => api.delete(`/api/v1/tasks/${taskId}`),
     onSuccess: () => refetch(),
+  });
+
+  const unassignMutation = useMutation({
+    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { clear_assigned_to: true }),
+    onMutate: async (taskId) => {
+      await qc.cancelQueries({ queryKey: ["my-tasks"] });
+      const queryKey = ["my-tasks", viewAll, filterAssignee, unassignedOnly];
+      const prev = qc.getQueryData(queryKey);
+      qc.setQueryData(queryKey, (old: { data: Task[]; meta: ListMeta } | undefined) =>
+        old ? { ...old, data: old.data.map((t) => t.id === taskId ? { ...t, assigned_to: null } : t) } : old
+      );
+      return { prev, queryKey };
+    },
+    onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["my-tasks"] }),
   });
 
   const tasks = data?.data ?? [];
@@ -152,6 +226,35 @@ function TasksPageContent() {
 
   return (
     <div className="flex flex-col" style={{ height: "100%" }}>
+      {/* ── Undo toast ────────────────────────────────────── */}
+      {undoToast && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-800 border border-slate-600 rounded-xl px-4 py-3 shadow-2xl text-sm animate-in fade-in slide-in-from-bottom-2">
+          <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+          <span className="text-slate-300">
+            <span className="text-white font-medium truncate max-w-[200px] inline-block align-bottom">{undoToast.title}</span>
+            {" "}marked done
+          </span>
+          <button
+            onClick={() => undoMutation.mutate(undoToast.taskId)}
+            disabled={undoMutation.isPending}
+            className="ml-1 px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 font-semibold transition-colors disabled:opacity-50"
+          >
+            {undoMutation.isPending ? "Undoing…" : "Undo"}
+          </button>
+          <button
+            onClick={() => dismissUndo(undoToast.taskId)}
+            className="text-slate-500 hover:text-slate-300 transition-colors"
+            aria-label="Dismiss"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* ── Sticky header ─────────────────────────────────── */}
       <div className="sticky top-0 z-10 flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50 bg-[#0f172a]">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
@@ -213,6 +316,69 @@ function TasksPageContent() {
             <ProgressRing pct={pct} size={44} />
           </div>
         </div>
+
+        {/* Active / Done tab bar */}
+        <div className="max-w-7xl mx-auto flex items-center gap-1 mt-3 border-b border-slate-700/50 pb-0">
+          <button
+            onClick={() => setDoneTab(false)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              !doneTab ? "border-cyan-400 text-cyan-400" : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Active
+            {active > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${!doneTab ? "bg-cyan-400/20 text-cyan-400" : "bg-slate-700 text-slate-500"}`}>
+                {active}
+              </span>
+            )}
+          </button>
+          <button
+            onClick={() => setDoneTab(true)}
+            className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+              doneTab ? "border-green-400 text-green-400" : "border-transparent text-slate-500 hover:text-slate-300"
+            }`}
+          >
+            Done
+            {done > 0 && (
+              <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${doneTab ? "bg-green-400/20 text-green-400" : "bg-slate-700 text-slate-500"}`}>
+                {done}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* All-view filters: assignee + unassigned */}
+        {viewAll && isPrivileged && !doneTab && (
+          <div className="max-w-7xl mx-auto flex items-center gap-3 mt-3 flex-wrap">
+            <select
+              value={filterAssignee}
+              onChange={(e) => { setFilterAssignee(e.target.value); setUnassignedOnly(false); }}
+              className="bg-slate-800 border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+            >
+              <option value="">All assignees</option>
+              {usersList.map((u) => (
+                <option key={u.id} value={u.id}>{u.full_name}</option>
+              ))}
+            </select>
+            <label className="flex items-center gap-1.5 text-xs text-slate-400 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={unassignedOnly}
+                onChange={(e) => { setUnassignedOnly(e.target.checked); setFilterAssignee(""); }}
+                className="accent-cyan-400"
+              />
+              Unassigned only
+            </label>
+            {(filterAssignee || unassignedOnly) && (
+              <button
+                onClick={() => { setFilterAssignee(""); setUnassignedOnly(false); }}
+                className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Clear filters ✕
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Scrollable task body ───────────────────────────── */}
@@ -229,40 +395,47 @@ function TasksPageContent() {
                 </div>
               ))}
             </div>
-          ) : tasks.length === 0 ? (
-            <div className="text-center py-24">
-              <div className="text-5xl mb-4">✓</div>
-              <p className="text-slate-300 text-sm font-medium">All caught up!</p>
-              <p className="text-slate-500 text-xs mt-1">
-                {viewAll
-                  ? `No ${cfg.tasks_label.toLowerCase()} found across all cases.`
-                  : `No ${cfg.tasks_label.toLowerCase()} assigned to you.`}
-              </p>
-            </div>
+          ) : doneTab ? (
+            /* ── Done tab ─────────────────────────────────────── */
+            groups.done.length === 0 ? (
+              <div className="text-center py-24">
+                <div className="text-5xl mb-4">✓</div>
+                <p className="text-slate-300 text-sm font-medium">Nothing completed yet.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {groups.done.map((task) => (
+                  <TaskCard
+                    key={task.id}
+                    task={task}
+                    showCase
+                    onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
+                    onDelete={() => { if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id); }}
+                  />
+                ))}
+              </div>
+            )
           ) : (
+            /* ── Active tab ───────────────────────────────────── */
             <div className="space-y-6">
-              {GROUP_ORDER.map((group) => {
-                const groupTasks = groups[group];
-                if (groupTasks.length === 0) return null;
+              {(["overdue", "due_today", "this_week", "later"] as const).map((group) => {
+                const displayTasks = groups[group];
+                if (displayTasks.length === 0) return null;
                 const gcfg = GROUP_CONFIG[group];
                 return (
                   <div key={group}>
-                    {/* Group header — full width */}
                     <div className={`flex items-center gap-2 mb-3 py-1.5 px-2 rounded-lg ${gcfg.bgColor}`}>
                       <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${gcfg.dotColor}`} />
                       <h2 className={`text-xs font-bold uppercase tracking-widest ${gcfg.color}`}>
                         {gcfg.label}
                       </h2>
                       <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full bg-slate-800/80 ${gcfg.color}`}>
-                        {groupTasks.length}
+                        {displayTasks.length}
                       </span>
                     </div>
-                    {/* 2-column card grid */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {groupTasks.map((task) => {
-                        const displayTask = justCompleted.has(task.id)
-                          ? { ...task, status: "done" }
-                          : task;
+                      {displayTasks.map((task) => {
+                        const displayTask = justCompleted.has(task.id) ? { ...task, status: "done" } : task;
                         return (
                           <TaskCard
                             key={task.id}
@@ -270,7 +443,9 @@ function TasksPageContent() {
                             showCase
                             onClick={() => router.push(`/cases/${task.case_id}/tasks/${task.id}`)}
                             onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
-                            onDelete={() => deleteMutation.mutate(task.id)}
+                            onDelete={() => { if (window.confirm(`Delete "${task.title}"?`)) deleteMutation.mutate(task.id); }}
+                            onAssignToMe={viewAll && !task.assigned_to && !justCompleted.has(task.id) ? () => assignMutation.mutate(task.id) : undefined}
+                            onUnassign={task.assigned_to && !justCompleted.has(task.id) ? () => unassignMutation.mutate(task.id) : undefined}
                           />
                         );
                       })}
@@ -278,6 +453,17 @@ function TasksPageContent() {
                   </div>
                 );
               })}
+              {active === 0 && (
+                <div className="text-center py-24">
+                  <div className="text-5xl mb-4">✓</div>
+                  <p className="text-slate-300 text-sm font-medium">All caught up!</p>
+                  <p className="text-slate-500 text-xs mt-1">
+                    {viewAll
+                      ? `No active ${cfg.tasks_label.toLowerCase()} across all cases.`
+                      : `No active ${cfg.tasks_label.toLowerCase()} assigned to you.`}
+                  </p>
+                </div>
+              )}
             </div>
           )}
         </div>

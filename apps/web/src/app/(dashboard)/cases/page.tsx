@@ -75,12 +75,9 @@ interface BulkResult {
   failed: number;
 }
 
-const STATUSES = ["", "active", "draft", "open", "in_progress", "pending_review", "escalated", "closed"];
 const PRIORITIES = ["", "critical", "high", "medium", "low"];
 
 const STATUS_LABELS: Record<string, string> = {
-  "": "All Statuses",
-  active: "Active Cases",
   draft: "Draft",
   open: "Open",
   in_progress: "In Progress",
@@ -89,7 +86,141 @@ const STATUS_LABELS: Record<string, string> = {
   closed: "Closed",
 };
 
+const ACTIVE_STATUSES = ["open", "in_progress", "pending_review", "escalated"];
+const ALL_STATUS_OPTIONS = ["draft", "open", "in_progress", "pending_review", "escalated", "closed"] as const;
+
 const BULK_STATUS_OPTIONS = ["open", "in_progress", "pending_review", "escalated", "closed"];
+
+// --- Status multi-select dropdown ---
+
+function CheckIcon() {
+  return (
+    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 12 12" stroke="currentColor" strokeWidth={2.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M2 6l3 3 5-5" />
+    </svg>
+  );
+}
+
+function StatusMultiSelect({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const isActivePreset =
+    ACTIVE_STATUSES.every((s) => value.includes(s)) && value.length === ACTIVE_STATUSES.length;
+
+  const triggerLabel =
+    value.length === 0
+      ? "All Statuses"
+      : isActivePreset
+        ? "Active Cases"
+        : value.length === 1
+          ? STATUS_LABELS[value[0]] ?? value[0]
+          : `${value.length} statuses`;
+
+  function toggle(s: string) {
+    onChange(value.includes(s) ? value.filter((v) => v !== s) : [...value, s]);
+  }
+
+  function toggleActivePreset() {
+    onChange(isActivePreset ? [] : [...ACTIVE_STATUSES]);
+    setOpen(false);
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
+          value.length > 0
+            ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
+            : "bg-[#1e293b] border-slate-600 text-slate-300 hover:border-slate-500"
+        }`}
+      >
+        {triggerLabel}
+        {value.length > 0 && (
+          <span className="bg-cyan-500/20 text-cyan-400 text-xs px-1.5 py-0.5 rounded-full leading-none tabular-nums">
+            {value.length}
+          </span>
+        )}
+        <svg
+          className={`w-3.5 h-3.5 flex-shrink-0 transition-transform text-slate-500 ${open ? "rotate-180" : ""}`}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+
+      {open && (
+        <div className="absolute top-full left-0 mt-1 z-30 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl shadow-black/50 py-1.5 min-w-[210px]">
+          {/* Active preset */}
+          <button
+            onClick={toggleActivePreset}
+            className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-slate-700/50 transition-colors text-left"
+          >
+            <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+              isActivePreset ? "bg-cyan-500 border-cyan-500 text-white" : "border-slate-600"
+            }`}>
+              {isActivePreset && <CheckIcon />}
+            </div>
+            <span className={`font-medium ${isActivePreset ? "text-cyan-300" : "text-slate-300"}`}>
+              Active Cases
+            </span>
+            <span className="ml-auto text-xs text-slate-600 whitespace-nowrap">excl. Draft & Closed</span>
+          </button>
+          <div className="border-t border-slate-700/50 mx-3 my-1" />
+
+          {/* Individual statuses */}
+          {ALL_STATUS_OPTIONS.map((s) => {
+            const checked = value.includes(s);
+            return (
+              <button
+                key={s}
+                onClick={() => toggle(s)}
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-slate-700/50 transition-colors text-left"
+              >
+                <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${
+                  checked ? "bg-cyan-500 border-cyan-500 text-white" : "border-slate-600"
+                }`}>
+                  {checked && <CheckIcon />}
+                </div>
+                <span className={checked ? "text-slate-200" : "text-slate-400"}>
+                  {STATUS_LABELS[s]}
+                </span>
+              </button>
+            );
+          })}
+
+          {value.length > 0 && (
+            <>
+              <div className="border-t border-slate-700/50 mx-3 my-1" />
+              <button
+                onClick={() => { onChange([]); setOpen(false); }}
+                className="w-full text-left px-3 py-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              >
+                Clear status filter
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // --- Bulk modals ---
 
@@ -336,7 +467,12 @@ function CasesContent() {
   const qc = useQueryClient();
   const { user } = useAuth();
 
-  const [status, setStatus] = useState(searchParams.get("status") ?? "");
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>(() => {
+    const s = searchParams.get("status");
+    if (!s) return [];
+    if (s === "active") return [...ACTIVE_STATUSES];
+    return s.split(",").filter(Boolean);
+  });
   const [priority, setPriority] = useState(searchParams.get("priority") ?? "");
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -368,19 +504,19 @@ function CasesContent() {
 
   const buildParams = useCallback((cursor?: string) => {
     const p = new URLSearchParams({ limit: "25" });
-    if (status) p.set("status", status);
+    if (selectedStatuses.length > 0) p.set("status", selectedStatuses.join(","));
     if (priority) p.set("priority", priority);
     if (slaBreached) p.set("sla_breached", "true");
     if (cursor) p.set("cursor", cursor);
     if (myCasesOnly && user?.id) p.set("assigned_to", user.id);
     return p.toString();
-  }, [status, priority, slaBreached, myCasesOnly, user?.id]);
+  }, [selectedStatuses, priority, slaBreached, myCasesOnly, user?.id]);
 
   const searchActive = debouncedSearch.trim().length >= 2;
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery<CasesPage>({
-      queryKey: ["cases", status, priority, slaBreached, myCasesOnly, user?.id],
+      queryKey: ["cases", selectedStatuses.join(","), priority, slaBreached, myCasesOnly, user?.id],
       queryFn: ({ pageParam }) =>
         api.getList<CaseRow, ListMeta>(`/api/v1/cases?${buildParams(pageParam as string | undefined)}`),
       initialPageParam: undefined,
@@ -569,15 +705,7 @@ function CasesContent() {
 
         {!searchActive && (
           <>
-            <select
-              value={status}
-              onChange={(e) => setStatus(e.target.value)}
-              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
-            >
-              {STATUSES.map((s) => (
-                <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
-              ))}
-            </select>
+            <StatusMultiSelect value={selectedStatuses} onChange={setSelectedStatuses} />
 
             <select
               value={priority}
@@ -597,9 +725,9 @@ function CasesContent() {
             <button onClick={() => setSlaBreached(false)} className="text-amber-400 hover:text-amber-200">✕</button>
           </span>
         )}
-        {(status || priority || search || myCasesOnly || slaBreached) && (
+        {(selectedStatuses.length > 0 || priority || search || myCasesOnly || slaBreached) && (
           <button
-            onClick={() => { setStatus(""); setPriority(""); setSearch(""); setMyCasesOnly(false); setSlaBreached(false); }}
+            onClick={() => { setSelectedStatuses([]); setPriority(""); setSearch(""); setMyCasesOnly(false); setSlaBreached(false); }}
             className="text-xs text-slate-500 hover:text-slate-300 px-3 py-2 border border-slate-700 rounded-lg hover:border-slate-500 transition-colors"
           >
             Clear all

@@ -30,9 +30,16 @@ const STATUS_OPTIONS = ["todo", "in_progress", "done", "cancelled"] as const;
 const VALID_TRANSITIONS: Record<string, string[]> = {
   todo:        ["in_progress", "cancelled"],
   in_progress: ["done", "cancelled"],
-  done:        [],
+  done:        ["todo"],
   cancelled:   [],
 };
+
+interface UserOption {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
 
 function relativeTime(dateStr: string): string {
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -60,7 +67,9 @@ export default function TaskDetailPage({
   const [editPriority, setEditPriority] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const [editAssignedTo, setEditAssignedTo] = useState("");
   const [editError, setEditError] = useState("");
+  const [reassigning, setReassigning] = useState(false);
 
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
@@ -69,6 +78,13 @@ export default function TaskDetailPage({
     queryKey: ["task", taskId],
     queryFn: () => api.get<Task>(`/api/v1/tasks/${taskId}`),
   });
+
+  const { data: usersData } = useQuery<{ data: UserOption[] }>({
+    queryKey: ["users-list"],
+    queryFn: () => api.get<{ data: UserOption[] }>("/api/v1/users?limit=100"),
+    staleTime: 5 * 60 * 1000,
+  });
+  const users = usersData?.data ?? [];
 
   const { data: commentsData, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery<{ data: Comment[]; meta: CommentMeta }>({
@@ -102,6 +118,15 @@ export default function TaskDetailPage({
     },
   });
 
+  const assignMutation = useMutation({
+    mutationFn: (userId: string | null) =>
+      api.put<Task>(`/api/v1/tasks/${taskId}`, userId ? { assigned_to: userId } : { clear_assigned_to: true }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["task", taskId] });
+      setReassigning(false);
+    },
+  });
+
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/api/v1/tasks/${taskId}`),
     onSuccess: () => router.push(`/cases/${caseId}/tasks`),
@@ -127,6 +152,7 @@ export default function TaskDetailPage({
     setEditPriority(task.priority);
     setEditStatus(task.status);
     setEditDueDate(task.due_date ? task.due_date.split("T")[0] : "");
+    setEditAssignedTo(task.assigned_to?.id ?? "");
     setEditError("");
     setIsEditing(true);
   }
@@ -142,6 +168,11 @@ export default function TaskDetailPage({
       body.due_date = new Date(editDueDate).toISOString();
     } else if (task?.due_date) {
       body.clear_due_date = true;
+    }
+    const prevAssignee = task?.assigned_to?.id ?? "";
+    if (editAssignedTo !== prevAssignee) {
+      if (editAssignedTo) body.assigned_to = editAssignedTo;
+      else body.clear_assigned_to = true;
     }
     updateMutation.mutate(body);
   }
@@ -238,6 +269,19 @@ export default function TaskDetailPage({
                       className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
                     />
                   </div>
+                </div>
+                <div>
+                  <label className="text-slate-500 text-xs mb-1 block">Assign To</label>
+                  <select
+                    value={editAssignedTo}
+                    onChange={(e) => setEditAssignedTo(e.target.value)}
+                    className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
+                  </select>
                 </div>
                 {editError && <p className="text-red-400 text-xs">{editError}</p>}
                 <div className="flex gap-2">
@@ -381,10 +425,40 @@ export default function TaskDetailPage({
         <div className="space-y-4">
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 space-y-4">
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Assigned To</div>
-              <div className="text-slate-200 text-sm">
-                {task.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned</span>}
-              </div>
+              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1.5">Assigned To</div>
+              {reassigning ? (
+                <div className="flex items-center gap-2">
+                  <select
+                    autoFocus
+                    defaultValue={task.assigned_to?.id ?? ""}
+                    onChange={(e) => assignMutation.mutate(e.target.value || null)}
+                    disabled={assignMutation.isPending}
+                    onBlur={() => setReassigning(false)}
+                    className="flex-1 bg-[#0f172a] border border-cyan-500 text-white rounded-lg px-2 py-1 text-xs focus:outline-none disabled:opacity-60"
+                  >
+                    <option value="">— Unassigned —</option>
+                    {users.map((u) => (
+                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                    ))}
+                  </select>
+                  <button onClick={() => setReassigning(false)} className="text-slate-500 hover:text-slate-300 text-xs">✕</button>
+                </div>
+              ) : (
+                <button
+                  onClick={() => canEdit && setReassigning(true)}
+                  className={`text-sm text-left w-full rounded px-1 py-0.5 -ml-1 transition-colors ${
+                    canEdit ? "hover:bg-slate-700/50 cursor-pointer group" : "cursor-default"
+                  }`}
+                  title={canEdit ? "Click to reassign" : undefined}
+                >
+                  {task.assigned_to?.full_name
+                    ? <span className="text-slate-200">{task.assigned_to.full_name}</span>
+                    : <span className="text-slate-600 italic">Unassigned</span>}
+                  {canEdit && (
+                    <span className="ml-1.5 text-slate-600 group-hover:text-slate-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity">✎</span>
+                  )}
+                </button>
+              )}
             </div>
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created By</div>
