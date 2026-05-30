@@ -43,50 +43,49 @@ test.describe("Case Detail", () => {
   });
 
   test("tab navigation — case detail nav bar visible", async ({ page }) => {
-    // Nav bar uses buttons, not links: "Notes →", "Tasks →", "Documents →", etc.
-    await expect(page.getByRole("button", { name: /Notes →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Tasks →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Documents →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Comms →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /AI Insights →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Timeline →/ })).toBeVisible();
+    // CaseSubNav renders inline tab buttons (no arrows)
+    await expect(page.getByRole("button", { name: /^Notes$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Tasks$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Documents$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Comms$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /AI Insights/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Timeline$/i })).toBeVisible();
   });
 
   test("tab navigation — Tasks", async ({ page }) => {
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
   });
 
   test("tab navigation — Notes", async ({ page }) => {
-    await page.getByRole("button", { name: /Notes →/ }).click();
+    await page.getByRole("button", { name: /^Notes$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/notes`));
   });
 
   test("tab navigation — Documents", async ({ page }) => {
-    await page.getByRole("button", { name: /Documents →/ }).click();
+    await page.getByRole("button", { name: /^Documents$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/documents`));
   });
 
   test("tab navigation — Timeline", async ({ page }) => {
-    await page.getByRole("button", { name: /Timeline →/ }).click();
+    await page.getByRole("button", { name: /^Timeline$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/timeline`));
     // TimelineEventCard renders EVENT_CONFIG label "Case Created" for case_created events
     await expect(page.getByText(/Case Created/i).first()).toBeVisible({ timeout: 8_000 });
   });
 
   test("tab navigation — Comms", async ({ page }) => {
-    await page.getByRole("button", { name: /Comms →/ }).click();
+    await page.getByRole("button", { name: /^Comms$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/comms`));
   });
 
   test("tab navigation — AI Insights", async ({ page }) => {
-    await page.getByRole("button", { name: /AI Insights →/ }).click();
+    await page.getByRole("button", { name: /AI Insights/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/insights`));
   });
 
   test("can create a task from the tasks tab", async ({ page }) => {
-    // Use button-click (client-side nav) to preserve auth state instead of page.goto
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
     const newTaskBtn = page.getByRole("button", { name: /New Task/i });
     await expect(newTaskBtn).toBeVisible({ timeout: 10_000 });
@@ -99,8 +98,7 @@ test.describe("Case Detail", () => {
   });
 
   test("can add a note from the notes tab", async ({ page }) => {
-    // Use button-click (client-side nav) to preserve auth state instead of page.goto
-    await page.getByRole("button", { name: /Notes →/ }).click();
+    await page.getByRole("button", { name: /^Notes$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/notes`));
     const newNoteBtn = page.getByRole("button", { name: "+ New Note" });
     await expect(newNoteBtn).toBeVisible({ timeout: 10_000 });

@@ -451,31 +451,37 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 space-y-4">
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Assigned To</div>
-              <div ref={assigneeRef} className="relative">
-                <button
-                  onClick={() => setAssigneeOpen((v) => !v)}
-                  className="text-slate-200 text-sm hover:text-cyan-400 transition-colors text-left w-full"
-                >
-                  {c.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned — click to assign</span>}
-                </button>
-                {assigneeOpen && (
-                  <div className="absolute top-7 left-0 bg-[#0f172a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
-                    <select
-                      size={5}
-                      className="w-full bg-transparent text-slate-300 text-sm px-3 py-1 focus:outline-none"
-                      onChange={(e) => e.target.value && assignMutation.mutate(e.target.value)}
-                      defaultValue=""
-                    >
-                      <option value="" disabled>Select assignee</option>
-                      {(usersData?.users ?? [])
-                        .filter((u) => ["analyst", "manager", "admin", "super_admin"].includes(u.role))
-                        .map((u) => (
-                          <option key={u.id} value={u.id}>{u.full_name}</option>
-                        ))}
-                    </select>
-                  </div>
-                )}
-              </div>
+              {user?.role === "analyst" ? (
+                <div className="text-slate-200 text-sm">
+                  {c.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned</span>}
+                </div>
+              ) : (
+                <div ref={assigneeRef} className="relative">
+                  <button
+                    onClick={() => setAssigneeOpen((v) => !v)}
+                    className="text-slate-200 text-sm hover:text-cyan-400 transition-colors text-left w-full"
+                  >
+                    {c.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned — click to assign</span>}
+                  </button>
+                  {assigneeOpen && (
+                    <div className="absolute top-7 left-0 bg-[#0f172a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
+                      <select
+                        size={5}
+                        className="w-full bg-transparent text-slate-300 text-sm px-3 py-1 focus:outline-none"
+                        onChange={(e) => e.target.value && assignMutation.mutate(e.target.value)}
+                        defaultValue=""
+                      >
+                        <option value="" disabled>Select assignee</option>
+                        {(usersData?.users ?? [])
+                          .filter((u) => ["analyst", "manager", "admin", "super_admin"].includes(u.role))
+                          .map((u) => (
+                            <option key={u.id} value={u.id}>{u.full_name}</option>
+                          ))}
+                      </select>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created By</div>

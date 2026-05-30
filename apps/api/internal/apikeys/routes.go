@@ -6,11 +6,13 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/reddybashanaguru/opsowl/internal/auth"
+	db "github.com/reddybashanaguru/opsowl/internal/db/generated"
 )
 
 func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 	r.Route("/api-keys", func(r chi.Router) {
 		r.Use(auth.JWTValidate(jwtMgr))
+		r.Use(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin))
 		r.Get("/", h.List)
 		r.Post("/", h.Create)
 		r.Delete("/{id}", h.Revoke)

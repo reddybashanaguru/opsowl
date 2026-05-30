@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useConfig } from "@/lib/hooks/useConfig";
+import { useAuth } from "@/lib/hooks/useAuth";
 import {
   LayoutGrid,
   StickyNote,
@@ -25,8 +26,10 @@ interface Props {
 export function CaseSubNav({ caseId, activeTab, action }: Props) {
   const router = useRouter();
   const cfg = useConfig();
+  const { user } = useAuth();
+  const isAnalyst = user?.role === "analyst";
 
-  const TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType }[] = [
+  const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; analystVisible?: boolean }[] = [
     { tab: "case",      label: "Case",        path: "",          Icon: LayoutGrid },
     { tab: "notes",     label: "Notes",       path: "/notes",    Icon: StickyNote },
     { tab: "tasks",     label: "Tasks",       path: "/tasks",    Icon: CheckSquare },
@@ -35,8 +38,10 @@ export function CaseSubNav({ caseId, activeTab, action }: Props) {
     { tab: "insights",  label: "AI Insights", path: "/insights", Icon: Sparkles },
     { tab: "timeline",  label: "Timeline",    path: "/timeline", Icon: Activity },
     { tab: "ai-logs",   label: "AI Logs",     path: "/ai-logs",  Icon: ScrollText },
-    { tab: "str",       label: cfg.str_label, path: "/str",      Icon: ClipboardList },
+    { tab: "str",       label: cfg.str_label, path: "/str",      Icon: ClipboardList, analystVisible: false },
   ];
+
+  const TABS = ALL_TABS.filter((t) => !isAnalyst || t.analystVisible !== false);
 
   return (
     <div className="mb-4">

@@ -3,10 +3,8 @@
 import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { api, getSseTicket } from "@/lib/api";
+import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 interface Notification {
   id: string;
@@ -116,64 +114,6 @@ export function NotificationBell() {
       qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
     },
   });
-
-  // SSE for real-time notifications.
-  // We manage reconnect ourselves (close + new ticket) so the browser's built-in
-  // EventSource retry never fires with a stale/expired token.
-  useEffect(() => {
-    if (!user) return;
-
-    let es: EventSource | null = null;
-    let retryTimer: ReturnType<typeof setTimeout> | null = null;
-    let retryDelay = 2000;
-    let destroyed = false;
-
-    function cleanup() {
-      if (retryTimer) { clearTimeout(retryTimer); retryTimer = null; }
-      if (es) { es.close(); es = null; }
-    }
-
-    async function connect() {
-      if (destroyed) return;
-      cleanup();
-      let ticket: string;
-      try {
-        ticket = await getSseTicket();
-      } catch {
-        // Can't get a ticket (session may have expired) — stop.
-        return;
-      }
-      if (destroyed) return;
-
-      const url = `${API_BASE}/api/v1/notifications/stream?token=${ticket}`;
-      es = new EventSource(url);
-
-      es.onmessage = () => {
-        qc.invalidateQueries({ queryKey: ["notifications"] });
-        qc.invalidateQueries({ queryKey: ["notif-unread-count"] });
-        retryDelay = 2000; // reset backoff on successful message
-      };
-
-      es.onerror = () => {
-        // Close immediately so the browser does NOT auto-retry with the stale URL.
-        es?.close();
-        es = null;
-        if (destroyed) return;
-        // Exponential backoff: 2s → 4s → 8s → … cap at 60s
-        retryTimer = setTimeout(() => {
-          retryDelay = Math.min(retryDelay * 2, 60_000);
-          connect();
-        }, retryDelay);
-      };
-    }
-
-    connect();
-    return () => {
-      destroyed = true;
-      cleanup();
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id]);
 
   // Close on outside click
   useEffect(() => {

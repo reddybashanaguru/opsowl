@@ -377,6 +377,7 @@ function BulkActionBar({
   onDelete,
   onClear,
   isLoading,
+  userRole,
 }: {
   count: number;
   onStatus: () => void;
@@ -384,7 +385,10 @@ function BulkActionBar({
   onDelete: () => void;
   onClear: () => void;
   isLoading: boolean;
+  userRole?: string;
 }) {
+  const isAnalyst = userRole === "analyst";
+  const canDelete = userRole === "admin" || userRole === "super_admin";
   return (
     <div
       data-testid="bulk-action-bar"
@@ -394,27 +398,33 @@ function BulkActionBar({
         {count} selected
       </span>
       <div className="w-px h-5 bg-slate-600" />
-      <button
-        onClick={onStatus}
-        disabled={isLoading}
-        className="text-slate-200 hover:text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700 transition-colors disabled:opacity-40"
-      >
-        Change Status
-      </button>
-      <button
-        onClick={onAssign}
-        disabled={isLoading}
-        className="text-slate-200 hover:text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700 transition-colors disabled:opacity-40"
-      >
-        Reassign
-      </button>
-      <button
-        onClick={onDelete}
-        disabled={isLoading}
-        className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded hover:bg-red-500/10 transition-colors disabled:opacity-40"
-      >
-        Delete
-      </button>
+      {!isAnalyst && (
+        <>
+          <button
+            onClick={onStatus}
+            disabled={isLoading}
+            className="text-slate-200 hover:text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700 transition-colors disabled:opacity-40"
+          >
+            Change Status
+          </button>
+          <button
+            onClick={onAssign}
+            disabled={isLoading}
+            className="text-slate-200 hover:text-white text-sm px-3 py-1.5 rounded hover:bg-slate-700 transition-colors disabled:opacity-40"
+          >
+            Reassign
+          </button>
+        </>
+      )}
+      {canDelete && (
+        <button
+          onClick={onDelete}
+          disabled={isLoading}
+          className="text-red-400 hover:text-red-300 text-sm px-3 py-1.5 rounded hover:bg-red-500/10 transition-colors disabled:opacity-40"
+        >
+          Delete
+        </button>
+      )}
       <div className="w-px h-5 bg-slate-600" />
       <button
         onClick={onClear}
@@ -666,12 +676,14 @@ function CasesContent() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Link
-            href="/cases/import"
-            className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium px-4 py-2 rounded-lg text-sm transition-colors"
-          >
-            ↑ Import CSV
-          </Link>
+          {(user?.role === "admin" || user?.role === "super_admin") && (
+            <Link
+              href="/cases/import"
+              className="bg-slate-700 hover:bg-slate-600 text-slate-200 font-medium px-4 py-2 rounded-lg text-sm transition-colors"
+            >
+              ↑ Import CSV
+            </Link>
+          )}
           <Link
             href="/cases/new"
             className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
@@ -935,6 +947,7 @@ function CasesContent() {
           onDelete={() => setBulkModal("delete")}
           onClear={() => setSelected(new Set())}
           isLoading={bulkPending}
+          userRole={user?.role}
         />
       )}
 
