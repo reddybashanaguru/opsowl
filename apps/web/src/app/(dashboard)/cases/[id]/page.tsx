@@ -7,6 +7,7 @@ import { api, APIError } from "@/lib/api";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CopilotPanel } from "@/components/ai/CopilotPanel";
 import { useTimelineSSE, TimelineEvent } from "@/lib/hooks/useTimelineSSE";
@@ -138,7 +139,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [statusError, setStatusError] = useState("");
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [isAnalysing, setIsAnalysing] = useState(false);
@@ -240,113 +240,65 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Row 1 — back link + action buttons */}
-      <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={() => router.push("/cases")}
-          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1"
-        >
-          ← Cases
-        </button>
-        <div className="flex items-center gap-2">
-        {/* Analyse button */}
-        <button
-          onClick={() => analyseMutation.mutate()}
-          disabled={analyseMutation.isPending || isAnalysing}
-          className="bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 border border-amber-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-          title={isAnalysing ? "AI analysis in progress…" : "Re-run AI Analysis"}
-        >
-          {(analyseMutation.isPending || isAnalysing) ? (
-            <span className="w-3 h-3 border border-amber-300 border-t-transparent rounded-full animate-spin" />
-          ) : "⚡"}
-          {isAnalysing ? "Analysing…" : "Analyse"}
-        </button>
-        <button
-          onClick={() => setCopilotOpen(true)}
-          className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors"
-          title="AI Copilot (⌘⇧A)"
-        >
-          🤖 AI Copilot
-        </button>
-        <button
-          onClick={async () => {
-            setExportingPDF(true);
-            try {
-              const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-              const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
-                credentials: "include",
-              });
-              if (!res.ok) throw new Error("Failed to generate report");
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement("a");
-              a.href = url;
-              a.download = `${c?.case_number ?? id}-report.pdf`;
-              document.body.appendChild(a);
-              a.click();
-              a.remove();
-              URL.revokeObjectURL(url);
-            } finally {
-              setExportingPDF(false);
-            }
-          }}
-          disabled={exportingPDF}
-          className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1.5"
-          title="Export PDF Report"
-        >
-          {exportingPDF ? (
-            <>
-              <span className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-              Generating…
-            </>
-          ) : "📄 Export PDF"}
-        </button>
-        </div>
-      </div>
-
-      {/* Row 2 — sub-navigation */}
-      <div className="flex items-center gap-1 mb-4 border-b border-slate-700/50 pb-2">
-        {[
-          { label: "Notes", href: `/cases/${id}/notes` },
-          { label: "Tasks", href: `/cases/${id}/tasks` },
-          { label: "Documents", href: `/cases/${id}/documents` },
-          { label: "Comms", href: `/cases/${id}/comms` },
-        ].map(({ label, href }) => (
-          <button
-            key={href}
-            onClick={() => router.push(href)}
-            className="text-slate-500 hover:text-slate-300 text-xs font-medium px-3 py-1 rounded hover:bg-slate-700/40 transition-colors"
-          >
-            {label}
-          </button>
-        ))}
-        <div className="relative">
-          <button
-            onClick={() => setMoreMenuOpen((v) => !v)}
-            className="text-slate-500 hover:text-slate-300 text-xs font-medium px-3 py-1 rounded hover:bg-slate-700/40 transition-colors flex items-center gap-1"
-          >
-            More ↓
-          </button>
-          {moreMenuOpen && (
-            <div className="absolute top-7 left-0 bg-[#1e293b] border border-slate-700 rounded-lg shadow-xl z-20 min-w-[140px] py-1">
-              {[
-                { label: "AI Insights", href: `/cases/${id}/insights` },
-                { label: "Timeline", href: `/cases/${id}/timeline` },
-                { label: "AI Logs", href: `/cases/${id}/ai-logs` },
-                { label: "STR", href: `/cases/${id}/str` },
-              ].map(({ label, href }) => (
-                <button
-                  key={href}
-                  onClick={() => { router.push(href); setMoreMenuOpen(false); }}
-                  className="w-full text-left px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700/50 transition-colors"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+      <CaseSubNav
+        caseId={id}
+        activeTab="case"
+        action={
+          <>
+            <button
+              onClick={() => analyseMutation.mutate()}
+              disabled={analyseMutation.isPending || isAnalysing}
+              className="bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 border border-amber-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+              title={isAnalysing ? "AI analysis in progress…" : "Re-run AI Analysis"}
+            >
+              {(analyseMutation.isPending || isAnalysing) ? (
+                <span className="w-3 h-3 border border-amber-300 border-t-transparent rounded-full animate-spin" />
+              ) : "⚡"}
+              {isAnalysing ? "Analysing…" : "Analyse"}
+            </button>
+            <button
+              onClick={() => setCopilotOpen(true)}
+              className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors"
+              title="AI Copilot (⌘⇧A)"
+            >
+              🤖 AI Copilot
+            </button>
+            <button
+              onClick={async () => {
+                setExportingPDF(true);
+                try {
+                  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+                  const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
+                    credentials: "include",
+                  });
+                  if (!res.ok) throw new Error("Failed to generate report");
+                  const blob = await res.blob();
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a");
+                  a.href = url;
+                  a.download = `${c?.case_number ?? id}-report.pdf`;
+                  document.body.appendChild(a);
+                  a.click();
+                  a.remove();
+                  URL.revokeObjectURL(url);
+                } finally {
+                  setExportingPDF(false);
+                }
+              }}
+              disabled={exportingPDF}
+              className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1.5"
+              title="Export PDF Report"
+            >
+              {exportingPDF ? (
+                <>
+                  <span className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                  Generating…
+                </>
+              ) : "📄 Export PDF"}
+            </button>
+          </>
+        }
+      />
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">

@@ -199,7 +199,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6 max-w-5xl mx-auto">
       <CaseSubNav
         caseId={id}
         activeTab="comms"

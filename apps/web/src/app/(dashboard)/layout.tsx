@@ -31,7 +31,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: cfg.sla_label + " Policies", href: "/sla", icon: "◷" },
     { label: "Inbound", href: "/settings/inbound", icon: "⇣" },
     { label: "Webhooks", href: "/settings/webhooks", icon: "⇥" },
-    { label: "Reports", href: "/settings/reports", icon: "✉" },
+    { label: "Reports", href: "/settings/reports", icon: "⊞" },
     { label: "Templates", href: "/settings/templates", icon: "◫" },
     { label: "API Keys", href: "/settings/api-keys", icon: "⌗" },
     { label: "Assignment Rules", href: "/settings/assignment-rules", icon: "⇢" },

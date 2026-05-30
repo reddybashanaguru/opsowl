@@ -259,7 +259,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <StatCard label="Active Cases"   value={stats?.open_cases}        color="text-cyan-400"   href="/cases?status=active"   sub="open + in-progress" />
         <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"}   sub="todo + in-progress" />
-        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}`} sub="assigned to me" />
+        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"    href={`/cases?assigned_to=${user?.id}&status=active`} sub="assigned to me" />
         <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="active cases" />
       </div>
 
@@ -367,7 +367,7 @@ export default function DashboardPage() {
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">My Queue</div>
-          <Link href={`/cases?assigned_to=${user?.id}`} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
+          <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
         </div>
         {!myQueue ? (
           <div className="space-y-2">
