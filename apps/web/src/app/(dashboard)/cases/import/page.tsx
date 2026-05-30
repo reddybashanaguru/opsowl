@@ -394,6 +394,7 @@ function ProgressStep({ initialJob }: { initialJob: ImportJob }) {
 type Step = "upload" | "mapping" | "progress";
 
 export default function CaseImportPage() {
+  const router = useRouter();
   const [step, setStep]       = useState<Step>("upload");
   const [file, setFile]       = useState<File | null>(null);
   const [preview, setPreview] = useState<ParsePreview | null>(null);
@@ -406,6 +407,15 @@ export default function CaseImportPage() {
     <div className="space-y-8 max-w-3xl">
       {/* Header */}
       <div>
+        <button
+          onClick={() => router.push("/cases")}
+          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1.5 mb-3 transition-colors"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          </svg>
+          Cases
+        </button>
         <h1 className="text-lg font-semibold text-slate-100">Bulk Case Import</h1>
         <p className="text-sm text-slate-400 mt-0.5">
           Upload a CSV of flagged entities to create investigation cases in bulk.
