@@ -152,6 +152,86 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	return resp, nil
 }
 
+// CreateAuto creates a case on behalf of the system (alert automation, no user JWT).
+// createdBy should be the org admin UUID or the system sentinel UUID.
+func (s *Service) CreateAuto(ctx context.Context, createdBy uuid.UUID, req CreateCaseRequest) (*CaseResponse, error) {
+	tags := req.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	for i, t := range tags {
+		tags[i] = strings.ToLower(strings.TrimSpace(t))
+		if _, err := s.repo.UpsertTag(ctx, tags[i]); err != nil {
+			return nil, err
+		}
+	}
+
+	assignedTo := uuid.NullUUID{}
+	if req.AssignedTo != nil {
+		assignedTo = uuid.NullUUID{UUID: *req.AssignedTo, Valid: true}
+	} else if s.assignEng != nil {
+		if autoUser, err := s.assignEng.Evaluate(ctx, AssignmentInput{Priority: string(req.Priority)}); err == nil && autoUser != uuid.Nil {
+			assignedTo = uuid.NullUUID{UUID: autoUser, Valid: true}
+		}
+	}
+
+	c, err := s.repo.Create(ctx, db.CreateCaseParams{
+		Title:          req.Title,
+		Description:    req.Description,
+		Status:         db.CaseStatusOpen,
+		Priority:       req.Priority,
+		AssignedTo:     assignedTo,
+		CreatedBy:      createdBy,
+		OrganizationID: DefaultOrgID,
+		DueDate:        nullTimeFromPtr(req.DueDate),
+		SlaBreachAt:    sql.NullTime{},
+		Tags:           tags,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	if req.CaseType != "" {
+		s.sqlDB.ExecContext(ctx, `UPDATE cases SET case_type = $1 WHERE id = $2`, req.CaseType, c.ID) //nolint:errcheck
+	}
+
+	caseID, caseTitle, casePriority, caseNumber, caseCreatedAt := c.ID, c.Title, c.Priority, c.CaseNumber, c.CreatedAt
+	actor := createdBy
+	worker.TrySubmit(func() {
+		s.repo.CreateActivity(context.Background(), caseID, actor, "case_created", map[string]interface{}{ //nolint:errcheck
+			"title":    caseTitle,
+			"priority": casePriority,
+			"source":   "alert_automation",
+		})
+	})
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     caseID,
+			EventType:  db.TimelineEventTypeCaseCreated,
+			Source:     db.TimelineEventSourceSystem,
+			ActorID:    &actor,
+			OccurredAt: caseCreatedAt,
+			Payload: map[string]any{
+				"case_number": caseNumber,
+				"title":       caseTitle,
+				"priority":    string(casePriority),
+				"source":      "alert_automation",
+			},
+		})
+	})
+
+	if s.playbookApplier != nil && req.CaseType != "" {
+		caseType := req.CaseType
+		worker.TrySubmit(func() {
+			s.playbookApplier.ApplyToCase(context.Background(), caseID, actor, caseType, caseCreatedAt) //nolint:errcheck
+		})
+	}
+
+	resp := s.toCaseResponse(c, "", "", nil, nil, nil)
+	resp.CaseType = req.CaseType
+	return resp, nil
+}
+
 func (s *Service) Get(ctx context.Context, id, orgID uuid.UUID) (*CaseResponse, error) {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {

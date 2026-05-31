@@ -21,6 +21,10 @@ import {
   Archive,
   Settings,
   BookOpen,
+  BellRing,
+  UserSearch,
+  Plug,
+  Filter,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -63,6 +67,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: cfg.cases_label,        href: "/cases",      icon: FolderKanban },
     { label: cfg.tasks_label,        href: "/tasks",      icon: CheckSquare },
     { label: cfg.documents_label,    href: "/documents",  icon: FileText },
+    { label: "Alert Queue",          href: "/alerts",     icon: BellRing },
+    { label: "Subjects",             href: "/subjects",   icon: UserSearch },
     { label: "Search",               href: "/search",     icon: Search },
   ];
 
@@ -80,6 +86,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Templates",            href: "/settings/templates",         icon: LayoutTemplate },
     { label: "Playbooks",            href: "/settings/playbooks",         icon: BookOpen },
     { label: "API Keys",             href: "/settings/api-keys",          icon: KeyRound },
+    { label: "Alert Sources",         href: "/settings/alert-sources",     icon: Plug },
+    { label: "Alert Rules",          href: "/settings/alert-rules",       icon: Filter },
     { label: "Auto-Assignment",      href: "/settings/assignment-rules",  icon: Shuffle },
     { label: "Data Retention",       href: "/settings/retention",         icon: Archive },
     { label: "Settings",             href: "/settings",                   icon: Settings, exact: true },

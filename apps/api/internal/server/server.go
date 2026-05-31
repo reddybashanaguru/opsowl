@@ -17,6 +17,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
+	"github.com/reddybashanaguru/opsowl/internal/alerts"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/apikeys"
 	"github.com/reddybashanaguru/opsowl/internal/assignment"
@@ -43,6 +44,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/search"
 	"github.com/reddybashanaguru/opsowl/internal/sla"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
+	"github.com/reddybashanaguru/opsowl/internal/subjects"
 	"github.com/reddybashanaguru/opsowl/internal/tasks"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 	"github.com/reddybashanaguru/opsowl/internal/csvimport"
@@ -322,6 +324,20 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		playbooks.RegisterRoutes(r, playbooksHandler, s.jwtMgr)
 		casesSvc.WithPlaybookApplier(playbooksSvc)
 
+		// Subject 360 — entity identity directory (P9-3)
+		subjectsRepo := subjects.NewRepository(s.sqlDB)
+		subjectsSvc := subjects.NewService(subjectsRepo)
+		subjectsHandler := subjects.NewHandler(subjectsSvc)
+		subjects.RegisterRoutes(r, subjectsHandler, s.jwtMgr)
+
+		// Alert ingestion + routing automation (P9-2)
+		alertsRepo := alerts.NewRepository(s.sqlDB)
+		alertsSvc := alerts.NewService(alertsRepo).
+			WithCaseCreator(alertCaseCreatorAdapter{casesSvc}).
+			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc})
+		alertsHandler := alerts.NewHandler(alertsSvc)
+		alerts.RegisterRoutes(r, alertsHandler, s.jwtMgr)
+
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)
 		apikeys.RegisterRoutes(r, apiKeysHandler, s.jwtMgr)
@@ -398,4 +414,50 @@ func (a assignEngineAdapter) Evaluate(ctx context.Context, input cases.Assignmen
 		Priority: input.Priority,
 		SourceID: input.SourceID,
 	})
+}
+
+// alertCaseCreatorAdapter bridges alerts.CaseCreator to cases.Service.CreateAuto.
+type alertCaseCreatorAdapter struct {
+	svc *cases.Service
+}
+
+var systemCreatorID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+
+func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.AlertCaseParams) (uuid.UUID, string, error) {
+	req := cases.CreateCaseRequest{
+		Title:       p.Title,
+		Description: p.Description,
+		Priority:    db.CasePriority(p.Priority),
+		Tags:        p.Tags,
+		AssignedTo:  p.AssignTo,
+		CaseType:    p.CaseType,
+	}
+	if req.Priority == "" {
+		req.Priority = db.CasePriorityMedium
+	}
+	c, err := a.svc.CreateAuto(ctx, systemCreatorID, req)
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	return c.ID, c.CaseNumber, nil
+}
+
+// alertSubjectResolverAdapter bridges alerts.SubjectResolver to subjects.Service.
+type alertSubjectResolverAdapter struct {
+	svc *subjects.Service
+}
+
+var systemClaims = &auth.Claims{UserID: systemCreatorID}
+
+func (a alertSubjectResolverAdapter) ResolveOrCreate(ctx context.Context, idType, idNumber, name string) (uuid.UUID, error) {
+	sub, _, err := a.svc.ResolveOrCreate(ctx, systemClaims, subjects.CreateSubjectRequest{
+		CanonicalName: name,
+		IDType:        idType,
+		IDNumber:      idNumber,
+		EntityType:    "individual",
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return sub.ID, nil
 }
