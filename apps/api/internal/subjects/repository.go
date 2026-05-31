@@ -38,6 +38,12 @@ func (r *Repository) Create(ctx context.Context, orgID, createdBy uuid.UUID, req
 	if entityType == "" {
 		entityType = "individual"
 	}
+	if req.Phones == nil {
+		req.Phones = []string{}
+	}
+	if req.Emails == nil {
+		req.Emails = []string{}
+	}
 
 	var dob *string
 	if req.DateOfBirth != nil && *req.DateOfBirth != "" {

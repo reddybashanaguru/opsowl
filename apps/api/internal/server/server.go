@@ -334,7 +334,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		sysUserID := resolveSystemUser(ctx, s.sqlDB)
 		alertsRepo := alerts.NewRepository(s.sqlDB)
 		alertsSvc := alerts.NewService(alertsRepo).
-			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, sysUserID}).
+			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, subjectsSvc, sysUserID}).
 			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID})
 		alertsHandler := alerts.NewHandler(alertsSvc)
 		alerts.RegisterRoutes(r, alertsHandler, s.jwtMgr)
@@ -433,6 +433,7 @@ func resolveSystemUser(ctx context.Context, db *sql.DB) uuid.UUID {
 // alertCaseCreatorAdapter bridges alerts.CaseCreator to cases.Service.CreateAuto.
 type alertCaseCreatorAdapter struct {
 	svc           *cases.Service
+	subjectSvc    *subjects.Service
 	systemCreator uuid.UUID
 }
 
@@ -451,6 +452,11 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 	c, err := a.svc.CreateAuto(ctx, a.systemCreator, req)
 	if err != nil {
 		return uuid.Nil, "", err
+	}
+	// Link subject to the auto-created case (best-effort)
+	if p.SubjectID != nil {
+		claims := &auth.Claims{UserID: a.systemCreator}
+		_ = a.subjectSvc.LinkToCase(ctx, claims, c.ID, *p.SubjectID, "primary")
 	}
 	return c.ID, c.CaseNumber, nil
 }
