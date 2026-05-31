@@ -331,10 +331,11 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		subjects.RegisterRoutes(r, subjectsHandler, s.jwtMgr)
 
 		// Alert ingestion + routing automation (P9-2)
+		sysUserID := resolveSystemUser(ctx, s.sqlDB)
 		alertsRepo := alerts.NewRepository(s.sqlDB)
 		alertsSvc := alerts.NewService(alertsRepo).
-			WithCaseCreator(alertCaseCreatorAdapter{casesSvc}).
-			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc})
+			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, sysUserID}).
+			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID})
 		alertsHandler := alerts.NewHandler(alertsSvc)
 		alerts.RegisterRoutes(r, alertsHandler, s.jwtMgr)
 
@@ -416,12 +417,24 @@ func (a assignEngineAdapter) Evaluate(ctx context.Context, input cases.Assignmen
 	})
 }
 
-// alertCaseCreatorAdapter bridges alerts.CaseCreator to cases.Service.CreateAuto.
-type alertCaseCreatorAdapter struct {
-	svc *cases.Service
+// resolveSystemUser returns the UUID of the first super_admin/admin user in the DB.
+// Used as the "created_by" actor for system-generated cases (alert automation).
+// Falls back to a zero UUID if no admin exists yet; FK violation will be caught at runtime.
+func resolveSystemUser(ctx context.Context, db *sql.DB) uuid.UUID {
+	var id uuid.UUID
+	row := db.QueryRowContext(ctx,
+		`SELECT id FROM users WHERE role IN ('super_admin','admin') ORDER BY created_at LIMIT 1`)
+	if err := row.Scan(&id); err != nil {
+		return uuid.Nil
+	}
+	return id
 }
 
-var systemCreatorID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
+// alertCaseCreatorAdapter bridges alerts.CaseCreator to cases.Service.CreateAuto.
+type alertCaseCreatorAdapter struct {
+	svc           *cases.Service
+	systemCreator uuid.UUID
+}
 
 func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.AlertCaseParams) (uuid.UUID, string, error) {
 	req := cases.CreateCaseRequest{
@@ -435,7 +448,7 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 	if req.Priority == "" {
 		req.Priority = db.CasePriorityMedium
 	}
-	c, err := a.svc.CreateAuto(ctx, systemCreatorID, req)
+	c, err := a.svc.CreateAuto(ctx, a.systemCreator, req)
 	if err != nil {
 		return uuid.Nil, "", err
 	}
@@ -444,13 +457,13 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 
 // alertSubjectResolverAdapter bridges alerts.SubjectResolver to subjects.Service.
 type alertSubjectResolverAdapter struct {
-	svc *subjects.Service
+	svc           *subjects.Service
+	systemCreator uuid.UUID
 }
 
-var systemClaims = &auth.Claims{UserID: systemCreatorID}
-
 func (a alertSubjectResolverAdapter) ResolveOrCreate(ctx context.Context, idType, idNumber, name string) (uuid.UUID, error) {
-	sub, _, err := a.svc.ResolveOrCreate(ctx, systemClaims, subjects.CreateSubjectRequest{
+	claims := &auth.Claims{UserID: a.systemCreator}
+	sub, _, err := a.svc.ResolveOrCreate(ctx, claims, subjects.CreateSubjectRequest{
 		CanonicalName: name,
 		IDType:        idType,
 		IDNumber:      idNumber,

@@ -316,7 +316,7 @@ WHERE org_id=$1
   AND subject_id_type=$2 AND subject_id_number=$3
   AND alert_type=$4
   AND status NOT IN ('dismissed')
-  AND created_at > NOW() - ($5 || ' hours')::INTERVAL
+  AND created_at > NOW() - make_interval(hours => $5)
 ORDER BY created_at DESC LIMIT 1`,
 		orgID, idType, idNumber, alertType, windowHours,
 	).Scan(&a.ID, &a.AlertType, &a.RiskScore, &a.RiskLevel, &a.SubjectName, &a.Status, &linkedCaseID, &a.CreatedAt)
