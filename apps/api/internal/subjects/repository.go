@@ -310,7 +310,7 @@ func (r *Repository) LinkToCase(ctx context.Context, caseID, subjectID, linkedBy
             total_cases = (SELECT COUNT(*) FROM case_subjects WHERE subject_id = $1),
             open_cases  = (SELECT COUNT(*) FROM case_subjects cs
                            JOIN cases c ON c.id = cs.case_id
-                           WHERE cs.subject_id = $1 AND c.status NOT IN ('closed','cancelled') AND c.deleted_at IS NULL)
+                           WHERE cs.subject_id = $1 AND c.status NOT IN ('closed') AND c.deleted_at IS NULL)
          WHERE id = $1`, subjectID)
 	return nil
 }
@@ -330,7 +330,7 @@ func (r *Repository) UnlinkFromCase(ctx context.Context, caseID, subjectID uuid.
             total_cases = (SELECT COUNT(*) FROM case_subjects WHERE subject_id = $1),
             open_cases  = (SELECT COUNT(*) FROM case_subjects cs
                            JOIN cases c ON c.id = cs.case_id
-                           WHERE cs.subject_id = $1 AND c.status NOT IN ('closed','cancelled') AND c.deleted_at IS NULL)
+                           WHERE cs.subject_id = $1 AND c.status NOT IN ('closed') AND c.deleted_at IS NULL)
          WHERE id = $1`, subjectID)
 	return nil
 }
