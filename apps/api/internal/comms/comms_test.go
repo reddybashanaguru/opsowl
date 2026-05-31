@@ -24,6 +24,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/comms"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
 func testDB(t *testing.T) (*sql.DB, func()) {
@@ -129,7 +130,7 @@ func setupRouter(t *testing.T, db *sql.DB, aiURL string) (*chi.Mux, *auth.JWTMan
 
 	q := dbgen.New(db)
 	logger := zap.NewNop()
-	svc := comms.NewService(q, aiURL, logger)
+	svc := comms.NewService(q, aiURL, logger, timeline.NoopEmitter{})
 	h := comms.NewHandler(svc)
 
 	r := chi.NewRouter()

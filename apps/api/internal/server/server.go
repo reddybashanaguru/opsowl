@@ -18,6 +18,7 @@ import (
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/alerts"
+	"github.com/reddybashanaguru/opsowl/internal/entity_graph"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/apikeys"
 	"github.com/reddybashanaguru/opsowl/internal/assignment"
@@ -338,6 +339,9 @@ func (s *Server) setupRoutes(ctx context.Context) {
 			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID})
 		alertsHandler := alerts.NewHandler(alertsSvc)
 		alerts.RegisterRoutes(r, alertsHandler, s.jwtMgr)
+
+		// Connected entity graph (P9-1)
+		entity_graph.RegisterRoutes(r, s.sqlDB, s.jwtMgr)
 
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)

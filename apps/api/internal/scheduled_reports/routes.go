@@ -9,7 +9,7 @@ import (
 func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 	r.Route("/report-schedules", func(r chi.Router) {
 		r.Use(auth.JWTValidate(jwtMgr))
-		r.Use(auth.RequireRole(db.UserRoleAdmin, db.UserRoleSuperAdmin))
+		r.Use(auth.RequireRole(db.UserRoleManager, db.UserRoleAdmin, db.UserRoleSuperAdmin))
 
 		r.Get("/", h.List)
 		r.Post("/", h.Create)

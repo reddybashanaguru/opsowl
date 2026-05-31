@@ -52,6 +52,7 @@ type Service struct {
 }
 
 func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
+	repo.WithDB(sqlDB)
 	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter}
 }
 
