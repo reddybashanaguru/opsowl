@@ -87,10 +87,8 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
     await expect(page.getByRole("button", { name: /Tasks →/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Documents →/ })).toBeVisible();
     await expect(page.getByRole("button", { name: "AI Logs →" })).toBeVisible();
-    // Verify timeline cross-nav button navigates correctly (label varies per workspace config)
-    // Scope to main content to avoid matching sidebar's "Sign out →" button
-    const mainContent = page.locator("main");
-    const timelineCrossNav = mainContent.getByRole("button").filter({ hasText: /→/ }).first();
+    // Verify Timeline → tab navigates correctly
+    const timelineCrossNav = page.getByRole("button", { name: /Timeline →/i });
     await timelineCrossNav.click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/timeline`));
   });

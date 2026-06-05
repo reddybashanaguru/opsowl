@@ -24,9 +24,9 @@ interface SubjectRow {
   created_at: string;
 }
 
-interface SubjectsPage {
-  subjects: SubjectRow[];
+interface SubjectsMeta {
   total: number;
+  has_more: boolean;
 }
 
 const RISK_COLORS: Record<string, string> = {
@@ -50,20 +50,20 @@ export default function SubjectsPage() {
   const [offset, setOffset] = useState(0);
   const LIMIT = 25;
 
-  const { data, isFetching } = useQuery<SubjectsPage>({
+  const { data, isFetching } = useQuery<{ data: SubjectRow[]; meta: SubjectsMeta }>({
     queryKey: ["subjects", search, riskFilter, entityFilter, offset],
     queryFn: () => {
       const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
       if (search.trim())  params.set("q", search.trim());
       if (riskFilter)     params.set("risk_level", riskFilter);
       if (entityFilter)   params.set("entity_type", entityFilter);
-      return api.get<SubjectsPage>(`/api/v1/subjects?${params}`);
+      return api.getList<SubjectRow, SubjectsMeta>(`/api/v1/subjects?${params}`);
     },
     refetchInterval: 60_000,
   });
 
-  const subjects = data?.subjects ?? [];
-  const total    = data?.total ?? 0;
+  const subjects = data?.data ?? [];
+  const total    = data?.meta?.total ?? 0;
 
   return (
     <div className="p-6 max-w-7xl mx-auto">

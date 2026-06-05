@@ -57,9 +57,10 @@ type NormalisedAlert struct {
 
 type CreateSourceRequest struct {
 	Name          string `json:"name"`
-	SourceType    string `json:"source_type"`   // webhook, manual, csv
-	SourceSystem  string `json:"source_system"` // actimize, sas_aml, oracle_fccm, featurespace, generic
+	SourceType    string `json:"source_type"`    // webhook, manual, csv
+	SourceSystem  string `json:"source_system"`  // actimize, sas_aml, oracle_fccm, featurespace, generic
 	Description   string `json:"description"`
+	WebhookSecret string `json:"webhook_secret"` // if non-empty, HMAC-SHA256 enforcement is enabled
 }
 
 type UpdateSourceRequest struct {

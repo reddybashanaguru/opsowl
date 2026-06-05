@@ -25,7 +25,7 @@ func NewRepository(db *sql.DB) *Repository {
 // ── Alert Sources ─────────────────────────────────────────────────────────────
 
 func (r *Repository) CreateSource(ctx context.Context, orgID, createdBy uuid.UUID, req CreateSourceRequest) (*AlertSourceResponse, error) {
-	secret := generateSecret()
+	secret := req.WebhookSecret // empty string = no HMAC enforcement
 	var src AlertSourceResponse
 	err := r.db.QueryRowContext(ctx, `
 INSERT INTO alert_sources (org_id, name, source_type, source_system, webhook_secret, description, created_by)
@@ -126,6 +126,9 @@ func (r *Repository) CreateRule(ctx context.Context, orgID, createdBy uuid.UUID,
 	}
 	if req.Mode == "" {
 		req.Mode = "queue"
+	}
+	if req.Tags == nil {
+		req.Tags = []string{}
 	}
 	var rule AlertRuleResponse
 	err := r.db.QueryRowContext(ctx, `
@@ -355,33 +358,33 @@ func (r *Repository) List(ctx context.Context, orgID uuid.UUID, f AlertListFilte
 		f.Limit = 25
 	}
 	args := []any{orgID}
-	where := []string{"org_id = $1"}
+	where := []string{"ia.org_id = $1"}
 	n := 2
 
 	if f.Status != "" {
-		where = append(where, fmt.Sprintf("status = $%d", n))
+		where = append(where, fmt.Sprintf("ia.status = $%d", n))
 		args = append(args, f.Status)
 		n++
 	}
 	if f.AlertType != "" {
-		where = append(where, fmt.Sprintf("alert_type = $%d", n))
+		where = append(where, fmt.Sprintf("ia.alert_type = $%d", n))
 		args = append(args, f.AlertType)
 		n++
 	}
 	if f.RiskLevel != "" {
-		where = append(where, fmt.Sprintf("risk_level = $%d", n))
+		where = append(where, fmt.Sprintf("ia.risk_level = $%d", n))
 		args = append(args, f.RiskLevel)
 		n++
 	}
 	if f.SourceID != nil {
-		where = append(where, fmt.Sprintf("source_id = $%d", n))
+		where = append(where, fmt.Sprintf("ia.source_id = $%d", n))
 		args = append(args, *f.SourceID)
 		n++
 	}
 
 	cond := strings.Join(where, " AND ")
 	var total int64
-	if err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM incoming_alerts WHERE "+cond, args...).Scan(&total); err != nil {
+	if err := r.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM incoming_alerts ia LEFT JOIN cases c ON c.id = ia.linked_case_id WHERE `+cond, args...).Scan(&total); err != nil {
 		return nil, 0, err
 	}
 

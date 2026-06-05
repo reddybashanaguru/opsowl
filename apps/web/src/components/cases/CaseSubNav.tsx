@@ -21,42 +21,65 @@ interface Props {
   caseId: string;
   activeTab: Tab;
   action?: React.ReactNode;
+  caseNumber?: string;
 }
 
-export function CaseSubNav({ caseId, activeTab, action }: Props) {
+// Subpages where back goes to case detail (not the cases list)
+const BACK_TO_CASE = new Set<Tab>(["notes", "timeline", "comms", "insights", "ai-logs", "str"]);
+
+export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
   const router = useRouter();
   const cfg = useConfig();
   const { user } = useAuth();
   const ROLE_HIERARCHY: Record<string, number> = { super_admin: 5, admin: 4, manager: 3, analyst: 2, viewer: 1 };
   const userLevel = ROLE_HIERARCHY[user?.role ?? "viewer"] ?? 0;
 
+  const backLabel = BACK_TO_CASE.has(activeTab) ? "← Case" : "← Cases";
+  const backHref  = BACK_TO_CASE.has(activeTab) ? `/cases/${caseId}` : "/cases";
+
+  // Breadcrumb button shown between back link and tabs on subpages
+  const breadcrumbLabel =
+    activeTab === "tasks"     ? (caseNumber ?? null) :
+    activeTab === "documents" ? cfg.case_label :
+    null;
+
   const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; minLevel?: number }[] = [
-    { tab: "case",      label: "Case",        path: "",          Icon: LayoutGrid },
-    { tab: "notes",     label: "Notes",       path: "/notes",    Icon: StickyNote },
-    { tab: "tasks",     label: "Tasks",       path: "/tasks",    Icon: CheckSquare },
-    { tab: "documents", label: "Documents",   path: "/documents", Icon: FileText },
-    { tab: "comms",     label: "Comms",       path: "/comms",    Icon: MessageSquare },
-    { tab: "insights",  label: "AI Insights", path: "/insights", Icon: Sparkles },
-    { tab: "timeline",  label: "Timeline",    path: "/timeline", Icon: Activity },
-    { tab: "ai-logs",   label: "AI Logs",     path: "/ai-logs",  Icon: ScrollText },
-    { tab: "str",       label: cfg.str_label, path: "/str",      Icon: ClipboardList, minLevel: 3 },
+    { tab: "case",      label: "Case",              path: "",          Icon: LayoutGrid },
+    { tab: "notes",     label: "Notes →",           path: "/notes",    Icon: StickyNote },
+    { tab: "tasks",     label: "Tasks →",           path: "/tasks",    Icon: CheckSquare },
+    { tab: "documents", label: "Documents →",       path: "/documents", Icon: FileText },
+    { tab: "comms",     label: "Comms →",           path: "/comms",    Icon: MessageSquare },
+    { tab: "insights",  label: "AI Insights →",     path: "/insights", Icon: Sparkles },
+    { tab: "timeline",  label: "Timeline →",        path: "/timeline", Icon: Activity },
+    { tab: "ai-logs",   label: "AI Logs →",         path: "/ai-logs",  Icon: ScrollText },
+    { tab: "str",       label: `${cfg.str_label} →`, path: "/str",     Icon: ClipboardList, minLevel: 3 },
   ];
 
   const TABS = ALL_TABS.filter((t) => userLevel >= (t.minLevel ?? 0));
 
   return (
     <div className="mb-4">
-      {/* Row 1: back + action */}
+      {/* Row 1: back breadcrumb + action */}
       <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={() => router.push("/cases")}
-          className="text-slate-400 hover:text-slate-200 text-sm flex items-center gap-1.5 transition-colors"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
-          </svg>
-          Cases
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => router.push(backHref)}
+            className="text-slate-400 hover:text-slate-200 text-sm transition-colors"
+          >
+            {backLabel}
+          </button>
+          {breadcrumbLabel && (
+            <>
+              <span className="text-slate-600 text-xs">/</span>
+              <button
+                onClick={() => router.push(`/cases/${caseId}`)}
+                className="text-slate-400 hover:text-slate-200 text-sm transition-colors"
+              >
+                {breadcrumbLabel}
+              </button>
+            </>
+          )}
+        </div>
         {action && <div className="flex items-center gap-2">{action}</div>}
       </div>
 

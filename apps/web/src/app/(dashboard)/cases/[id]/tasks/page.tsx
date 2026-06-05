@@ -225,7 +225,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   if (isError) {
     return (
       <div className="p-6">
-        <CaseSubNav caseId={caseId} activeTab="tasks" />
+        <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
         <PageError error={error as Error | null} onRetry={() => refetch()} />
       </div>
     );
@@ -233,7 +233,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="p-6">
-      <CaseSubNav caseId={caseId} activeTab="tasks" />
+      <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

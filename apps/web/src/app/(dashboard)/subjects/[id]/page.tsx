@@ -266,7 +266,7 @@ function AddRelationshipModal({
 
   const { data: searchData } = useQuery<{ data: SubjectDetail[] }>({
     queryKey: ["subject-search", search],
-    queryFn: () => api.get<any>(`/api/v1/subjects?search=${encodeURIComponent(search)}&limit=8`),
+    queryFn: () => api.get<any>(`/api/v1/subjects?q=${encodeURIComponent(search)}&limit=8`),
     enabled: search.length >= 2,
   });
 
@@ -278,7 +278,7 @@ function AddRelationshipModal({
     onError: (err: any) => setError(err.message || "Failed to create relationship"),
   });
 
-  const results = (searchData as any)?.data ?? [];
+  const results = Array.isArray(searchData) ? searchData : [];
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
