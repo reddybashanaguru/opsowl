@@ -1,0 +1,211 @@
+name: Release — Build & Publish Images
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*.*.*"]
+
+# Cancel in-progress publish runs on the same branch so rapid pushes don't queue up.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  OWNER: ${{ github.repository_owner }}
+
+jobs:
+  # ── Go API ────────────────────────────────────────────────────────────────────
+  publish-api:
+    name: Publish — API
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/opsowl-api
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=OpsOwl API
+            org.opencontainers.image.description=OpsOwl AI — Go investigation platform API server
+            org.opencontainers.image.vendor=OpsOwl Technologies
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/api
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=api
+          cache-to: type=gha,scope=api,mode=max
+
+  # ── Next.js Web ───────────────────────────────────────────────────────────────
+  publish-web:
+    name: Publish — Web
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/opsowl-web
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=OpsOwl Web
+            org.opencontainers.image.description=OpsOwl AI — Next.js investigation workspace UI
+            org.opencontainers.image.vendor=OpsOwl Technologies
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/web
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=web
+          cache-to: type=gha,scope=web,mode=max
+
+  # ── Python AI Service ─────────────────────────────────────────────────────────
+  publish-ai-service:
+    name: Publish — AI Service
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.OWNER }}/opsowl-ai-service
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.title=OpsOwl AI Service
+            org.opencontainers.image.description=OpsOwl AI — Python AI inference and document intelligence service
+            org.opencontainers.image.vendor=OpsOwl Technologies
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: apps/ai-service
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha,scope=ai-service
+          cache-to: type=gha,scope=ai-service,mode=max
+
+  # ── Tag release in GitHub (version tags only) ─────────────────────────────────
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [publish-api, publish-web, publish-ai-service]
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate changelog from commits
+        id: changelog
+        run: |
+          PREV_TAG=$(git tag --sort=-version:refname | sed -n '2p')
+          if [ -n "$PREV_TAG" ]; then
+            CHANGES=$(git log ${PREV_TAG}..HEAD --oneline --no-merges | head -40)
+          else
+            CHANGES=$(git log --oneline --no-merges | head -40)
+          fi
+          echo "changes<<CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+          echo "$CHANGES" >> "$GITHUB_OUTPUT"
+          echo "CHANGELOG_EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: false
+          body: |
+            ## OpsOwl AI ${{ github.ref_name }}
+
+            ### Docker Images
+
+            Pull the images directly:
+            ```bash
+            docker pull ghcr.io/${{ github.repository_owner }}/opsowl-api:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/opsowl-web:${{ github.ref_name }}
+            docker pull ghcr.io/${{ github.repository_owner }}/opsowl-ai-service:${{ github.ref_name }}
+            ```
+
+            ### Install on your server
+
+            ```bash
+            # Set version in .env, then run:
+            OPSOWL_VERSION=${{ github.ref_name }} bash install.sh
+            ```
+
+            ### Changes since previous release
+
+            ${{ steps.changelog.outputs.changes }}

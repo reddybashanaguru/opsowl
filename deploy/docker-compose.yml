@@ -129,7 +129,7 @@ services:
 
   # ── Python AI Service ─────────────────────────────────────────────────────────
   ai-service:
-    image: ghcr.io/opsowl/ai-service:${OPSOWL_VERSION:-latest}
+    image: ghcr.io/reddybashanaguru/opsowl-ai-service:${OPSOWL_VERSION:-latest}
     container_name: opsowl-ai
     restart: unless-stopped
     environment:
@@ -161,7 +161,7 @@ services:
 
   # ── Go API Server ─────────────────────────────────────────────────────────────
   api:
-    image: ghcr.io/opsowl/api:${OPSOWL_VERSION:-latest}
+    image: ghcr.io/reddybashanaguru/opsowl-api:${OPSOWL_VERSION:-latest}
     container_name: opsowl-api
     restart: unless-stopped
     stop_grace_period: 35s
@@ -240,7 +240,7 @@ services:
 
   # ── Next.js Frontend ──────────────────────────────────────────────────────────
   web:
-    image: ghcr.io/opsowl/web:${OPSOWL_VERSION:-latest}
+    image: ghcr.io/reddybashanaguru/opsowl-web:${OPSOWL_VERSION:-latest}
     container_name: opsowl-web
     restart: unless-stopped
     environment:
