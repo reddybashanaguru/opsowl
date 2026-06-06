@@ -159,7 +159,7 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
 
   test("sidebar 'Dashboard' link navigates to /dashboard", async ({ page }) => {
     const sidebar = page.locator("aside");
-    await sidebar.getByRole("link", { name: /Dashboard/i }).click();
+    await sidebar.getByRole("link", { name: "Dashboard", exact: true }).click();
     await expect(page).toHaveURL(/\/dashboard$/);
   });
 });

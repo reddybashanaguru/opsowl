@@ -115,6 +115,66 @@ async def analyse_case(req: AnalyseCaseRequest) -> AnalyseCaseResponse:
         return _default_case_response()
 
 
+def _template_narrative(req: "GenerateNarrativeRequest") -> "GenerateNarrativeResponse":
+    """Deterministic fallback when the LLM is unavailable."""
+    high = [f for f in req.findings if f.severity in ("high", "critical")]
+    total_amt = sum(t.amount for t in req.transactions)
+    flagged_count = sum(1 for t in req.transactions if t.is_flagged)
+
+    if req.narrative_type == "str_suspicion_basis":
+        body = (
+            f"This Suspicious Transaction Report relates to case {req.case_number} concerning "
+            f"{', '.join(req.subject_names) or 'the subject(s) of investigation'}. "
+            f"The investigation identified {len(req.findings)} finding(s), of which "
+            f"{len(high)} were classified as high or critical severity. "
+        )
+        if req.transactions:
+            body += (
+                f"A total of {len(req.transactions)} transaction(s) were reviewed with a combined "
+                f"value of {req.transactions[0].currency} {total_amt:,.2f}. "
+                f"{flagged_count} transaction(s) were flagged as suspicious. "
+            )
+        body += (
+            f"Based on the findings and evidence gathered during this investigation, "
+            f"the activity is assessed as meeting the threshold for suspicious transaction reporting "
+            f"under the applicable AML/CFT framework."
+        )
+    elif req.narrative_type == "closure_summary":
+        body = (
+            f"Case {req.case_number} ({req.case_title}) was investigated following the generation of "
+            f"an alert. The investigation reviewed {len(req.transactions)} financial transaction(s) "
+            f"and identified {len(req.findings)} finding(s). "
+            f"Risk level was assessed as {req.risk_level}. "
+            f"Based on the evidence reviewed and analysis conducted, a closure determination "
+            f"has been made as documented in this record."
+        )
+    else:
+        body = (
+            f"Investigation {req.case_number} was initiated to examine {req.case_title}. "
+            f"The case was assessed at {req.risk_level} risk level. "
+        )
+        if req.findings:
+            body += f"{len(req.findings)} finding(s) were documented, "
+            if high:
+                body += f"including {len(high)} high/critical severity finding(s). "
+        if req.transactions:
+            body += (
+                f"Financial analysis covered {len(req.transactions)} transaction(s) totalling "
+                f"{req.transactions[0].currency if req.transactions else 'INR'} {total_amt:,.2f}. "
+            )
+        body += (
+            "All evidence and findings have been documented in the case record. "
+            "This narrative was generated from structured case data without LLM assistance."
+        )
+
+    return GenerateNarrativeResponse(
+        narrative=body,
+        model_used="template",
+        findings_used=len(req.findings),
+        txns_used=len(req.transactions),
+    )
+
+
 def _default_case_response() -> AnalyseCaseResponse:
     return AnalyseCaseResponse(
         risk_score=50.0,
@@ -220,3 +280,166 @@ async def report_summary(req: ReportSummaryRequest) -> ReportSummaryResponse:
             f"evidence, communications, and findings to date."
         )
         return ReportSummaryResponse(summary=summary, model_used="template")
+
+
+# ── AI Investigation Narrative ────────────────────────────────────────────────
+
+class NarrativeFinding(BaseModel):
+    title: str
+    category: str
+    severity: str
+    description: str
+    narrative_weight: str = "supporting"
+
+
+class NarrativeTransaction(BaseModel):
+    txn_ref: str
+    txn_date: str
+    amount: float
+    currency: str = "INR"
+    txn_type: str
+    channel: str
+    from_name: str = ""
+    to_name: str = ""
+    narration: str = ""
+    is_flagged: bool = False
+    flag_reason: str = ""
+
+
+class GenerateNarrativeRequest(BaseModel):
+    case_id: str
+    case_number: str
+    case_title: str
+    case_description: str = ""
+    risk_level: str = "unknown"
+    narrative_type: str = "investigation_summary"
+    # investigation_summary | str_suspicion_basis | sar_narrative | closure_summary
+    findings: list[NarrativeFinding] = []
+    transactions: list[NarrativeTransaction] = []
+    subject_names: list[str] = []
+    investigator_notes: str = ""
+
+
+class GenerateNarrativeResponse(BaseModel):
+    narrative: str
+    model_used: str
+    findings_used: int
+    txns_used: int
+    prompt_version: str = "v1"
+
+
+@router.post("/narrative/generate", response_model=GenerateNarrativeResponse)
+async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrativeResponse:
+    """
+    Generate a structured investigation narrative for regulatory filing or case closure.
+    The narrative is grounded in the provided findings, transactions, and case context.
+    Falls back to a structured template when the LLM is unavailable.
+    """
+    type_instructions = {
+        "investigation_summary": (
+            "Write a comprehensive investigation narrative (5-8 paragraphs). "
+            "Cover: (1) what triggered the investigation, (2) the subject's profile and behaviour pattern, "
+            "(3) the key findings and evidence, (4) transaction analysis, (5) why the activity is suspicious, "
+            "(6) the risk assessment. Write in formal third-person compliance language. No bullet points."
+        ),
+        "str_suspicion_basis": (
+            "Write the 'Suspicion Basis' section for an FIU-IND Suspicious Transaction Report (STR). "
+            "This must be factual, specific, and clearly explain WHY the transactions are suspicious. "
+            "Reference specific amounts, dates, and patterns. 2-4 paragraphs. "
+            "Use formal regulatory language appropriate for submission to FIU-IND."
+        ),
+        "sar_narrative": (
+            "Write the Suspicious Activity Report (SAR) narrative. "
+            "Include: (1) description of suspicious activity, (2) known subject information, "
+            "(3) financial amounts and date range, (4) how this deviates from normal behaviour, "
+            "(5) any law enforcement or internal referral context. "
+            "Use FinCEN-style SAR narrative format. 3-5 paragraphs."
+        ),
+        "closure_summary": (
+            "Write a concise case closure summary (2-3 paragraphs) suitable for the case closure form. "
+            "Cover: what was investigated, what was found, the disposition rationale, and risk mitigation. "
+            "This is the formal record of why the case was closed with this outcome."
+        ),
+    }
+
+    instruction = type_instructions.get(req.narrative_type, type_instructions["investigation_summary"])
+
+    # Build the context block
+    findings_block = ""
+    if req.findings:
+        lines = [f"FINDINGS ({len(req.findings)} total):"]
+        for f in req.findings[:20]:
+            lines.append(
+                f"  [{f.severity.upper()}] {f.title} (category: {f.category}, weight: {f.narrative_weight})\n"
+                f"  {f.description[:300]}"
+            )
+        findings_block = "\n".join(lines)
+
+    txns_block = ""
+    if req.transactions:
+        flagged = [t for t in req.transactions if t.is_flagged]
+        all_txns = req.transactions[:30]
+        lines = [f"TRANSACTIONS ({len(req.transactions)} total, {len(flagged)} flagged):"]
+        for t in all_txns:
+            flag_str = f" ⚑ FLAGGED: {t.flag_reason}" if t.is_flagged else ""
+            lines.append(
+                f"  {t.txn_date} | {t.txn_type.upper()} | {t.currency} {t.amount:,.2f} | "
+                f"{t.channel.upper()} | {t.from_name or 'Unknown'} → {t.to_name or 'Unknown'}"
+                f"{flag_str}"
+            )
+            if t.narration:
+                lines.append(f"    Narration: {t.narration[:120]}")
+        txns_block = "\n".join(lines)
+
+    subjects_block = ""
+    if req.subject_names:
+        subjects_block = f"SUBJECTS OF INVESTIGATION: {', '.join(req.subject_names)}"
+
+    context_parts = [
+        f"CASE: {req.case_number} — {req.case_title}",
+        f"RISK LEVEL: {req.risk_level.upper()}",
+    ]
+    if req.case_description:
+        context_parts.append(f"DESCRIPTION: {req.case_description[:500]}")
+    if subjects_block:
+        context_parts.append(subjects_block)
+    if findings_block:
+        context_parts.append(findings_block)
+    if txns_block:
+        context_parts.append(txns_block)
+    if req.investigator_notes:
+        context_parts.append(f"INVESTIGATOR NOTES: {req.investigator_notes[:400]}")
+
+    case_context = "\n\n".join(context_parts)
+
+    prompt = (
+        f"{instruction}\n\n"
+        f"Use ONLY the following case data — do not invent facts:\n\n"
+        f"{case_context}\n\n"
+        "Write the narrative now. Do not include headers, titles, or section labels. "
+        "Plain paragraphs only."
+    )
+    system = (
+        "You are a senior financial crime compliance officer writing formal investigation documentation "
+        "for regulatory review. Your writing is factual, precise, and defensible under regulatory scrutiny. "
+        "Never speculate beyond the provided evidence. Never invent amounts, dates, or names."
+    )
+
+    try:
+        messages = [{"role": "user", "content": prompt}]
+        answer, model, _, _ = await llm_router.complete(messages, system=system, max_tokens=2048)
+
+        narrative = answer.strip()
+        if len(narrative) < 100:
+            raise ValueError("narrative too short")
+
+        return GenerateNarrativeResponse(
+            narrative=narrative,
+            model_used=model,
+            findings_used=len(req.findings),
+            txns_used=len(req.transactions),
+        )
+
+    except Exception as e:
+        logger.warning("narrative generation AI failed, using template: %s", e)
+        return _template_narrative(req)

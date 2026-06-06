@@ -9,6 +9,7 @@ import {
   FileText,
   Search,
   BarChart2,
+  BarChart,
   Users,
   ScrollText,
   Timer,
@@ -74,6 +75,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const insightsNav: NavItem[] = [
     { label: "Workload",             href: "/workload",   icon: BarChart2 },
+    { label: "MLRO Dashboard",       href: "/analytics",  icon: BarChart },
   ];
 
   const adminNav: NavItem[] = [

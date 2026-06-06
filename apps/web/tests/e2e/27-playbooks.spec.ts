@@ -14,7 +14,7 @@ import { login, apiToken, apiTokenAs, createCase, deleteCase, API_URL } from "./
 
 const ADMIN_EMAIL = "admin@opsowl.dev";
 const ADMIN_PASSWORD = "OpsOwl@2024";
-const ANALYST_EMAIL = "analyst@opsowl.dev";
+const ANALYST_EMAIL = "divya.reddy@opsowl.dev";
 const ANALYST_PASSWORD = "OpsOwl@2024";
 
 test.describe("Investigation Playbooks", () => {

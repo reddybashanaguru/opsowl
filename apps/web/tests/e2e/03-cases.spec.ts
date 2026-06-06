@@ -41,16 +41,20 @@ test.describe("Cases — list and create", () => {
   });
 
   test("status filter dropdown works", async ({ page }) => {
-    const statusSelect = page.locator("select").first();
-    await statusSelect.selectOption("open");
-    await page.waitForTimeout(600);
+    // StatusMultiSelect is a custom button-based dropdown — click to open, pick a status
+    const statusBtn = page.getByRole("button", { name: /All Statuses|Active Cases|statuses/i }).first();
+    await expect(statusBtn).toBeVisible();
+    await statusBtn.click();
+    await page.waitForTimeout(300);
+    // Close the dropdown by clicking the button again
+    await statusBtn.click();
     await expect(page).not.toHaveURL(/error/);
-    await statusSelect.selectOption("");
   });
 
   test("priority filter works", async ({ page }) => {
-    const selects = page.locator("select");
-    await selects.nth(1).selectOption("high");
+    // Priority is still a <select> element — now the first (and only) select in the filter area
+    const prioritySelect = page.locator("select").first();
+    await prioritySelect.selectOption("high");
     await page.waitForTimeout(600);
     await expect(page).not.toHaveURL(/error/);
   });

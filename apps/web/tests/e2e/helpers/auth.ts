@@ -43,7 +43,7 @@ export async function login(
   const auth = loadAuthState();
   const destination = targetUrl || "/dashboard";
 
-  if (auth?.user) {
+  if (auth?.user && email === ADMIN.email) {
     // Pre-populate sessionStorage before the page loads so ProtectedRoute skips
     // the /auth/refresh call entirely — avoids token rotation conflicts across tests.
     const user = auth.user;

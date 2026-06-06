@@ -19,6 +19,10 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/alerts"
 	"github.com/reddybashanaguru/opsowl/internal/entity_graph"
+	"github.com/reddybashanaguru/opsowl/internal/closure"
+	"github.com/reddybashanaguru/opsowl/internal/findings"
+	"github.com/reddybashanaguru/opsowl/internal/narrative"
+	"github.com/reddybashanaguru/opsowl/internal/transactions"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/apikeys"
 	"github.com/reddybashanaguru/opsowl/internal/assignment"
@@ -99,7 +103,6 @@ func New(ctx context.Context, logger *zap.Logger, jwtMgr *auth.JWTManager, queri
 	}
 	s.setupMiddleware()
 	s.setupRoutes(ctx)
-	go sla.NewScheduler(queries, logger).Start(ctx)
 	go retention.NewScheduler(sqlDB, queries, logger).Start(ctx)
 	return s
 }
@@ -260,6 +263,11 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		casesSvc.WithNotifications(notifSvc)
 		tasksSvc.WithNotifications(notifSvc)
 
+		// SLA breach scheduler — started here (after notifSvc) so it can push per-assignee alerts
+		go sla.NewScheduler(s.queries, s.logger).
+			WithNotifications(s.sqlDB, notifSvc).
+			Start(ctx)
+
 		// Search module (Feature 11)
 		searchSvc := search.NewService(s.queries)
 		searchHandler := search.NewHandler(searchSvc)
@@ -283,7 +291,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		sla.RegisterRoutes(r, slaHandler, s.jwtMgr)
 
 		// Analytics & Workload (P2-5)
-		analyticsHandler := analytics.NewHandler(s.queries)
+		analyticsHandler := analytics.NewHandlerWithDB(s.queries, s.sqlDB)
 		analytics.RegisterRoutes(r, analyticsHandler, s.jwtMgr)
 
 		// PDF Case Report (P2-1)
@@ -342,6 +350,30 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// Connected entity graph (P9-1)
 		entity_graph.RegisterRoutes(r, s.sqlDB, s.jwtMgr)
+
+		// Findings + Evidence Linking (Tier-1 requirement)
+		findingsRepo := findings.NewRepository(s.sqlDB)
+		findingsSvc := findings.NewService(findingsRepo, timelineEmitter)
+		findingsHandler := findings.NewHandler(findingsSvc)
+		findings.RegisterRoutes(r, findingsHandler, s.jwtMgr)
+
+		// Structured Case Closure (Tier-1 requirement)
+		closureRepo := closure.NewRepository(s.sqlDB)
+		closureSvc := closure.NewService(closureRepo, timelineEmitter)
+		closureHandler := closure.NewHandler(closureSvc)
+		closure.RegisterRoutes(r, closureHandler, s.jwtMgr)
+
+		// AI Investigation Narrative (Sprint 4)
+		narrativeRepo := narrative.NewRepository(s.sqlDB)
+		narrativeSvc := narrative.NewService(narrativeRepo, s.queries, timelineEmitter, s.aiServiceURL)
+		narrativeHandler := narrative.NewHandler(narrativeSvc)
+		narrative.RegisterRoutes(r, narrativeHandler, s.jwtMgr)
+
+		// Transaction Timeline + Flow-of-Funds (Sprint 3)
+		txnRepo := transactions.NewRepository(s.sqlDB)
+		txnSvc := transactions.NewService(txnRepo, timelineEmitter)
+		txnHandler := transactions.NewHandler(txnSvc)
+		transactions.RegisterRoutes(r, txnHandler, s.jwtMgr)
 
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)

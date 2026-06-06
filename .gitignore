@@ -55,3 +55,16 @@ backups/
 
 # ── Internal business docs (not for version control) ─────────────────────────
 docs/PRICING.md
+
+# ── Test artifacts ────────────────────────────────────────────────────────────
+apps/web/test-results/
+apps/web/playwright-report/
+apps/web/tests/e2e/.auth/
+apps/api/test-results/
+apps/api/server
+apps/api/cover.out
+apps/api/ai_cover.out
+
+# ── Large media files ─────────────────────────────────────────────────────────
+docs/*.mp4
+docs/*.mov

@@ -1,0 +1,368 @@
+name: opsowl
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OpsOwl AI — Production On-Premise Deployment
+#
+# Usage:
+#   1. Copy .env.example → .env and fill in all required values
+#   2. Run: bash install.sh   (first install)
+#      Run: bash upgrade.sh   (subsequent upgrades)
+#
+# This file uses pre-built images from the OpsOwl release registry.
+# No source code is needed on the server.
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Database ─────────────────────────────────────────────────────────────────
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: opsowl-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    command: >
+      postgres
+      -c wal_level=replica
+      -c archive_mode=on
+      -c archive_command='cp %p /var/lib/postgresql/wal-archive/%f'
+      -c archive_timeout=300
+      -c max_wal_size=1GB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - wal_archive:/var/lib/postgresql/wal-archive
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "2.0"
+
+  # ── Object Storage ────────────────────────────────────────────────────────────
+  minio:
+    image: minio/minio:latest
+    container_name: opsowl-minio
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_KMS_SECRET_KEY: ${MINIO_KMS_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9000/minio/health/ready"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── ClamAV Antivirus ──────────────────────────────────────────────────────────
+  clamav:
+    image: clamav/clamav:1.4
+    container_name: opsowl-clamav
+    restart: unless-stopped
+    environment:
+      CLAMD_CONF_MaxFileSize: "52428800"
+      CLAMD_CONF_StreamMaxLength: "52428800"
+    expose:
+      - "3310"
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "3"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+
+  # ── Ollama (local LLM — all AI inference stays on-premise) ───────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: opsowl-ollama
+    restart: unless-stopped
+    expose:
+      - "11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:11434/api/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+          cpus: "4.0"
+
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: opsowl-ollama-init
+    restart: "no"
+    entrypoint: >
+      sh -c "
+        echo '[ollama-init] waiting for Ollama...';
+        until curl -sf http://ollama:11434/api/version; do sleep 3; done;
+        echo '[ollama-init] pulling ${OLLAMA_MODEL:-llama3.1:8b}...';
+        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_MODEL:-llama3.1:8b}\"}' | tail -1;
+        echo '[ollama-init] pulling ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}...';
+        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}\"}' | tail -1;
+        echo '[ollama-init] done.';
+      "
+    depends_on:
+      ollama:
+        condition: service_started
+
+  # ── Python AI Service ─────────────────────────────────────────────────────────
+  ai-service:
+    image: ghcr.io/opsowl/ai-service:${OPSOWL_VERSION:-latest}
+    container_name: opsowl-ai
+    restart: unless-stopped
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+      GO_API_URL: http://api:8080
+      AI_SERVICE_SECRET: ${AI_SERVICE_SECRET}
+      DEFAULT_PROVIDER: ${DEFAULT_PROVIDER:-ollama}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-llama3.1:8b}
+      OLLAMA_EMBEDDING_MODEL: ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8000/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── Go API Server ─────────────────────────────────────────────────────────────
+  api:
+    image: ghcr.io/opsowl/api:${OPSOWL_VERSION:-latest}
+    container_name: opsowl-api
+    restart: unless-stopped
+    stop_grace_period: 35s
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      ENVIRONMENT: production
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=disable
+      PORT: "8080"
+      STORAGE_ENDPOINT: minio:9000
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_BUCKET: opsowl
+      STORAGE_USE_SSL: "false"
+      AI_SERVICE_URL: http://ai-service:8000
+      AI_SERVICE_SECRET: ${AI_SERVICE_SECRET}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      LDAP_URL: ${LDAP_URL:-}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
+      LDAP_USER_ATTR: ${LDAP_USER_ATTR:-sAMAccountName}
+      LDAP_BIND_DN: ${LDAP_BIND_DN:-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_FORMAT: ${SIEM_FORMAT:-json}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-noreply@opsowl.local}
+      SMTP_TLS: ${SMTP_TLS:-true}
+      CLAMAV_ADDR: clamav:3310
+      MAX_REQUESTS_PER_MIN: ${MAX_REQUESTS_PER_MIN:-100}
+      # First-boot admin seed — clears automatically after first startup
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      SEED_ADMIN_NAME: ${SEED_ADMIN_NAME:-System Administrator}
+      # Workspace labels
+      INDUSTRY: ${INDUSTRY:-financial_services}
+      CASE_LABEL: ${CASE_LABEL:-Case}
+      CASES_LABEL: ${CASES_LABEL:-Cases}
+      TASK_LABEL: ${TASK_LABEL:-Task}
+      TASKS_LABEL: ${TASKS_LABEL:-Tasks}
+      DOCUMENT_LABEL: ${DOCUMENT_LABEL:-Document}
+      DOCUMENTS_LABEL: ${DOCUMENTS_LABEL:-Documents}
+      RISK_SCORE_LABEL: ${RISK_SCORE_LABEL:-Risk Score}
+      RISK_LEVEL_LABEL: ${RISK_LEVEL_LABEL:-Risk Level}
+      SLA_LABEL: ${SLA_LABEL:-SLA}
+      COMMS_LABEL: ${COMMS_LABEL:-Communications}
+      ANALYST_LABEL: ${ANALYST_LABEL:-Analyst}
+      TIMELINE_LABEL: ${TIMELINE_LABEL:-Timeline}
+      NOTE_LABEL: ${NOTE_LABEL:-Note}
+      NOTES_LABEL: ${NOTES_LABEL:-Notes}
+    volumes:
+      - api_keys:/app/keys
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_started
+      clamav:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── Next.js Frontend ──────────────────────────────────────────────────────────
+  web:
+    image: ghcr.io/opsowl/web:${OPSOWL_VERSION:-latest}
+    container_name: opsowl-web
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${PUBLIC_URL:-https://localhost}
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
+
+  # ── Nginx (TLS termination + reverse proxy) ───────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: opsowl-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    depends_on:
+      api:
+        condition: service_healthy
+      web:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "nginx", "-t"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.5"
+
+  # ── Prometheus ────────────────────────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:v3.4.0
+    container_name: opsowl-prometheus
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      - "--web.enable-lifecycle"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ── Grafana ───────────────────────────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana:11.6.0
+    container_name: opsowl-grafana
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3003:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+  # ── PostgreSQL backup sidecar ─────────────────────────────────────────────────
+  pg-backup:
+    image: alpine:3.20
+    container_name: opsowl-pg-backup
+    restart: unless-stopped
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-ap-south-1}
+    volumes:
+      - pg_backups:/backups
+    entrypoint: >
+      sh -c "
+        apk add --no-cache postgresql17-client > /dev/null 2>&1;
+        while true; do
+          FNAME=/backups/opsowl-$$(date +%Y%m%d-%H%M%S).sql.gz;
+          pg_dump -h postgres -U $$POSTGRES_USER $$POSTGRES_DB | gzip > $$FNAME;
+          echo \"[pg-backup] wrote $$FNAME\";
+          find /backups -name '*.sql.gz' -mtime +7 -delete;
+          sleep 86400;
+        done
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+
+volumes:
+  postgres_data:
+  wal_archive:
+  minio_data:
+  prometheus_data:
+  grafana_data:
+  pg_backups:
+  ollama_data:
+  api_keys:

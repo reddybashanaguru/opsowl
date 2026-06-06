@@ -61,7 +61,7 @@ test.describe("Dashboard", () => {
 
   test("sidebar navigation links are all visible", async ({ page }) => {
     const sidebar = page.locator("aside");
-    await expect(sidebar.getByRole("link", { name: /Dashboard/ })).toBeVisible();
+    await expect(sidebar.getByRole("link", { name: "Dashboard", exact: true })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: /Cases/ })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: /Tasks/ })).toBeVisible();
     await expect(sidebar.getByRole("link", { name: /Documents/ })).toBeVisible();

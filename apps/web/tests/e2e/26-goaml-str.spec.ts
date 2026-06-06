@@ -17,11 +17,11 @@ import { login, apiToken, apiTokenAs, createCase, deleteCase, API_URL } from "./
  * - currency field can be empty — backend derives from entity_country
  */
 
-const MANAGER_EMAIL = "manager@opsowl.dev";
+const MANAGER_EMAIL = "ravi.kumar@opsowl.dev";
 const MANAGER_PASSWORD = "OpsOwl@2024";
 const ADMIN_EMAIL = "admin@opsowl.dev";
 const ADMIN_PASSWORD = "OpsOwl@2024";
-const ANALYST_EMAIL = "analyst@opsowl.dev";
+const ANALYST_EMAIL = "divya.reddy@opsowl.dev";
 const ANALYST_PASSWORD = "OpsOwl@2024";
 
 const FULL_ENTITY_IN = {

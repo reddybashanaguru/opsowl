@@ -13,9 +13,13 @@ import {
   Activity,
   ScrollText,
   ClipboardList,
+  Shield,
+  Lock,
+  ArrowLeftRight,
+  PenLine,
 } from "lucide-react";
 
-type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str";
+type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str" | "findings" | "closure" | "transactions" | "narrative";
 
 interface Props {
   caseId: string;
@@ -45,14 +49,18 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
 
   const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; minLevel?: number }[] = [
     { tab: "case",      label: "Case",              path: "",          Icon: LayoutGrid },
-    { tab: "notes",     label: "Notes →",           path: "/notes",    Icon: StickyNote },
-    { tab: "tasks",     label: "Tasks →",           path: "/tasks",    Icon: CheckSquare },
-    { tab: "documents", label: "Documents →",       path: "/documents", Icon: FileText },
-    { tab: "comms",     label: "Comms →",           path: "/comms",    Icon: MessageSquare },
-    { tab: "insights",  label: "AI Insights →",     path: "/insights", Icon: Sparkles },
-    { tab: "timeline",  label: "Timeline →",        path: "/timeline", Icon: Activity },
-    { tab: "ai-logs",   label: "AI Logs →",         path: "/ai-logs",  Icon: ScrollText },
-    { tab: "str",       label: `${cfg.str_label} →`, path: "/str",     Icon: ClipboardList, minLevel: 3 },
+    { tab: "notes",     label: "Notes",           path: "/notes",    Icon: StickyNote },
+    { tab: "tasks",     label: "Tasks",           path: "/tasks",    Icon: CheckSquare },
+    { tab: "documents", label: "Documents",       path: "/documents", Icon: FileText },
+    { tab: "comms",     label: "Comms",           path: "/comms",    Icon: MessageSquare },
+    { tab: "insights",  label: "AI Insights",     path: "/insights", Icon: Sparkles },
+    { tab: "timeline",  label: "Timeline",        path: "/timeline", Icon: Activity },
+    { tab: "ai-logs",   label: "AI Logs",         path: "/ai-logs",  Icon: ScrollText },
+    { tab: "str",       label: cfg.str_label,     path: "/str",      Icon: ClipboardList, minLevel: 3 },
+    { tab: "findings",      label: "Findings",      path: "/findings",      Icon: Shield },
+    { tab: "transactions",  label: "Transactions",  path: "/transactions",  Icon: ArrowLeftRight },
+    { tab: "narrative",     label: "Narrative",     path: "/narrative",     Icon: PenLine },
+    { tab: "closure",       label: "Closure",       path: "/closure",       Icon: Lock, minLevel: 2 },
   ];
 
   const TABS = ALL_TABS.filter((t) => userLevel >= (t.minLevel ?? 0));
@@ -84,7 +92,7 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
       </div>
 
       {/* Row 2: tab strip */}
-      <div className="flex items-center gap-0.5 border-b border-slate-700/50 pb-0">
+      <div className="flex items-center gap-0.5 border-b border-slate-700/50 pb-0 overflow-x-auto scrollbar-none">
         {TABS.map(({ tab, label, path, Icon }) => (
           <button
             key={tab}

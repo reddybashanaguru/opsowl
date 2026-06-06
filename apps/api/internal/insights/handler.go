@@ -18,6 +18,14 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
+// aiAnalyseResult carries both the parsed response and timing metadata
+// so the caller can persist a full audit record.
+type aiAnalyseResult struct {
+	response  *aiAnalyseResponse
+	latencyMs int32
+	startedAt time.Time
+}
+
 type Handler struct {
 	queries      *db.Queries
 	aiServiceURL string
@@ -103,28 +111,47 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 
 	claims := auth.ClaimsFromCtx(r.Context())
 
+	triggeredBy := claims.UserID
 	worker.TrySubmit(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 		defer cancel()
-		aiResp, aiErr := h.callAIAnalyse(ctx, caseID.String())
+		result, aiErr := h.callAIAnalyseWithTiming(ctx, caseID.String())
 		if aiErr != nil {
+			// Log the failed attempt to ai_logs so the audit trail shows "analysis attempted but failed"
+			promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case"}`, caseID.String())
+			_ = h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
+				promptJSON, fmt.Sprintf("error: %v", aiErr), "unknown", result.latencyMs, 0)
 			return
 		}
-		if err := h.storeInsights(context.Background(), caseID, aiResp); err != nil {
+		if err := h.storeInsights(context.Background(), caseID, result.response); err != nil {
 			return
+		}
+		// Log the full AI interaction to ai_logs for regulatory auditability.
+		// This creates a tamper-evident record of what was analysed, what the AI returned,
+		// and which model version was used — answerable 24 months later by an FIU examiner.
+		promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case","triggered_at":"%s"}`,
+			caseID.String(), result.startedAt.UTC().Format(time.RFC3339))
+		respJSON, _ := json.Marshal(result.response)
+		aiLogID := h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
+			promptJSON, string(respJSON), result.response.ModelUsed, result.latencyMs,
+			int32(result.response.Confidence*100))
+
+		payload := map[string]any{
+			"risk_level": riskLevelFromScore(result.response.RiskScore),
+			"risk_score": result.response.RiskScore,
+			"model_used": result.response.ModelUsed,
+			"confidence": result.response.Confidence,
+		}
+		if aiLogID != uuid.Nil {
+			payload["ai_log_id"] = aiLogID.String()
 		}
 		_ = h.emitter.Emit(context.Background(), timeline.Event{
 			CaseID:     caseID,
 			EventType:  db.TimelineEventTypeAiInsightsGenerated,
 			Source:     db.TimelineEventSourceAi,
-			ActorID:    &claims.UserID,
+			ActorID:    &triggeredBy,
 			OccurredAt: time.Now(),
-			Payload: map[string]any{
-				"risk_level":  riskLevelFromScore(aiResp.RiskScore),
-				"risk_score":  aiResp.RiskScore,
-				"model_used":  aiResp.ModelUsed,
-				"confidence":  aiResp.Confidence,
-			},
+			Payload:    payload,
 		})
 	})
 
@@ -165,26 +192,62 @@ func (h *Handler) storeInsights(ctx context.Context, caseID uuid.UUID, aiResp *a
 	return err
 }
 
-func (h *Handler) callAIAnalyse(ctx context.Context, caseID string) (*aiAnalyseResponse, error) {
+func (h *Handler) callAIAnalyseWithTiming(ctx context.Context, caseID string) (aiAnalyseResult, error) {
+	start := time.Now()
+	result := aiAnalyseResult{startedAt: start}
+
 	body, _ := json.Marshal(aiAnalyseRequest{CaseID: caseID})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, h.aiServiceURL+"/analyse/case", bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		result.latencyMs = int32(time.Since(start).Milliseconds())
+		return result, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := h.httpClient.Do(req)
+	result.latencyMs = int32(time.Since(start).Milliseconds())
 	if err != nil {
-		return nil, err
+		return result, err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("ai service %d", resp.StatusCode)
+		return result, fmt.Errorf("ai service %d", resp.StatusCode)
 	}
 	var out aiAnalyseResponse
 	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, err
+		return result, err
 	}
-	return &out, nil
+	result.response = &out
+	return result, nil
+}
+
+// logToAILogs persists an AI interaction record and returns the created log ID.
+// Returns uuid.Nil on error — callers treat this as non-fatal.
+func (h *Handler) logToAILogs(ctx context.Context, caseID, triggeredBy uuid.UUID,
+	actionType, promptText, responseText, modelUsed string,
+	latencyMs, confidencePercent int32) uuid.UUID {
+
+	confStr := sql.NullString{}
+	if confidencePercent > 0 {
+		confStr = sql.NullString{String: fmt.Sprintf("%d", confidencePercent), Valid: true}
+	}
+	log, err := h.queries.CreateAILog(ctx, db.CreateAILogParams{
+		CaseID:          caseID,
+		TriggeredBy:     triggeredBy,
+		ActionType:      actionType,
+		PromptText:      promptText,
+		ResponseText:    responseText,
+		ModelUsed:       modelUsed,
+		Provider:        "internal_ai_service",
+		TokensInput:     0, // Python service doesn't return token counts yet
+		TokensOutput:    0,
+		LatencyMs:       latencyMs,
+		ConfidenceScore: confStr,
+		Citations:       json.RawMessage(`[]`),
+	})
+	if err != nil {
+		return uuid.Nil
+	}
+	return log.ID
 }
 
 func rowToResponse(row db.CaseAiInsight) InsightsResponse {

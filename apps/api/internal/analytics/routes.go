@@ -17,5 +17,7 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 			Get("/analytics/risk", h.RiskLeaderboard)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Get("/analytics/risk/export", h.ExportRisk)
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Get("/analytics/mlro-summary", h.MLROSummary)
 	})
 }

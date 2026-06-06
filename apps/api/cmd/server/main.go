@@ -77,6 +77,8 @@ func main() {
 	}
 	logger.Info("database migrations up-to-date")
 
+	seedAdminUser(ctx, sqlDB, logger)
+
 	queries := dbgen.New(sqlDB)
 
 	// AT revocation checker — checked by JWTManager.Verify on every authenticated request.

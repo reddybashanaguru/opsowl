@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"fmt"
 	"net/http"
@@ -16,10 +17,15 @@ var defaultOrgID = uuid.MustParse("00000000-0000-0000-0000-000000000001")
 
 type Handler struct {
 	queries *db.Queries
+	rawDB   *sql.DB
 }
 
 func NewHandler(queries *db.Queries) *Handler {
 	return &Handler{queries: queries}
+}
+
+func NewHandlerWithDB(queries *db.Queries, rawDB *sql.DB) *Handler {
+	return &Handler{queries: queries, rawDB: rawDB}
 }
 
 // GET /api/v1/analytics/workload
@@ -171,4 +177,90 @@ func (h *Handler) ExportRisk(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	cw.Flush()
+}
+
+// MLROSummaryResponse is the payload for GET /analytics/mlro-summary.
+type MLROSummaryResponse struct {
+	CasesOpenedMTD    int64            `json:"cases_opened_mtd"`
+	CasesClosedMTD    int64            `json:"cases_closed_mtd"`
+	STRsFiledMTD      int64            `json:"strs_filed_mtd"`
+	STRsPendingReview int64            `json:"strs_pending_review"`
+	SLABreachedOpen   int64            `json:"sla_breached_open"`
+	AvgCaseAgeDays    int64            `json:"avg_case_age_days"`
+	DispositionCounts map[string]int64 `json:"disposition_counts"`
+	Investigators     []InvestigatorKPI `json:"investigators"`
+}
+
+type InvestigatorKPI struct {
+	UserID       string `json:"user_id"`
+	FullName     string `json:"full_name"`
+	ActiveCases  int64  `json:"active_cases"`
+	ClosedMTD    int64  `json:"closed_mtd"`
+	STRsMTD      int64  `json:"strs_mtd"`
+	BreachedOpen int64  `json:"breached_open"`
+}
+
+// GET /api/v1/analytics/mlro-summary
+func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
+	if h.rawDB == nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "db not configured")
+		return
+	}
+	ctx := r.Context()
+	var out MLROSummaryResponse
+	out.DispositionCounts = make(map[string]int64)
+
+	statsQ := `
+		SELECT
+			(SELECT COUNT(*) FROM cases WHERE created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM cases WHERE status = 'closed' AND updated_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM str_reports WHERE status = 'approved' AND updated_at >= date_trunc('month', NOW())),
+			(SELECT COUNT(*) FROM str_reports WHERE status IN ('draft','submitted')),
+			(SELECT COUNT(*) FROM cases WHERE sla_breached = true AND status NOT IN ('closed','draft') AND deleted_at IS NULL),
+			(SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - created_at))/86400), 0)::bigint FROM cases WHERE status NOT IN ('closed','draft') AND deleted_at IS NULL)`
+	row := h.rawDB.QueryRowContext(ctx, statsQ)
+	if err := row.Scan(
+		&out.CasesOpenedMTD, &out.CasesClosedMTD,
+		&out.STRsFiledMTD, &out.STRsPendingReview,
+		&out.SLABreachedOpen, &out.AvgCaseAgeDays,
+	); err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+
+	dispQ := `SELECT cc.disposition, COUNT(*) FROM case_closures cc WHERE cc.status = 'approved' GROUP BY cc.disposition`
+	if drows, err := h.rawDB.QueryContext(ctx, dispQ); err == nil {
+		defer drows.Close()
+		for drows.Next() {
+			var disp string
+			var cnt int64
+			if err := drows.Scan(&disp, &cnt); err == nil {
+				out.DispositionCounts[disp] = cnt
+			}
+		}
+	}
+
+	kpiQ := `
+		SELECT u.id::text, u.full_name,
+			COALESCE(SUM(CASE WHEN c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN c.status = 'closed' AND c.updated_at >= date_trunc('month', NOW()) THEN 1 ELSE 0 END), 0),
+			COALESCE(COUNT(DISTINCT CASE WHEN sr.status = 'approved' AND sr.updated_at >= date_trunc('month', NOW()) THEN sr.id END), 0),
+			COALESCE(SUM(CASE WHEN c.sla_breached = true AND c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0)
+		FROM users u
+		LEFT JOIN cases c ON c.assigned_to = u.id
+		LEFT JOIN str_reports sr ON sr.created_by = u.id
+		WHERE u.role IN ('analyst','manager') AND u.active = true
+		GROUP BY u.id, u.full_name
+		ORDER BY 3 DESC, u.full_name`
+	if krows, err := h.rawDB.QueryContext(ctx, kpiQ); err == nil {
+		defer krows.Close()
+		for krows.Next() {
+			var kpi InvestigatorKPI
+			if err := krows.Scan(&kpi.UserID, &kpi.FullName, &kpi.ActiveCases, &kpi.ClosedMTD, &kpi.STRsMTD, &kpi.BreachedOpen); err == nil {
+				out.Investigators = append(out.Investigators, kpi)
+			}
+		}
+	}
+
+	response.JSON(w, http.StatusOK, out)
 }
