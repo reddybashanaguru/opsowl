@@ -72,7 +72,7 @@ function StepRow({
 }) {
   return (
     <div className="flex items-start gap-2 p-3 bg-[#0f172a] border border-slate-700 rounded-lg">
-      <span className="text-violet-400 text-xs pt-2.5 w-6 text-center shrink-0 font-mono">
+      <span className="text-cyan-400 text-xs pt-2.5 w-6 text-center shrink-0 font-mono">
         {index + 1}
       </span>
       <div className="flex-1 space-y-2">
@@ -80,13 +80,13 @@ function StepRow({
           value={step.title}
           onChange={(e) => onChange(index, "title", e.target.value)}
           placeholder="Step title (e.g. Freeze accounts)"
-          className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-600 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-violet-500"
+          className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-600 rounded px-2.5 py-1.5 text-sm focus:outline-none focus:border-cyan-500"
         />
         <div className="flex gap-2">
           <select
             value={step.priority}
             onChange={(e) => onChange(index, "priority", e.target.value)}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-violet-500"
+            className="bg-[#1e293b] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
           >
             {PRIORITIES.map((p) => (
               <option key={p} value={p}>{p}</option>
@@ -98,12 +98,12 @@ function StepRow({
             onChange={(e) => onChange(index, "due_hours", e.target.value)}
             placeholder="Due hours"
             min={1}
-            className="w-28 bg-[#1e293b] border border-slate-600 text-slate-300 placeholder:text-slate-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-violet-500"
+            className="w-28 bg-[#1e293b] border border-slate-600 text-slate-300 placeholder:text-slate-600 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
           />
           <select
             value={step.depends_on_step}
             onChange={(e) => onChange(index, "depends_on_step", Number(e.target.value))}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-violet-500"
+            className="bg-[#1e293b] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
           >
             <option value={0}>No dependency</option>
             {Array.from({ length: totalSteps }, (_, i) => i + 1)
@@ -119,7 +119,7 @@ function StepRow({
           value={step.description}
           onChange={(e) => onChange(index, "description", e.target.value)}
           placeholder="Description (optional)"
-          className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-600 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-violet-500"
+          className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-600 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
         />
       </div>
       <button
@@ -189,7 +189,7 @@ function PlaybookForm({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. AML Investigation"
-            className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+            className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
           />
         </div>
         <div>
@@ -198,7 +198,7 @@ function PlaybookForm({
             value={caseType}
             onChange={(e) => setCaseType(e.target.value)}
             placeholder="e.g. aml_str, fraud, kyc"
-            className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+            className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
           />
           <p className="text-slate-600 text-xs mt-1">
             Must match case_type value entered when creating a case.
@@ -212,7 +212,7 @@ function PlaybookForm({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brief description of when to use this playbook"
-          className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-violet-500"
+          className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
         />
       </div>
 
@@ -222,7 +222,7 @@ function PlaybookForm({
           <button
             type="button"
             onClick={addStep}
-            className="text-violet-400 hover:text-violet-300 text-xs transition-colors"
+            className="text-cyan-400 hover:text-cyan-300 text-xs transition-colors"
           >
             + Add step
           </button>
@@ -255,7 +255,7 @@ function PlaybookForm({
           type="button"
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || !name.trim() || !caseType.trim()}
-          className="bg-violet-500 hover:bg-violet-400 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
+          className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold px-5 py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
         >
           {mutation.isPending ? "Creating…" : "Create Playbook"}
         </button>
@@ -293,7 +293,7 @@ function PlaybookCard({ playbook, onDelete }: { playbook: PlaybookResponse; onDe
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-white font-semibold text-sm">{playbook.name}</span>
-            <span className="text-xs font-mono bg-violet-500/10 border border-violet-500/30 text-violet-400 rounded px-1.5 py-0.5">
+            <span className="text-xs font-mono bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 rounded px-1.5 py-0.5">
               {playbook.case_type}
             </span>
             {!playbook.is_active && (
@@ -320,7 +320,7 @@ function PlaybookCard({ playbook, onDelete }: { playbook: PlaybookResponse; onDe
                 key={step.id}
                 className="flex items-start gap-3 p-2.5 bg-[#0f172a] rounded-lg border border-slate-700/60"
               >
-                <span className="text-violet-400 text-xs font-mono w-5 text-center shrink-0 mt-0.5">
+                <span className="text-cyan-400 text-xs font-mono w-5 text-center shrink-0 mt-0.5">
                   {step.step_order}
                 </span>
                 <div className="flex-1 min-w-0">
@@ -404,7 +404,7 @@ export default function PlaybooksPage() {
           {!showCreate && (
             <button
               onClick={() => setShowCreate(true)}
-              className="bg-violet-500 hover:bg-violet-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+              className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
             >
               New Playbook
             </button>
@@ -412,7 +412,7 @@ export default function PlaybooksPage() {
         </div>
 
         {showCreate && (
-          <div className="bg-[#1e293b] border border-violet-500/30 rounded-xl p-5 mb-6">
+          <div className="bg-[#1e293b] border border-cyan-500/30 rounded-xl p-5 mb-6">
             <h2 className="text-white font-semibold text-sm mb-4">New Playbook</h2>
             <PlaybookForm
               onSuccess={() => {
