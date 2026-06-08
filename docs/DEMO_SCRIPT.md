@@ -132,28 +132,51 @@ Case created
 **URL:** `/settings/templates`
 
 **Why we built this:**
-Every AML investigation starts the same way — same case type, same priority, same standard tags. Without templates, analysts fill the same fields from scratch every time, introduce inconsistencies, and sometimes forget to set the right priority or case type. Inconsistent case setup leads to inconsistent SLA assignment, inconsistent playbook triggering, and inconsistent reporting.
+Every AML investigation starts the same way — same description structure, same priority, same standard tags, same initial task checklist. Without templates, analysts fill the same fields from scratch every time, introduce inconsistencies in description quality, and sometimes set the wrong priority. Inconsistent case setup leads to inconsistent SLA assignment and inconsistent reporting. New investigators especially waste time figuring out what to write in the description and what tasks to create first.
 
 **How it helps:**
-- Analysts start from a pre-filled, standardised case — not a blank page
-- Correct priority is set from the start so SLA clock begins accurately
-- Correct case type triggers the right playbook automatically (see Feature 4)
+- Analysts pick a template from the case picker and every field is pre-filled — description, priority, tags, and an initial task checklist
+- Correct priority is set from the start so the SLA clock begins accurately
 - Tags are pre-applied so cases are categorised consistently from creation
-- Reduces training overhead for new investigators — the template guides them
+- Task checklist auto-creates the first set of tasks the moment the template is applied — no waiting for a playbook match
+- Templates can be toggled Active/Inactive without deleting — deactivate a template during process reviews without losing it
+- Reduces training overhead — the template guides new investigators on what a well-formed case looks like
+
+**Form fields (modal — "+ New Template"):**
+1. **Template Name** *(required)* — e.g. `AML — Suspicious Transaction`
+2. **Description Template** — pre-fills the case description when applied. Write it like a brief for the analyst.
+3. **Default Priority** — clickable chips: CRITICAL / HIGH / MEDIUM / LOW
+4. **Tags** *(comma-separated)* — pre-applied to the case on creation
+5. **Active toggle** — "Active — visible in case picker". Inactive templates are hidden from analysts but not deleted.
+6. **Task Checklist** — tasks added here are automatically created on the case when this template is applied. Each task has a title, optional description, and priority (critical/high/medium/low). Click **+ Add task** to add more. Counter shows "0 task(s)" updating live.
+7. **Create Template** button
 
 **What to show:**
-- Create a template for AML investigation
-- Pre-fill title, description, priority, case type, tags
-- Explain it auto-populates fields when a case is created from this template
+- Click **+ New Template**
+- Fill in the form with AML sample data below
+- Add 3 tasks to the checklist using **+ Add task**
+- Toggle Active is on by default — point it out: "inactive templates are hidden from analysts without being deleted"
+- Click **Create Template**
+- Show the new card appears in the list with ACTIVE badge, HIGH priority, tags, and task count
+
+**Key talking point — Templates vs Playbooks:**
+- **Templates** are manually selected from the case picker when creating a case. They pre-fill description, priority, tags, and create a starter checklist. Analyst chooses which template to use.
+- **Playbooks** (Feature 4) are automatically applied based on case type — no analyst choice required. Best for mandatory procedures.
+- Use both: template for fast case setup, playbook for enforced investigation procedure.
 
 **Demo line:**
-> "Every AML investigation starts the same way. Templates ensure your analysts don't start from a blank page — the right fields, priority, and case type are pre-filled from day one. Consistent setup means consistent SLA, consistent playbook, consistent reporting."
+> "When an analyst creates a new AML case, they pick this template from the picker. The description is pre-filled, priority is set to High — SLA clock starts correctly — tags are applied, and the first three tasks are already waiting. They do not start from a blank page. And if we update the template, every new case from that point gets the updated version — no retraining needed."
 
 **Sample data:**
 - Template Name: `AML — Suspicious Transaction`
-- Case Type: `aml`
-- Priority: `High`
-- Tags: `structuring`, `threshold`
+- Description: `Customer flagged for suspicious transaction activity. Review transaction history, KYC documents, and counterparty profiles to determine whether an STR is required.`
+- Default Priority: `HIGH` (click the HIGH chip)
+- Tags: `structuring, threshold, aml`
+- Active: on (default)
+- Task Checklist:
+  1. Task: `Review customer KYC and CDD documents` — Priority: High
+  2. Task: `Analyse transaction history for last 6 months` — Priority: High
+  3. Task: `Check counterparty risk profile` — Priority: Medium
 
 ---
 
@@ -170,24 +193,49 @@ Under pressure — high case volumes, tight deadlines — investigators, especia
 - New investigators follow the same procedure as veterans from day one
 - Examiners see a complete, consistent task completion record for every case
 
+**Form fields (inline panel — "New Playbook" button):**
+1. **Playbook Name** *(required)* — e.g. `Standard AML Investigation`
+2. **Case Type** *(required)* — must exactly match the `case_type` value used when creating a case (e.g. `aml`). This is the trigger — when a case is created with this case type, this playbook's steps are auto-applied.
+3. **Description** — brief note on when this playbook applies
+4. **Steps** — each step has:
+   - **Title** — the task name (e.g. `Review customer KYC and CDD documents`)
+   - **Priority** — critical / high / medium / low
+   - **Due Hours** — how many hours after case creation this step is due (optional)
+   - **Dependency** — "After step N" — this step is BLOCKED until step N is marked complete. Used to enforce investigation sequence (e.g. step 3 can only start after step 2 is done)
+   - Click **+ Add step** to add more rows
+5. **Create Playbook** button — disabled until Name and Case Type are filled
+
+**Key concept — Case Type matching:**
+The Case Type field in the playbook must exactly match the case_type entered when creating a case. If the playbook has `case_type = aml` and a new case is created with type `aml`, all steps auto-create on that case instantly. If the types don't match, the playbook doesn't fire. This means you can have multiple playbooks for different investigation types — `aml`, `fraud`, `kyc`, `cyber` — each with their own step sequence.
+
+**Key concept — Step dependencies:**
+Steps can be marked "After step N" to enforce sequence. Example: step 3 (Counterparty Check) depends on step 2 (Transaction Analysis) — the analyst cannot start step 3 until step 2 is marked complete. This enforces the investigation procedure order, not just a checklist.
+
 **What to show:**
-- Create a playbook for AML case type
-- Add ordered tasks: KYC review, Transaction analysis, Counterparty check, STR decision
-- Explain tasks are auto-created when a case of this type is opened
+- Click **New Playbook**
+- Fill in the form with AML sample data below
+- Add all 6 steps using **+ Add step**
+- On step 3, set dependency to "After step 2" to show the dependency feature
+- Click **Create Playbook**
+- Show the new playbook card in the list — expand it to see all 6 steps
 
 **Demo line:**
-> "Investigators miss steps under pressure. Playbooks enforce consistent investigation procedure automatically. When an AML case is created, these tasks are already waiting for the analyst — in order, assigned, with due dates. Nothing is left to memory."
+> "The Case Type is the trigger. When an analyst opens a case of type AML, every step in this playbook is automatically created on that case — in order, with priorities and due dates. Step 3 is blocked until step 2 is done. The investigation procedure is enforced by the system, not by memory or discipline."
 
 **Sample data:**
 - Playbook Name: `Standard AML Investigation`
 - Case Type: `aml`
-- Tasks (in order):
-  1. Review customer KYC and CDD documents
-  2. Analyse transaction history for last 6 months
-  3. Check counterparty risk profile
-  4. Assess structuring or threshold patterns
-  5. Document findings with supporting evidence
-  6. Make STR / no-STR decision with rationale
+- Description: `Standard procedure for AML suspicious transaction investigations`
+- Steps:
+
+| # | Title | Priority | Due Hours | Dependency |
+|---|-------|----------|-----------|------------|
+| 1 | Review customer KYC and CDD documents | high | 4 | No dependency |
+| 2 | Analyse transaction history for last 6 months | high | 8 | After step 1 |
+| 3 | Check counterparty risk profile | high | 12 | After step 2 |
+| 4 | Assess structuring or threshold patterns | medium | 16 | After step 3 |
+| 5 | Document findings with supporting evidence | high | 20 | After step 4 |
+| 6 | Make STR / no-STR decision with rationale | critical | 24 | After step 5 |
 
 ---
 
