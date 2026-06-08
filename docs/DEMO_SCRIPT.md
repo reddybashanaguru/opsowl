@@ -38,20 +38,87 @@
 **URL:** `/sla`
 
 **What to show:**
-- Create 3 SLA policies
-- Show breach threshold, priority mapping
-- Explain SLA countdown starts the moment a case is created
+- Four fixed policies — one per priority level: Critical, High, Medium, Low
+- Click **Edit** on Critical to open the three-field form and walk through each field in detail (see below)
+- Save and return to show the updated bar
+- Explain SLA countdown starts the moment a case is created and is visible on every case row
+
+---
+
+### SLA Field-by-Field Explanation (say this while Edit is open on Critical)
+
+There are **three independent controls** per policy. Each controls a different layer of the SLA system:
+
+#### 1. Warning Hours (e.g. `2` for Critical)
+- This is the **early notification trigger**.
+- When a case has been open for this many hours without being resolved, the system sends a **proactive alert to the assigned analyst** — "your Critical case is approaching its deadline."
+- For Critical with `Warning Hours = 2`: the analyst is notified at the **2-hour mark** from case creation. There are still 2 hours left to act — this is a heads-up, not a panic.
+- Think of it as: *"Wake up the analyst early so they're not scrambling at the last minute."*
+- This is **independent** of the visual bar — it fires earlier than the bar turns amber.
+
+#### 2. Breach Hours (e.g. `4` for Critical)
+- This is the **hard regulatory deadline**.
+- When a case has been open for this many hours, it officially **breaches SLA**.
+- At breach: the case row turns **red** on the cases list, the dashboard's "Attention Required" count goes up, and the **manager is alerted automatically**.
+- This is the number examiners care about — "was the investigation completed within X hours?"
+- For AML: set Critical to `24` to match the RBI/FIU-IND 24-hour STR preliminary action requirement.
+
+#### 3. Warning % of Breach (e.g. `80` for Critical)
+- This controls the **visual amber indicator** on the dashboard and cases list.
+- When a case has aged past `warn_pct%` of its breach deadline, the case row turns **amber** across the platform — dashboard, cases list, case detail header.
+- For Critical: `80% × 4h = 3.2h ≈ 3h`. So the case row turns amber at the **3-hour mark**.
+- The `3h → 4h` label on the right of the progress bar is calculated as: `(breach_hours × warn_pct / 100) → breach_hours` — it shows the amber window visually.
+- This is separate from Warning Hours: Warning Hours fires a notification early (2h), while this percentage turns the UI amber later (3h). Two different signals, two different audiences: notification goes to the analyst, amber row is visible to everyone including the manager.
+
+---
+
+### How the three levels work together (Critical example)
+
+```
+Case created
+    |
+    ├─── 2h elapsed  →  WARNING NOTIFICATION sent to analyst (Warning Hours = 2)
+    │                   "Your critical case needs attention"
+    │
+    ├─── 3h elapsed  →  CASE ROW TURNS AMBER on dashboard + cases list (warn_pct = 80%)
+    │                   Everyone can see the case is in the danger zone
+    │
+    └─── 4h elapsed  →  BREACH — case turns RED, manager alerted (Breach Hours = 4)
+                         SLA missed — shows in Attention Required panel + analytics
+```
+
+For **High priority** (`Warning Hours=20h, Breach=1d, warn_pct=80%`):
+```
+Case created
+    ├─── 20h  →  Notification to analyst
+    ├─── 19h mark on bar (80% of 24h)  →  Row turns amber  [bar shows 19h → 1d]
+    └─── 24h  →  Breach
+```
+
+**Why Warning Hours ≠ warn_pct × breach_hours:**
+They are intentionally decoupled. The notification (Warning Hours) can fire earlier than the visual amber (warn_pct) — giving the analyst a private heads-up before the manager sees the amber row. Or you can set Warning Hours larger than the 80% threshold if you want the opposite. Full flexibility.
+
+---
+
+**Progress bar label decoded (`3h → 4h` on the right):**
+- Left number = `breach_hours × warn_pct / 100` rounded = when the amber visual starts
+- Right number = `breach_hours` = when breach occurs
+- The yellow fill = percentage of the bar that is the "safe zone"; the unfilled grey = the amber-to-breach window
+- It's a visual representation of how much time is the danger window vs. the safe investigation window
+
+---
 
 **Demo line:**
-> "Regulators expect investigations to be completed within defined turnaround times. Every case gets an SLA clock from the moment it's created. When it breaches, the manager is alerted automatically."
+> "Three independent controls per priority level. Warning Hours sends a private notification to the analyst early — before anything turns red or amber — so they have time to act. Warning Percent is when the case row turns amber on the dashboard, visible to the entire team. Breach Hours is the hard regulatory deadline — that's what examiners check. For Critical AML cases: analyst is notified at 2 hours, the row turns amber at 3 hours, breach at 4. No case silently ages past its deadline."
 
-**Sample data:**
+**Default thresholds (pre-configured):**
 
-| Name | Priority | Breach After |
-|------|----------|-------------|
-| Urgent — Regulatory Deadline | Critical | 24 hours |
-| Standard AML Investigation | High | 72 hours |
-| Routine Review | Medium | 7 days |
+| Priority | Notification at (Warning Hours) | Row turns amber at (warn_pct) | Hard breach (Breach Hours) | Bar label |
+|----------|--------------------------------|------------------------------|---------------------------|-----------|
+| Critical | 2h | 3h (80% of 4h) | 4h | `3h → 4h` |
+| High | 20h | 19h (80% of 24h) | 1 day (24h) | `19h → 1d` |
+| Medium | — | 2d 10h (80% of 3d) | 3 days | `2d 10h → 3d` |
+| Low | — | 5d 14h (80% of 7d) | 7 days | `5d 14h → 7d` |
 
 ---
 
