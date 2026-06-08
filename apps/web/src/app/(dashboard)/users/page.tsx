@@ -331,7 +331,7 @@ export default function UsersPage() {
           </div>
         )}
 
-        {/* Search + Filter */}
+        {/* Search */}
         <div className="flex gap-2 mb-5">
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs">⌕</span>
@@ -346,13 +346,6 @@ export default function UsersPage() {
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">✕</button>
             )}
           </div>
-          <select
-            value={roleFilter}
-            onChange={(e) => setRoleFilter(e.target.value)}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
-          >
-            {ROLES.map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
-          </select>
         </div>
 
         {isLoading && (
