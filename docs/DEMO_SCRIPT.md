@@ -62,7 +62,25 @@
 | 5 | If confirmed match — file report with FIU-IND, freeze account permanently | critical | 24 | After step 4 |
 | 6 | Document final disposition — cleared / confirmed / escalated to regulator | high | 48 | After step 5 |
 
----
+### Feature 5 — Assignment Rules ✅ (5/40)
+- **Actual URL:** `http://localhost:3001/settings/assignment-rules`
+- **Observed UI:** Rule cards showing rule name, priority badge, case type badge, match summary, assign-to. Numbered list (1, 2, 3…) reflects evaluation order. **+ Add Rule** button top right opens modal.
+- **Modal fields:** Rule Name, Priority Order (lower = higher priority), Description, Match Conditions section (Priority dropdown + Case Type dropdown), Assign To section (Role round-robin toggle vs Specific User toggle).
+- **Match Conditions — two fields:**
+  - **Priority** — dropdown: Any priority / Critical / High / Medium / Low
+  - **Case Type** — managed registry dropdown (same `CaseTypeSelect` component used in Playbooks/Case creation)
+  - Both can be left blank = matches any case. Combined = both must match (AND logic).
+- **Assign To — two modes:**
+  - **Role (round-robin):** picks the analyst/manager/admin with fewest open cases at assignment time. Load-balances automatically.
+  - **Specific User:** dropdown of real user names + role label (e.g. "Divya Reddy (analyst)"). Previously was a raw UUID text input — fixed to proper user picker.
+- **Rule card display:** Shows priority badge (colour-coded) + case type chip (cyan monospace) side by side. "Assign:" shows user full name (not UUID) or "least-loaded {role}".
+- **Evaluation order:** Rules run top-to-bottom by `priority_order` when a case is created. First match wins. Rule 1 is evaluated before Rule 2.
+- **Improvements applied during demo:**
+  1. Added `match_case_type` field — migration 00044, backend Rule struct + Evaluate engine + CRUD SQL, frontend form + card display
+  2. Replaced raw UUID text input for "Specific User" with a proper `<select>` populated from `/api/v1/users`
+  3. Rule card now shows full user name instead of truncated UUID
+  4. List container scrollable (`max-h-[calc(100vh-240px)]`) — consistent with Playbooks page improvement
+- **Sample rule to create for demo:** "Auto-assign AML High cases" → Match: priority=High + case_type=aml → Assign: Role=analyst (least-loaded)
 
 ---
 

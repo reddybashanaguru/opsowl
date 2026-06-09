@@ -20,6 +20,7 @@ type Rule struct {
 	Description   *string    `json:"description,omitempty"`
 	PriorityOrder int        `json:"priority_order"`
 	MatchPriority *string    `json:"match_priority,omitempty"`
+	MatchCaseType *string    `json:"match_case_type,omitempty"`
 	MatchSourceID *uuid.UUID `json:"match_source_id,omitempty"`
 	AssignToUser  *uuid.UUID `json:"assign_to_user,omitempty"`
 	AssignToRole  *string    `json:"assign_to_role,omitempty"`
@@ -29,8 +30,9 @@ type Rule struct {
 
 // MatchInput describes an incoming case for rule evaluation.
 type MatchInput struct {
-	Priority string
-	SourceID *uuid.UUID
+	Priority  string
+	CaseType  string
+	SourceID  *uuid.UUID
 }
 
 // Engine evaluates active assignment rules against a new case and returns
@@ -50,10 +52,11 @@ func (e *Engine) Evaluate(ctx context.Context, input MatchInput) (uuid.UUID, err
 		FROM assignment_rules
 		WHERE is_active = TRUE
 		  AND (match_priority IS NULL OR LOWER(match_priority) = LOWER($1))
-		  AND (match_source_id IS NULL OR match_source_id = $2)
+		  AND (match_case_type IS NULL OR LOWER(match_case_type) = LOWER($2))
+		  AND (match_source_id IS NULL OR match_source_id = $3)
 		ORDER BY priority_order ASC
 		LIMIT 20
-	`, input.Priority, input.SourceID)
+	`, input.Priority, input.CaseType, input.SourceID)
 	if err != nil {
 		return uuid.Nil, err
 	}
@@ -119,7 +122,7 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 
 func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	rows, err := h.db.QueryContext(r.Context(), `
-		SELECT id, name, description, priority_order, match_priority, match_source_id,
+		SELECT id, name, description, priority_order, match_priority, match_case_type, match_source_id,
 		       assign_to_user, assign_to_role, is_active, created_at
 		FROM assignment_rules ORDER BY priority_order ASC
 	`)
@@ -131,9 +134,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	var rules []Rule
 	for rows.Next() {
 		var ru Rule
-		var desc, matchPri, assignRole sql.NullString
+		var desc, matchPri, matchCaseType, assignRole sql.NullString
 		var matchSrc, assignUser uuid.NullUUID
-		if err := rows.Scan(&ru.ID, &ru.Name, &desc, &ru.PriorityOrder, &matchPri, &matchSrc,
+		if err := rows.Scan(&ru.ID, &ru.Name, &desc, &ru.PriorityOrder, &matchPri, &matchCaseType, &matchSrc,
 			&assignUser, &assignRole, &ru.IsActive, &ru.CreatedAt); err != nil {
 			continue
 		}
@@ -142,6 +145,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		}
 		if matchPri.Valid {
 			ru.MatchPriority = &matchPri.String
+		}
+		if matchCaseType.Valid {
+			ru.MatchCaseType = &matchCaseType.String
 		}
 		if matchSrc.Valid {
 			ru.MatchSourceID = &matchSrc.UUID
@@ -162,6 +168,7 @@ type createRuleRequest struct {
 	Description   string     `json:"description"`
 	PriorityOrder int        `json:"priority_order"`
 	MatchPriority string     `json:"match_priority"`
+	MatchCaseType string     `json:"match_case_type"`
 	MatchSourceID *uuid.UUID `json:"match_source_id"`
 	AssignToUser  *uuid.UUID `json:"assign_to_user"`
 	AssignToRole  string     `json:"assign_to_role"`
@@ -184,10 +191,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	var id uuid.UUID
 	err := h.db.QueryRowContext(r.Context(), `
 		INSERT INTO assignment_rules
-		  (name, description, priority_order, match_priority, match_source_id, assign_to_user, assign_to_role, created_by)
-		VALUES ($1, NULLIF($2,''), $3, NULLIF(LOWER($4),''), $5, $6, NULLIF(LOWER($7),''), $8)
+		  (name, description, priority_order, match_priority, match_case_type, match_source_id, assign_to_user, assign_to_role, created_by)
+		VALUES ($1, NULLIF($2,''), $3, NULLIF(LOWER($4),''), NULLIF(LOWER($5),''), $6, $7, NULLIF(LOWER($8),''), $9)
 		RETURNING id
-	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchSourceID,
+	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchCaseType, req.MatchSourceID,
 		req.AssignToUser, req.AssignToRole, claims.UserID).Scan(&id)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not create rule")
@@ -210,10 +217,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	result, err := h.db.ExecContext(r.Context(), `
 		UPDATE assignment_rules
 		SET name=$1, description=NULLIF($2,''), priority_order=$3,
-		    match_priority=NULLIF(LOWER($4),''), match_source_id=$5,
-		    assign_to_user=$6, assign_to_role=NULLIF(LOWER($7),''), updated_at=NOW()
-		WHERE id=$8
-	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchSourceID,
+		    match_priority=NULLIF(LOWER($4),''), match_case_type=NULLIF(LOWER($5),''),
+		    match_source_id=$6, assign_to_user=$7, assign_to_role=NULLIF(LOWER($8),''), updated_at=NOW()
+		WHERE id=$9
+	`, req.Name, req.Description, req.PriorityOrder, req.MatchPriority, req.MatchCaseType, req.MatchSourceID,
 		req.AssignToUser, req.AssignToRole, id)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not update rule")

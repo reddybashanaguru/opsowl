@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
+import { CaseTypeSelect } from "@/components/CaseTypeSelect";
 
 interface AssignmentRule {
   id: string;
@@ -11,6 +12,7 @@ interface AssignmentRule {
   description?: string;
   priority_order: number;
   match_priority?: string;
+  match_case_type?: string;
   match_source_id?: string;
   assign_to_user?: string;
   assign_to_role?: string;
@@ -18,11 +20,19 @@ interface AssignmentRule {
   created_at: string;
 }
 
+interface UserOption {
+  id: string;
+  full_name: string;
+  email: string;
+  role: string;
+}
+
 interface RuleFormData {
   name: string;
   description: string;
   priority_order: number;
   match_priority: string;
+  match_case_type: string;
   assign_to_role: string;
   assign_to_user: string;
 }
@@ -32,6 +42,7 @@ const EMPTY_FORM: RuleFormData = {
   description: "",
   priority_order: 100,
   match_priority: "",
+  match_case_type: "",
   assign_to_role: "analyst",
   assign_to_user: "",
 };
@@ -48,10 +59,12 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 function RuleModal({
   rule,
+  users,
   onClose,
   onSaved,
 }: {
   rule: AssignmentRule | null;
+  users: UserOption[];
   onClose: () => void;
   onSaved: () => void;
 }) {
@@ -63,12 +76,16 @@ function RuleModal({
           description: rule.description ?? "",
           priority_order: rule.priority_order,
           match_priority: rule.match_priority ?? "",
+          match_case_type: rule.match_case_type ?? "",
           assign_to_role: rule.assign_to_role ?? "",
           assign_to_user: rule.assign_to_user ?? "",
         }
       : EMPTY_FORM
   );
   const [error, setError] = useState<string | null>(null);
+  const [targetType, setTargetType] = useState<"role" | "user">(
+    rule?.assign_to_user ? "user" : "role"
+  );
 
   const mutation = useMutation({
     mutationFn: () => {
@@ -77,28 +94,21 @@ function RuleModal({
         description: form.description,
         priority_order: form.priority_order,
         match_priority: form.match_priority || undefined,
-        assign_to_role: form.assign_to_role || undefined,
-        assign_to_user: form.assign_to_user || undefined,
+        match_case_type: form.match_case_type || undefined,
+        assign_to_role: targetType === "role" ? form.assign_to_role || undefined : undefined,
+        assign_to_user: targetType === "user" ? form.assign_to_user || undefined : undefined,
       };
       return isEdit
         ? api.put(`/api/v1/assignment-rules/${rule!.id}`, body)
         : api.post("/api/v1/assignment-rules", body);
     },
-    onSuccess: () => {
-      onSaved();
-    },
-    onError: (e) => {
-      setError(e instanceof APIError ? e.message : "Failed to save rule");
-    },
+    onSuccess: () => onSaved(),
+    onError: (e) => setError(e instanceof APIError ? e.message : "Failed to save rule"),
   });
 
   function field(k: keyof RuleFormData, v: string | number) {
     setForm((prev) => ({ ...prev, [k]: v }));
   }
-
-  const [targetType, setTargetType] = useState<"role" | "user">(
-    rule?.assign_to_user ? "user" : "role"
-  );
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -119,12 +129,11 @@ function RuleModal({
         <div className="space-y-4">
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label htmlFor="rule-name" className="block text-xs text-slate-400 mb-1">Rule Name *</label>
+              <label className="block text-xs text-slate-400 mb-1">Rule Name *</label>
               <input
-                id="rule-name"
                 value={form.name}
                 onChange={(e) => field("name", e.target.value)}
-                placeholder="e.g. Auto-assign critical cases"
+                placeholder="e.g. Auto-assign critical AML cases"
                 className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
               />
             </div>
@@ -151,24 +160,37 @@ function RuleModal({
             />
           </div>
 
+          {/* Match Conditions */}
           <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Match Conditions</p>
-            <div>
-              <label className="block text-xs text-slate-400 mb-1">Priority (leave blank to match any)</label>
-              <select
-                value={form.match_priority}
-                onChange={(e) => field("match_priority", e.target.value)}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
-              >
-                {PRIORITIES.map((p) => (
-                  <option key={p} value={p}>
-                    {p === "" ? "Any priority" : p.charAt(0).toUpperCase() + p.slice(1)}
-                  </option>
-                ))}
-              </select>
+            <p className="text-slate-600 text-[11px] -mt-1">Leave blank to match any value. First matching rule wins.</p>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Priority</label>
+                <select
+                  value={form.match_priority}
+                  onChange={(e) => field("match_priority", e.target.value)}
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                >
+                  {PRIORITIES.map((p) => (
+                    <option key={p} value={p}>
+                      {p === "" ? "Any priority" : p.charAt(0).toUpperCase() + p.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-400 mb-1">Case Type</label>
+                <CaseTypeSelect
+                  value={form.match_case_type}
+                  onChange={(v) => field("match_case_type", v)}
+                  className="w-full bg-slate-900 border border-slate-600 text-slate-300 rounded px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                />
+              </div>
             </div>
           </div>
 
+          {/* Assign To */}
           <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Assign To</p>
             <div className="flex gap-3">
@@ -211,18 +233,24 @@ function RuleModal({
                   ))}
                 </select>
                 <p className="text-slate-600 text-[10px] mt-1">
-                  Assigns to the analyst with fewest open cases in this role.
+                  Assigns to the user with fewest open cases in this role.
                 </p>
               </div>
             ) : (
               <div>
-                <label className="block text-xs text-slate-400 mb-1">User ID</label>
-                <input
+                <label className="block text-xs text-slate-400 mb-1">User</label>
+                <select
                   value={form.assign_to_user}
                   onChange={(e) => field("assign_to_user", e.target.value)}
-                  placeholder="UUID of the user to assign to"
-                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm font-mono text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
-                />
+                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                >
+                  <option value="">— select a user —</option>
+                  {users.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.full_name} ({u.role})
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
           </div>
@@ -233,7 +261,7 @@ function RuleModal({
             onClick={() => mutation.mutate()}
             disabled={
               !form.name.trim() ||
-              (!form.assign_to_role && !form.assign_to_user) ||
+              (targetType === "role" ? !form.assign_to_role : !form.assign_to_user) ||
               mutation.isPending
             }
             className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
@@ -247,7 +275,6 @@ function RuleModal({
             Cancel
           </button>
         </div>
-
       </div>
     </div>
   );
@@ -263,6 +290,15 @@ function AssignmentRulesContent() {
     queryFn: () => api.get<{ rules: AssignmentRule[] }>("/api/v1/assignment-rules"),
     select: (d) => (d.rules ?? []).filter((r) => r.is_active),
   });
+
+  const { data: usersData } = useQuery({
+    queryKey: ["users-all"],
+    queryFn: () => api.get<{ data: UserOption[] }>("/api/v1/users?limit=100"),
+    staleTime: 60_000,
+  });
+  const users: UserOption[] = usersData?.data ?? [];
+
+  const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/assignment-rules/${id}`),
@@ -314,7 +350,7 @@ function AssignmentRulesContent() {
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-240px)] pr-1">
         {rules.map((rule, idx) => (
           <div
             key={rule.id}
@@ -325,44 +361,49 @@ function AssignmentRulesContent() {
           >
             <div className="flex items-start justify-between">
               <div className="flex items-start gap-4">
-                {/* Priority badge */}
-                <div className="flex flex-col items-center gap-1">
-                  <span className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-700 text-slate-400 text-xs font-bold tabular-nums">
-                    {idx + 1}
-                  </span>
-                  {!rule.is_active && (
-                    <span className="text-[10px] text-slate-600">off</span>
-                  )}
-                </div>
+                <span className="w-7 h-7 flex items-center justify-center rounded-full bg-slate-700 text-slate-400 text-xs font-bold tabular-nums shrink-0 mt-0.5">
+                  {idx + 1}
+                </span>
 
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <span className="text-slate-200 font-medium text-sm">{rule.name}</span>
                     {rule.match_priority && (
                       <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLORS[rule.match_priority] ?? ""}`}>
                         {rule.match_priority}
                       </span>
                     )}
+                    {rule.match_case_type && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-mono bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
+                        {rule.match_case_type}
+                      </span>
+                    )}
                   </div>
                   {rule.description && (
                     <p className="text-slate-500 text-xs mb-2">{rule.description}</p>
                   )}
-                  <div className="flex flex-wrap gap-3 text-xs text-slate-400">
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                     <span>
                       <span className="text-slate-600">Match: </span>
-                      {rule.match_priority
-                        ? <span className="text-slate-300">{rule.match_priority} priority</span>
-                        : <span className="italic text-slate-600">any case</span>
-                      }
+                      {rule.match_priority || rule.match_case_type ? (
+                        <span className="text-slate-300">
+                          {[rule.match_priority, rule.match_case_type].filter(Boolean).join(" · ")}
+                        </span>
+                      ) : (
+                        <span className="italic text-slate-600">any case</span>
+                      )}
                     </span>
                     <span>
                       <span className="text-slate-600">Assign: </span>
-                      {rule.assign_to_role
-                        ? <span className="text-cyan-400/80">least-loaded {rule.assign_to_role}</span>
-                        : rule.assign_to_user
-                        ? <span className="font-mono text-cyan-400/80">{rule.assign_to_user.slice(0, 8)}…</span>
-                        : <span className="text-slate-600 italic">not set</span>
-                      }
+                      {rule.assign_to_role ? (
+                        <span className="text-cyan-400/80">least-loaded {rule.assign_to_role}</span>
+                      ) : rule.assign_to_user ? (
+                        <span className="text-cyan-400/80">
+                          {userMap[rule.assign_to_user]?.full_name ?? rule.assign_to_user.slice(0, 8) + "…"}
+                        </span>
+                      ) : (
+                        <span className="text-slate-600 italic">not set</span>
+                      )}
                     </span>
                   </div>
                 </div>
@@ -414,6 +455,7 @@ function AssignmentRulesContent() {
       {modalRule !== null && (
         <RuleModal
           rule={modalRule === "new" ? null : modalRule}
+          users={users}
           onClose={() => setModalRule(null)}
           onSaved={handleSaved}
         />

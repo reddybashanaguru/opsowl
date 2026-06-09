@@ -454,6 +454,7 @@ type assignEngineAdapter struct {
 func (a assignEngineAdapter) Evaluate(ctx context.Context, input cases.AssignmentInput) (uuid.UUID, error) {
 	return a.eng.Evaluate(ctx, assignment.MatchInput{
 		Priority: input.Priority,
+		CaseType: input.CaseType,
 		SourceID: input.SourceID,
 	})
 }

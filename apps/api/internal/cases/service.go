@@ -33,6 +33,7 @@ type AssignmentEngine interface {
 // AssignmentInput matches assignment.MatchInput to avoid a direct import.
 type AssignmentInput struct {
 	Priority string
+	CaseType string
 	SourceID *uuid.UUID
 }
 
@@ -92,6 +93,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	} else if s.assignEng != nil {
 		if autoUser, err := s.assignEng.Evaluate(ctx, AssignmentInput{
 			Priority: string(req.Priority),
+			CaseType: req.CaseType,
 		}); err == nil && autoUser != uuid.Nil {
 			assignedTo = uuid.NullUUID{UUID: autoUser, Valid: true}
 		}
@@ -171,7 +173,7 @@ func (s *Service) CreateAuto(ctx context.Context, createdBy uuid.UUID, req Creat
 	if req.AssignedTo != nil {
 		assignedTo = uuid.NullUUID{UUID: *req.AssignedTo, Valid: true}
 	} else if s.assignEng != nil {
-		if autoUser, err := s.assignEng.Evaluate(ctx, AssignmentInput{Priority: string(req.Priority)}); err == nil && autoUser != uuid.Nil {
+		if autoUser, err := s.assignEng.Evaluate(ctx, AssignmentInput{Priority: string(req.Priority), CaseType: req.CaseType}); err == nil && autoUser != uuid.Nil {
 			assignedTo = uuid.NullUUID{UUID: autoUser, Valid: true}
 		}
 	}
