@@ -372,12 +372,18 @@ function PlaybookCard({ playbook, onDelete }: { playbook: PlaybookResponse; onDe
 export default function PlaybooksPage() {
   const qc = useQueryClient();
   const [showCreate, setShowCreate] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"active" | "inactive" | "all">("active");
 
   const { data, isLoading } = useQuery<PlaybooksList>({
     queryKey: ["playbooks"],
     queryFn: () => api.get<PlaybooksList>("/api/v1/playbooks"),
   });
-  const playbooks = data ?? [];
+  const allPlaybooks = data ?? [];
+  const playbooks = allPlaybooks.filter((pb) => {
+    if (statusFilter === "active") return pb.is_active;
+    if (statusFilter === "inactive") return !pb.is_active;
+    return true;
+  });
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/api/v1/playbooks/${id}`),
@@ -394,14 +400,25 @@ export default function PlaybooksPage() {
               Ordered task sequences auto-applied when a case with a matching type is created.
             </p>
           </div>
-          {!showCreate && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+          <div className="flex items-center gap-3">
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}
+              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
             >
-              New Playbook
-            </button>
-          )}
+              <option value="active">Active ({allPlaybooks.filter(p => p.is_active).length})</option>
+              <option value="inactive">Inactive ({allPlaybooks.filter(p => !p.is_active).length})</option>
+              <option value="all">All ({allPlaybooks.length})</option>
+            </select>
+            {!showCreate && (
+              <button
+                onClick={() => setShowCreate(true)}
+                className="bg-cyan-500 hover:bg-cyan-400 text-white font-semibold px-4 py-2 rounded-lg text-sm transition-colors"
+              >
+                New Playbook
+              </button>
+            )}
+          </div>
         </div>
 
         {showCreate && (
@@ -426,9 +443,13 @@ export default function PlaybooksPage() {
         ) : playbooks.length === 0 ? (
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-10 text-center">
             <div className="text-4xl mb-3">📖</div>
-            <p className="text-white font-semibold mb-1">No playbooks yet</p>
+            <p className="text-white font-semibold mb-1">
+              {allPlaybooks.length === 0 ? "No playbooks yet" : `No ${statusFilter} playbooks`}
+            </p>
             <p className="text-slate-500 text-sm">
-              Create your first playbook to auto-apply ordered task sequences to new cases.
+              {allPlaybooks.length === 0
+                ? "Create your first playbook to auto-apply ordered task sequences to new cases."
+                : `Switch the filter to view ${statusFilter === "active" ? "inactive" : "active"} playbooks.`}
             </p>
           </div>
         ) : (
