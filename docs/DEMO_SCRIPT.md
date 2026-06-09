@@ -5,6 +5,67 @@
 
 ---
 
+## Application Usage Log
+*This section records what was actually observed and done during live walkthroughs of the application. Updated as each feature is demoed.*
+
+### Feature 1 — Users & Roles ✅
+- **Actual URL:** `http://localhost:3001/users`
+- **Observed UI:** Role filter chips (Viewer·1, Analyst·3, etc.) show per-role counts and act as filter. Search input. Table with Name, Email, Role badge, Status, Actions columns.
+- **Fix applied during demo:** Removed redundant `<select>` role dropdown — chips already handled filtering. One mechanism is cleaner.
+- **Button label confirmed:** Top right = **+ Invite User**. Modal button = **Create User** (not "Save").
+- **Inline role change:** Hover over a role badge → pencil icon appears → click to change role without opening a form.
+- **Deactivate:** Button on each row, requires confirmation. Past actions remain in audit trail.
+- **Sample data used:** Rahul Desai / rahul.desai@opsowl.dev / Analyst / Test@1234
+
+### Feature 2 — SLA Policies ✅
+- **Actual URL:** `http://localhost:3001/sla`
+- **Observed UI:** 4 fixed policies (one per priority level). No "Create" — policies are fixed, only editable. Edit button per row.
+- **Three fields explained:**
+  - **Warning Hours** = private notification to analyst at X hours elapsed (e.g. 2h for Critical)
+  - **Warning % of Breach** = when case row turns AMBER across the platform (e.g. 80% of 4h = 3h)
+  - **Breach Hours** = hard regulatory deadline; case turns RED, manager alerted
+- **Progress bar label decoded:** `3h → 4h` = amber starts at 3h (80% of 4h), breach at 4h. Calculated as `breach_hours × warn_pct / 100 → breach_hours`
+- **Three-level timeline for Critical:** 2h = analyst notification → 3h = row turns amber → 4h = breach + manager alert
+- **Default values:** Critical (4h breach), High (1d), Medium (3d), Low (7d)
+
+### Feature 3 — Case Templates ✅
+- **Actual URL:** `http://localhost:3001/settings/templates`
+- **Observed UI:** Template cards showing name, ACTIVE/INACTIVE badge, priority badge, description, tags, task count, updated date. **+ New Template** button opens a modal.
+- **Form fields in modal:** Template Name, Description Template, Default Priority (chips: CRITICAL/HIGH/MEDIUM/LOW), Tags (comma-separated), Active toggle, Task Checklist (with + Add task), Create Template button.
+- **No Case Type field** — templates do not have a case type. They are manually picked at case creation.
+- **Active toggle** — when ON: label is cyan "Active — visible in case picker". When OFF: grey "Inactive — hidden from case picker". Toggle uses `p-0` on the button and explicit `left-0.5` anchor on the thumb to prevent overflow.
+- **Task Checklist in template** — optional starter tasks created on the case when the template is applied. Different from Playbooks (which are auto-applied by case type). Templates = manual pick + starter tasks. Playbooks = auto-applied mandatory procedure.
+- **Fix applied during demo:** Toggle thumb was overflowing outside the track. Root cause: no explicit `left` anchor on absolute thumb + browser default button padding. Fixed with `p-0` + `left-0.5`.
+- **Sample template created:** AML — Suspicious Transaction / HIGH / tags: structuring, threshold, aml
+
+### Feature 4 — Investigation Playbooks ✅
+- **Actual URL:** `http://localhost:3001/settings/playbooks`
+- **Observed UI:** List of playbook cards showing name, case type tag (cyan), active/inactive badge, description, step count, expand chevron. **New Playbook** button (was violet — fixed to cyan for consistency).
+- **Form fields (inline panel):** Playbook Name, Case Type (now a dropdown — see improvement below), Description, Steps (each step: title, priority dropdown, due hours input, dependency dropdown, optional description). + Add step link. Create Playbook button.
+- **Step dependency dropdown:** "No dependency" = step available immediately. "After step N" = step is BLOCKED until step N is marked complete. Enforces investigation sequence, not just a checklist.
+- **Case Type field — improvement applied:** Originally free-text input causing typo risk (e.g. "AML" vs "aml" silently breaks playbook trigger). **Replaced with managed Case Types registry:**
+  - Migration 00043: `case_types` table seeded with 7 default types: `aml`, `fraud`, `kyc`, `sanctions`, `cyber`, `insider`, `pep`
+  - API: `GET /api/v1/case-types` (all users), `POST` / `DELETE` (admin only)
+  - `CaseTypeSelect` component: dropdown from registry + inline "Create new type…" option
+  - Applied to: Playbooks form, Case creation form
+  - DELETE is blocked if any cases use the type
+- **Sort order fix:** Playbooks list now sorted by `created_at DESC` — newest first. Was previously sorted by case_type, name.
+- **E2E test data cleaned:** 7 "E2E AML Playbook" entries deleted via API before demo.
+- **Real-world example playbook — Sanctions Hit Review:**
+
+| # | Title | Priority | Due Hours | Dependency |
+|---|-------|----------|-----------|------------|
+| 1 | Freeze or hold the flagged transaction immediately | critical | 1 | No dependency |
+| 2 | Verify identity match — confirm same person, not false positive | critical | 3 | After step 1 |
+| 3 | Collect full KYC, beneficial ownership, source of funds documents | high | 8 | After step 2 |
+| 4 | Escalate to Compliance Head with match evidence and documents | critical | 10 | After step 3 |
+| 5 | If confirmed match — file report with FIU-IND, freeze account permanently | critical | 24 | After step 4 |
+| 6 | Document final disposition — cleared / confirmed / escalated to regulator | high | 48 | After step 5 |
+
+---
+
+---
+
 ## Opening Line
 > "What I'm going to show you is the complete investigation lifecycle — from the moment an alert fires in your TMS, all the way to a formally closed, audit-defensible case ready for regulatory examination. Everything runs on your own server — no cloud, no data leaving your network."
 

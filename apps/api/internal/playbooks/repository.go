@@ -88,7 +88,7 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (playbook
 const listPlaybooksSQL = `
 SELECT id, name, description, case_type, is_active, org_id, created_at, updated_at
 FROM playbooks WHERE org_id = $1
-ORDER BY case_type, name
+ORDER BY created_at DESC
 `
 
 func (r *Repository) List(ctx context.Context, orgID uuid.UUID) ([]playbookRow, error) {
