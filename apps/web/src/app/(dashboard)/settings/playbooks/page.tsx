@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
+import { CaseTypeSelect } from "@/components/CaseTypeSelect";
 
 interface StepResponse {
   id: string;
@@ -194,15 +195,7 @@ function PlaybookForm({
         </div>
         <div>
           <label className="block text-slate-300 text-xs font-medium mb-1">Case Type *</label>
-          <input
-            value={caseType}
-            onChange={(e) => setCaseType(e.target.value)}
-            placeholder="e.g. aml_str, fraud, kyc"
-            className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
-          />
-          <p className="text-slate-600 text-xs mt-1">
-            Must match case_type value entered when creating a case.
-          </p>
+          <CaseTypeSelect value={caseType} onChange={setCaseType} />
         </div>
       </div>
 

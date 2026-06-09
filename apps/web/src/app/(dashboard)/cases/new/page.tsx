@@ -7,6 +7,7 @@ import { z } from "zod";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, APIError, newIdempotencyKey } from "@/lib/api";
+import { CaseTypeSelect } from "@/components/CaseTypeSelect";
 
 const SLA_LABELS: Record<string, string> = {
   critical: "~4 hours to resolve",
@@ -206,32 +207,19 @@ export default function NewCasePage() {
             </div>
           )}
 
-          {/* Case Type / Playbook */}
-          {playbooks.length > 0 && (
-            <div>
-              <label className="block text-slate-300 text-sm font-medium mb-1.5">
-                Case Type{" "}
-                <span className="text-slate-500 font-normal text-xs">(auto-applies a playbook)</span>
-              </label>
-              <select
-                value={selectedCaseType}
-                onChange={(e) => setSelectedCaseType(e.target.value)}
-                className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
-              >
-                <option value="">— No playbook —</option>
-                {playbooks.map((p) => (
-                  <option key={p.id} value={p.case_type}>
-                    {p.case_type} · {p.name} ({p.steps.length} steps)
-                  </option>
-                ))}
-              </select>
-              {selectedCaseType && (
-                <p className="text-violet-400 text-xs mt-1">
-                  Playbook tasks will be auto-created when the case is opened.
-                </p>
-              )}
-            </div>
-          )}
+          {/* Case Type */}
+          <div>
+            <label className="block text-slate-300 text-sm font-medium mb-1.5">
+              Case Type{" "}
+              <span className="text-slate-500 font-normal text-xs">(auto-applies a playbook if one matches)</span>
+            </label>
+            <CaseTypeSelect value={selectedCaseType} onChange={setSelectedCaseType} />
+            {selectedCaseType && playbooks.some(p => p.case_type === selectedCaseType) && (
+              <p className="text-cyan-400 text-xs mt-1">
+                Playbook tasks will be auto-created when this case is opened.
+              </p>
+            )}
+          </div>
 
           {/* Title */}
           <div>
