@@ -220,7 +220,7 @@ function PlaybookForm({
             + Add step
           </button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
           {steps.map((step, i) => (
             <StepRow
               key={i}
@@ -453,7 +453,7 @@ export default function PlaybooksPage() {
             </p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-3 overflow-y-auto max-h-[calc(100vh-280px)] min-h-[160px] pr-1">
             {playbooks.map((pb) => (
               <PlaybookCard
                 key={pb.id}
