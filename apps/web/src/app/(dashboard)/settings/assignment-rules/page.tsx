@@ -164,6 +164,11 @@ function RuleModal({
           <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Match Conditions</p>
             <p className="text-slate-600 text-[11px] -mt-1">Leave blank to match any value. First matching rule wins.</p>
+            {!form.match_priority && !form.match_case_type && (
+              <p className="text-amber-400/80 text-[11px] bg-amber-400/5 border border-amber-400/20 rounded px-2 py-1">
+                ⚠ Both blank — this rule will match every new case (use as catch-all fallback only).
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs text-slate-400 mb-1">Priority</label>
@@ -192,7 +197,10 @@ function RuleModal({
 
           {/* Assign To */}
           <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Assign To</p>
+            <div className="flex items-center gap-1.5">
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Assign To</p>
+              <span className="text-red-400 text-xs">*</span>
+            </div>
             <div className="flex gap-3">
               <button
                 type="button"
@@ -220,29 +228,40 @@ function RuleModal({
 
             {targetType === "role" ? (
               <div>
-                <label className="block text-xs text-slate-400 mb-1">Role</label>
+                <label className="block text-xs text-slate-400 mb-1">
+                  Role <span className="text-red-400">*</span>
+                </label>
                 <select
                   value={form.assign_to_role}
                   onChange={(e) => field("assign_to_role", e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${
+                    !form.assign_to_role ? "border-red-500/40" : "border-slate-600"
+                  }`}
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
-                      {r === "" ? "Select a role…" : r.charAt(0).toUpperCase() + r.slice(1)}
+                      {r === "" ? "— select a role —" : r.charAt(0).toUpperCase() + r.slice(1)}
                     </option>
                   ))}
                 </select>
+                {!form.assign_to_role && (
+                  <p className="text-red-400 text-[10px] mt-0.5">Role is required.</p>
+                )}
                 <p className="text-slate-600 text-[10px] mt-1">
                   Assigns to the user with fewest open cases in this role.
                 </p>
               </div>
             ) : (
               <div>
-                <label className="block text-xs text-slate-400 mb-1">User</label>
+                <label className="block text-xs text-slate-400 mb-1">
+                  User <span className="text-red-400">*</span>
+                </label>
                 <select
                   value={form.assign_to_user}
                   onChange={(e) => field("assign_to_user", e.target.value)}
-                  className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500"
+                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${
+                    !form.assign_to_user ? "border-red-500/40" : "border-slate-600"
+                  }`}
                 >
                   <option value="">— select a user —</option>
                   {users.map((u) => (
@@ -251,6 +270,9 @@ function RuleModal({
                     </option>
                   ))}
                 </select>
+                {!form.assign_to_user && (
+                  <p className="text-red-400 text-[10px] mt-0.5">Select a user to assign cases to.</p>
+                )}
               </div>
             )}
           </div>
@@ -293,10 +315,10 @@ function AssignmentRulesContent() {
 
   const { data: usersData } = useQuery({
     queryKey: ["users-all"],
-    queryFn: () => api.get<{ data: UserOption[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     staleTime: 60_000,
   });
-  const users: UserOption[] = usersData?.data ?? [];
+  const users: UserOption[] = usersData ?? [];
 
   const userMap = Object.fromEntries(users.map((u) => [u.id, u]));
 

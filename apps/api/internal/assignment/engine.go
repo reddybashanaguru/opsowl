@@ -80,6 +80,14 @@ func (e *Engine) Evaluate(ctx context.Context, input MatchInput) (uuid.UUID, err
 			}
 		}
 	}
+	// No rule matched — fall back to least-loaded manager, then admin.
+	// Ensures no case ever stays unassigned due to missing rules.
+	for _, fallbackRole := range []string{"manager", "admin", "super_admin"} {
+		userID, err := e.leastLoadedUserWithRole(ctx, fallbackRole)
+		if err == nil && userID != uuid.Nil {
+			return userID, nil
+		}
+	}
 	return uuid.Nil, nil
 }
 
