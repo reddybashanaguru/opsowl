@@ -80,7 +80,22 @@
   2. Replaced raw UUID text input for "Specific User" with a proper `<select>` populated from `/api/v1/users`
   3. Rule card now shows full user name instead of truncated UUID
   4. List container scrollable (`max-h-[calc(100vh-240px)]`) — consistent with Playbooks page improvement
-- **Sample rule to create for demo:** "Auto-assign AML High cases" → Match: priority=High + case_type=aml → Assign: Role=analyst (least-loaded)
+- **9 production rules defined (create in this order):**
+
+| Priority Order | Name | Match Priority | Match Case Type | Assign To |
+|---|---|---|---|---|
+| 10 | Sanctions Critical → Divya Reddy | Critical | sanctions | Specific User: Divya Reddy |
+| 20 | Critical (any type) → Manager | Critical | (any) | Role: Manager |
+| 30 | AML High → Sneha Patel | High | aml | Specific User: Sneha Patel |
+| 40 | PEP → Manager (EDD Required) | (any) | pep | Role: Manager |
+| 50 | AML (routine) → Analyst Pool | (any) | aml | Role: Analyst |
+| 51 | Fraud → Analyst Pool | (any) | fraud | Role: Analyst |
+| 52 | KYC → Analyst Pool | (any) | kyc | Role: Analyst |
+| 60 | Insider / Cyber → Manager | (any) | insider / cyber | Role: Manager |
+| 100 | Fallback → Analyst Pool | (any) | (any) | Role: Analyst |
+
+- **System fallback (no rules configured):** Engine falls back to least-loaded manager → admin → super_admin. Nothing ever stays unassigned.
+- **Key design principle:** Most specific rules (lowest priority_order) first. Catch-all (100) last. Rules 1 and 3 use Specific User; all others use Role (round-robin).
 
 ---
 
@@ -326,18 +341,174 @@ When alerts arrive — especially during high-volume periods — cases sit unass
 
 **How it helps:**
 - Every case is assigned automatically the moment it is created — zero manual triage for routine cases
-- Rules match case type, priority, and source to the right analyst or team
-- Round-robin option distributes load evenly across analysts without manual management
-- Assignment decision is logged — examiners can see who was assigned, when, and by what rule
-- Managers are freed from triage and can focus on review
+- Rules match on case type + priority (AND logic) — as specific or as broad as needed
+- Round-robin by role picks the analyst with fewest open cases — automatic load balancing
+- Specific User assignment routes high-stakes cases to your best person every time
+- Assignment decision is logged — examiners can see who was assigned, when, and why
+- If no rule matches, the system falls back to the least-loaded manager → admin — nothing ever stays unassigned
+
+**End-to-end flow:**
+```
+Case is created (manual or via alert automation)
+         ↓
+Assignment engine fires immediately (synchronous, same request)
+         ↓
+Rules evaluated in priority_order: Rule 1 → Rule 2 → Rule 3 ...
+         ↓
+First rule where ALL conditions match → wins
+         ├── assign_to_user  → direct assignment to that person
+         └── assign_to_role  → picks user with fewest open cases in that role
+         ↓
+If no rule matches → system fallback: least-loaded manager → admin → super_admin
+```
+
+**Realistic volume:** 8–15 rules for a 10–30 analyst NBFC team. Bounded by the number of distinct routing decisions the team needs — one rule per case type + priority overrides + catch-all.
 
 **What to show:**
-- Create a rule: if case type = AML and priority = High → assign to Divya Reddy
-- Explain round-robin option
-- Explain rules run automatically when a case is created
+- Open the page — explain evaluation order (numbered list, lower number fires first)
+- Open "+ Add Rule" modal — show Match Conditions (Priority + Case Type, both optional = AND logic), Assign To (Role round-robin vs Specific User dropdown)
+- Create the 9 rules below one by one
+- After creating, show the ordered list — demonstrate how Rule 1 intercepts critical sanctions before Rule 3 even gets evaluated
 
 **Demo line:**
-> "No case should sit unassigned. Assignment rules route every alert to the right analyst automatically — by case type, priority, source, or round-robin across the team. The manager is freed from triage entirely."
+> "No case should sit unassigned. These rules run the moment a case is created — critical sanctions go directly to your sanctions specialist, PEP cases go to a manager for enhanced due diligence sign-off, and routine AML cases distribute themselves across the analyst team. Your manager never triages manually again."
+
+---
+
+**The 9 rules to create (in this order):**
+
+**Rule 1 — Sanctions critical: direct to specialist**
+```
+Name:            Sanctions Critical → Divya Reddy
+Priority Order:  10
+Description:     Sanctions hits require FIU-IND notification within 24 hours — always to the specialist
+Match Priority:  Critical
+Match Case Type: sanctions
+Assign To:       Specific User → Divya Reddy (analyst)
+```
+*Regulatory basis: PMLA Section 12A requires reporting a sanctions match to FIU-IND within 24 hours. Cannot afford round-robin.*
+
+---
+
+**Rule 2 — Any critical case not caught above → manager**
+```
+Name:            Critical (any type) → Manager
+Priority Order:  20
+Description:     Critical cases not matched by a specialist rule escalate to the manager immediately
+Match Priority:  Critical
+Match Case Type: (blank — matches any)
+Assign To:       Role → Manager
+```
+*Why: A critical AML, fraud, or cyber case the specialist rules didn't catch needs senior ownership immediately, not an available-junior analyst.*
+
+---
+
+**Rule 3 — High AML → Sneha Patel (STR specialist)**
+```
+Name:            AML High → Sneha Patel
+Priority Order:  30
+Description:     High-value AML cases are potential STR candidates — Sneha handles STR filing end-to-end
+Match Priority:  High
+Match Case Type: aml
+Assign To:       Specific User → Sneha Patel (analyst)
+```
+*Why: STR filing under PMLA requires continuity — same analyst owns the case from alert to FIU submission. Avoids handoff errors in the report.*
+
+---
+
+**Rule 4 — PEP cases → manager (Enhanced Due Diligence)**
+```
+Name:            PEP → Manager (EDD Required)
+Priority Order:  40
+Description:     PEP cases require Enhanced Due Diligence and senior management sign-off per RBI KYC norms
+Match Priority:  (blank)
+Match Case Type: pep
+Assign To:       Role → Manager
+```
+*Regulatory basis: RBI Master Direction on KYC (2016, updated 2023) — PEP onboarding and review requires approval at senior management level.*
+
+---
+
+**Rule 5 — Standard AML → analyst pool**
+```
+Name:            AML (routine) → Analyst Pool
+Priority Order:  50
+Description:     Medium/Low AML cases not caught by higher rules — distributed across the analyst team
+Match Priority:  (blank)
+Match Case Type: aml
+Assign To:       Role → Analyst
+```
+*Note: Rule 3 already took High AML. This catches Medium and Low AML that fell through.*
+
+---
+
+**Rule 6 — Fraud cases → analyst pool**
+```
+Name:            Fraud → Analyst Pool
+Priority Order:  51
+Description:     Fraud investigation cases distributed across the analyst team
+Match Priority:  (blank)
+Match Case Type: fraud
+Assign To:       Role → Analyst
+```
+
+---
+
+**Rule 7 — KYC cases → analyst pool**
+```
+Name:            KYC → Analyst Pool
+Priority Order:  52
+Description:     KYC review cases distributed across the analyst team
+Match Priority:  (blank)
+Match Case Type: kyc
+Assign To:       Role → Analyst
+```
+
+---
+
+**Rule 8 — Insider threat / Cyber → manager (sensitive, need-to-know)**
+```
+Name:            Insider / Cyber → Manager
+Priority Order:  60
+Description:     Internal fraud and cyber cases must not be routed to general analyst pool — information is sensitive
+Match Priority:  (blank)
+Match Case Type: insider
+Assign To:       Role → Manager
+```
+*Repeat with case_type=cyber at priority_order 61.*
+*Why: Insider cases risk evidence tampering and tipping-off if visible to the wrong analyst. Manager controls the information perimeter.*
+
+---
+
+**Rule 9 — Catch-all fallback**
+```
+Name:            Fallback → Analyst Pool
+Priority Order:  100
+Description:     Catches anything not matched by rules above — no case stays unassigned
+Match Priority:  (blank — catch-all)
+Match Case Type: (blank — catch-all)
+Assign To:       Role → Analyst
+```
+*The amber "this rule matches every case" warning is expected and correct here. This is intentional.*
+
+---
+
+**Runtime routing table (what happens when a case is created):**
+
+| Case Priority | Case Type | Rule fires | Assigned to |
+|---|---|---|---|
+| Critical | sanctions | Rule 1 | Divya Reddy directly |
+| Critical | aml | Rule 2 | Least-loaded manager |
+| Critical | fraud | Rule 2 | Least-loaded manager |
+| High | aml | Rule 3 | Sneha Patel directly |
+| Medium | aml | Rule 5 | Least-loaded analyst |
+| Any | pep | Rule 4 | Least-loaded manager |
+| Any | fraud | Rule 6 | Least-loaded analyst |
+| Any | kyc | Rule 7 | Least-loaded analyst |
+| Any | insider | Rule 8 | Least-loaded manager |
+| Any | cyber | Rule 8 | Least-loaded manager |
+| Any | anything else | Rule 9 | Least-loaded analyst |
+| *(no rules at all)* | *(any)* | System fallback | Least-loaded manager → admin |
 
 ---
 
