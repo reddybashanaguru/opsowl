@@ -44,21 +44,33 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState("");
 
+  const parsedTags = tagsRaw.split(",").map((t: string) => t.trim()).filter(Boolean);
+
   const nameErr = !name.trim() ? "Rule name is required."
     : name.trim().length < 5   ? `Must be at least 5 characters (${name.trim().length}/5).`
     : name.length > 100        ? "Must be under 100 characters."
     : null;
-  const scoreErr = minScore < 0 || minScore > 100 ? "Risk score must be between 0 and 100." : null;
-  const sortErr  = sortOrder < 1 || sortOrder > 999 ? "Sort order must be between 1 and 999." : null;
-  const dedupErr = dedup < 0 ? "Dedup window cannot be negative." : null;
-  const hasErrors = !!(nameErr || scoreErr || sortErr || dedupErr);
+  const scoreErr = !Number.isInteger(Number(minScore)) ? "Risk score must be a whole number."
+    : minScore < 0 || minScore > 100 ? "Risk score must be between 0 and 100."
+    : null;
+  const sortErr = !Number.isInteger(Number(sortOrder)) ? "Sort order must be a whole number."
+    : sortOrder < 1 || sortOrder > 999 ? "Sort order must be between 1 and 999."
+    : null;
+  const dedupErr = !Number.isInteger(Number(dedup)) ? "Dedup window must be a whole number."
+    : dedup < 0 ? "Dedup window cannot be negative."
+    : dedup > 8760 ? "Dedup window cannot exceed 8760 hours (1 year)."
+    : null;
+  const tagsErr = parsedTags.length > 10 ? "Maximum 10 tags allowed."
+    : parsedTags.some(t => t.length > 50) ? "Each tag must be under 50 characters."
+    : null;
+  const hasErrors = !!(nameErr || scoreErr || sortErr || dedupErr || tagsErr);
 
   const mutation = useMutation({
     mutationFn: () => api.post<AlertRule>("/api/v1/alert-rules", {
       name: name.trim(), alert_type: alertType, min_risk_score: Number(minScore),
       priority_mapping: priority, mode, dedup_window_hours: Number(dedup),
       sort_order: Number(sortOrder), playbook_case_type: caseType,
-      tags: tagsRaw.split(",").map((t: string) => t.trim()).filter(Boolean),
+      tags: parsedTags,
     }),
     onSuccess: () => { onCreated(); onClose(); },
     onError: (err: any) => setServerError(err.message || "Failed to create rule"),
@@ -102,7 +114,7 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Min Risk Score <span className="text-slate-600">(0–100)</span></label>
-              <input type="number" min={0} max={100} value={minScore} onChange={e => setMinScore(Number(e.target.value))}
+              <input type="number" min={0} max={100} step={1} value={minScore} onChange={e => setMinScore(Number(e.target.value))}
                 className={inputCls(scoreErr)} />
               {submitted && scoreErr && <p className="text-red-400 text-[10px] mt-0.5">{scoreErr}</p>}
             </div>
@@ -134,15 +146,15 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Dedup Window <span className="text-slate-600">(hours)</span></label>
-              <input type="number" min={0} value={dedup} onChange={e => setDedup(Number(e.target.value))}
+              <input type="number" min={0} max={8760} step={1} value={dedup} onChange={e => setDedup(Number(e.target.value))}
                 className={inputCls(dedupErr)} />
               {submitted && dedupErr
                 ? <p className="text-red-400 text-[10px] mt-0.5">{dedupErr}</p>
-                : <p className="text-slate-600 text-[10px] mt-0.5">Same entity + alert type within this window = skipped</p>}
+                : <p className="text-slate-600 text-[10px] mt-0.5">Same entity + alert type within this window = skipped (max 8760h)</p>}
             </div>
             <div>
               <label className="block text-xs text-slate-400 mb-1">Sort Order <span className="text-slate-600">(1–999)</span></label>
-              <input type="number" min={1} max={999} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
+              <input type="number" min={1} max={999} step={1} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
                 className={inputCls(sortErr)} />
               {submitted && sortErr
                 ? <p className="text-red-400 text-[10px] mt-0.5">{sortErr}</p>
@@ -164,9 +176,13 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
           {/* Tags */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Tags <span className="text-slate-600">(comma-separated, applied to auto-created case)</span></label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-slate-400">Tags <span className="text-slate-600">(comma-separated, applied to auto-created case)</span></label>
+              <span className={`text-[10px] ${parsedTags.length > 10 ? "text-red-400" : "text-slate-600"}`}>{parsedTags.length}/10</span>
+            </div>
             <input value={tagsRaw} onChange={e => setTagsRaw(e.target.value)} placeholder="e.g. financial-crime, sanctions, urgent"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+              className={inputCls(tagsErr)} />
+            {submitted && tagsErr && <p className="text-red-400 text-[10px] mt-0.5">{tagsErr}</p>}
           </div>
         </div>
         <div className="flex gap-3 mt-5">
