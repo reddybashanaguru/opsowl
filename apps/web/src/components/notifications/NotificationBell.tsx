@@ -82,6 +82,8 @@ export function NotificationBell() {
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const [open, setOpen] = useState(false);
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0 });
+  const bellRef = useRef<HTMLButtonElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   const { data: countData } = useQuery({
@@ -115,16 +117,30 @@ export function NotificationBell() {
     },
   });
 
-  // Close on outside click
+  // Close on outside click (handles both bell and dropdown)
   useEffect(() => {
     function handler(e: MouseEvent) {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
+      if (
+        dropdownRef.current && !dropdownRef.current.contains(e.target as Node) &&
+        bellRef.current && !bellRef.current.contains(e.target as Node)
+      ) {
         setOpen(false);
       }
     }
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
   }, []);
+
+  const handleBellClick = () => {
+    if (!open && bellRef.current) {
+      const rect = bellRef.current.getBoundingClientRect();
+      const dropdownMaxHeight = 420;
+      // Open to the right of the sidebar; clamp vertically so it never goes off-screen
+      const top = Math.max(8, Math.min(rect.top, window.innerHeight - dropdownMaxHeight - 8));
+      setDropPos({ top, left: rect.right + 8 });
+    }
+    setOpen((v) => !v);
+  };
 
   const unread = typeof countData === "number" ? countData : 0;
   const notifications = notifData ?? [];
@@ -136,9 +152,10 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <>
       <button
-        onClick={() => setOpen(!open)}
+        ref={bellRef}
+        onClick={handleBellClick}
         className="relative w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-200 transition-colors rounded-lg hover:bg-slate-700/40"
         title="Notifications"
       >
@@ -151,7 +168,11 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute bottom-full left-0 mb-2 w-80 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-50">
+        <div
+          ref={dropdownRef}
+          style={{ top: dropPos.top, left: dropPos.left }}
+          className="fixed w-80 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[9999]"
+        >
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
             <span className="text-white text-sm font-semibold">Notifications</span>
@@ -166,7 +187,7 @@ export function NotificationBell() {
           </div>
 
           {/* List */}
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto">
             {isLoading ? (
               <div className="px-4 py-6 text-center text-slate-600 text-sm">Loading…</div>
             ) : notifications.length === 0 ? (
@@ -182,6 +203,6 @@ export function NotificationBell() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }

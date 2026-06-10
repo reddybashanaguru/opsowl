@@ -66,7 +66,7 @@ export default function SubjectsPage() {
   const total    = data?.meta?.total ?? 0;
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div className="p-6">
       {/* Header */}
       <div className="mb-6">
         <div className="flex items-center gap-2.5">
