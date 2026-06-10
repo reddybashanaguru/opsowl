@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Filter, Plus, Trash2, ToggleLeft, ToggleRight, GripVertical, Zap, Inbox } from "lucide-react";
+import { Filter, Plus, Trash2, ToggleLeft, ToggleRight, Zap, Inbox } from "lucide-react";
+import { CaseTypeSelect } from "@/components/CaseTypeSelect";
 
 interface AlertRule {
   id: string;
@@ -40,30 +41,57 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [sortOrder, setSortOrder] = useState(100);
   const [caseType, setCaseType]   = useState("");
   const [tagsRaw, setTagsRaw]     = useState("");
-  const [error, setError]         = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState("");
+
+  const nameErr = !name.trim() ? "Rule name is required."
+    : name.trim().length < 5   ? `Must be at least 5 characters (${name.trim().length}/5).`
+    : name.length > 100        ? "Must be under 100 characters."
+    : null;
+  const scoreErr = minScore < 0 || minScore > 100 ? "Risk score must be between 0 and 100." : null;
+  const sortErr  = sortOrder < 1 || sortOrder > 999 ? "Sort order must be between 1 and 999." : null;
+  const dedupErr = dedup < 0 ? "Dedup window cannot be negative." : null;
+  const hasErrors = !!(nameErr || scoreErr || sortErr || dedupErr);
 
   const mutation = useMutation({
     mutationFn: () => api.post<AlertRule>("/api/v1/alert-rules", {
-      name, alert_type: alertType, min_risk_score: Number(minScore),
+      name: name.trim(), alert_type: alertType, min_risk_score: Number(minScore),
       priority_mapping: priority, mode, dedup_window_hours: Number(dedup),
       sort_order: Number(sortOrder), playbook_case_type: caseType,
       tags: tagsRaw.split(",").map((t: string) => t.trim()).filter(Boolean),
     }),
     onSuccess: () => { onCreated(); onClose(); },
-    onError: (err: any) => setError(err.message || "Failed to create rule"),
+    onError: (err: any) => setServerError(err.message || "Failed to create rule"),
   });
+
+  function handleSubmit() {
+    setSubmitted(true);
+    if (hasErrors) return;
+    mutation.mutate();
+  }
+
+  const inputCls = (err: string | null) =>
+    `w-full bg-slate-900 border rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500 ${submitted && err ? "border-red-500/60" : "border-slate-600"}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">New Routing Rule</h2>
-        {error && <div className="mb-3 text-red-400 text-sm">{error}</div>}
+        {serverError && <div className="mb-3 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{serverError}</div>}
         <div className="space-y-3">
+
+          {/* Name */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Rule Name *</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. High-risk structuring auto-escalate"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-slate-400">Rule Name <span className="text-red-400">*</span></label>
+              <span className="text-[10px] text-slate-600">{name.trim().length}/100</span>
+            </div>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Sanctions hit → auto-escalate" maxLength={101}
+              className={inputCls(nameErr)} />
+            {submitted && nameErr && <p className="text-red-400 text-[10px] mt-0.5">{nameErr}</p>}
           </div>
+
+          {/* Alert Type + Min Risk Score */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Alert Type</label>
@@ -73,11 +101,14 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
               </select>
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Min Risk Score (0–100)</label>
+              <label className="block text-xs text-slate-400 mb-1">Min Risk Score <span className="text-slate-600">(0–100)</span></label>
               <input type="number" min={0} max={100} value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+                className={inputCls(scoreErr)} />
+              {submitted && scoreErr && <p className="text-red-400 text-[10px] mt-0.5">{scoreErr}</p>}
             </div>
           </div>
+
+          {/* Priority + Mode */}
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs text-slate-400 mb-1">Priority Mapping</label>
@@ -90,37 +121,57 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
               <label className="block text-xs text-slate-400 mb-1">Mode</label>
               <select value={mode} onChange={e => setMode(e.target.value)}
                 className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500">
-                <option value="queue">Queue (manual review)</option>
-                <option value="auto">Auto-convert to case</option>
+                <option value="queue">Queue — analyst reviews manually</option>
+                <option value="auto">Auto — convert to case immediately</option>
               </select>
+              {mode === "auto" && (
+                <p className="text-amber-400/80 text-[10px] mt-0.5">Case + playbook created automatically on every matching alert.</p>
+              )}
             </div>
           </div>
+
+          {/* Dedup + Sort Order */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Dedup Window (hours)</label>
+              <label className="block text-xs text-slate-400 mb-1">Dedup Window <span className="text-slate-600">(hours)</span></label>
               <input type="number" min={0} value={dedup} onChange={e => setDedup(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+                className={inputCls(dedupErr)} />
+              {submitted && dedupErr
+                ? <p className="text-red-400 text-[10px] mt-0.5">{dedupErr}</p>
+                : <p className="text-slate-600 text-[10px] mt-0.5">Same entity + alert type within this window = skipped</p>}
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Sort Order (lower = first)</label>
-              <input type="number" value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
-                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+              <label className="block text-xs text-slate-400 mb-1">Sort Order <span className="text-slate-600">(1–999)</span></label>
+              <input type="number" min={1} max={999} value={sortOrder} onChange={e => setSortOrder(Number(e.target.value))}
+                className={inputCls(sortErr)} />
+              {submitted && sortErr
+                ? <p className="text-red-400 text-[10px] mt-0.5">{sortErr}</p>
+                : <p className="text-slate-600 text-[10px] mt-0.5">Lower number evaluated first</p>}
             </div>
           </div>
+
+          {/* Playbook Case Type */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Playbook Case Type <span className="text-slate-600">(optional — auto-apply playbook)</span></label>
-            <input value={caseType} onChange={e => setCaseType(e.target.value)} placeholder="e.g. STRUCTURING"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+            <label className="block text-xs text-slate-400 mb-1">
+              Case Type <span className="text-slate-600">(optional — sets case_type on auto-created case, triggers matching playbook)</span>
+            </label>
+            <CaseTypeSelect
+              value={caseType}
+              onChange={setCaseType}
+              className="w-full bg-slate-900 border border-slate-600 text-slate-100 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+            />
           </div>
+
+          {/* Tags */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Tags <span className="text-slate-600">(comma-separated)</span></label>
-            <input value={tagsRaw} onChange={e => setTagsRaw(e.target.value)} placeholder="financial-crime, urgent"
+            <label className="block text-xs text-slate-400 mb-1">Tags <span className="text-slate-600">(comma-separated, applied to auto-created case)</span></label>
+            <input value={tagsRaw} onChange={e => setTagsRaw(e.target.value)} placeholder="e.g. financial-crime, sanctions, urgent"
               className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
           </div>
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm hover:border-slate-500">Cancel</button>
-          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim()}
+          <button onClick={handleSubmit} disabled={mutation.isPending}
             className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium disabled:opacity-50">
             {mutation.isPending ? "Creating…" : "Create Rule"}
           </button>

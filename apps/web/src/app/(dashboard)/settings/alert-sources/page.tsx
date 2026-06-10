@@ -41,29 +41,49 @@ function CopyButton({ value }: { value: string }) {
   );
 }
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
 function CreateSourceModal({ onClose, onCreated }: { onClose: () => void; onCreated: (src: AlertSource) => void }) {
-  const [name, setName]       = useState("");
-  const [system, setSystem]   = useState("generic");
-  const [type, setType]       = useState("webhook");
-  const [desc, setDesc]       = useState("");
-  const [error, setError]     = useState("");
+  const [name, setName]         = useState("");
+  const [system, setSystem]     = useState("generic");
+  const [type, setType]         = useState("webhook");
+  const [desc, setDesc]         = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError]       = useState("");
+
+  const nameErr = !name.trim() ? "Name is required."
+    : name.trim().length < 5   ? `Name must be at least 5 characters (${name.trim().length}/5).`
+    : name.length > 100        ? "Name must be under 100 characters."
+    : null;
+  const descErr = desc.length > 300 ? `Description must be under 300 characters (${desc.length}/300).` : null;
+  const hasErrors = !!(nameErr || descErr);
 
   const mutation = useMutation({
-    mutationFn: () => api.post<AlertSource>("/api/v1/alert-sources", { name, source_system: system, source_type: type, description: desc }),
+    mutationFn: () => api.post<AlertSource>("/api/v1/alert-sources", { name: name.trim(), source_system: system, source_type: type, description: desc }),
     onSuccess: (data) => { onCreated(data as AlertSource); onClose(); },
     onError: (err: any) => setError(err.message || "Failed to create source"),
   });
+
+  function handleSubmit() {
+    setSubmitted(true);
+    if (hasErrors) return;
+    mutation.mutate();
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">New Alert Source</h2>
-        {error && <div className="mb-3 text-red-400 text-sm">{error}</div>}
+        {error && <div className="mb-3 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{error}</div>}
         <div className="space-y-3">
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Name *</label>
-            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Actimize Production"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-slate-400">Name <span className="text-red-400">*</span></label>
+              <span className="text-[10px] text-slate-600">{name.trim().length}/100</span>
+            </div>
+            <input value={name} onChange={e => setName(e.target.value)} placeholder="e.g. Actimize Production TMS" maxLength={101}
+              className={`w-full bg-slate-900 border rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500 ${submitted && nameErr ? "border-red-500/60" : "border-slate-600"}`} />
+            {submitted && nameErr && <p className="text-red-400 text-[10px] mt-0.5">{nameErr}</p>}
           </div>
           <div>
             <label className="block text-xs text-slate-400 mb-1">Source System</label>
@@ -80,14 +100,23 @@ function CreateSourceModal({ onClose, onCreated }: { onClose: () => void; onCrea
             </select>
           </div>
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Description</label>
-            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="Optional note"
-              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500" />
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs text-slate-400">Description <span className="text-slate-600">(optional)</span></label>
+              <span className={`text-[10px] ${desc.length > 300 ? "text-red-400" : "text-slate-600"}`}>{desc.length}/300</span>
+            </div>
+            <input value={desc} onChange={e => setDesc(e.target.value)} placeholder="e.g. Production Actimize instance, connected via webhook" maxLength={301}
+              className={`w-full bg-slate-900 border rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500 ${submitted && descErr ? "border-red-500/60" : "border-slate-600"}`} />
+            {submitted && descErr && <p className="text-red-400 text-[10px] mt-0.5">{descErr}</p>}
           </div>
+          {type === "webhook" && (
+            <div className="bg-slate-800/60 border border-slate-700/50 rounded-lg px-3 py-2.5 text-[11px] text-slate-400">
+              After creating, you will receive a one-time webhook secret and an ingest URL to configure in your TMS.
+            </div>
+          )}
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm hover:border-slate-500">Cancel</button>
-          <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !name.trim()}
+          <button onClick={handleSubmit} disabled={mutation.isPending}
             className="flex-1 px-4 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-medium disabled:opacity-50">
             {mutation.isPending ? "Creating…" : "Create Source"}
           </button>
@@ -178,7 +207,10 @@ export default function AlertSourcesPage() {
                   {SYSTEM_LABELS[src.source_system] ?? src.source_system} · {src.source_type}
                   {src.description && <span> · {src.description}</span>}
                 </div>
-                <div className="text-slate-600 text-[11px] font-mono mt-1">ID: {src.id}</div>
+                <div className="flex items-center gap-1 mt-1.5">
+                  <code className="text-slate-600 text-[11px] font-mono">{API_BASE}/api/v1/alerts/ingest/{src.id}</code>
+                  <CopyButton value={`${API_BASE}/api/v1/alerts/ingest/${src.id}`} />
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button onClick={() => toggleMutation.mutate({ id: src.id, isActive: !src.is_active })}
