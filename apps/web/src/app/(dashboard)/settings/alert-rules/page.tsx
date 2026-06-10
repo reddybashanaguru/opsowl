@@ -204,7 +204,7 @@ export default function AlertRulesPage() {
   const rules = data?.rules ?? [];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2.5">
@@ -228,7 +228,7 @@ export default function AlertRulesPage() {
           <p className="text-xs text-slate-600 mt-1">Create a rule to automate alert triage</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
           {rules.map((rule, idx) => (
             <div key={rule.id} className={`bg-[#1e293b] border rounded-xl p-4 transition-all ${rule.is_active ? "border-slate-700" : "border-slate-800 opacity-60"}`}>
               <div className="flex items-start justify-between gap-4">

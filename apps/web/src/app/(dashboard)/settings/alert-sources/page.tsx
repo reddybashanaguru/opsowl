@@ -150,7 +150,7 @@ export default function AlertSourcesPage() {
   const sources = data?.sources ?? [];
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2.5">
@@ -193,7 +193,7 @@ export default function AlertSourcesPage() {
           <p className="text-xs text-slate-600 mt-1">Add a source to start receiving TMS alerts</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
           {sources.map(src => (
             <div key={src.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
