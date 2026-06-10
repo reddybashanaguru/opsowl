@@ -57,6 +57,41 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: "text-slate-400 bg-slate-400/10",
 };
 
+const NAME_MIN = 5;
+const NAME_MAX = 100;
+const DESC_MAX = 300;
+const PRIORITY_ORDER_MIN = 1;
+const PRIORITY_ORDER_MAX = 999;
+
+function validate(form: RuleFormData, targetType: "role" | "user") {
+  const name = form.name.trim();
+  return {
+    name: !name
+      ? "Rule name is required."
+      : name.length < NAME_MIN
+      ? `Must be at least ${NAME_MIN} characters (${name.length}/${NAME_MIN}).`
+      : name.length > NAME_MAX
+      ? `Must be under ${NAME_MAX} characters.`
+      : null,
+    priority_order:
+      !form.priority_order || form.priority_order < PRIORITY_ORDER_MIN
+        ? `Must be at least ${PRIORITY_ORDER_MIN}.`
+        : form.priority_order > PRIORITY_ORDER_MAX
+        ? `Must be ${PRIORITY_ORDER_MAX} or less.`
+        : null,
+    description:
+      form.description.length > DESC_MAX
+        ? `Must be under ${DESC_MAX} characters (${form.description.length}/${DESC_MAX}).`
+        : null,
+    assign:
+      targetType === "role" && !form.assign_to_role
+        ? "Select a role to assign cases to."
+        : targetType === "user" && !form.assign_to_user
+        ? "Select a user to assign cases to."
+        : null,
+  };
+}
+
 function RuleModal({
   rule,
   users,
@@ -82,15 +117,33 @@ function RuleModal({
         }
       : EMPTY_FORM
   );
-  const [error, setError] = useState<string | null>(null);
   const [targetType, setTargetType] = useState<"role" | "user">(
     rule?.assign_to_user ? "user" : "role"
   );
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  const [submitted, setSubmitted] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+
+  const errors = validate(form, targetType);
+  const hasErrors = Object.values(errors).some(Boolean);
+
+  function touch(k: string) {
+    setTouched((prev) => new Set(prev).add(k));
+  }
+
+  // Show error for a field if it's been touched OR user already tried to submit
+  function show(k: keyof typeof errors) {
+    return (touched.has(k) || submitted) && !!errors[k];
+  }
+
+  function fieldBorder(k: keyof typeof errors, base = "border-slate-600") {
+    return show(k) ? "border-red-500/60" : base;
+  }
 
   const mutation = useMutation({
     mutationFn: () => {
       const body = {
-        name: form.name,
+        name: form.name.trim(),
         description: form.description,
         priority_order: form.priority_order,
         match_priority: form.match_priority || undefined,
@@ -103,16 +156,22 @@ function RuleModal({
         : api.post("/api/v1/assignment-rules", body);
     },
     onSuccess: () => onSaved(),
-    onError: (e) => setError(e instanceof APIError ? e.message : "Failed to save rule"),
+    onError: (e) => setServerError(e instanceof APIError ? e.message : "Failed to save rule"),
   });
 
   function field(k: keyof RuleFormData, v: string | number) {
     setForm((prev) => ({ ...prev, [k]: v }));
   }
 
+  function handleSave() {
+    setSubmitted(true);
+    if (hasErrors) return;
+    mutation.mutate();
+  }
+
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl">
+      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">
             {isEdit ? "Edit Rule" : "New Rule"}
@@ -120,50 +179,82 @@ function RuleModal({
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl">✕</button>
         </div>
 
-        {error && (
+        {serverError && (
           <div className="mb-4 px-4 py-3 rounded-lg text-sm bg-red-500/10 border border-red-500/30 text-red-400">
-            {error}
+            {serverError}
           </div>
         )}
 
         <div className="space-y-4">
+          {/* Name + Priority Order */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">Rule Name *</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                Rule Name <span className="text-red-400">*</span>
+              </label>
               <input
                 value={form.name}
                 onChange={(e) => field("name", e.target.value)}
+                onBlur={() => touch("name")}
                 placeholder="e.g. Auto-assign critical AML cases"
-                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+                maxLength={NAME_MAX}
+                className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors ${fieldBorder("name")}`}
               />
+              {show("name") && (
+                <p className="text-red-400 text-[10px] mt-0.5">{errors.name}</p>
+              )}
+              {!show("name") && (
+                <p className="text-slate-600 text-[10px] mt-0.5">
+                  {form.name.trim().length}/{NAME_MAX} · min {NAME_MIN} chars
+                </p>
+              )}
             </div>
             <div>
-              <label className="block text-xs text-slate-400 mb-1">Priority Order</label>
+              <label className="block text-xs text-slate-400 mb-1">
+                Priority Order <span className="text-red-400">*</span>
+              </label>
               <input
                 type="number"
                 value={form.priority_order}
                 onChange={(e) => field("priority_order", Number(e.target.value))}
-                min={1}
-                className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+                onBlur={() => touch("priority_order")}
+                min={PRIORITY_ORDER_MIN}
+                max={PRIORITY_ORDER_MAX}
+                className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors ${fieldBorder("priority_order")}`}
               />
-              <p className="text-slate-600 text-[10px] mt-0.5">Lower = higher priority</p>
+              {show("priority_order") ? (
+                <p className="text-red-400 text-[10px] mt-0.5">{errors.priority_order}</p>
+              ) : (
+                <p className="text-slate-600 text-[10px] mt-0.5">1–999, lower fires first</p>
+              )}
             </div>
           </div>
 
+          {/* Description */}
           <div>
-            <label className="block text-xs text-slate-400 mb-1">Description</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="block text-xs text-slate-400">Description</label>
+              <span className={`text-[10px] ${form.description.length > DESC_MAX ? "text-red-400" : "text-slate-600"}`}>
+                {form.description.length}/{DESC_MAX}
+              </span>
+            </div>
             <input
               value={form.description}
               onChange={(e) => field("description", e.target.value)}
-              placeholder="What does this rule do?"
-              className="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              onBlur={() => touch("description")}
+              placeholder="What does this rule do? e.g. Routes critical sanctions cases to the specialist"
+              maxLength={DESC_MAX + 1}
+              className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 transition-colors ${fieldBorder("description")}`}
             />
+            {show("description") && (
+              <p className="text-red-400 text-[10px] mt-0.5">{errors.description}</p>
+            )}
           </div>
 
           {/* Match Conditions */}
           <div className="border border-slate-700/60 rounded-lg p-4 space-y-3">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Match Conditions</p>
-            <p className="text-slate-600 text-[11px] -mt-1">Leave blank to match any value. First matching rule wins.</p>
+            <p className="text-slate-600 text-[11px] -mt-1">Leave blank to match any value. All filled conditions must match (AND logic).</p>
             {!form.match_priority && !form.match_case_type && (
               <p className="text-amber-400/80 text-[11px] bg-amber-400/5 border border-amber-400/20 rounded px-2 py-1">
                 ⚠ Both blank — this rule will match every new case (use as catch-all fallback only).
@@ -233,10 +324,9 @@ function RuleModal({
                 </label>
                 <select
                   value={form.assign_to_role}
-                  onChange={(e) => field("assign_to_role", e.target.value)}
-                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${
-                    !form.assign_to_role ? "border-red-500/40" : "border-slate-600"
-                  }`}
+                  onChange={(e) => { field("assign_to_role", e.target.value); touch("assign"); }}
+                  onBlur={() => touch("assign")}
+                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${fieldBorder("assign")}`}
                 >
                   {ROLES.map((r) => (
                     <option key={r} value={r}>
@@ -244,8 +334,8 @@ function RuleModal({
                     </option>
                   ))}
                 </select>
-                {!form.assign_to_role && (
-                  <p className="text-red-400 text-[10px] mt-0.5">Role is required.</p>
+                {show("assign") && (
+                  <p className="text-red-400 text-[10px] mt-0.5">{errors.assign}</p>
                 )}
                 <p className="text-slate-600 text-[10px] mt-1">
                   Assigns to the user with fewest open cases in this role.
@@ -258,10 +348,9 @@ function RuleModal({
                 </label>
                 <select
                   value={form.assign_to_user}
-                  onChange={(e) => field("assign_to_user", e.target.value)}
-                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${
-                    !form.assign_to_user ? "border-red-500/40" : "border-slate-600"
-                  }`}
+                  onChange={(e) => { field("assign_to_user", e.target.value); touch("assign"); }}
+                  onBlur={() => touch("assign")}
+                  className={`w-full bg-slate-900 border rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500 ${fieldBorder("assign")}`}
                 >
                   <option value="">— select a user —</option>
                   {users.map((u) => (
@@ -270,8 +359,8 @@ function RuleModal({
                     </option>
                   ))}
                 </select>
-                {!form.assign_to_user && (
-                  <p className="text-red-400 text-[10px] mt-0.5">Select a user to assign cases to.</p>
+                {show("assign") && (
+                  <p className="text-red-400 text-[10px] mt-0.5">{errors.assign}</p>
                 )}
               </div>
             )}
@@ -280,12 +369,8 @@ function RuleModal({
 
         <div className="flex gap-3 mt-6">
           <button
-            onClick={() => mutation.mutate()}
-            disabled={
-              !form.name.trim() ||
-              (targetType === "role" ? !form.assign_to_role : !form.assign_to_user) ||
-              mutation.isPending
-            }
+            onClick={handleSave}
+            disabled={mutation.isPending}
             className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
           >
             {mutation.isPending ? "Saving…" : "Save Rule"}

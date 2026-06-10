@@ -4,7 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -182,6 +184,29 @@ type createRuleRequest struct {
 	AssignToRole  string     `json:"assign_to_role"`
 }
 
+func validateRuleRequest(req createRuleRequest) error {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return fmt.Errorf("name is required")
+	}
+	if len(name) < 5 {
+		return fmt.Errorf("name must be at least 5 characters")
+	}
+	if len(name) > 100 {
+		return fmt.Errorf("name must be under 100 characters")
+	}
+	if len(req.Description) > 300 {
+		return fmt.Errorf("description must be under 300 characters")
+	}
+	if req.PriorityOrder < 1 || req.PriorityOrder > 999 {
+		return fmt.Errorf("priority_order must be between 1 and 999")
+	}
+	if strings.TrimSpace(req.AssignToRole) == "" && req.AssignToUser == nil {
+		return fmt.Errorf("assign_to_role or assign_to_user is required")
+	}
+	return nil
+}
+
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromCtx(r.Context())
 	var req createRuleRequest
@@ -189,12 +214,12 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
 		return
 	}
-	if req.Name == "" {
-		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", "name is required")
-		return
-	}
 	if req.PriorityOrder == 0 {
 		req.PriorityOrder = 100
+	}
+	if err := validateRuleRequest(req); err != nil {
+		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		return
 	}
 	var id uuid.UUID
 	err := h.db.QueryRowContext(r.Context(), `
@@ -220,6 +245,13 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	var req createRuleRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		return
+	}
+	if req.PriorityOrder == 0 {
+		req.PriorityOrder = 100
+	}
+	if err := validateRuleRequest(req); err != nil {
+		response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 		return
 	}
 	result, err := h.db.ExecContext(r.Context(), `
