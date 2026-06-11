@@ -193,7 +193,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
           <PageError error={error as Error | null} onRetry={() => refetch()} />
         ) : isLoading ? (
           [...Array(3)].map((_, i) => <SkeletonNote key={i} />)
-        ) : allNotes.length === 0 ? (
+        ) : allNotes.length === 0 && !showEditor ? (
           <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-16 text-center">
             <div className="text-4xl mb-3">📝</div>
             <p className="text-slate-400 text-sm font-medium">No notes yet</p>

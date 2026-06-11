@@ -18,7 +18,14 @@ interface AlertRule {
   mode: string;
   sort_order: number;
   is_active: boolean;
+  auto_assign_user_id?: string;
   created_at: string;
+}
+
+interface UserOption {
+  id: string;
+  full_name: string;
+  role: string;
 }
 
 const KNOWN_ALERT_TYPES = [
@@ -41,8 +48,16 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [sortOrder, setSortOrder] = useState(100);
   const [caseType, setCaseType]   = useState("");
   const [tagsRaw, setTagsRaw]     = useState("");
+  const [assignTo, setAssignTo]   = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState("");
+
+  const { data: usersData } = useQuery<{ users: UserOption[] }>({
+    queryKey: ["users-picker-rules"],
+    queryFn: () => api.get<{ users: UserOption[] }>("/api/v1/users?limit=100"),
+    enabled: mode === "auto",
+  });
+  const analysts = (usersData?.users ?? []).filter(u => ["analyst","manager","admin","super_admin"].includes(u.role));
 
   const parsedTags = tagsRaw.split(",").map((t: string) => t.trim()).filter(Boolean);
 
@@ -71,6 +86,7 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
       priority_mapping: priority, mode, dedup_window_hours: Number(dedup),
       sort_order: Number(sortOrder), playbook_case_type: caseType,
       tags: parsedTags,
+      ...(mode === "auto" && assignTo ? { auto_assign_user_id: assignTo } : {}),
     }),
     onSuccess: () => { onCreated(); onClose(); },
     onError: (err: any) => setServerError(err.message || "Failed to create rule"),
@@ -142,6 +158,22 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
             </div>
           </div>
 
+          {/* Auto-assign analyst (only when mode = auto) */}
+          {mode === "auto" && (
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">
+                Auto-assign Analyst <span className="text-slate-600">(optional — leave blank to assign to queue admin)</span>
+              </label>
+              <select value={assignTo} onChange={e => setAssignTo(e.target.value)}
+                className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500">
+                <option value="">— No specific analyst (admin queue) —</option>
+                {analysts.map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name} ({u.role})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Dedup + Sort Order */}
           <div className="grid grid-cols-2 gap-3">
             <div>
@@ -205,6 +237,13 @@ export default function AlertRulesPage() {
     queryKey: ["alert-rules"],
     queryFn: () => api.get<{ rules: AlertRule[] }>("/api/v1/alert-rules"),
   });
+
+  const { data: usersData } = useQuery<{ users: UserOption[] }>({
+    queryKey: ["users-picker-rules"],
+    queryFn: () => api.get<{ users: UserOption[] }>("/api/v1/users?limit=100"),
+    staleTime: 5 * 60_000,
+  });
+  const userMap = Object.fromEntries((usersData?.users ?? []).map(u => [u.id, u.full_name]));
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
@@ -278,6 +317,18 @@ export default function AlertRulesPage() {
                       <span>Min score: <span className="text-slate-300">{rule.min_risk_score}</span></span>
                       <span>Dedup: <span className="text-slate-300">{rule.dedup_window_hours}h</span></span>
                       {rule.playbook_case_type && <span>Playbook: <span className="text-slate-300">{rule.playbook_case_type}</span></span>}
+                      {rule.mode === "auto" && (
+                        <span>
+                          Assigns to:{" "}
+                          <span className="text-cyan-400">
+                            {rule.auto_assign_user_id && userMap[rule.auto_assign_user_id]
+                              ? userMap[rule.auto_assign_user_id]
+                              : rule.auto_assign_user_id
+                                ? "Unknown user"
+                                : "Admin queue"}
+                          </span>
+                        </span>
+                      )}
                     </div>
                     {rule.tags.length > 0 && (
                       <div className="flex gap-1.5 mt-2 flex-wrap">

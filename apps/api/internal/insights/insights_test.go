@@ -107,6 +107,14 @@ func seedCase(t *testing.T, db *sql.DB, creatorID uuid.UUID) uuid.UUID {
 
 func setupRouter(t *testing.T, db *sql.DB, aiURL string) (*chi.Mux, *auth.JWTManager) {
 	t.Helper()
+	_, r, jwtMgr := setupHandlerAndRouter(t, db, aiURL)
+	return r, jwtMgr
+}
+
+// setupHandlerAndRouter returns the Handler directly so tests can call
+// TriggerAnalysis without going through HTTP (e.g. alert automation path).
+func setupHandlerAndRouter(t *testing.T, db *sql.DB, aiURL string) (*insights.Handler, *chi.Mux, *auth.JWTManager) {
+	t.Helper()
 
 	jwtMgr, err := auth.NewJWTManager("../../keys/private.pem", "../../keys/public.pem", time.Hour)
 	if err != nil {
@@ -120,7 +128,7 @@ func setupRouter(t *testing.T, db *sql.DB, aiURL string) (*chi.Mux, *auth.JWTMan
 	r.Route("/api/v1", func(r chi.Router) {
 		insights.RegisterRoutes(r, h, jwtMgr)
 	})
-	return r, jwtMgr
+	return h, r, jwtMgr
 }
 
 func makeToken(t *testing.T, jwtMgr *auth.JWTManager, userID uuid.UUID, email string, role dbgen.UserRole) string {
@@ -357,5 +365,95 @@ func TestAnalyseInsights_403_ViewerForbidden(t *testing.T) {
 
 	if rr.Code != http.StatusForbidden {
 		t.Errorf("expected 403 for viewer role, got %d", rr.Code)
+	}
+}
+
+// ── TriggerAnalysis (alert automation path) ───────────────────────────────────
+
+// TestTriggerAnalysis_StoresResult verifies that TriggerAnalysis (called by the
+// alert automation engine, not via HTTP) stores insights that are readable via
+// GET /cases/:id/insights.
+func TestTriggerAnalysis_StoresResult(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	ai := mockAIServer(t)
+	defer ai.Close()
+
+	h, r, jwtMgr := setupHandlerAndRouter(t, db, ai.URL)
+	analystID := seedUser(t, db, "trigger-analyst@ins.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "trigger-analyst@ins.com", dbgen.UserRoleAnalyst)
+
+	// Call TriggerAnalysis directly — no HTTP request required.
+	// worker.TrySubmit runs synchronously in test context so insights are
+	// persisted before TriggerAnalysis returns.
+	h.TriggerAnalysis(caseID, analystID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/insights", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var body struct {
+		Data struct {
+			AIAvailable bool    `json:"ai_available"`
+			RiskLevel   string  `json:"risk_level"`
+			RiskScore   float64 `json:"risk_score"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &body); err != nil {
+		t.Fatalf("parse body: %v", err)
+	}
+	if !body.Data.AIAvailable {
+		t.Error("expected ai_available=true after TriggerAnalysis")
+	}
+	if body.Data.RiskLevel != "medium" {
+		t.Errorf("expected risk_level=medium (mock score=72.5 < 75), got %s", body.Data.RiskLevel)
+	}
+	if body.Data.RiskScore < 70 || body.Data.RiskScore > 75 {
+		t.Errorf("expected risk_score ~72.5, got %v", body.Data.RiskScore)
+	}
+}
+
+// TestTriggerAnalysis_AIDown_NoPanic verifies that TriggerAnalysis completes
+// without panicking when the AI service is unavailable, and the case remains
+// in ai_available=false state.
+func TestTriggerAnalysis_AIDown_NoPanic(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	badAI := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+	}))
+	defer badAI.Close()
+
+	h, r, jwtMgr := setupHandlerAndRouter(t, db, badAI.URL)
+	analystID := seedUser(t, db, "trigger-analyst2@ins.com", dbgen.UserRoleAnalyst)
+	caseID := seedCase(t, db, analystID)
+	tok := makeToken(t, jwtMgr, analystID, "trigger-analyst2@ins.com", dbgen.UserRoleAnalyst)
+
+	// Must not panic even when AI service is down.
+	h.TriggerAnalysis(caseID, analystID)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/cases/"+caseID.String()+"/insights", nil)
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rr := httptest.NewRecorder()
+	r.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+
+	var body struct {
+		Data struct{ AIAvailable bool `json:"ai_available"` } `json:"data"`
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &body)
+	if body.Data.AIAvailable {
+		t.Error("expected ai_available=false when AI service is down")
 	}
 }

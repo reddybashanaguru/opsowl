@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"testing"
+
+	"github.com/google/uuid"
 )
 
 // ── Normalizer tests ──────────────────────────────────────────────────────────
@@ -299,6 +301,98 @@ func computeSignature(secret string, body []byte) string {
 	mac := hmac.New(sha256.New, []byte(secret))
 	mac.Write(body)
 	return "sha256=" + hex.EncodeToString(mac.Sum(nil))
+}
+
+// ── formatAlertCaseTitle tests ────────────────────────────────────────────────
+
+func TestFormatAlertCaseTitle(t *testing.T) {
+	cases := []struct {
+		alertType     string
+		subjectName   string
+		accountNumber string
+		want          string
+	}{
+		{
+			alertType: "STRUCTURING_TRANSACTION", subjectName: "Rahul Sharma", accountNumber: "AC-7890123",
+			want: "Structuring Transaction – Rahul Sharma (AC-7890123)",
+		},
+		{
+			alertType: "PEP_MATCH", subjectName: "Maria Santos", accountNumber: "",
+			want: "Pep Match – Maria Santos",
+		},
+		{
+			alertType: "SANCTIONS_HIT", subjectName: "Ahmed Al-Rashid", accountNumber: "ACC-456",
+			want: "Sanctions Hit – Ahmed Al-Rashid (ACC-456)",
+		},
+		{
+			alertType: "CASH_DEPOSIT", subjectName: "John Doe", accountNumber: "",
+			want: "Cash Deposit – John Doe",
+		},
+		{
+			alertType: "UNUSUAL_PATTERN", subjectName: "Carlos Mendes", accountNumber: "BR-321",
+			want: "Unusual Pattern – Carlos Mendes (BR-321)",
+		},
+	}
+	for _, tc := range cases {
+		got := formatAlertCaseTitle(tc.alertType, tc.subjectName, tc.accountNumber)
+		if got != tc.want {
+			t.Errorf("formatAlertCaseTitle(%q, %q, %q)\n got  %q\n want %q",
+				tc.alertType, tc.subjectName, tc.accountNumber, got, tc.want)
+		}
+	}
+}
+
+// ── InsightsTrigger wiring tests ──────────────────────────────────────────────
+
+type mockInsightsTrigger struct {
+	called bool
+	lastID uuid.UUID
+}
+
+func (m *mockInsightsTrigger) TriggerAnalysis(caseID uuid.UUID) {
+	m.called = true
+	m.lastID = caseID
+}
+
+func TestInsightsTriggerWiring(t *testing.T) {
+	mt := &mockInsightsTrigger{}
+	svc := NewService(nil)
+
+	// WithInsightsTrigger returns same instance for fluent chaining.
+	if svc.WithInsightsTrigger(mt) != svc {
+		t.Error("WithInsightsTrigger should return the same *Service")
+	}
+	if svc.insightsTrigger == nil {
+		t.Error("insightsTrigger should be non-nil after WithInsightsTrigger")
+	}
+}
+
+func TestInsightsTriggerNilGuard(t *testing.T) {
+	// Service without a trigger — the guarded block must not panic.
+	svc := NewService(nil)
+	wantID := uuid.New()
+
+	if svc.insightsTrigger != nil {
+		svc.insightsTrigger.TriggerAnalysis(wantID)
+	}
+	// Reaching here without panic is the assertion.
+}
+
+func TestInsightsTriggerCalled(t *testing.T) {
+	mt := &mockInsightsTrigger{}
+	svc := NewService(nil).WithInsightsTrigger(mt)
+	wantID := uuid.New()
+
+	if svc.insightsTrigger != nil {
+		svc.insightsTrigger.TriggerAnalysis(wantID)
+	}
+
+	if !mt.called {
+		t.Error("expected TriggerAnalysis to be called")
+	}
+	if mt.lastID != wantID {
+		t.Errorf("TriggerAnalysis got caseID %v, want %v", mt.lastID, wantID)
+	}
 }
 
 // ── riskLevel helper tests ────────────────────────────────────────────────────

@@ -348,8 +348,9 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		sysUserID := resolveSystemUser(ctx, s.sqlDB)
 		alertsRepo := alerts.NewRepository(s.sqlDB)
 		alertsSvc := alerts.NewService(alertsRepo).
-			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, subjectsSvc, sysUserID}).
-			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID})
+			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, subjectsSvc, sysUserID, assignEng}).
+			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID}).
+			WithInsightsTrigger(alertInsightsTriggerAdapter{insightsHandler, sysUserID})
 		alertsHandler := alerts.NewHandler(alertsSvc)
 		alerts.RegisterRoutes(r, alertsHandler, s.jwtMgr)
 
@@ -477,6 +478,7 @@ type alertCaseCreatorAdapter struct {
 	svc           *cases.Service
 	subjectSvc    *subjects.Service
 	systemCreator uuid.UUID
+	assignEng     *assignment.Engine
 }
 
 func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.AlertCaseParams) (uuid.UUID, string, error) {
@@ -491,6 +493,16 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 	if req.Priority == "" {
 		req.Priority = db.CasePriorityMedium
 	}
+	// When the alert rule has no specific assignee, use the assignment engine
+	// to find the least-loaded analyst/manager rather than defaulting to admin.
+	if req.AssignedTo == nil && a.assignEng != nil {
+		if userID, err := a.assignEng.Evaluate(ctx, assignment.MatchInput{
+			Priority: string(req.Priority),
+			CaseType: req.CaseType,
+		}); err == nil && userID != uuid.Nil {
+			req.AssignedTo = &userID
+		}
+	}
 	c, err := a.svc.CreateAuto(ctx, a.systemCreator, req)
 	if err != nil {
 		return uuid.Nil, "", err
@@ -501,6 +513,17 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 		_ = a.subjectSvc.LinkToCase(ctx, claims, c.ID, *p.SubjectID, "primary")
 	}
 	return c.ID, c.CaseNumber, nil
+}
+
+// alertInsightsTriggerAdapter wraps insights.Handler so the alerts package
+// can trigger AI analysis without importing the insights package (avoids cycles).
+type alertInsightsTriggerAdapter struct {
+	handler       *insights.Handler
+	systemCreator uuid.UUID
+}
+
+func (a alertInsightsTriggerAdapter) TriggerAnalysis(caseID uuid.UUID) {
+	a.handler.TriggerAnalysis(caseID, a.systemCreator)
 }
 
 // alertSubjectResolverAdapter bridges alerts.SubjectResolver to subjects.Service.

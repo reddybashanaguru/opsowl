@@ -161,6 +161,48 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// TriggerAnalysis queues an AI risk analysis for a case without an HTTP request.
+// Used by alert automation to immediately analyse auto-created cases.
+func (h *Handler) TriggerAnalysis(caseID, triggeredBy uuid.UUID) {
+	worker.TrySubmit(func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
+		defer cancel()
+		result, aiErr := h.callAIAnalyseWithTiming(ctx, caseID.String())
+		if aiErr != nil {
+			promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case","trigger":"auto"}`, caseID.String())
+			_ = h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
+				promptJSON, fmt.Sprintf("error: %v", aiErr), "unknown", result.latencyMs, 0)
+			return
+		}
+		if err := h.storeInsights(context.Background(), caseID, result.response); err != nil {
+			return
+		}
+		promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case","trigger":"auto","triggered_at":"%s"}`,
+			caseID.String(), result.startedAt.UTC().Format(time.RFC3339))
+		respJSON, _ := json.Marshal(result.response)
+		aiLogID := h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
+			promptJSON, string(respJSON), result.response.ModelUsed, result.latencyMs,
+			int32(result.response.Confidence*100))
+		payload := map[string]any{
+			"risk_level":  riskLevelFromScore(result.response.RiskScore),
+			"risk_score":  result.response.RiskScore,
+			"model_used":  result.response.ModelUsed,
+			"auto_trigger": true,
+		}
+		if aiLogID != uuid.Nil {
+			payload["ai_log_id"] = aiLogID.String()
+		}
+		_ = h.emitter.Emit(context.Background(), timeline.Event{
+			CaseID:     caseID,
+			EventType:  db.TimelineEventTypeAiInsightsGenerated,
+			Source:     db.TimelineEventSourceAi,
+			ActorID:    &triggeredBy,
+			OccurredAt: time.Now(),
+			Payload:    payload,
+		})
+	})
+}
+
 func riskLevelFromScore(score float64) string {
 	switch {
 	case score >= 75:

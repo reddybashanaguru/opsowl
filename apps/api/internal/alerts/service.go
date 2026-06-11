@@ -37,10 +37,17 @@ type SubjectResolver interface {
 	ResolveOrCreate(ctx context.Context, idType, idNumber, name string) (uuid.UUID, error)
 }
 
+// InsightsTrigger queues AI risk analysis immediately after a case is auto-created.
+// Implemented by an adapter in server.go; the triggeredBy actor is captured inside.
+type InsightsTrigger interface {
+	TriggerAnalysis(caseID uuid.UUID)
+}
+
 type Service struct {
-	repo       *Repository
-	caseMgr    CaseCreator
-	subjectMgr SubjectResolver
+	repo            *Repository
+	caseMgr         CaseCreator
+	subjectMgr      SubjectResolver
+	insightsTrigger InsightsTrigger
 }
 
 func NewService(repo *Repository) *Service {
@@ -54,6 +61,11 @@ func (s *Service) WithCaseCreator(c CaseCreator) *Service {
 
 func (s *Service) WithSubjectResolver(sr SubjectResolver) *Service {
 	s.subjectMgr = sr
+	return s
+}
+
+func (s *Service) WithInsightsTrigger(t InsightsTrigger) *Service {
+	s.insightsTrigger = t
 	return s
 }
 
@@ -150,7 +162,7 @@ func (s *Service) IngestAlert(ctx context.Context, sourceID uuid.UUID, raw []byt
 
 	// Auto-create case when the matched rule mode is "auto"
 	if matched.mode == "auto" && s.caseMgr != nil {
-		title := fmt.Sprintf("[%s] %s", alert.AlertType, alert.SubjectName)
+		title := formatAlertCaseTitle(alert.AlertType, alert.SubjectName, alert.AccountNumber)
 		desc := alert.Description
 		if desc == "" {
 			desc = fmt.Sprintf("Auto-escalated by rule. Source: %s. Risk score: %d (%s).",
@@ -171,6 +183,9 @@ func (s *Service) IngestAlert(ctx context.Context, sourceID uuid.UUID, raw []byt
 				"linked_case_id": caseID,
 				"converted_at":   time.Now(),
 			})
+			if s.insightsTrigger != nil {
+				s.insightsTrigger.TriggerAnalysis(caseID)
+			}
 			return &IngestResponse{
 				AlertID: stored.ID,
 				Status:  "auto_converted",
@@ -313,4 +328,22 @@ func (s *Service) List(ctx context.Context, f AlertListFilters) ([]AlertResponse
 
 func (s *Service) Get(ctx context.Context, id uuid.UUID) (*AlertResponse, error) {
 	return s.repo.GetByID(ctx, id, defaultOrgID)
+}
+
+// formatAlertCaseTitle builds a human-readable case title from the alert type,
+// subject name, and optional account number. Example:
+//
+//	"Structuring Transaction – Rahul Sharma (AC-7890123)"
+func formatAlertCaseTitle(alertType, subjectName, accountNumber string) string {
+	parts := strings.Split(strings.ToLower(alertType), "_")
+	for i, p := range parts {
+		if len(p) > 0 {
+			parts[i] = strings.ToUpper(p[:1]) + p[1:]
+		}
+	}
+	title := strings.Join(parts, " ") + " – " + subjectName
+	if accountNumber != "" {
+		title += " (" + accountNumber + ")"
+	}
+	return title
 }

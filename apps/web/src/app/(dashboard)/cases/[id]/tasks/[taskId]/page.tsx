@@ -92,8 +92,8 @@ export default function TaskDetailPage({
     useInfiniteQuery<{ data: Comment[]; meta: CommentMeta }>({
       queryKey: ["task-comments", taskId],
       queryFn: ({ pageParam }) => {
-        const cursor = pageParam ? `?cursor=${pageParam}` : "";
-        return api.getList<Comment, CommentMeta>(`/api/v1/tasks/${taskId}/comments${cursor}&limit=20`);
+        const qs = pageParam ? `?cursor=${pageParam}&limit=20` : `?limit=20`;
+        return api.getList<Comment, CommentMeta>(`/api/v1/tasks/${taskId}/comments${qs}`);
       },
       initialPageParam: undefined as string | undefined,
       getNextPageParam: (last) => last.meta.next_cursor ?? undefined,
