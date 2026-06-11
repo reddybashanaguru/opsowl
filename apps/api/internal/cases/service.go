@@ -104,13 +104,13 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 	c, err := s.repo.Create(ctx, db.CreateCaseParams{
 		Title:          req.Title,
 		Description:    req.Description,
-		Status:         db.CaseStatusDraft,
+		Status:         db.CaseStatusOpen,
 		Priority:       req.Priority,
 		AssignedTo:     assignedTo,
 		CreatedBy:      creatorID,
 		OrganizationID: DefaultOrgID,
 		DueDate:        nullTimeFromPtr(req.DueDate),
-		SlaBreachAt:    sql.NullTime{},
+		SlaBreachAt:    sql.NullTime{Time: slaBreachAt(req.Priority, time.Now()), Valid: true},
 		Tags:           tags,
 	})
 	if err != nil {

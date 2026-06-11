@@ -270,7 +270,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 			Start(ctx)
 
 		// Search module (Feature 11)
-		searchSvc := search.NewService(s.queries)
+		searchSvc := search.NewService(s.queries).WithDB(s.sqlDB)
 		searchHandler := search.NewHandler(searchSvc)
 		search.RegisterRoutes(r, searchHandler, s.jwtMgr)
 

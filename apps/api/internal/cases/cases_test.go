@@ -123,7 +123,7 @@ func TestCreateCase(t *testing.T) {
 	analystID := seedUser(t, db, "analyst@test.com", dbgen.UserRoleAnalyst)
 	claims := claimsFor(analystID, "analyst@test.com", dbgen.UserRoleAnalyst)
 
-	t.Run("creates with draft status and OWL case number", func(t *testing.T) {
+	t.Run("creates with open status and OWL case number", func(t *testing.T) {
 		c, err := svc.Create(context.Background(), claims, cases.CreateCaseRequest{
 			Title:    "Suspicious transaction cluster",
 			Priority: dbgen.CasePriorityHigh,
@@ -132,8 +132,8 @@ func TestCreateCase(t *testing.T) {
 		if err != nil {
 			t.Fatalf("create: %v", err)
 		}
-		if c.Status != dbgen.CaseStatusDraft {
-			t.Errorf("expected status=draft, got %s", c.Status)
+		if c.Status != dbgen.CaseStatusOpen {
+			t.Errorf("expected status=open, got %s", c.Status)
 		}
 		if !strings.HasPrefix(c.CaseNumber, "OWL-") {
 			t.Errorf("expected OWL- prefix, got %s", c.CaseNumber)
@@ -141,9 +141,9 @@ func TestCreateCase(t *testing.T) {
 		if len(c.Tags) != 2 {
 			t.Errorf("expected 2 tags, got %d", len(c.Tags))
 		}
-		// SLA not set on draft
-		if c.SLABreachAt != nil {
-			t.Error("SLA should not be set on draft")
+		// SLA is auto-set from priority on creation
+		if c.SLABreachAt == nil {
+			t.Error("SLA breach time should be set on creation (high = 24h)")
 		}
 	})
 
@@ -310,14 +310,14 @@ func TestListCases(t *testing.T) {
 		}
 	})
 
-	t.Run("filter by status=draft returns all 3 (default status)", func(t *testing.T) {
-		s := dbgen.CaseStatusDraft
+	t.Run("filter by status=open returns all 3 (default status)", func(t *testing.T) {
+		s := dbgen.CaseStatusOpen
 		cs, _, err := svc.List(context.Background(), cases.ListFilters{Status: &s, Limit: 20})
 		if err != nil {
 			t.Fatalf("list: %v", err)
 		}
 		if len(cs) != 3 {
-			t.Errorf("expected 3 draft, got %d", len(cs))
+			t.Errorf("expected 3 open, got %d", len(cs))
 		}
 	})
 
@@ -363,23 +363,18 @@ func TestChangeStatus(t *testing.T) {
 		return c
 	}
 
-	t.Run("draft -> open sets SLA", func(t *testing.T) {
+	t.Run("create sets SLA from priority", func(t *testing.T) {
 		c := createCase(t)
-		updated, err := svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{
-			Status: dbgen.CaseStatusOpen,
-		})
-		if err != nil {
-			t.Fatalf("change status: %v", err)
+		// Cases now start as open with SLA already set from priority
+		if c.Status != dbgen.CaseStatusOpen {
+			t.Errorf("expected open, got %s", c.Status)
 		}
-		if updated.Status != dbgen.CaseStatusOpen {
-			t.Errorf("expected open, got %s", updated.Status)
-		}
-		if updated.SLABreachAt == nil {
-			t.Error("SLA breach time should be set when moving to open")
+		if c.SLABreachAt == nil {
+			t.Error("SLA breach time should be set at creation")
 		}
 		// high priority = 24h SLA
 		expected := time.Now().Add(24 * time.Hour)
-		diff := updated.SLABreachAt.Sub(expected)
+		diff := c.SLABreachAt.Sub(expected)
 		if diff < -2*time.Minute || diff > 2*time.Minute {
 			t.Errorf("SLA time off by %v", diff)
 		}
@@ -387,7 +382,6 @@ func TestChangeStatus(t *testing.T) {
 
 	t.Run("open -> in_progress by analyst", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		updated, err := svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{
 			Status: dbgen.CaseStatusInProgress,
 		})
@@ -405,13 +399,12 @@ func TestChangeStatus(t *testing.T) {
 			Status: dbgen.CaseStatusClosed,
 		})
 		if err == nil {
-			t.Fatal("expected error for invalid transition draft->closed")
+			t.Fatal("expected error for invalid transition open->closed (must go through in_progress→pending_review)")
 		}
 	})
 
 	t.Run("escalation requires manager role", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		// analyst cannot escalate
 		_, err := svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{
 			Status: dbgen.CaseStatusEscalated,
@@ -432,7 +425,6 @@ func TestChangeStatus(t *testing.T) {
 
 	t.Run("escalation requires reason (min 10 chars)", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		_, err := svc.ChangeStatus(context.Background(), managerClaims, c.ID, cases.StatusRequest{
 			Status: dbgen.CaseStatusEscalated,
 			Reason: "short",
@@ -444,7 +436,6 @@ func TestChangeStatus(t *testing.T) {
 
 	t.Run("escalated -> in_progress requires admin", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		svc.ChangeStatus(context.Background(), managerClaims, c.ID, cases.StatusRequest{
 			Status: dbgen.CaseStatusEscalated,
 			Reason: "serious escalation needed",
@@ -467,7 +458,6 @@ func TestChangeStatus(t *testing.T) {
 
 	t.Run("pending_review -> closed by manager", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
 		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
 		updated, err := svc.ChangeStatus(context.Background(), managerClaims, c.ID, cases.StatusRequest{
@@ -483,7 +473,6 @@ func TestChangeStatus(t *testing.T) {
 
 	t.Run("closed case cannot transition", func(t *testing.T) {
 		c := createCase(t)
-		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen})
 		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
 		svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
 		svc.ChangeStatus(context.Background(), managerClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusClosed})
@@ -741,8 +730,8 @@ func TestHandlerCreateCase(t *testing.T) {
 		if data["case_number"] == nil {
 			t.Error("expected case_number in response")
 		}
-		if data["status"] != "draft" {
-			t.Errorf("expected status=draft, got %v", data["status"])
+		if data["status"] != "open" {
+			t.Errorf("expected status=open, got %v", data["status"])
 		}
 	})
 
@@ -848,8 +837,8 @@ func TestHandlerStatusTransition(t *testing.T) {
 		}
 	})
 
-	t.Run("200 on valid transition draft->open", func(t *testing.T) {
-		body := jsonBody(t, map[string]any{"status": "open"})
+	t.Run("200 on valid transition open->in_progress", func(t *testing.T) {
+		body := jsonBody(t, map[string]any{"status": "in_progress"})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/status", body)
 		req.Header.Set("Authorization", "Bearer "+analystToken)
 		req.Header.Set("Content-Type", "application/json")
@@ -859,11 +848,8 @@ func TestHandlerStatusTransition(t *testing.T) {
 			t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 		}
 		data := decodeData(t, rec)
-		if data["status"] != "open" {
-			t.Errorf("expected status=open, got %v", data["status"])
-		}
-		if data["sla_breach_at"] == nil {
-			t.Error("SLA should be set after opening")
+		if data["status"] != "in_progress" {
+			t.Errorf("expected status=in_progress, got %v", data["status"])
 		}
 	})
 }
@@ -914,7 +900,7 @@ func TestHandlerListCases(t *testing.T) {
 		}
 	})
 
-	t.Run("filter by status=open returns 0 (all are draft)", func(t *testing.T) {
+	t.Run("filter by status=open returns 3 (all created as open)", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open", nil)
 		req.Header.Set("Authorization", "Bearer "+token)
 		rec := httptest.NewRecorder()
@@ -924,8 +910,8 @@ func TestHandlerListCases(t *testing.T) {
 		}
 		var resp listResp
 		json.NewDecoder(rec.Body).Decode(&resp)
-		if len(resp.Data) != 0 {
-			t.Errorf("expected 0 open cases, got %d", len(resp.Data))
+		if len(resp.Data) < 3 {
+			t.Errorf("expected >=3 open cases, got %d", len(resp.Data))
 		}
 	})
 }
@@ -1101,8 +1087,8 @@ func TestHandlerChangeStatus(t *testing.T) {
 	token := loginToken(t, db, jwtMgr, "status-mgr@handler.com", dbgen.UserRoleManager)
 	caseID := createCaseViaAPI(t, r, token)
 
-	t.Run("200 draft->open transition", func(t *testing.T) {
-		body, _ := json.Marshal(map[string]string{"status": "open"})
+	t.Run("200 open->in_progress transition", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]string{"status": "in_progress"})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/cases/"+caseID+"/status", bytes.NewReader(body))
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Content-Type", "application/json")
@@ -1307,16 +1293,20 @@ func TestHandlerListCases_MultiStatusFilter(t *testing.T) {
 
 	ctx := context.Background()
 
-	// Create cases in different statuses
-	draftCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Draft case for multi-filter", Priority: dbgen.CasePriorityLow})
+	// Create cases: all start as open; move two through the pipeline
 	openCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Open case for multi-filter", Priority: dbgen.CasePriorityMedium})
+	inProgressCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "InProgress case for multi-filter", Priority: dbgen.CasePriorityLow})
 	closedCase, _ := svc.Create(ctx, claims, cases.CreateCaseRequest{Title: "Closed case for multi-filter", Priority: dbgen.CasePriorityHigh})
 
 	adminID := seedUser(t, db, "mseedadmin@handler.com", dbgen.UserRoleAdmin)
 	adminClaims := claimsFor(adminID, "mseedadmin@handler.com", dbgen.UserRoleAdmin)
-	_, _ = svc.ChangeStatus(ctx, adminClaims, openCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusOpen, Reason: ""})
-	_, _ = svc.ChangeStatus(ctx, adminClaims, closedCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusClosed, Reason: "done"})
-	_ = draftCase
+	// Move inProgressCase to in_progress
+	_, _ = svc.ChangeStatus(ctx, claims, inProgressCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+	// Move closedCase through the full pipeline to closed
+	_, _ = svc.ChangeStatus(ctx, claims, closedCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+	_, _ = svc.ChangeStatus(ctx, claims, closedCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
+	_, _ = svc.ChangeStatus(ctx, adminClaims, closedCase.ID, cases.StatusRequest{Status: dbgen.CaseStatusClosed})
+	_ = openCase
 
 	t.Run("single status filter returns only matching", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/cases?status=open", nil)
@@ -1380,8 +1370,8 @@ func TestHandlerListCases_MultiStatusFilter(t *testing.T) {
 		}
 		_ = json.NewDecoder(rec.Body).Decode(&resp)
 		for _, c := range resp.Data {
-			if c.ID == draftCase.ID.String() {
-				t.Error("draft case should not appear in open,closed filter")
+			if c.ID == inProgressCase.ID.String() {
+				t.Error("in_progress case should not appear in open,closed filter")
 			}
 		}
 	})

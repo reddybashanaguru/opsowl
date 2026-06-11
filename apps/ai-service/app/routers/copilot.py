@@ -153,8 +153,21 @@ async def ask(req: AskRequest) -> CopilotResponse:
     masked = pii_masker.mask(req.question)
     t0 = time.monotonic()
 
-    query_embedding = await llm_router.embed(masked.masked_text)
-    chunks = await rag.search(req.case_id, query_embedding, top_k=req.top_k)
+    try:
+        query_embedding = await llm_router.embed(masked.masked_text)
+        chunks = await rag.search(req.case_id, query_embedding, top_k=req.top_k)
+    except Exception as exc:
+        logger.warning("Embedding/RAG unavailable for ask endpoint: %s", exc)
+        return _build_response(
+            answer="INSUFFICIENT_CONTEXT",
+            chunks=[],
+            model_used="none",
+            provider="none",
+            tokens_input=0,
+            tokens_output=0,
+            latency_ms=int((time.monotonic() - t0) * 1000),
+            prompt_text=masked.masked_text,
+        )
 
     if not chunks:
         return _build_response(
@@ -248,8 +261,12 @@ async def generate_note(req: GenerateNoteRequest) -> CopilotResponse:
 
     # Use embeddings of a "general investigation note" query to get relevant chunks.
     seed_query = "key findings risk factors timeline entities"
-    seed_embedding = await llm_router.embed(seed_query)
-    chunks = await rag.search(req.case_id, seed_embedding, top_k=10)
+    try:
+        seed_embedding = await llm_router.embed(seed_query)
+        chunks = await rag.search(req.case_id, seed_embedding, top_k=10)
+    except Exception as exc:
+        logger.warning("Embedding/RAG unavailable for generate-note endpoint: %s", exc)
+        chunks = []
 
     if not chunks:
         return _build_response(
@@ -304,8 +321,12 @@ async def extract_actions(req: ExtractActionsRequest) -> CopilotResponse:
     t0 = time.monotonic()
 
     seed_query = "action items tasks follow-up required investigation steps"
-    seed_embedding = await llm_router.embed(seed_query)
-    chunks = await rag.search(req.case_id, seed_embedding, top_k=12)
+    try:
+        seed_embedding = await llm_router.embed(seed_query)
+        chunks = await rag.search(req.case_id, seed_embedding, top_k=12)
+    except Exception as exc:
+        logger.warning("Embedding/RAG unavailable for extract-actions endpoint: %s", exc)
+        chunks = []
 
     if not chunks:
         return _build_response(
