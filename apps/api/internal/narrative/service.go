@@ -25,11 +25,12 @@ const (
 )
 
 type Service struct {
-	repo         *Repository
-	queries      *db.Queries
-	emitter      timeline.Emitter
-	aiServiceURL string
-	httpClient   *http.Client
+	repo          *Repository
+	queries       *db.Queries
+	emitter       timeline.Emitter
+	aiServiceURL  string
+	serviceSecret string
+	httpClient    *http.Client
 }
 
 func NewService(repo *Repository, queries *db.Queries, emitter timeline.Emitter, aiServiceURL string) *Service {
@@ -40,6 +41,11 @@ func NewService(repo *Repository, queries *db.Queries, emitter timeline.Emitter,
 		aiServiceURL: aiServiceURL,
 		httpClient:   &http.Client{Timeout: 120 * time.Second},
 	}
+}
+
+func (s *Service) WithServiceSecret(secret string) *Service {
+	s.serviceSecret = secret
+	return s
 }
 
 // ── Generate ──────────────────────────────────────────────────────────────────
@@ -326,6 +332,9 @@ func (s *Service) callAIService(ctx context.Context, req aiNarrativeRequest) (*a
 		return nil, err
 	}
 	httpReq.Header.Set("Content-Type", "application/json")
+	if s.serviceSecret != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+s.serviceSecret)
+	}
 
 	resp, err := s.httpClient.Do(httpReq)
 	if err != nil {

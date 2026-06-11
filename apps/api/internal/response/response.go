@@ -4,6 +4,7 @@ package response
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
@@ -58,4 +59,26 @@ func write(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(body)
+}
+
+// DecodeBody decodes a JSON request body into dst. If the body contains a type
+// mismatch (e.g. string where float64 is expected), it returns a field-specific
+// error message rather than Go's opaque internal error string.
+func DecodeBody(r *http.Request, dst any) error {
+	if err := json.NewDecoder(r.Body).Decode(dst); err != nil {
+		var typeErr *json.UnmarshalTypeError
+		if ok := isUnmarshalTypeError(err, &typeErr); ok {
+			return fmt.Errorf("field %q must be %s (got %s)", typeErr.Field, typeErr.Type, typeErr.Value)
+		}
+		return err
+	}
+	return nil
+}
+
+func isUnmarshalTypeError(err error, target **json.UnmarshalTypeError) bool {
+	ute, ok := err.(*json.UnmarshalTypeError)
+	if ok {
+		*target = ute
+	}
+	return ok
 }

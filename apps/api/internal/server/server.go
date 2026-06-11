@@ -371,7 +371,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 
 		// AI Investigation Narrative (Sprint 4)
 		narrativeRepo := narrative.NewRepository(s.sqlDB)
-		narrativeSvc := narrative.NewService(narrativeRepo, s.queries, timelineEmitter, s.aiServiceURL)
+		narrativeSvc := narrative.NewService(narrativeRepo, s.queries, timelineEmitter, s.aiServiceURL).
+			WithServiceSecret(s.aiServiceSecret)
 		narrativeHandler := narrative.NewHandler(narrativeSvc)
 		narrative.RegisterRoutes(r, narrativeHandler, s.jwtMgr)
 

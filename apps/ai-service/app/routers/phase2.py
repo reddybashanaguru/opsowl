@@ -4,9 +4,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 
+from app.service_auth import require_service_token
 from app.services.llm_router import llm_router
 
 logger = logging.getLogger(__name__)
@@ -328,7 +329,8 @@ class GenerateNarrativeResponse(BaseModel):
     prompt_version: str = "v1"
 
 
-@router.post("/narrative/generate", response_model=GenerateNarrativeResponse)
+@router.post("/narrative/generate", response_model=GenerateNarrativeResponse,
+             dependencies=[Depends(require_service_token)])
 async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrativeResponse:
     """
     Generate a structured investigation narrative for regulatory filing or case closure.

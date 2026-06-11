@@ -23,7 +23,7 @@ func NewHandler(svc *Service) *Handler {
 // POST /api/v1/accounts
 func (h *Handler) CreateAccount(w http.ResponseWriter, r *http.Request) {
 	var req CreateAccountRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := response.DecodeBody(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
@@ -68,7 +68,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req CreateTransactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := response.DecodeBody(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
@@ -105,7 +105,7 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req UpdateTransactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := response.DecodeBody(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
@@ -128,7 +128,7 @@ func (h *Handler) Link(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req LinkTransactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := response.DecodeBody(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
@@ -226,7 +226,7 @@ func (h *Handler) Import(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req CSVImportRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+	if err := response.DecodeBody(r, &req); err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
 		return
 	}
