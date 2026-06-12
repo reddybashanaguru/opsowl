@@ -371,7 +371,7 @@ function RuleModal({
         <div className="flex gap-3 mt-6">
           <button
             onClick={handleSave}
-            disabled={mutation.isPending}
+            disabled={mutation.isPending || !form.name.trim()}
             className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm font-medium rounded transition-colors"
           >
             {mutation.isPending ? "Saving…" : "Save Rule"}

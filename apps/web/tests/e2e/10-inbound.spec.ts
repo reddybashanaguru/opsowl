@@ -90,9 +90,9 @@ test.describe("Inbound Webhook Management", () => {
   test("event log tab shows table with status column", async ({ page }) => {
     await page.getByRole("button", { name: /Event Log/i }).click();
     await page.waitForTimeout(2000);
-    // Either the table with status column, or "No events received yet"
+    // Either the table with status column, or the empty state message
     const hasTable = await page.locator("table").isVisible();
-    const hasEmpty = await page.getByText(/No events received yet/i).isVisible();
+    const hasEmpty = await page.getByText(/No events (received yet|match the current filters)/i).isVisible();
     expect(hasTable || hasEmpty).toBe(true);
   });
 

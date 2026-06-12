@@ -74,11 +74,12 @@ async function createMFAUser(adminTok: string): Promise<string> {
   const json = (await res.json()) as { data?: { id: string }; error?: { code: string } };
   if (json.data?.id) return json.data.id;
   // User may already exist from a previous run — look it up
-  const listRes = await fetch(`${API_URL}/users?per_page=100`, {
+  // GET /api/v1/users returns { data: [...users] } (direct array, not nested .users)
+  const listRes = await fetch(`${API_URL}/users?role=analyst`, {
     headers: { Authorization: `Bearer ${adminTok}` },
   });
-  const listJson = (await listRes.json()) as { data: { users: Array<{ id: string; email: string }> } };
-  const existing = (listJson.data?.users ?? []).find((u) => u.email === MFA_USER.email);
+  const listJson = (await listRes.json()) as { data: Array<{ id: string; email: string }> };
+  const existing = (listJson.data ?? []).find((u) => u.email === MFA_USER.email);
   if (existing) return existing.id;
   throw new Error(`Failed to create or find MFA test user: ${JSON.stringify(json)}`);
 }
