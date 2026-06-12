@@ -231,7 +231,7 @@ type GoAMLValidationError struct {
 // ValidateGoAMLReadiness returns all validation errors that would prevent
 // a valid goAML 4.0 XML from being generated. Empty slice = ready to export.
 func ValidateGoAMLReadiness(f *FilingResponse) []GoAMLValidationError {
-	var errs []GoAMLValidationError
+	errs := make([]GoAMLValidationError, 0)
 
 	var entity goAMLEntityJSON
 	_ = json.Unmarshal(f.FilingEntity, &entity)

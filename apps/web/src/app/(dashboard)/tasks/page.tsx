@@ -67,7 +67,7 @@ function ProgressRing({ pct, size = 44 }: { pct: number; size?: number }) {
 
 function SkeletonCard() {
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-2.5">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-2.5">
       <div className="h-4 w-24 bg-slate-700 rounded animate-pulse" />
       <div className="h-4 w-3/4 bg-slate-700/80 rounded animate-pulse" />
       <div className="h-3 w-full bg-slate-800 rounded animate-pulse" />
@@ -256,7 +256,7 @@ function TasksPageContent() {
       )}
 
       {/* ── Sticky header ─────────────────────────────────── */}
-      <div className="sticky top-0 z-10 flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50 bg-[#0f172a]">
+      <div className="sticky top-0 z-10 flex-shrink-0 px-6 pt-6 pb-4 border-b border-slate-700/50 bg-[#080e1a]">
         <div className="flex items-center justify-between gap-4">
           {/* Left: title + toggle + stats */}
           <div className="flex-1 min-w-0">

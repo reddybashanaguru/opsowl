@@ -105,7 +105,7 @@ function CreateKeyModal({ onClose, onCreated }: { onClose: () => void; onCreated
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] w-full max-w-md p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">New API Key</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-xl">✕</button>
@@ -291,7 +291,7 @@ function APIKeysContent() {
       )}
 
       {/* Table */}
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">

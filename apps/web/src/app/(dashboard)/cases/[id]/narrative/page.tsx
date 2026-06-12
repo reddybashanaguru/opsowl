@@ -129,7 +129,7 @@ function GenerateModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-lg">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-lg">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <h2 className="font-semibold text-slate-200 flex items-center gap-2">
             <Zap size={16} className="text-cyan-400" />
@@ -492,29 +492,24 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
   const approvedCount = narratives.filter((n) => n.status === "approved").length;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <CaseSubNav caseId={caseId} activeTab="narrative" />
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <PenLine size={18} className="text-cyan-400" />
-              Investigation Narratives
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              AI-drafted narratives grounded in approved findings and linked transactions.
-              Edit, approve, and export for STR/SAR filings or case closure.
-            </p>
-          </div>
+    <div className="p-6">
+      <CaseSubNav
+        caseId={caseId}
+        activeTab="narrative"
+        action={
           <button
             onClick={() => setShowGenerate(true)}
-            className="flex items-center gap-1.5 px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg font-medium transition-colors shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
           >
-            <Plus size={14} /> Generate Narrative
+            <Plus size={13} /> Generate Narrative
           </button>
-        </div>
+        }
+      />
+
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">Investigation Narratives</h1>
+        <p className="text-slate-400 text-sm mt-0.5">AI-drafted narratives grounded in approved findings and linked transactions. Edit, approve, and export for STR/SAR filings or case closure.</p>
+      </div>
 
         {/* Stats */}
         {narratives.length > 0 && (
@@ -596,7 +591,6 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
             />
           ))}
         </div>
-      </div>
 
       {showGenerate && (
         <GenerateModal

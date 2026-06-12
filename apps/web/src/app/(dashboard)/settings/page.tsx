@@ -119,7 +119,7 @@ function MFASection() {
   });
 
   return (
-    <section className="mb-8 p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
@@ -303,7 +303,7 @@ function AIConfigSection() {
   const isAirGapped = data?.mode === "air-gapped";
 
   return (
-    <section className="mb-8 p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
       <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
         AI Configuration
       </h2>
@@ -398,7 +398,7 @@ function ChangePasswordSection() {
   const canSubmit = currentPwd.length > 0 && newPwd.length >= 8 && newPwd === confirmPwd && !mutation.isPending;
 
   return (
-    <section className="mb-8 p-6 bg-slate-800/50 border border-slate-700 rounded-xl">
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
       <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
         Change Password
       </h2>

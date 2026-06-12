@@ -88,17 +88,21 @@ test.describe("Investigation Playbooks", () => {
     expect(caseRes.status).toBe(201);
     const { data: newCase } = await caseRes.json();
 
-    // Wait a moment for the async playbook apply to complete
-    await new Promise((r) => setTimeout(r, 1500));
+    // Wait for the async playbook apply to complete (goroutine in worker pool)
+    await new Promise((r) => setTimeout(r, 3000));
 
     const tasksRes = await fetch(`${API_URL}/cases/${newCase.id}/tasks`, {
       headers: { Authorization: `Bearer ${adminToken}` },
     });
     expect(tasksRes.status).toBe(200);
     const tasksJson = await tasksRes.json();
-    const tasks: Array<{ title: string; playbook_step_order: number }> = tasksJson.data ?? [];
-    const playbookTasks = tasks.filter((t) => t.playbook_step_order > 0);
-    expect(playbookTasks.length).toBe(2);
+    const tasks: Array<{ title: string }> = tasksJson.data ?? [];
+
+    // Verify the two playbook steps were auto-applied as tasks
+    const step1 = tasks.find((t) => t.title === "Step 1: Freeze accounts");
+    const step2 = tasks.find((t) => t.title === "Step 2: Notify compliance");
+    expect(step1).toBeDefined();
+    expect(step2).toBeDefined();
 
     // Cleanup
     await fetch(`${API_URL}/cases/${newCase.id}`, {

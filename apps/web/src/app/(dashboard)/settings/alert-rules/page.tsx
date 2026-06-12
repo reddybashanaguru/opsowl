@@ -103,7 +103,7 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">New Routing Rule</h2>
         {serverError && <div className="mb-3 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{serverError}</div>}
         <div className="space-y-3">
@@ -277,7 +277,7 @@ export default function AlertRulesPage() {
       {isFetching && !data ? (
         <div className="flex items-center justify-center h-40 text-slate-500 text-sm">Loading rules…</div>
       ) : rules.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-40 bg-[#1e293b] border border-slate-700 rounded-xl text-slate-500">
+        <div className="flex flex-col items-center justify-center h-40 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] text-slate-500">
           <Filter className="w-8 h-8 mb-3 text-slate-600" />
           <p className="text-sm">No routing rules defined</p>
           <p className="text-xs text-slate-600 mt-1">Create a rule to automate alert triage</p>
@@ -285,7 +285,7 @@ export default function AlertRulesPage() {
       ) : (
         <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
           {rules.map((rule, idx) => (
-            <div key={rule.id} className={`bg-[#1e293b] border rounded-xl p-4 transition-all ${rule.is_active ? "border-slate-700" : "border-slate-800 opacity-60"}`}>
+            <div key={rule.id} className={`bg-[#131f30] border rounded-xl p-4 transition-all ${rule.is_active ? "border-slate-700" : "border-slate-800 opacity-60"}`}>
               <div className="flex items-start justify-between gap-4">
                 <div className="flex items-start gap-3 flex-1 min-w-0">
                   <div className="text-slate-600 text-xs font-mono mt-0.5 w-5 text-right flex-shrink-0">

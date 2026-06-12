@@ -92,7 +92,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 
 function SkeletonFinding() {
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-3 animate-pulse">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-3 animate-pulse">
       <div className="flex items-center gap-2">
         <div className="h-4 bg-slate-700 rounded w-16" />
         <div className="h-5 bg-slate-700 rounded w-64" />
@@ -506,7 +506,7 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
   const summary = summaryData;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <CaseSubNav
         caseId={id}
         activeTab="findings"
@@ -521,6 +521,11 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
         }
       />
 
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">Findings</h1>
+        <p className="text-slate-400 text-sm mt-0.5">Documented investigation findings — approved findings carry evidential weight for STR and case closure.</p>
+      </div>
+
       {/* Summary stats */}
       {summary && (
         <div className="grid grid-cols-4 gap-3 mb-5">
@@ -530,7 +535,7 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
             { label: "Critical", value: summary.critical, color: "text-red-400" },
             { label: "High", value: summary.high, color: "text-orange-400" },
           ].map(stat => (
-            <div key={stat.label} className="bg-[#1e293b] border border-slate-700 rounded-xl p-3 text-center">
+            <div key={stat.label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-3 text-center">
               <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
               <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
             </div>

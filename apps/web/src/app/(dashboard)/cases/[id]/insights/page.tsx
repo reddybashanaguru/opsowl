@@ -37,7 +37,7 @@ function RiskGauge({ score }: { score: number | null }) {
   return (
     <div className="flex flex-col items-center justify-center py-4">
       <svg width="140" height="140" viewBox="0 0 140 140">
-        <circle cx="70" cy="70" r="54" fill="none" stroke="#1e293b" strokeWidth="14" />
+        <circle cx="70" cy="70" r="54" fill="none" stroke="#131f30" strokeWidth="14" />
         <circle
           cx="70" cy="70" r="54" fill="none"
           stroke={color} strokeWidth="14"
@@ -60,7 +60,7 @@ function RiskGauge({ score }: { score: number | null }) {
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
       <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wide mb-4">{title}</h3>
       {children}
     </div>

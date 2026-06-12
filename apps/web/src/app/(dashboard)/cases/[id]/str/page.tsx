@@ -480,7 +480,7 @@ function FilingCard({
       {/* Reject modal */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-md mx-4 shadow-2xl">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-md mx-4 shadow-2xl">
             <h3 className="text-white font-semibold mb-3">Reject {cfg.str_label} Filing</h3>
             <textarea
               rows={3}
@@ -682,25 +682,25 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const labelCls = "text-slate-400 text-xs mb-1.5 block";
 
   return (
-    <div className="p-6 max-w-5xl">
-      <CaseSubNav caseId={caseId} activeTab="str" />
-
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-white text-xl font-bold">Regulatory Filings</h1>
-          <p className="text-slate-400 text-sm mt-0.5">
-            {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 (UNODC)"].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        {isManagerOrAbove && (
+    <div className="p-6">
+      <CaseSubNav
+        caseId={caseId}
+        activeTab="str"
+        action={isManagerOrAbove ? (
           <button
             onClick={() => setShowCreate(true)}
-            className="bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 text-sm font-medium px-4 py-2 rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
           >
             + New Filing
           </button>
-        )}
+        ) : undefined}
+      />
+
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">Regulatory Filings</h1>
+        <p className="text-slate-400 text-sm mt-0.5">
+          {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 (UNODC)"].filter(Boolean).join(" · ")}
+        </p>
       </div>
 
       {/* Compliance banner */}

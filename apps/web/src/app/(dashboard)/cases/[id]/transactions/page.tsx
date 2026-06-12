@@ -427,7 +427,7 @@ function FlowGraphView({ graph }: { graph: FlowGraph }) {
           if (!pos) return null;
           const isSubject = node.is_subject;
           const borderColor = isSubject ? "#22d3ee" : "#475569";
-          const bgColor = isSubject ? "#0e7490" : "#1e293b";
+          const bgColor = isSubject ? "#0e7490" : "#131f30";
 
           return (
             <g key={node.id} transform={`translate(${pos.x},${pos.y})`}>
@@ -540,7 +540,7 @@ function CSVImportModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-5 border-b border-slate-700">
           <h2 className="font-semibold text-slate-200 flex items-center gap-2">
             <Upload size={16} className="text-cyan-400" />
@@ -846,39 +846,35 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
   });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <div className="max-w-6xl mx-auto px-4 py-6">
-        <CaseSubNav caseId={caseId} activeTab="transactions" />
-
-        {/* Header */}
-        <div className="flex items-center justify-between mb-5">
-          <div>
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <ArrowLeftRight size={18} className="text-cyan-400" />
-              Transactions
-            </h1>
-            <p className="text-slate-400 text-sm mt-0.5">
-              Financial evidence — link transactions to this case and trace the flow of funds.
-            </p>
-          </div>
+    <div className="p-6">
+      <CaseSubNav
+        caseId={caseId}
+        activeTab="transactions"
+        action={
           <div className="flex items-center gap-2">
             <button
               onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
             >
-              <Upload size={14} /> Import CSV
+              <Upload size={13} /> Import CSV
             </button>
             <button
               onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
             >
-              <Plus size={14} /> Add Transaction
+              <Plus size={13} /> Add Transaction
             </button>
           </div>
-        </div>
+        }
+      />
 
-        {/* Summary bar */}
-        {summary && <SummaryBar summary={summary} />}
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">Transactions</h1>
+        <p className="text-slate-400 text-sm mt-0.5">Financial evidence — link transactions to this case and trace the flow of funds.</p>
+      </div>
+
+      {/* Summary bar */}
+      {summary && <SummaryBar summary={summary} />}
 
         {/* Add form */}
         {showAdd && (
@@ -973,7 +969,6 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
             )}
           </div>
         )}
-      </div>
 
       {/* CSV Import Modal */}
       {showImport && (

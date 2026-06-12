@@ -42,7 +42,7 @@ function MentionList({
   if (!rect || items.length === 0) return null;
   return createPortal(
     <div
-      className="fixed z-50 bg-[#1e293b] border border-slate-600 rounded-lg shadow-xl py-1 min-w-[180px]"
+      className="fixed z-50 bg-[#131f30] border border-slate-600 rounded-lg shadow-xl py-1 min-w-[180px]"
       style={{ top: rect.bottom + 4, left: rect.left }}
     >
       {items.map((m) => (
@@ -143,7 +143,7 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
   };
 
   return (
-    <div className="bg-[#1e293b] border border-slate-600 rounded-xl overflow-hidden">
+    <div className="bg-[#131f30] border border-slate-600 rounded-xl overflow-hidden">
       {aiGenerated && (
         <div className="px-4 py-2 bg-violet-900/20 border-b border-violet-500/30 flex items-center gap-2">
           <span className="text-violet-400 text-xs font-semibold">✨ AI Generated</span>

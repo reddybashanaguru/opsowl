@@ -217,7 +217,7 @@ function NetworkGraph({ data, rootID }: { data: NetworkData; rootID: string }) {
         const r = n.is_root ? 22 : n.depth === 1 ? 16 : 12;
         const fill = n.is_root ? "#22d3ee" : (NODE_FILL[n.risk_level] ?? "#94a3b8");
         const strokeW = n.is_pep || n.is_sanctioned ? 2.5 : 1.5;
-        const stroke = n.is_sanctioned ? "#f87171" : n.is_pep ? "#c084fc" : "#1e293b";
+        const stroke = n.is_sanctioned ? "#f87171" : n.is_pep ? "#c084fc" : "#131f30";
         const shortLabel = n.label.length > 12 ? n.label.slice(0, 11) + "…" : n.label;
         return (
           <Link key={n.id} href={`/subjects/${n.id}`}>
@@ -282,7 +282,7 @@ function AddRelationshipModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-md p-6 shadow-2xl">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-slate-100 font-semibold text-base">Link Entity</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300"><X size={16} /></button>
@@ -476,13 +476,13 @@ export default function SubjectDetailPage() {
               { label: "Total Cases",  value: subject.total_cases,       color: "text-slate-300" },
               { label: "STR Filings",  value: subject.total_str_filings, color: "text-violet-400" },
             ].map(stat => (
-              <div key={stat.label} className="bg-[#1e293b] border border-slate-700 rounded-xl p-3 text-center">
+              <div key={stat.label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-3 text-center">
                 <div className={`text-xl font-bold ${stat.color}`}>{stat.value}</div>
                 <div className="text-slate-500 text-[10px] uppercase tracking-wider mt-0.5">{stat.label}</div>
               </div>
             ))}
           </div>
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <h3 className="text-slate-200 text-sm font-semibold mb-3">Details</h3>
             <dl className="space-y-2">
               {[
@@ -500,7 +500,7 @@ export default function SubjectDetailPage() {
             </dl>
           </div>
           {(subject.phones.length > 0 || subject.emails.length > 0) && (
-            <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
               <h3 className="text-slate-200 text-sm font-semibold mb-3">Contact</h3>
               {subject.phones.map((p, i) => <div key={i} className="text-slate-400 text-xs font-mono mb-1">{p}</div>)}
               {subject.emails.map((e, i) => <div key={i} className="text-slate-400 text-xs font-mono mb-1">{e}</div>)}
@@ -511,7 +511,7 @@ export default function SubjectDetailPage() {
         {/* Right: Cases + Filings + Risk History */}
         <div className="lg:col-span-2 space-y-5">
           {/* Cases */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
               <FolderKanban size={14} className="text-slate-400" />
               <span className="text-sm font-semibold text-slate-200">Cases ({cases.length})</span>
@@ -539,7 +539,7 @@ export default function SubjectDetailPage() {
           </div>
 
           {/* STR Filings */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
               <FileText size={14} className="text-slate-400" />
               <span className="text-sm font-semibold text-slate-200">STR / SAR Filings ({filings.length})</span>
@@ -565,7 +565,7 @@ export default function SubjectDetailPage() {
           </div>
 
           {/* Risk Score History */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-700 flex items-center gap-2">
               <TrendingUp size={14} className="text-slate-400" />
               <span className="text-sm font-semibold text-slate-200">Risk Score History</span>
@@ -594,7 +594,7 @@ export default function SubjectDetailPage() {
       </div>
 
       {/* ── Connected Entity Network ─────────────────────────────────────── */}
-      <div className="mt-6 bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="mt-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GitFork size={14} className="text-cyan-400" />
@@ -705,7 +705,7 @@ export default function SubjectDetailPage() {
 
       {/* Notes */}
       {subject.notes && (
-        <div className="mt-5 bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+        <div className="mt-5 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
           <h3 className="text-slate-200 text-sm font-semibold mb-2">Notes</h3>
           <p className="text-slate-400 text-sm whitespace-pre-wrap">{subject.notes}</p>
         </div>

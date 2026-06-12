@@ -83,7 +83,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
 
       {/* Reject reason inline popover */}
       {rejectingLogId && (
-        <div className="mb-4 bg-[#1e293b] border border-red-500/30 rounded-xl p-4">
+        <div className="mb-4 bg-[#131f30] border border-red-500/30 rounded-xl p-4">
           <p className="text-sm text-slate-300 mb-2 font-medium">Rejection reason</p>
           <textarea
             value={rejectReason}

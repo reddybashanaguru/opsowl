@@ -116,7 +116,7 @@ function LoginForm() {
   })();
 
   return (
-    <div className="min-h-screen bg-[#0f172a] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#080e1a] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-2 mb-2">
@@ -125,7 +125,7 @@ function LoginForm() {
           <p className="text-slate-400 text-sm">Operations Intelligence Workspace</p>
         </div>
 
-        <div className="bg-[#1e293b] border border-slate-700 rounded-2xl p-8 shadow-xl">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] p-8 shadow-xl">
           {!mfaToken ? (
             <>
               <h1 className="text-white text-xl font-semibold mb-1">Sign in to your workspace</h1>
@@ -144,7 +144,7 @@ function LoginForm() {
                             type="email"
                             placeholder="analyst@yourorg.com"
                             autoComplete="email"
-                            className="bg-[#0f172a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                            className="bg-[#080e1a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                             {...field}
                           />
                         </FormControl>
@@ -163,7 +163,7 @@ function LoginForm() {
                             type="password"
                             placeholder="••••••••"
                             autoComplete="current-password"
-                            className="bg-[#0f172a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
+                            className="bg-[#080e1a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20"
                             {...field}
                           />
                         </FormControl>
@@ -215,7 +215,7 @@ function LoginForm() {
                             placeholder="000000"
                             autoComplete="one-time-code"
                             autoFocus
-                            className="bg-[#0f172a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 text-center text-xl tracking-widest"
+                            className="bg-[#080e1a] border-slate-600 text-white placeholder:text-slate-500 focus:border-cyan-500 focus:ring-cyan-500/20 text-center text-xl tracking-widest"
                             {...field}
                           />
                         </FormControl>
@@ -258,7 +258,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#0f172a]" />}>
+    <Suspense fallback={<div className="min-h-screen bg-[#080e1a]" />}>
       <LoginForm />
     </Suspense>
   );

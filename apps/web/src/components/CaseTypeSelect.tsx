@@ -63,7 +63,7 @@ export function CaseTypeSelect({ value, onChange, disabled, className }: Props) 
         disabled={disabled}
         className={
           className ??
-          "w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+          "w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
         }
       >
         <option value="">— select case type —</option>
@@ -76,7 +76,7 @@ export function CaseTypeSelect({ value, onChange, disabled, className }: Props) 
       </select>
 
       {showCreate && (
-        <div className="bg-[#0f172a] border border-cyan-500/30 rounded-lg p-3 space-y-2">
+        <div className="bg-[#080e1a] border border-cyan-500/30 rounded-lg p-3 space-y-2">
           <p className="text-cyan-400 text-xs font-medium">New Case Type</p>
           <div className="flex gap-2">
             <div className="flex-1">
@@ -84,7 +84,7 @@ export function CaseTypeSelect({ value, onChange, disabled, className }: Props) 
                 value={newSlug}
                 onChange={(e) => handleSlugInput(e.target.value)}
                 placeholder="slug (e.g. aml_kyc)"
-                className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-500 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#131f30] border border-slate-600 text-white placeholder:text-slate-500 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
               />
               <p className="text-slate-600 text-xs mt-0.5">lowercase, underscores only</p>
             </div>
@@ -93,7 +93,7 @@ export function CaseTypeSelect({ value, onChange, disabled, className }: Props) 
                 value={newLabel}
                 onChange={(e) => setNewLabel(e.target.value)}
                 placeholder="label (e.g. AML KYC Review)"
-                className="w-full bg-[#1e293b] border border-slate-600 text-white placeholder:text-slate-500 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#131f30] border border-slate-600 text-white placeholder:text-slate-500 rounded px-2.5 py-1.5 text-xs focus:outline-none focus:border-cyan-500"
               />
             </div>
           </div>

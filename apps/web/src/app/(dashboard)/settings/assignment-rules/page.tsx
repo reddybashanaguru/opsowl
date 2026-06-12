@@ -171,7 +171,7 @@ function RuleModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-white font-semibold text-lg">
             {isEdit ? "Edit Rule" : "New Rule"}
@@ -189,10 +189,11 @@ function RuleModal({
           {/* Name + Priority Order */}
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs text-slate-400 mb-1">
+              <label htmlFor="rule-name" className="block text-xs text-slate-400 mb-1">
                 Rule Name <span className="text-red-400">*</span>
               </label>
               <input
+                id="rule-name"
                 value={form.name}
                 onChange={(e) => field("name", e.target.value)}
                 onBlur={() => touch("name")}
@@ -462,7 +463,7 @@ function AssignmentRulesContent() {
           <div
             key={rule.id}
             data-testid="rule-card"
-            className={`p-5 bg-[#1e293b] border rounded-xl transition-colors ${
+            className={`p-5 bg-[#131f30] border rounded-xl transition-colors ${
               rule.is_active ? "border-slate-700" : "border-slate-700/40 opacity-60"
             }`}
           >

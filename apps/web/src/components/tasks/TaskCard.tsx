@@ -55,7 +55,7 @@ export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, on
 
   return (
     <div
-      className={`bg-[#1e293b] border rounded-xl p-4 cursor-pointer hover:border-slate-600 transition-colors group ${
+      className={`bg-[#131f30] border rounded-xl p-4 cursor-pointer hover:border-slate-600 transition-colors group ${
         task.is_overdue && !isDone ? "border-red-500/40" : "border-slate-700"
       }`}
       onClick={onClick}

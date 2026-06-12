@@ -220,7 +220,7 @@ test.describe("goAML STR filing — global", () => {
     });
     const { data: val } = await valRes.json();
     expect(val.ready).toBe(true);
-    expect(val.errors).toHaveLength(0);
+    expect((val.errors ?? []).length).toBe(0);
   });
 
   // ── Global jurisdictions ──────────────────────────────────────────────────────
@@ -463,7 +463,7 @@ test.describe("goAML STR filing — global", () => {
     await expect(page.getByText(/fiu registration id/i)).toBeVisible();
 
     await page.getByPlaceholder("Your bank / NBFC name").fill("Gulf Trust Bank");
-    await page.getByPlaceholder(/FIU-IN-BANK|UAEFIU/i).fill("UAEFIU-GTB-001");
+    await page.getByPlaceholder(/FIU-IN-BANK-0001/i).fill("UAEFIU-GTB-001");
 
     // Entity Country field
     await page.getByPlaceholder(/e\.g\. IN, AE, KE/i).fill("AE");
@@ -504,7 +504,8 @@ test.describe("goAML STR filing — global", () => {
     await login(page, MANAGER_EMAIL, MANAGER_PASSWORD);
     await page.goto(`/cases/${caseId}/str`);
 
-    await expect(page.locator(".bg-slate-800\\/60").first()).toBeVisible({ timeout: 8_000 });
+    // Wait for at least one filing card to appear
+    await expect(page.getByText("DRAFT").first()).toBeVisible({ timeout: 8_000 });
 
     await page.getByRole("button", { name: /goaml 4.0 readiness/i }).first().click();
     await expect(

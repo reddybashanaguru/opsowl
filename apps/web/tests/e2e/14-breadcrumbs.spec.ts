@@ -34,32 +34,33 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
   });
 
   test("case detail sub-nav shows all six tab buttons", async ({ page }) => {
-    await expect(page.getByRole("button", { name: /Notes →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Tasks →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Documents →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Comms →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /AI Insights →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Timeline →/ })).toBeVisible();
+    // CaseSubNav renders tab buttons without "→" suffix in the new layout
+    await expect(page.getByRole("button", { name: /^Notes$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Tasks$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Documents$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Comms$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^AI Insights$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Timeline$/i })).toBeVisible();
   });
 
   // ─── Tasks sub-page breadcrumbs ─────────────────────────────────────────────
 
   test("tasks subpage shows '← Cases' and case-number breadcrumbs", async ({ page }) => {
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
     await expect(page.getByRole("button", { name: /← Cases/i })).toBeVisible();
     await expect(page.getByRole("button", { name: caseNumber })).toBeVisible();
   });
 
   test("tasks subpage '← Cases' navigates to /cases", async ({ page }) => {
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
     await page.getByRole("button", { name: /← Cases/i }).click();
     await expect(page).toHaveURL(/\/cases$/);
   });
 
   test("tasks subpage case-number breadcrumb navigates back to case detail", async ({ page }) => {
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
     await page.getByRole("button", { name: caseNumber }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}$`));
@@ -68,27 +69,27 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
   // ─── Notes sub-page breadcrumbs ─────────────────────────────────────────────
 
   test("notes subpage shows '← Case' breadcrumb", async ({ page }) => {
-    await page.getByRole("button", { name: /Notes →/ }).click();
+    await page.getByRole("button", { name: /^Notes$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/notes`));
     await expect(page.getByRole("button", { name: /← Case/i })).toBeVisible();
   });
 
   test("notes subpage '← Case' navigates back to case detail", async ({ page }) => {
-    await page.getByRole("button", { name: /Notes →/ }).click();
+    await page.getByRole("button", { name: /^Notes$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/notes`));
     await page.getByRole("button", { name: /← Case/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}$`));
   });
 
   test("notes subpage shows cross-tab navigation buttons", async ({ page }) => {
-    await page.getByRole("button", { name: /Notes →/ }).click();
+    await page.getByRole("button", { name: /^Notes$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/notes`));
-    // Tasks and Documents labels are default; timeline label is config-dependent (e.g. "Activity Log →")
-    await expect(page.getByRole("button", { name: /Tasks →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Documents →/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: "AI Logs →" })).toBeVisible();
-    // Verify Timeline → tab navigates correctly
-    const timelineCrossNav = page.getByRole("button", { name: /Timeline →/i });
+    // CaseSubNav renders tab labels without "→" suffix
+    await expect(page.getByRole("button", { name: /^Tasks$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Documents$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^AI Logs$/i })).toBeVisible();
+    // Verify Timeline tab navigates correctly
+    const timelineCrossNav = page.getByRole("button", { name: /^Timeline$/i });
     await timelineCrossNav.click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/timeline`));
   });
@@ -96,13 +97,13 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
   // ─── Timeline sub-page breadcrumbs ──────────────────────────────────────────
 
   test("timeline subpage shows '← Case' breadcrumb", async ({ page }) => {
-    await page.getByRole("button", { name: /Timeline →/ }).click();
+    await page.getByRole("button", { name: /^Timeline$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/timeline`));
     await expect(page.getByRole("button", { name: /← Case/i })).toBeVisible();
   });
 
   test("timeline subpage '← Case' navigates back to case detail", async ({ page }) => {
-    await page.getByRole("button", { name: /Timeline →/ }).click();
+    await page.getByRole("button", { name: /^Timeline$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/timeline`));
     await page.getByRole("button", { name: /← Case/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}$`));
@@ -111,7 +112,7 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
   // ─── Documents sub-page breadcrumbs ─────────────────────────────────────────
 
   test("documents subpage shows '← Cases' and case-label breadcrumbs", async ({ page }) => {
-    await page.getByRole("button", { name: /Documents →/ }).click();
+    await page.getByRole("button", { name: /^Documents$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/documents`));
     await expect(page.getByRole("button", { name: /← Cases/i })).toBeVisible();
     // Documents page shows cfg.case_label ("Case" or workspace-specific label) not the case number
@@ -119,33 +120,32 @@ test.describe("Breadcrumbs & Sub-page Navigation", () => {
   });
 
   test("documents subpage '← Cases' navigates to /cases", async ({ page }) => {
-    await page.getByRole("button", { name: /Documents →/ }).click();
+    await page.getByRole("button", { name: /^Documents$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/documents`));
     await page.getByRole("button", { name: /← Cases/i }).click();
     await expect(page).toHaveURL(/\/cases$/);
   });
 
   test("documents subpage cross-nav navigates to tasks and timeline correctly", async ({ page }) => {
-    await page.getByRole("button", { name: /Documents →/ }).click();
+    await page.getByRole("button", { name: /^Documents$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/documents`));
-    // Tasks → button (default label, does not change with config in this workspace)
-    await expect(page.getByRole("button", { name: /Tasks →/ })).toBeVisible();
-    // Timeline cross-nav button label varies per workspace config — verify via navigation
-    await page.getByRole("button", { name: /Tasks →/ }).click();
+    // Tasks tab (no "→" suffix in new CaseSubNav layout)
+    await expect(page.getByRole("button", { name: /^Tasks$/i })).toBeVisible();
+    await page.getByRole("button", { name: /^Tasks$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/tasks`));
   });
 
   // ─── Comms sub-page ──────────────────────────────────────────────────────────
 
   test("comms subpage is reachable from case detail nav", async ({ page }) => {
-    await page.getByRole("button", { name: /Comms →/ }).click();
+    await page.getByRole("button", { name: /^Comms$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/comms`));
   });
 
   // ─── AI Insights sub-page ───────────────────────────────────────────────────
 
   test("AI insights subpage is reachable from case detail nav", async ({ page }) => {
-    await page.getByRole("button", { name: /AI Insights →/ }).click();
+    await page.getByRole("button", { name: /^AI Insights$/i }).click();
     await expect(page).toHaveURL(new RegExp(`/cases/${caseId}/insights`));
   });
 

@@ -72,7 +72,7 @@ function InviteModal({ onClose, onSuccess }: InviteModalProps) {
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 w-full max-w-md">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-md">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-slate-100 font-semibold text-lg">Invite User</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">✕</button>
@@ -340,7 +340,7 @@ export default function UsersPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Search name or email…"
-              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-3 py-2 w-60 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
+              className="bg-[#131f30] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-3 py-2 w-60 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
             />
             {search && (
               <button onClick={() => setSearch("")} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 text-xs">✕</button>
@@ -351,7 +351,7 @@ export default function UsersPage() {
         {isLoading && (
           <div className="space-y-2">
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl h-16 animate-pulse" />
+              <div key={i} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] h-16 animate-pulse" />
             ))}
           </div>
         )}
@@ -363,13 +363,13 @@ export default function UsersPage() {
         )}
 
         {!isLoading && !error && filtered.length === 0 && (
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-12 text-center">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-12 text-center">
             <p className="text-slate-400 text-sm">No users match your filters.</p>
           </div>
         )}
 
         {filtered.length > 0 && (
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700">

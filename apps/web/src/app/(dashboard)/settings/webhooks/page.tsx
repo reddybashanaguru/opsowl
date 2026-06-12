@@ -90,7 +90,7 @@ function WebhookForm({
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-slate-800 border border-slate-700 rounded-xl p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-lg max-h-[90vh] overflow-y-auto">
         <h2 className="text-slate-100 font-semibold mb-4">
           {initial ? "Edit Webhook" : "New Webhook"}
         </h2>

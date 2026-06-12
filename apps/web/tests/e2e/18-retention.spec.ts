@@ -28,28 +28,29 @@ test.describe("Data Retention admin panel", () => {
   test("policy rows load without error", async ({ page }) => {
     await page.waitForTimeout(2000);
     await expect(page).not.toHaveURL(/error/);
-    // Either we have rows or the empty state — never crashes
-    const hasRows = await page.locator("tbody tr").filter({ hasNotText: "animate-pulse" }).count();
+    // Either we have real data rows or an empty/loading state — never crashes
+    const hasRows = await page.locator("tbody tr:not([aria-label])").count();
     expect(hasRows).toBeGreaterThanOrEqual(0);
   });
 
   test("each policy row shows retention days and status badge", async ({ page }) => {
     await page.waitForTimeout(2000);
-    const rows = page.locator("tbody tr").filter({ hasNotText: "animate-pulse" });
+    // Use CSS selector to exclude skeleton/empty-state rows (they have aria-label attribute)
+    const rows = page.locator("tbody tr:not([aria-label])");
     const count = await rows.count();
     if (count > 0) {
       // At least one row should show days and a status dot
       const firstRow = rows.first();
       await expect(firstRow.getByText(/days/)).toBeVisible();
-      // Status badge: Active or Paused
       const badge = firstRow.locator("text=/Active|Inactive/");
       await expect(badge).toBeVisible();
     }
+    // If count == 0, no policies seeded — skip (not a failure, just empty DB)
   });
 
   test("pause/enable button is visible on policy rows", async ({ page }) => {
     await page.waitForTimeout(2000);
-    const rows = page.locator("tbody tr").filter({ hasNotText: "animate-pulse" });
+    const rows = page.locator("tbody tr:not([aria-label])");
     const count = await rows.count();
     if (count > 0) {
       const btn = rows.first().locator("button", { hasText: /Pause|Enable/ });

@@ -52,7 +52,7 @@ function TaskStubRow({
   onRemove: (i: number) => void;
 }) {
   return (
-    <div className="flex items-start gap-2 p-3 bg-[#0f172a] border border-slate-700 rounded-lg">
+    <div className="flex items-start gap-2 p-3 bg-[#080e1a] border border-slate-700 rounded-lg">
       <span className="text-slate-600 text-xs pt-2 w-5 text-center shrink-0">{index + 1}</span>
       <div className="flex-1 space-y-2">
         <input
@@ -71,7 +71,7 @@ function TaskStubRow({
       <select
         value={task.priority}
         onChange={(e) => onChange(index, "priority", e.target.value)}
-        className="bg-[#1e293b] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
+        className="bg-[#131f30] border border-slate-600 text-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-cyan-500"
       >
         {TASK_PRIORITIES.map((p) => (
           <option key={p} value={p}>
@@ -157,7 +157,7 @@ function TemplateForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. UPI Fraud Investigation"
-          className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+          className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
           required
         />
       </div>
@@ -173,7 +173,7 @@ function TemplateForm({
           onChange={(e) => setDesc(e.target.value)}
           rows={3}
           placeholder="Describe the case context template..."
-          className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+          className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
         />
       </div>
 
@@ -205,7 +205,7 @@ function TemplateForm({
           value={tags}
           onChange={(e) => setTags(e.target.value)}
           placeholder="e.g. upi-fraud, aml, kyc"
-          className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+          className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
         />
       </div>
 
@@ -297,7 +297,7 @@ function TemplateCard({
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-3">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
@@ -456,7 +456,7 @@ export default function TemplatesPage() {
       {/* Modal */}
       {modal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-2xl max-h-[90vh] overflow-y-auto p-6">
             <h2 className="text-white font-semibold text-lg mb-5">
               {modal === "create" ? "New Template" : `Edit — ${(modal as Template).name}`}
             </h2>
@@ -475,11 +475,11 @@ export default function TemplatesPage() {
       {isLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 h-40 animate-pulse" />
+            <div key={i} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 h-40 animate-pulse" />
           ))}
         </div>
       ) : templates.length === 0 ? (
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-12 text-center">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-12 text-center">
           <div className="text-4xl mb-3">📋</div>
           <p className="text-slate-300 font-medium">No templates yet</p>
           <p className="text-slate-500 text-sm mt-1">

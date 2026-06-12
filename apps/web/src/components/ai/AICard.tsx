@@ -55,7 +55,7 @@ export function AICard({ log, onApprove, onReject, onEdit, canReview }: AICardPr
 
   return (
     <div
-      className="bg-[#1e293b] border border-slate-700 border-l-4 border-l-violet-500 rounded-xl p-5 space-y-4"
+      className="bg-[#131f30] border border-slate-700 border-l-4 border-l-violet-500 rounded-xl p-5 space-y-4"
       data-testid="ai-card"
     >
       {/* Header */}
@@ -86,7 +86,7 @@ export function AICard({ log, onApprove, onReject, onEdit, canReview }: AICardPr
           value={editText}
           onChange={(e) => setEditText(e.target.value)}
           rows={8}
-          className="w-full bg-[#0f172a] border border-slate-600 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-violet-500 resize-none"
+          className="w-full bg-[#080e1a] border border-slate-600 text-slate-200 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-violet-500 resize-none"
           data-testid="edit-textarea"
         />
       ) : (
@@ -177,7 +177,7 @@ export function AICard({ log, onApprove, onReject, onEdit, canReview }: AICardPr
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
             placeholder="Reason for rejection (required)"
-            className="w-full bg-[#0f172a] border border-slate-600 text-white text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-red-500"
+            className="w-full bg-[#080e1a] border border-slate-600 text-white text-xs rounded-lg px-3 py-2 focus:outline-none focus:border-red-500"
             data-testid="reject-reason-input"
           />
           <div className="flex gap-2">

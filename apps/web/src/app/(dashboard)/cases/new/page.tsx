@@ -145,7 +145,7 @@ export default function NewCasePage() {
         <p className="text-slate-400 text-sm mt-1">Create a new investigation case</p>
       </div>
 
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6">
         <form onSubmit={form.handleSubmit((v) => mutate(v))} className="space-y-5">
           {/* Template picker */}
           {templates.length > 0 && (
@@ -178,13 +178,13 @@ export default function NewCasePage() {
                   <button
                     type="button"
                     onClick={() => setShowPicker((v) => !v)}
-                    className="w-full text-left bg-[#0f172a] border border-slate-600 text-slate-400 hover:border-slate-400 rounded-lg px-3 py-2 text-sm transition-colors flex items-center justify-between"
+                    className="w-full text-left bg-[#080e1a] border border-slate-600 text-slate-400 hover:border-slate-400 rounded-lg px-3 py-2 text-sm transition-colors flex items-center justify-between"
                   >
                     <span>Select a template…</span>
                     <span className="text-slate-600">{showPicker ? "▲" : "▼"}</span>
                   </button>
                   {showPicker && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#1e293b] border border-slate-600 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-[#131f30] border border-slate-600 rounded-lg shadow-xl z-20 max-h-48 overflow-y-auto">
                       {templates.map((t) => (
                         <button
                           key={t.id}
@@ -229,7 +229,7 @@ export default function NewCasePage() {
             <input
               {...form.register("title")}
               placeholder="e.g. Suspicious UPI transaction cluster — Acme Corp"
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
             />
             {form.formState.errors.title && (
               <p className="text-red-400 text-xs mt-1">{form.formState.errors.title.message}</p>
@@ -243,7 +243,7 @@ export default function NewCasePage() {
               {...form.register("description")}
               rows={4}
               placeholder="Describe the case details, observations, and context..."
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
             />
           </div>
 
@@ -286,7 +286,7 @@ export default function NewCasePage() {
             <input
               {...form.register("tags")}
               placeholder="e.g. upi-fraud, high-value, kyc-pending"
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
             />
           </div>
 

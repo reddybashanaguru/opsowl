@@ -171,7 +171,7 @@ export function NotificationBell() {
         <div
           ref={dropdownRef}
           style={{ top: dropPos.top, left: dropPos.left }}
-          className="fixed w-80 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl overflow-hidden z-[9999]"
+          className="fixed w-80 bg-[#131f30] border border-[#1e3050] rounded-xl shadow-2xl overflow-hidden z-[9999]"
         >
           {/* Header */}
           <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">

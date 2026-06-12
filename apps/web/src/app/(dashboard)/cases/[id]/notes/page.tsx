@@ -26,7 +26,7 @@ interface NotesPage {
 
 function SkeletonNote() {
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-2 animate-pulse">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-2 animate-pulse">
       <div className="h-4 bg-slate-700 rounded w-3/4" />
       <div className="h-3 bg-slate-700/60 rounded w-1/4" />
       <div className="space-y-1.5 mt-2">
@@ -158,7 +158,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+            className="bg-[#131f30] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
           >
             <option value="">All Types</option>
             <option value="internal">Internal</option>
@@ -194,7 +194,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
         ) : isLoading ? (
           [...Array(3)].map((_, i) => <SkeletonNote key={i} />)
         ) : allNotes.length === 0 && !showEditor ? (
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-16 text-center">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-16 text-center">
             <div className="text-4xl mb-3">📝</div>
             <p className="text-slate-400 text-sm font-medium">No notes yet</p>
             <p className="text-slate-600 text-xs mt-1">Document your findings and observations</p>

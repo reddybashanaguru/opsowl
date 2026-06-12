@@ -113,7 +113,7 @@ function StatCard({
   Icon?: React.ElementType;
 }) {
   return (
-    <Link href={href} className="block bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-500 hover:bg-[#243347] transition-colors group">
+    <Link href={href} className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-[#2a4060] hover:bg-[#1a2a40] transition-colors group">
       <div className="flex items-start justify-between mb-2">
         <div className="text-slate-400 text-sm">{label}</div>
         {Icon && <Icon size={16} className="text-slate-600 group-hover:text-slate-500 transition-colors flex-shrink-0" />}
@@ -256,7 +256,7 @@ export default function DashboardPage() {
           <span className="text-cyan-400">{user?.full_name?.split(" ")[0]}</span>
         </h1>
         <p className="text-slate-400 mt-1 text-sm">
-          Operations intelligence workspace — {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          AI-Native Investigations & Operations Workspace — {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
@@ -271,7 +271,7 @@ export default function DashboardPage() {
       {/* Charts row */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {/* Donut — case status */}
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Case Status Breakdown</div>
           <div className="flex items-center gap-5">
             <DonutChart slices={statusSlices} size={120} />
@@ -288,7 +288,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Horizontal bars — priority */}
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Active Cases by Priority</div>
           {stats ? (
             <HorizontalBars items={priorityBars} />
@@ -300,7 +300,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Alert panel */}
-        <div className={`bg-[#1e293b] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500 ring-1 ring-red-500/40 animate-pulse" : "border-slate-700"}`}>
+        <div className={`bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500 ring-red-500/30 animate-pulse" : "border-[#1e3050]"}`}>
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Attention Required</div>
           <div className="space-y-3">
             {stats ? (
@@ -343,7 +343,7 @@ export default function DashboardPage() {
 
       {/* AI Risk Leaderboard */}
       {riskCases && riskCases.length > 0 && (
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 mb-6">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 mb-6">
           <div className="flex items-center justify-between mb-4">
             <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">Top Cases by AI Risk Score</div>
             <Link href="/cases" className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
@@ -369,7 +369,7 @@ export default function DashboardPage() {
       )}
 
       {/* My Queue */}
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
         <div className="flex items-center justify-between mb-4">
           <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">My Queue</div>
           <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>

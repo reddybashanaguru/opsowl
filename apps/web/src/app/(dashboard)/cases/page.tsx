@@ -148,7 +148,7 @@ function StatusMultiSelect({
         className={`flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border transition-colors ${
           value.length > 0
             ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
-            : "bg-[#1e293b] border-slate-600 text-slate-300 hover:border-slate-500"
+            : "bg-[#131f30] border-slate-600 text-slate-300 hover:border-slate-500"
         }`}
       >
         {triggerLabel}
@@ -166,7 +166,7 @@ function StatusMultiSelect({
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 mt-1 z-30 bg-[#1e293b] border border-slate-700 rounded-xl shadow-2xl shadow-black/50 py-1.5 min-w-[210px]">
+        <div className="absolute top-full left-0 mt-1 z-30 bg-[#131f30] border border-[#1e3050] rounded-xl shadow-2xl shadow-black/50 py-1.5 min-w-[210px]">
           {/* Active preset */}
           <button
             onClick={toggleActivePreset}
@@ -236,7 +236,7 @@ function BulkStatusModal({
   const [selected, setSelected] = useState("open");
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-white font-semibold text-lg mb-1">Change Status</h2>
         <p className="text-slate-400 text-sm mb-5">
           Apply to <span className="text-cyan-400 font-medium">{count}</span> selected case{count !== 1 ? "s" : ""}.
@@ -294,7 +294,7 @@ function BulkAssignModal({
 
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-white font-semibold text-lg mb-1">Assign Cases</h2>
         <p className="text-slate-400 text-sm mb-5">
           Reassign <span className="text-cyan-400 font-medium">{count}</span> case{count !== 1 ? "s" : ""} to:
@@ -343,7 +343,7 @@ function BulkDeleteConfirm({
 }) {
   return (
     <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
-      <div className="bg-[#1e293b] border border-red-500/30 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-red-500/30 rounded-2xl w-full max-w-sm p-6 shadow-2xl">
         <h2 className="text-white font-semibold text-lg mb-1">Delete Cases</h2>
         <p className="text-slate-300 text-sm mb-1">
           Permanently delete <span className="text-red-400 font-semibold">{count}</span> case{count !== 1 ? "s" : ""}?
@@ -392,7 +392,7 @@ function BulkActionBar({
   return (
     <div
       data-testid="bulk-action-bar"
-      className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#1e293b] border border-slate-600 rounded-2xl px-5 py-3 shadow-2xl shadow-black/40 z-40 animate-in slide-in-from-bottom-4 duration-200"
+      className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-[#131f30] border border-slate-600 rounded-2xl px-5 py-3 shadow-2xl shadow-black/40 z-40 animate-in slide-in-from-bottom-4 duration-200"
     >
       <span className="text-cyan-400 font-semibold text-sm tabular-nums mr-1">
         {count} selected
@@ -705,7 +705,7 @@ function CasesContent() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={`Search ${cfg.cases_label.toLowerCase()}…`}
-            className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-8 py-2 w-64 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
+            className="bg-[#131f30] border border-slate-600 text-slate-300 text-sm rounded-lg pl-7 pr-8 py-2 w-64 focus:outline-none focus:border-cyan-500 placeholder:text-slate-600"
           />
           {isSearching && (
             <span className="absolute right-7 top-1/2 -translate-y-1/2 w-3 h-3 border border-cyan-400 border-t-transparent rounded-full animate-spin" />
@@ -724,7 +724,7 @@ function CasesContent() {
           className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm border transition-colors ${
             myCasesOnly
               ? "bg-cyan-500/15 border-cyan-500/40 text-cyan-300"
-              : "bg-[#1e293b] border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500"
+              : "bg-[#131f30] border-slate-600 text-slate-400 hover:text-slate-200 hover:border-slate-500"
           }`}
         >
           <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -740,7 +740,7 @@ function CasesContent() {
             <select
               value={priority}
               onChange={(e) => setPriority(e.target.value)}
-              className="bg-[#1e293b] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+              className="bg-[#131f30] border border-slate-600 text-slate-300 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
             >
               {PRIORITIES.map((p) => (
                 <option key={p} value={p}>{p === "" ? "All Priorities" : p.charAt(0).toUpperCase() + p.slice(1)}</option>
@@ -767,7 +767,7 @@ function CasesContent() {
 
       {/* Search results view */}
       {searchActive ? (
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
           {isSearching && searchResults === undefined ? (
             <div className="space-y-px">
               {[...Array(5)].map((_, i) => <SkeletonRow key={i} />)}
@@ -810,7 +810,7 @@ function CasesContent() {
         </div>
       ) : (
       /* Infinite-scroll table */
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">

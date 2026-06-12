@@ -113,7 +113,7 @@ export default function SLAPage() {
             const isEditing = editingPriority === policy.priority;
 
             return (
-              <div key={policy.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+              <div key={policy.id} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
                 <div className="flex items-center justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border capitalize ${colorClass}`}>
@@ -154,7 +154,7 @@ export default function SLAPage() {
                           value={editForm.warning_hours}
                           onChange={(e) => setEditForm({ ...editForm, warning_hours: parseInt(e.target.value) || 0 })}
                           min={1}
-                          className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                          className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
                       </div>
                       <div>
@@ -164,7 +164,7 @@ export default function SLAPage() {
                           value={editForm.breach_hours}
                           onChange={(e) => setEditForm({ ...editForm, breach_hours: parseInt(e.target.value) || 0 })}
                           min={1}
-                          className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                          className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
                       </div>
                       <div>
@@ -175,7 +175,7 @@ export default function SLAPage() {
                           onChange={(e) => setEditForm({ ...editForm, warn_pct: parseInt(e.target.value) || 80 })}
                           min={10}
                           max={95}
-                          className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                          className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
                       </div>
                     </div>

@@ -140,7 +140,7 @@ function RetentionContent() {
           { label: "Active Purges", value: isLoading ? "—" : activeCount, color: activeCount > 0 ? "text-emerald-400" : "text-slate-500" },
           { label: "Paused", value: isLoading ? "—" : policies.length - activeCount },
         ].map((s) => (
-          <div key={s.label} className="bg-[#1e293b] border border-slate-700 rounded-xl px-5 py-4">
+          <div key={s.label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-5 py-4">
             <div className={`text-2xl font-bold ${s.color ?? "text-slate-100"} tabular-nums`}>{s.value}</div>
             <div className="text-slate-500 text-xs mt-0.5">{s.label}</div>
           </div>
@@ -154,7 +154,7 @@ function RetentionContent() {
       )}
 
       {/* Table */}
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">

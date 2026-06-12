@@ -123,7 +123,7 @@ export default function WorkloadPage() {
             { label: "Total Open Tasks", value: totalOpenTasks, color: "text-violet-400" },
             { label: "Overdue Tasks", value: totalOverdue, color: totalOverdue > 0 ? "text-red-400" : "text-emerald-400" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 text-center">
+            <div key={label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 text-center">
               <div className={`text-3xl font-bold ${color}`}>{value}</div>
               <div className="text-slate-400 text-sm mt-1">{label}</div>
             </div>
@@ -133,7 +133,7 @@ export default function WorkloadPage() {
         {isLoading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 animate-pulse h-28" />
+              <div key={i} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 animate-pulse h-28" />
             ))}
           </div>
         ) : !analysts || analysts.length === 0 ? (
@@ -146,7 +146,7 @@ export default function WorkloadPage() {
             {analysts.map((a) => (
               <div
                 key={a.id}
-                className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 hover:border-slate-600 transition-colors"
+                className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-slate-600 transition-colors"
               >
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
@@ -220,15 +220,15 @@ export default function WorkloadPage() {
         {riskLoading ? (
           <div className="space-y-2">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="bg-[#1e293b] border border-slate-700 rounded-xl h-12 animate-pulse" />
+              <div key={i} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] h-12 animate-pulse" />
             ))}
           </div>
         ) : !riskRows || riskRows.length === 0 ? (
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-8 text-center text-slate-500 text-sm">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-8 text-center text-slate-500 text-sm">
             No AI-analysed cases yet. Run AI Copilot on a case to generate risk scores.
           </div>
         ) : (
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">

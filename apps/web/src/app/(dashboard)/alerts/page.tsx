@@ -87,7 +87,7 @@ function ConvertModal({ alert, onClose, onConverted }: { alert: AlertRow; onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-lg p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-lg p-6 shadow-2xl">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">Convert Alert to Case</h2>
         {error && <div className="mb-3 text-red-400 text-sm">{error}</div>}
         <div className="space-y-3">
@@ -131,7 +131,7 @@ function DismissModal({ alertId, onClose, onDismissed }: { alertId: string; onCl
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-md p-6 shadow-2xl">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">Dismiss Alert</h2>
         <textarea value={reason} onChange={e => setReason(e.target.value)} rows={3} placeholder="Reason for dismissal (optional)"
           className="w-full bg-slate-900 border border-slate-600 rounded-lg px-3 py-2 text-slate-100 text-sm focus:outline-none focus:border-cyan-500 resize-none" />
@@ -214,7 +214,7 @@ export default function AlertQueuePage() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         {isFetching && !data ? (
           <div className="flex items-center justify-center h-48 text-slate-500 text-sm">Loading alerts…</div>
         ) : alerts.length === 0 ? (

@@ -315,26 +315,21 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
   const canSubmit = isDraft && closure && effectiveSummary.length >= 100 && effectiveDisposition;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <div className="max-w-4xl mx-auto px-4 py-6">
-        <CaseSubNav caseId={caseId} activeTab="closure" />
+    <div className="p-6">
+      <CaseSubNav
+        caseId={caseId}
+        activeTab="closure"
+        action={closure ? (
+          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[closure.status]}`}>
+            {closure.status.charAt(0).toUpperCase() + closure.status.slice(1)}
+          </span>
+        ) : undefined}
+      />
 
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-xl font-semibold flex items-center gap-2">
-              <Lock size={18} className="text-cyan-400" />
-              Case Closure
-            </h1>
-            <p className="text-slate-400 text-sm mt-1">
-              Complete the pre-closure checklist, fill the closure form, and submit for manager approval.
-            </p>
-          </div>
-          {closure && (
-            <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[closure.status]}`}>
-              {closure.status.charAt(0).toUpperCase() + closure.status.slice(1)}
-            </span>
-          )}
-        </div>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white">Case Closure</h1>
+        <p className="text-slate-400 text-sm mt-0.5">Complete the pre-closure checklist, fill the closure form, and submit for manager approval.</p>
+      </div>
 
         {/* Status banner */}
         {closure && <div className="mb-6"><ClosureStatusBanner closure={closure} /></div>}
@@ -709,7 +704,6 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
             </section>
           )}
         </div>
-      </div>
     </div>
   );
 }

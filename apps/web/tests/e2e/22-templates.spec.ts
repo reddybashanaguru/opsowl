@@ -95,7 +95,7 @@ test.describe("Case Templates", () => {
     if (await card.isVisible()) {
       await card.getByRole("button", { name: /Edit/i }).click();
       // Modal heading is "Edit — {name}"
-      await expect(page.getByText(/Edit.*E2E AML Template/i)).toBeVisible({ timeout: 4_000 });
+      await expect(page.getByRole("heading", { name: /Edit.*E2E AML Template/i })).toBeVisible({ timeout: 4_000 });
       await expect(page.getByPlaceholder(/UPI Fraud Investigation/i)).toHaveValue("E2E AML Template");
     }
   });

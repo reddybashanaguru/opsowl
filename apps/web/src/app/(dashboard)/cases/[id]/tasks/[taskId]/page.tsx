@@ -214,20 +214,20 @@ export default function TaskDetailPage({
         {/* Main */}
         <div className="col-span-2 space-y-6">
           {/* Task header */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6">
             {isEditing ? (
               <div className="space-y-4">
                 <input
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
-                  className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-semibold"
+                  className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 font-semibold"
                 />
                 <textarea
                   value={editDesc}
                   onChange={(e) => setEditDesc(e.target.value)}
                   rows={4}
                   placeholder="Description…"
-                  className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+                  className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                 />
                 <div className="grid grid-cols-3 gap-3">
                   <div>
@@ -235,7 +235,7 @@ export default function TaskDetailPage({
                     <select
                       value={editStatus}
                       onChange={(e) => setEditStatus(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                      className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
                     >
                       {STATUS_OPTIONS.map((s) => {
                         const isValid =
@@ -254,7 +254,7 @@ export default function TaskDetailPage({
                     <select
                       value={editPriority}
                       onChange={(e) => setEditPriority(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                      className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
                     >
                       {PRIORITY_OPTIONS.map((p) => (
                         <option key={p} value={p}>{p}</option>
@@ -267,7 +267,7 @@ export default function TaskDetailPage({
                       type="date"
                       value={editDueDate}
                       onChange={(e) => setEditDueDate(e.target.value)}
-                      className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
+                      className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
                     />
                   </div>
                 </div>
@@ -276,7 +276,7 @@ export default function TaskDetailPage({
                   <select
                     value={editAssignedTo}
                     onChange={(e) => setEditAssignedTo(e.target.value)}
-                    className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500"
                   >
                     <option value="">— Unassigned —</option>
                     {users.map((u) => (
@@ -370,7 +370,7 @@ export default function TaskDetailPage({
           </div>
 
           {/* Comments */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
             <h2 className="text-slate-300 text-sm font-semibold mb-4 uppercase tracking-wide">
               Comments ({task.comment_count})
             </h2>
@@ -413,7 +413,7 @@ export default function TaskDetailPage({
                 onChange={(e) => setComment(e.target.value)}
                 rows={3}
                 placeholder="Add a comment…"
-                className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
               />
               {commentError && <p className="text-red-400 text-xs mt-1">{commentError}</p>}
               <div className="flex justify-end mt-2">
@@ -431,7 +431,7 @@ export default function TaskDetailPage({
 
         {/* Sidebar */}
         <div className="space-y-4">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 space-y-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 space-y-4">
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1.5">Assigned To</div>
               {reassigning ? (
@@ -442,7 +442,7 @@ export default function TaskDetailPage({
                     onChange={(e) => assignMutation.mutate(e.target.value || null)}
                     disabled={assignMutation.isPending}
                     onBlur={() => setReassigning(false)}
-                    className="flex-1 bg-[#0f172a] border border-cyan-500 text-white rounded-lg px-2 py-1 text-xs focus:outline-none disabled:opacity-60"
+                    className="flex-1 bg-[#080e1a] border border-cyan-500 text-white rounded-lg px-2 py-1 text-xs focus:outline-none disabled:opacity-60"
                   >
                     <option value="">— Unassigned —</option>
                     {users.map((u) => (

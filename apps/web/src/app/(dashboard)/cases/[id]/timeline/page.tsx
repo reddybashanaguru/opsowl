@@ -153,7 +153,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
       </div>
       <div className="flex flex-col flex-1 overflow-hidden">
       {/* Header */}
-      <div className="border-b border-slate-700 bg-[#0f172a] px-6 py-4 flex items-center justify-between flex-shrink-0">
+      <div className="border-b border-slate-700 bg-[#080e1a] px-6 py-4 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-4">
           <div>
             <h1 className="text-white font-semibold text-lg">Timeline</h1>
@@ -188,7 +188,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="border-b border-slate-700 bg-[#1e293b] px-6 py-4 flex-shrink-0">
+        <div className="border-b border-slate-700 bg-[#131f30] px-6 py-4 flex-shrink-0">
           <div className="flex gap-8 flex-wrap">
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Source</div>
@@ -240,7 +240,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
 
       {/* New events banner */}
       {newCount > 0 && (
-        <div className="flex-shrink-0 flex justify-center py-2 bg-[#0f172a]">
+        <div className="flex-shrink-0 flex justify-center py-2 bg-[#080e1a]">
           <button
             onClick={scrollToTopAndFlush}
             className="bg-cyan-500 text-slate-900 text-xs font-semibold px-4 py-1.5 rounded-full hover:bg-cyan-400 transition-colors"

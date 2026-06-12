@@ -159,7 +159,7 @@ export function NoteCard({ note, caseId, onDeleted }: Props) {
   const canEdit = isAuthor || hasRole("manager");
 
   return (
-    <div className={`bg-[#1e293b] border rounded-xl overflow-hidden transition-colors ${
+    <div className={`bg-[#131f30] border rounded-xl overflow-hidden transition-colors ${
       note.is_pinned ? "border-amber-500/40" : "border-slate-700"
     }`}>
       {/* Header */}

@@ -101,7 +101,7 @@ export default function SubjectsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl overflow-hidden">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
         {isFetching && !data ? (
           <div className="flex items-center justify-center h-48 text-slate-500 text-sm">Loading subjects…</div>
         ) : subjects.length === 0 ? (

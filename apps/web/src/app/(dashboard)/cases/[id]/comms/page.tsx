@@ -59,7 +59,7 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 hover:border-slate-600 transition-colors">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 hover:border-slate-600 transition-colors">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <span className="text-xl flex-shrink-0">{CHANNEL_ICONS[log.channel] ?? "📋"}</span>
@@ -235,7 +235,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Log form */}
       {showForm && (
-        <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 mb-6">
+        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 mb-6">
           <h3 className="text-white font-semibold mb-4">New Communication Log</h3>
           <div className="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -243,7 +243,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
               <select
                 value={form.channel}
                 onChange={(e) => setForm({ ...form, channel: e.target.value })}
-                className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               >
                 {CHANNEL_OPTIONS.map((c) => (
                   <option key={c} value={c}>{c.replace("_", " ")}</option>
@@ -255,7 +255,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
               <select
                 value={form.direction}
                 onChange={(e) => setForm({ ...form, direction: e.target.value })}
-                className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               >
                 {DIRECTION_OPTIONS.map((d) => (
                   <option key={d} value={d}>{d}</option>
@@ -268,7 +268,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
                 value={form.contact_name}
                 onChange={(e) => setForm({ ...form, contact_name: e.target.value })}
                 placeholder="John Doe"
-                className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               />
             </div>
             <div>
@@ -277,7 +277,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
                 value={form.contact_detail}
                 onChange={(e) => setForm({ ...form, contact_detail: e.target.value })}
                 placeholder="john@example.com"
-                className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               />
             </div>
             <div>
@@ -286,7 +286,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
                 value={form.subject}
                 onChange={(e) => setForm({ ...form, subject: e.target.value })}
                 placeholder="Regarding account verification"
-                className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               />
             </div>
             <div>
@@ -295,7 +295,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
                 type="datetime-local"
                 value={form.occurred_at}
                 onChange={(e) => setForm({ ...form, occurred_at: e.target.value })}
-                className="w-full bg-[#0f172a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+                className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
               />
             </div>
           </div>
@@ -306,7 +306,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
               onChange={(e) => setForm({ ...form, body: e.target.value })}
               rows={4}
               placeholder="Describe what was communicated..."
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 resize-none"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500 resize-none"
             />
           </div>
           <div className="mb-4">
@@ -315,7 +315,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
               value={form.outcome}
               onChange={(e) => setForm({ ...form, outcome: e.target.value })}
               placeholder="e.g. Customer agreed to submit documents by Friday"
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
             />
           </div>
           {formError && <p className="text-red-400 text-xs mb-3">{formError}</p>}
@@ -344,7 +344,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
       {isLoading ? (
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-4 animate-pulse">
+            <div key={i} className="bg-[#131f30] border border-slate-700/50 rounded-xl p-4 animate-pulse">
               <div className="flex items-center gap-3 mb-3">
                 <div className="w-8 h-8 rounded-lg bg-slate-700" />
                 <div className="flex-1 space-y-1.5">
@@ -363,7 +363,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
       ) : isError ? (
         <PageError error={error as Error | null} onRetry={() => refetchLogs()} />
       ) : !logs || logs.length === 0 ? (
-        <div className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-16 text-center">
+        <div className="bg-[#131f30] border border-slate-700/50 rounded-xl p-16 text-center">
           <p className="text-4xl mb-3">📋</p>
           <p className="text-slate-400 text-sm font-medium">No communication logs yet.</p>
           <p className="text-slate-600 text-xs mt-1">Record calls, emails, and field visits with AI-powered extraction.</p>

@@ -32,7 +32,7 @@ interface TemplateCardProps {
 
 export function TemplateCard({ template, onEdit, onDelete }: TemplateCardProps) {
   return (
-    <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 space-y-3">
+    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-3">
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

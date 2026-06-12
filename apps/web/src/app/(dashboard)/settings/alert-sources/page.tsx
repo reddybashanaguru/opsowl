@@ -72,7 +72,7 @@ function CreateSourceModal({ onClose, onCreated }: { onClose: () => void; onCrea
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-[#1e293b] border border-slate-700 rounded-xl w-full max-w-md p-6 shadow-2xl">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-md p-6 shadow-2xl">
         <h2 className="text-slate-100 font-semibold text-lg mb-4">New Alert Source</h2>
         {error && <div className="mb-3 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{error}</div>}
         <div className="space-y-3">
@@ -187,7 +187,7 @@ export default function AlertSourcesPage() {
       {isFetching && !data ? (
         <div className="flex items-center justify-center h-40 text-slate-500 text-sm">Loading sources…</div>
       ) : sources.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-40 bg-[#1e293b] border border-slate-700 rounded-xl text-slate-500">
+        <div className="flex flex-col items-center justify-center h-40 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] text-slate-500">
           <Plug className="w-8 h-8 mb-3 text-slate-600" />
           <p className="text-sm">No alert sources configured</p>
           <p className="text-xs text-slate-600 mt-1">Add a source to start receiving TMS alerts</p>
@@ -195,7 +195,7 @@ export default function AlertSourcesPage() {
       ) : (
         <div className="space-y-3 max-h-[calc(100vh-200px)] overflow-y-auto pr-1">
           {sources.map(src => (
-            <div key={src.id} className="bg-[#1e293b] border border-slate-700 rounded-xl p-4 flex items-center justify-between gap-4">
+            <div key={src.id} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 flex items-center justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-slate-200 text-sm">{src.name}</span>

@@ -387,7 +387,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         {/* Left column — Investigation Feed (65%) */}
         <div className="col-span-2 space-y-5">
           {/* Description */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
             <h2 className="text-slate-300 text-sm font-semibold mb-3 uppercase tracking-wide">Description</h2>
             <p className="text-slate-300 text-sm whitespace-pre-wrap">
               {c.description || <span className="text-slate-600 italic">No description provided.</span>}
@@ -395,7 +395,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Quick Note Input */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Quick Note</div>
             <textarea
               value={noteText}
@@ -416,7 +416,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Live Timeline Feed */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
             <div className="flex items-center justify-between mb-3">
               <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wide">Live Feed</h2>
               <button
@@ -448,7 +448,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         {/* Right column — Context Panel (35%) */}
         <div className="space-y-4">
           {/* Details card with inline assignee */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-5 space-y-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 space-y-4">
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Assigned To</div>
               {user?.role === "analyst" ? (
@@ -464,7 +464,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                     {c.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned — click to assign</span>}
                   </button>
                   {assigneeOpen && (
-                    <div className="absolute top-7 left-0 bg-[#0f172a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
+                    <div className="absolute top-7 left-0 bg-[#080e1a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
                       <select
                         size={5}
                         className="w-full bg-transparent text-slate-300 text-sm px-3 py-1 focus:outline-none"
@@ -506,7 +506,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Open Tasks preview */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-slate-500 text-xs uppercase tracking-wide">Open Tasks</div>
               <button onClick={() => router.push(`/cases/${id}/tasks`)} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</button>
@@ -530,7 +530,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
 
           {/* Documents preview */}
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <div className="flex items-center justify-between mb-2">
               <div className="text-slate-500 text-xs uppercase tracking-wide">Documents</div>
               <button onClick={() => router.push(`/cases/${id}/documents`)} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</button>
@@ -555,7 +555,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* Tags */}
           {(c.tags?.length ?? 0) > 0 && (
-            <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Tags</div>
               <div className="flex flex-wrap gap-1.5">
                 {(c.tags ?? []).map((t) => (
@@ -569,7 +569,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
           {/* Watchers */}
           {(c.watchers?.length ?? 0) > 0 && (
-            <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-4">
+            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Watchers</div>
               <div className="space-y-1">
                 {(c.watchers ?? []).map((w) => (
@@ -584,7 +584,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       {/* Status transition modal */}
       {showStatusModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 w-full max-w-md">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-md">
             <h3 className="text-white font-semibold mb-1">
               Move to <span className="text-cyan-400">{STATUS_LABELS[targetStatus]}</span>
             </h3>
@@ -598,7 +598,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
               onChange={(e) => setReason(e.target.value)}
               rows={3}
               placeholder="Reason or note..."
-              className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none mb-3"
+              className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none mb-3"
             />
             {statusError && (
               <p className="text-red-400 text-xs mb-3">{statusError}</p>

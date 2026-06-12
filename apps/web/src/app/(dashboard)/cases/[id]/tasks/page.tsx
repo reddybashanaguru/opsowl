@@ -277,7 +277,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
               <select
                 value={filterPriority}
                 onChange={(e) => setFilterPriority(e.target.value)}
-                className="bg-[#1e293b] border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
+                className="bg-[#131f30] border border-slate-700 text-slate-300 text-xs rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-cyan-500"
               >
                 <option value="">All priorities</option>
                 {PRIORITY_OPTIONS.map((p) => (
@@ -330,7 +330,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
       {/* Task list */}
       {tasks.length === 0 ? (
-        <div className="bg-[#1e293b] border border-slate-700/50 rounded-xl p-16 text-center">
+        <div className="bg-[#131f30] border border-slate-700/50 rounded-xl p-16 text-center">
           {taskTab === "done" ? (
             <>
               <div className="text-4xl mb-3">✓</div>
@@ -386,7 +386,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       {/* Create task modal */}
       {showCreate && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
-          <div className="bg-[#1e293b] border border-slate-700 rounded-xl p-6 w-full max-w-lg">
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-lg">
             <h3 className="text-white font-semibold mb-4">New Task</h3>
 
             <div className="space-y-3">
@@ -396,7 +396,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
                   placeholder="Task title…"
-                  className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                   autoFocus
                 />
               </div>
@@ -408,7 +408,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                   onChange={(e) => setNewDesc(e.target.value)}
                   rows={3}
                   placeholder="Optional description…"
-                  className="w-full bg-[#0f172a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
+                  className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 resize-none"
                 />
               </div>
 
@@ -418,7 +418,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                   <select
                     value={newPriority}
                     onChange={(e) => setNewPriority(e.target.value)}
-                    className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                    className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                   >
                     {PRIORITY_OPTIONS.map((p) => (
                       <option key={p} value={p}>{p}</option>
@@ -432,7 +432,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                     type="date"
                     value={newDueDate}
                     onChange={(e) => setNewDueDate(e.target.value)}
-                    className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
+                    className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
                   />
                 </div>
               </div>
@@ -442,7 +442,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 <select
                   value={newAssignedTo}
                   onChange={(e) => setNewAssignedTo(e.target.value)}
-                  className="w-full bg-[#0f172a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                  className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
                 >
                   <option value="">— Unassigned —</option>
                   {users.map((u) => (

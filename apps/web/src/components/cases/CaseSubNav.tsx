@@ -29,7 +29,7 @@ interface Props {
 }
 
 // Subpages where back goes to case detail (not the cases list)
-const BACK_TO_CASE = new Set<Tab>(["notes", "timeline", "comms", "insights", "ai-logs", "str"]);
+const BACK_TO_CASE = new Set<Tab>(["notes", "timeline", "comms", "insights", "ai-logs"]);
 
 export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
   const router = useRouter();
@@ -43,8 +43,13 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
 
   // Breadcrumb button shown between back link and tabs on subpages
   const breadcrumbLabel =
-    activeTab === "tasks"     ? (caseNumber ?? null) :
-    activeTab === "documents" ? cfg.case_label :
+    activeTab === "tasks"         ? (caseNumber ?? null) :
+    activeTab === "documents"     ? cfg.case_label :
+    activeTab === "str"           ? cfg.case_label :
+    activeTab === "findings"      ? cfg.case_label :
+    activeTab === "transactions"  ? cfg.case_label :
+    activeTab === "narrative"     ? cfg.case_label :
+    activeTab === "closure"       ? cfg.case_label :
     null;
 
   const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; minLevel?: number }[] = [
