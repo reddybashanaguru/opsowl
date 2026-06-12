@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpsOwl AI — AI-Native Investigations & Operations Platform</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080e1a;
+    --surface: #0b1525;
+    --card: #131f30;
+    --card2: #0f1a2e;
+    --border: #1e3050;
+    --border2: #243a5e;
+    --cyan: #22d3ee;
+    --cyan-dim: rgba(34,211,238,0.12);
+    --cyan-glow: 0 0 24px rgba(34,211,238,0.15);
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --dim: #64748b;
+    --green: #34d399;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --blue: #60a5fa;
+    --violet: #a78bfa;
+  }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── Layout ── */
+  .section { padding: 80px 0; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 32px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+  /* ── Typography ── */
+  .label {
+    font-size: 11px; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 10px;
+  }
+  .display { font-size: 46px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; }
+  .headline { font-size: 32px; font-weight: 700; line-height: 1.2; }
+  .subhead { font-size: 18px; color: var(--muted); margin-top: 14px; line-height: 1.65; max-width: 620px; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .card-sm { padding: 18px 20px; }
+  .card-glow { box-shadow: var(--cyan-glow), inset 0 1px 0 rgba(255,255,255,.04); border-color: rgba(34,211,238,.25); }
+
+  /* ── Badges ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 11px; font-weight: 600; letter-spacing: .04em;
+    padding: 3px 10px; border-radius: 99px;
+    border: 1px solid; text-transform: uppercase;
+  }
+  .badge-red    { color: var(--red);    background: rgba(248,113,113,.1);  border-color: rgba(248,113,113,.25); }
+  .badge-amber  { color: var(--amber);  background: rgba(251,191,36,.1);   border-color: rgba(251,191,36,.25); }
+  .badge-green  { color: var(--green);  background: rgba(52,211,153,.1);   border-color: rgba(52,211,153,.25); }
+  .badge-cyan   { color: var(--cyan);   background: var(--cyan-dim);       border-color: rgba(34,211,238,.3); }
+  .badge-violet { color: var(--violet); background: rgba(167,139,250,.1);  border-color: rgba(167,139,250,.25); }
+
+  /* ── Separator ── */
+  .sep { border: none; border-top: 1px solid var(--border); margin: 0; }
+
+  /* ── Nav ── */
+  .nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(8,14,26,.92); backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+  }
+  .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .nav-brand { display: flex; align-items: center; gap: 10px; }
+  .nav-logo {
+    width: 30px; height: 30px;
+    background: rgba(34,211,238,.12); border: 1px solid rgba(34,211,238,.25);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: var(--cyan);
+    box-shadow: 0 0 10px rgba(34,211,238,.18);
+  }
+  .nav-name { font-size: 15px; font-weight: 700; color: var(--cyan); }
+  .nav-links { display: flex; align-items: center; gap: 4px; }
+  .nav-links a {
+    color: var(--muted); text-decoration: none; font-size: 13px;
+    padding: 6px 12px; border-radius: 6px; transition: all .15s;
+  }
+  .nav-links a:hover { color: var(--text); background: rgba(255,255,255,.05); }
+  .nav-cta {
+    background: var(--cyan); color: #080e1a; font-size: 13px; font-weight: 700;
+    padding: 7px 18px; border-radius: 8px; text-decoration: none;
+    transition: opacity .15s;
+  }
+  .nav-cta:hover { opacity: .85; }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0b1525 0%, #0d1e3a 40%, #0e2244 70%, #1a2f5e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 96px 32px 80px;
+    position: relative; overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 60% 50% at 70% 40%, rgba(34,211,238,.07) 0%, transparent 70%);
+  }
+  .hero-inner { max-width: 1100px; margin: 0 auto; position: relative; }
+  .hero-tag {
+    display: inline-flex; align-items: center; gap: 7px;
+    background: rgba(34,211,238,.08); border: 1px solid rgba(34,211,238,.2);
+    color: var(--cyan); font-size: 12px; font-weight: 600; letter-spacing: .06em;
+    text-transform: uppercase; padding: 5px 14px; border-radius: 99px;
+    margin-bottom: 28px;
+  }
+  .hero-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--cyan); animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.3; } }
+  .hero-title { font-size: 52px; font-weight: 800; line-height: 1.05; letter-spacing: -.03em; max-width: 720px; }
+  .hero-title span { color: var(--cyan); }
+  .hero-sub { font-size: 19px; color: var(--muted); margin-top: 18px; max-width: 580px; line-height: 1.6; }
+  .hero-actions { display: flex; align-items: center; gap: 14px; margin-top: 36px; }
+  .btn-primary {
+    background: var(--cyan); color: #080e1a; font-size: 14px; font-weight: 700;
+    padding: 12px 28px; border-radius: 10px; text-decoration: none;
+    border: none; cursor: pointer; transition: opacity .15s;
+  }
+  .btn-primary:hover { opacity: .85; }
+  .btn-outline {
+    background: transparent; color: var(--text); font-size: 14px; font-weight: 600;
+    padding: 12px 24px; border-radius: 10px; text-decoration: none;
+    border: 1px solid var(--border2); cursor: pointer; transition: all .15s;
+  }
+  .btn-outline:hover { border-color: var(--cyan); color: var(--cyan); }
+  .hero-stats {
+    display: flex; align-items: center; gap: 32px; margin-top: 52px;
+    padding-top: 32px; border-top: 1px solid rgba(255,255,255,.08);
+  }
+  .hero-stat-val { font-size: 28px; font-weight: 800; color: var(--cyan); }
+  .hero-stat-label { font-size: 12px; color: var(--dim); margin-top: 2px; }
+
+  /* ── Problem Section ── */
+  .problem-bg { background: var(--surface); }
+  .problem-card {
+    background: var(--card);
+    border: 1px solid rgba(248,113,113,.2);
+    border-radius: 14px; padding: 24px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .problem-card-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.2);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 16px;
+  }
+  .problem-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .problem-card p { font-size: 13.5px; color: var(--muted); line-height: 1.65; }
+
+  /* ── Cost of Chaos ── */
+  .cost-row {
+    display: flex; align-items: center;
+    padding: 18px 0; border-bottom: 1px solid var(--border);
+  }
+  .cost-row:last-child { border-bottom: none; }
+  .cost-activity { flex: 1; font-size: 14px; color: var(--muted); }
+  .cost-manual {
+    width: 180px; text-align: center;
+    font-size: 14px; font-weight: 600; color: var(--red);
+  }
+  .cost-opsowl {
+    width: 180px; text-align: center;
+    font-size: 14px; font-weight: 600; color: var(--green);
+  }
+  .cost-saving {
+    width: 130px; text-align: right;
+    font-size: 12px; font-weight: 700;
+    color: var(--cyan); letter-spacing: .04em;
+  }
+  .cost-header .cost-activity,
+  .cost-header .cost-manual,
+  .cost-header .cost-opsowl,
+  .cost-header .cost-saving {
+    font-size: 11px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--dim);
+  }
+
+  /* ── Impact Numbers ── */
+  .impact-bg {
+    background: linear-gradient(180deg, #080e1a 0%, #0b1525 100%);
+  }
+  .metric-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px; padding: 28px 24px;
+    text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    position: relative; overflow: hidden;
+  }
+  .metric-card::before {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    opacity: .4;
+  }
+  .metric-val { font-size: 44px; font-weight: 800; letter-spacing: -.03em; }
+  .metric-val.cyan   { color: var(--cyan); }
+  .metric-val.green  { color: var(--green); }
+  .metric-val.amber  { color: var(--amber); }
+  .metric-val.violet { color: var(--violet); }
+  .metric-label { font-size: 13px; color: var(--muted); margin-top: 6px; }
+  .metric-sub { font-size: 11px; color: var(--dim); margin-top: 4px; }
+
+  /* ── Features ── */
+  .feature-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .feature-card:hover {
+    border-color: rgba(34,211,238,.25);
+    box-shadow: 0 0 20px rgba(34,211,238,.08), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .feature-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; margin-bottom: 14px;
+  }
+  .feature-icon.cyan   { background: rgba(34,211,238,.1); border: 1px solid rgba(34,211,238,.2); }
+  .feature-icon.green  { background: rgba(52,211,153,.1); border: 1px solid rgba(52,211,153,.2); }
+  .feature-icon.violet { background: rgba(167,139,250,.1); border: 1px solid rgba(167,139,250,.2); }
+  .feature-icon.amber  { background: rgba(251,191,36,.1);  border: 1px solid rgba(251,191,36,.2); }
+  .feature-icon.blue   { background: rgba(96,165,250,.1);  border: 1px solid rgba(96,165,250,.2); }
+  .feature-icon.red    { background: rgba(248,113,113,.1); border: 1px solid rgba(248,113,113,.2); }
+  .feature-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+  .feature-card p { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .feature-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+  .feature-tag {
+    font-size: 11px; color: var(--dim); background: rgba(255,255,255,.04);
+    border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px;
+  }
+
+  /* ── Workflow ── */
+  .workflow-bg { background: var(--surface); }
+  .step-list { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 20px; padding: 24px 0;
+    border-bottom: 1px solid var(--border); position: relative;
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 36px; height: 36px; border-radius: 50%; flex-shrink: 0;
+    background: var(--cyan-dim); border: 1px solid rgba(34,211,238,.3);
+    color: var(--cyan); font-size: 13px; font-weight: 800;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .step-content h4 { font-size: 15px; font-weight: 700; margin-bottom: 5px; }
+  .step-content p { font-size: 13.5px; color: var(--muted); line-height: 1.6; }
+  .step-content .step-tags { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── Compliance ── */
+  .compliance-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .compliance-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .compliance-item h4 { font-size: 13px; font-weight: 700; margin-bottom: 6px; color: var(--cyan); }
+  .compliance-item p { font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+
+  /* ── Comparison Table ── */
+  .cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; }
+  .cmp-table thead th {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--dim); padding: 12px 16px;
+    text-align: left; background: var(--card2);
+    border-bottom: 1px solid var(--border);
+  }
+  .cmp-table thead th:first-child { border-radius: 12px 0 0 0; }
+  .cmp-table thead th:last-child { border-radius: 0 12px 0 0; }
+  .cmp-table tbody tr { border-bottom: 1px solid var(--border); }
+  .cmp-table tbody tr:last-child td { border-bottom: none; }
+  .cmp-table tbody td {
+    padding: 14px 16px; font-size: 13.5px; color: var(--muted);
+    border-bottom: 1px solid var(--border);
+  }
+  .cmp-table tbody td:first-child { color: var(--text); font-weight: 500; }
+  .cmp-table tbody tr.highlight td { background: rgba(34,211,238,.03); }
+  .cmp-table tbody tr.highlight td:first-child { color: var(--cyan); font-weight: 700; }
+  .cmp-no { color: var(--red) !important; font-weight: 600; }
+  .cmp-yes { color: var(--green) !important; font-weight: 600; }
+  .cmp-partial { color: var(--amber) !important; font-weight: 600; }
+  .cmp-table-wrap {
+    border: 1px solid var(--border); border-radius: 14px; overflow: hidden;
+  }
+
+  /* ── Pricing ── */
+  .pricing-bg { background: var(--surface); }
+  .price-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px; padding: 36px 32px;
+    max-width: 480px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  .price-card.featured {
+    border-color: rgba(34,211,238,.3);
+    box-shadow: 0 0 40px rgba(34,211,238,.12), inset 0 1px 0 rgba(255,255,255,.06);
+  }
+  .price-amount { font-size: 42px; font-weight: 800; color: var(--cyan); letter-spacing: -.03em; }
+  .price-amount span { font-size: 18px; color: var(--muted); font-weight: 500; }
+  .price-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 10px 0; border-bottom: 1px solid var(--border);
+    font-size: 13.5px;
+  }
+  .price-row:last-child { border-bottom: none; }
+  .price-row-label { color: var(--muted); }
+  .price-row-val { color: var(--text); font-weight: 600; }
+  .check-list { list-style: none; }
+  .check-list li {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 7px 0; font-size: 13.5px; color: var(--muted);
+  }
+  .check-list li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Deployment Timeline ── */
+  .timeline-row {
+    display: flex; gap: 0;
+  }
+  .tl-day {
+    flex: 1; padding: 20px 16px;
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+  }
+  .tl-day:last-child { border-right: none; }
+  .tl-day-num {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--cyan); margin-bottom: 6px;
+  }
+  .tl-day-title { font-size: 14px; font-weight: 700; margin-bottom: 5px; }
+  .tl-day-desc { font-size: 12px; color: var(--dim); line-height: 1.55; }
+  .tl-wrap {
+    border: 1px solid var(--border); border-radius: 14px;
+    overflow: hidden; border-bottom: none;
+  }
+
+  /* ── Security pillars ── */
+  .pillar-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .pillar {
+    background: var(--card2); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px; text-align: center;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .pillar-icon { font-size: 24px; margin-bottom: 10px; }
+  .pillar h4 { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+  .pillar p { font-size: 12px; color: var(--dim); line-height: 1.5; }
+
+  /* ── Quote ── */
+  .quote-block {
+    background: var(--card);
+    border: 1px solid rgba(34,211,238,.2);
+    border-left: 3px solid var(--cyan);
+    border-radius: 12px; padding: 24px 28px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+  }
+  .quote-text { font-size: 16px; color: var(--text); line-height: 1.65; font-style: italic; }
+  .quote-author { margin-top: 12px; font-size: 13px; color: var(--cyan); font-weight: 600; }
+
+  /* ── CTA Footer ── */
+  .cta-section {
+    background: linear-gradient(135deg, #0b1525 0%, #0e2040 50%, #0b1525 100%);
+    border-top: 1px solid var(--border);
+    padding: 80px 32px; text-align: center;
+    position: relative; overflow: hidden;
+  }
+  .cta-section::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: radial-gradient(ellipse 50% 60% at 50% 50%, rgba(34,211,238,.06) 0%, transparent 70%);
+  }
+  .cta-inner { position: relative; max-width: 600px; margin: 0 auto; }
+
+  /* ── Footer ── */
+  .footer {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 24px 32px;
+    text-align: center;
+    font-size: 12px; color: var(--dim);
+  }
+
+  /* ── Utilities ── */
+  .mt-4 { margin-top: 4px; }
+  .mt-8 { margin-top: 8px; }
+  .mt-12 { margin-top: 12px; }
+  .mt-16 { margin-top: 16px; }
+  .mt-24 { margin-top: 24px; }
+  .mt-32 { margin-top: 32px; }
+  .mt-40 { margin-top: 40px; }
+  .mb-8  { margin-bottom: 8px; }
+  .mb-16 { margin-bottom: 16px; }
+  .mb-24 { margin-bottom: 24px; }
+  .mb-32 { margin-bottom: 32px; }
+  .text-center { text-align: center; }
+  .text-muted { color: var(--muted); }
+  .text-dim   { color: var(--dim); }
+  .text-cyan  { color: var(--cyan); }
+  .text-green { color: var(--green); }
+  .text-amber { color: var(--amber); }
+  .text-red   { color: var(--red); }
+  .fw-700 { font-weight: 700; }
+  .fs-13 { font-size: 13px; }
+  .fs-14 { font-size: 14px; }
+
+  @media (max-width: 768px) {
+    .grid-2, .grid-3, .grid-4, .compliance-grid, .pillar-grid { grid-template-columns: 1fr; }
+    .hero-title { font-size: 36px; }
+    .display { font-size: 32px; }
+    .headline { font-size: 26px; }
+    .hero-stats { flex-wrap: wrap; gap: 20px; }
+    .timeline-row { flex-direction: column; }
+    .tl-day { border-right: none; }
+    .nav-links { display: none; }
+    .cost-manual, .cost-opsowl, .cost-saving { width: 100px; font-size: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ── Navigation ── -->
+<nav class="nav">
+  <div class="nav-inner">
+    <div class="nav-brand">
+      <div class="nav-logo">O</div>
+      <span class="nav-name">OpsOwl AI</span>
+    </div>
+    <div class="nav-links">
+      <a href="#problem">The Problem</a>
+      <a href="#impact">Impact</a>
+      <a href="#features">Features</a>
+      <a href="#workflow">Workflow</a>
+      <a href="#compliance">Compliance</a>
+      <a href="#security">Security</a>
+      <a href="#pricing">Licensing</a>
+    </div>
+    <a href="#cta" class="nav-cta">Request Demo</a>
+  </div>
+</nav>
+
+<!-- ── Hero ── -->
+<section class="hero">
+  <div class="hero-inner">
+    <div class="hero-tag">
+      <div class="hero-dot"></div>
+      AI-Native Investigations & Operations Platform · On-Premise · Multi-Jurisdiction
+    </div>
+    <h1 class="hero-title">Your Compliance Team<br>Deserves <span>Purpose-Built</span><br>Investigation Infrastructure</h1>
+    <p class="hero-sub">
+      OpsOwl AI is the end-to-end AI-native investigations and operations workspace built for NBFCs, fintechs, digital lenders, and mid-market financial institutions — deployed on your own infrastructure, with zero data leaving your network.
+    </p>
+    <div class="hero-actions">
+      <a href="#workflow" class="btn-primary">See How It Works</a>
+      <a href="#impact" class="btn-outline">View Impact Numbers →</a>
+    </div>
+    <div class="hero-stats">
+      <div>
+        <div class="hero-stat-val">3×</div>
+        <div class="hero-stat-label">Investigator Throughput</div>
+      </div>
+      <div style="width:1px; height:36px; background:var(--border);"></div>
+      <div>
+        <div class="hero-stat-val">90 sec</div>
+        <div class="hero-stat-label">AI Narrative Draft</div>
+      </div>
+      <div style="width:1px; height:36px; background:var(--border);"></div>
+      <div>
+        <div class="hero-stat-val">7 days</div>
+        <div class="hero-stat-label">Go-Live Timeline</div>
+      </div>
+      <div style="width:1px; height:36px; background:var(--border);"></div>
+      <div>
+        <div class="hero-stat-val">50×</div>
+        <div class="hero-stat-label">Less Than Enterprise Platforms</div>
+      </div>
+      <div style="width:1px; height:36px; background:var(--border);"></div>
+      <div>
+        <div class="hero-stat-val">Zero</div>
+        <div class="hero-stat-label">Data Leaves Your Network</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── The Problem ── -->
+<section class="section problem-bg" id="problem">
+  <div class="container">
+    <div class="label">The Problem</div>
+    <h2 class="headline">The Operational Reality in Most Compliance Teams</h2>
+    <p class="subhead">Across mid-market NBFCs, fintechs, digital lenders, and co-operative banks, the same pattern repeats — investigation-critical workflows running on tools that were never built for compliance.</p>
+
+    <div class="grid-3 mt-40">
+      <div class="problem-card">
+        <div class="problem-card-icon">📊</div>
+        <h3>Unstructured Spreadsheets as Case Management</h3>
+        <p>Shared spreadsheets with hundreds of rows — no access control, no version history, no audit trail. One analyst updates a record, another overwrites it. When the regulator asks who made a specific compliance decision, the answer is: no record exists.</p>
+        <div class="mt-12">
+          <span class="badge badge-red">Critical Risk</span>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">📱</div>
+        <h3>Informal Channels for Case Collaboration</h3>
+        <p>Case evidence shared over unencrypted messaging apps, compliance decisions undocumented in chat threads, sensitive documents distributed without access controls. When the regulator asks for a documented decision trail, there is none.</p>
+        <div class="mt-12">
+          <span class="badge badge-red">Regulatory Exposure</span>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">⏰</div>
+        <h3>Regulatory Deadlines Tracked by Individual Reminders</h3>
+        <p>FIU-IND requires STR filing within 7 days of suspicion formation. Teams rely on individual calendar reminders with no systemic oversight. One analyst on leave — the filing window is missed. One missed filing — regulatory penalty, minimum.</p>
+        <div class="mt-12">
+          <span class="badge badge-amber">Compliance Risk</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3 mt-16">
+      <div class="problem-card">
+        <div class="problem-card-icon">🧠</div>
+        <h3>Institutional Knowledge Lost at Every Attrition Event</h3>
+        <p>An experienced analyst exits. Dozens of active investigations exist only in their memory or undocumented personal notes. The successor starts from zero. Critical investigation context — relationships, risk signals, decision rationale — is permanently lost.</p>
+        <div class="mt-12">
+          <span class="badge badge-amber">Operational Risk</span>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">🔍</div>
+        <h3>Regulatory Audit Preparation Takes Weeks</h3>
+        <p>When a regulatory examination is announced, the compliance team spends weeks reconstructing an evidence trail — pulling fragments from email threads, chat histories, disconnected spreadsheets, and unstructured documents. This exercise repeats with every audit cycle.</p>
+        <div class="mt-12">
+          <span class="badge badge-red">High Cost</span>
+        </div>
+      </div>
+      <div class="problem-card">
+        <div class="problem-card-icon">💸</div>
+        <h3>Enterprise Platforms Are Priced Out of Reach</h3>
+        <p>Enterprise-grade AML platforms that address these gaps cost ₹2–5 Crore per year in licensing, require 6–12 months to implement, and demand a dedicated vendor support team to operate. The mid-market has had no viable alternative — until now.</p>
+        <div class="mt-12">
+          <span class="badge badge-amber">No Viable Option — Until Now</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Cost of Chaos ── -->
+<section class="section" id="cost">
+  <div class="container">
+    <div class="label">Operational Impact Analysis</div>
+    <h2 class="headline">The True Cost of Fragmented Investigation Workflows</h2>
+    <p class="subhead">Conservative estimates based on a 10-analyst compliance team handling 80 cases per month. Every row below represents recoverable capacity.</p>
+
+    <div class="card mt-40" style="padding: 0; overflow: hidden;">
+      <div class="cost-row cost-header" style="padding: 14px 24px; background: var(--card2);">
+        <div class="cost-activity">Activity</div>
+        <div class="cost-manual">Fragmented Manual Workflow</div>
+        <div class="cost-opsowl">OpsOwl AI</div>
+        <div class="cost-saving">Time Saved</div>
+      </div>
+      <div style="padding: 0 24px;">
+        <div class="cost-row">
+          <div class="cost-activity">Open a new investigation case</div>
+          <div class="cost-manual">45 minutes</div>
+          <div class="cost-opsowl">5 minutes</div>
+          <div class="cost-saving">↓ 89%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Write an STR narrative</div>
+          <div class="cost-manual">3–4 hours</div>
+          <div class="cost-opsowl">90 seconds (AI draft)</div>
+          <div class="cost-saving">↓ 97%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Find all documents for a case</div>
+          <div class="cost-manual">20–40 minutes</div>
+          <div class="cost-opsowl">Instant (all attached)</div>
+          <div class="cost-saving">↓ 100%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Prepare for regulatory audit</div>
+          <div class="cost-manual">2–3 weeks</div>
+          <div class="cost-opsowl">1–2 hours (export audit log)</div>
+          <div class="cost-saving">↓ 99%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Onboard a new analyst to active cases</div>
+          <div class="cost-manual">1–2 weeks</div>
+          <div class="cost-opsowl">1 day (full case history visible)</div>
+          <div class="cost-saving">↓ 90%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Check if STR deadline is at risk</div>
+          <div class="cost-manual">30–60 minutes (manual review)</div>
+          <div class="cost-opsowl">Real-time SLA dashboard</div>
+          <div class="cost-saving">↓ 100%</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Get AI risk score on a customer</div>
+          <div class="cost-manual">Not possible</div>
+          <div class="cost-opsowl">Automatic on case creation</div>
+          <div class="cost-saving">New capability</div>
+        </div>
+        <div class="cost-row">
+          <div class="cost-activity">Trace flow of funds across transactions</div>
+          <div class="cost-manual">4–8 hours (manual mapping)</div>
+          <div class="cost-opsowl">Visual graph, auto-flagged</div>
+          <div class="cost-saving">↓ 95%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mt-16" style="background: rgba(34,211,238,.04); border-color: rgba(34,211,238,.2);">
+      <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:13px; color:var(--muted);">Estimated productivity gained per analyst</div>
+          <div style="font-size:28px; font-weight:800; color:var(--cyan); margin-top:4px;">8–12 hours / week</div>
+        </div>
+        <div style="width:1px; height:40px; background:var(--border);"></div>
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:13px; color:var(--muted);">Additional cases handled / analyst / month</div>
+          <div style="font-size:28px; font-weight:800; color:var(--green); margin-top:4px;">+8 to +10 cases</div>
+        </div>
+        <div style="width:1px; height:40px; background:var(--border);"></div>
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:13px; color:var(--muted);">Cost to avoid a single missed STR penalty</div>
+          <div style="font-size:28px; font-weight:800; color:var(--amber); margin-top:4px;">₹1–10 Lakh</div>
+        </div>
+        <div style="width:1px; height:40px; background:var(--border);"></div>
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:13px; color:var(--muted);">Cost vs. enterprise AML platforms</div>
+          <div style="font-size:28px; font-weight:800; color:var(--cyan); margin-top:4px;">~50× less</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Impact Numbers ── -->
+<section class="section impact-bg" id="impact">
+  <div class="container">
+    <div class="label text-center">Projected Impact</div>
+    <h2 class="headline text-center">Numbers That Matter to Your Compliance Leadership</h2>
+    <p class="subhead text-center mt-8" style="margin:12px auto 0;">Based on workflow benchmarking across compliance teams of 5–50 analysts managing 50–200 cases per month.</p>
+
+    <div class="grid-4 mt-40">
+      <div class="metric-card">
+        <div class="metric-val cyan">3×</div>
+        <div class="metric-label">Investigator Throughput</div>
+        <div class="metric-sub">5 cases/month → 15+ cases/month per analyst</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val green">97%</div>
+        <div class="metric-label">Faster STR Narrative</div>
+        <div class="metric-sub">3 hours of writing → 90-second AI draft + review</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val amber">0</div>
+        <div class="metric-label">Missed STR Deadlines</div>
+        <div class="metric-sub">Real-time SLA countdown + automated escalation alerts</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val violet">100%</div>
+        <div class="metric-label">Case Traceability</div>
+        <div class="metric-sub">Hash-chain tamper-evident log of every action taken</div>
+      </div>
+    </div>
+
+    <div class="grid-4 mt-16">
+      <div class="metric-card">
+        <div class="metric-val cyan">7 days</div>
+        <div class="metric-label">Go-Live Time</div>
+        <div class="metric-sub">vs. 6–9 months for enterprise AML platforms</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val green">1–2 hrs</div>
+        <div class="metric-label">Audit Prep (was 2–3 weeks)</div>
+        <div class="metric-sub">One-click tamper-evident audit log export</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val amber">~50×</div>
+        <div class="metric-label">Less Than Enterprise Platforms</div>
+        <div class="metric-sub">Enterprise-grade capability at a fraction of the cost — priced for the mid-market</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-val violet">0 bytes</div>
+        <div class="metric-label">Data Sent to Cloud</div>
+        <div class="metric-sub">All AI inference runs on your own infrastructure — fully air-gapped capable</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ── -->
+<section class="section" id="features">
+  <div class="container">
+    <div class="label">Platform Capabilities</div>
+    <h2 class="headline">Everything in One Workspace</h2>
+    <p class="subhead">No integrations to buy, no add-ons to license. Every feature ships with the base platform.</p>
+
+    <div class="grid-3 mt-40">
+      <div class="feature-card">
+        <div class="feature-icon cyan">🗂️</div>
+        <h3>Case Management</h3>
+        <p>Full investigation lifecycle — open, assign, escalate, review, close. SLA deadlines auto-set by case type. Bulk operations for teams handling high volumes.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">SLA Tracking</span>
+          <span class="feature-tag">Priority Levels</span>
+          <span class="feature-tag">Bulk Assign</span>
+          <span class="feature-tag">Case Templates</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon violet">🤖</div>
+        <h3>AI Copilot & Document Intelligence</h3>
+        <p>Ask any question about a case in plain English. AI reads all attached documents using RAG, extracts entities, assigns risk scores, drafts investigation notes, and surfaces suggested action items. Runs on your server — zero cloud exposure.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">On-Premise LLM Inference</span>
+          <span class="feature-tag">PII Masking</span>
+          <span class="feature-tag">RAG over Documents</span>
+          <span class="feature-tag">Risk Classification</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon cyan">⚡</div>
+        <h3>Autonomous Investigation Agent</h3>
+        <p>Give the agent a goal in plain English — it autonomously reads case data across notes, tasks, findings, transactions, and timeline, then produces a structured investigation report with risk indicators and recommended next steps. Live streaming — analysts watch every tool call in real time.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Multi-Step Reasoning</span>
+          <span class="feature-tag">Tool-Use Agent Loop</span>
+          <span class="feature-tag">On-Premise &amp; Cloud</span>
+          <span class="feature-tag">Streamed Live</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon amber">📋</div>
+        <h3>STR / SAR Filing</h3>
+        <p>Maker-checker dual-authorization workflow. AI drafts the narrative; the analyst reviews and approves; the manager submits. goAML 4.0 XML export for FIU-IND submission in one click.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Maker-Checker</span>
+          <span class="feature-tag">goAML 4.0 XML</span>
+          <span class="feature-tag">Regulatory Filing Format</span>
+          <span class="feature-tag">Audit Log</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon green">💳</div>
+        <h3>Transaction Flow of Funds</h3>
+        <p>Link transactions to a case, flag suspicious ones, and visualize the money trail with an interactive graph. Import via CSV or direct entry. Auto-highlighted layering and structuring patterns.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">CSV Import</span>
+          <span class="feature-tag">Flow Graph</span>
+          <span class="feature-tag">Flag Transactions</span>
+          <span class="feature-tag">Summary Bar</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon blue">📄</div>
+        <h3>Document Intelligence</h3>
+        <p>Upload bank statements, KYC documents, call records. AI extracts entities, amounts, dates, and red flags. OCR on scanned PDFs. Up to 300 pages per case. AES-256 encrypted at rest.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">OCR / PDF</span>
+          <span class="feature-tag">Entity Extraction</span>
+          <span class="feature-tag">AES-256 Encrypted</span>
+          <span class="feature-tag">Version History</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon red">🔒</div>
+        <h3>Tamper-Evident Audit Trail</h3>
+        <p>Every action — who viewed, who edited, what changed, when — is logged in a SHA-256 hash chain. Tampering breaks the chain and is immediately detectable. Export the full trail for any regulatory examination.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">SHA-256 Hash Chain</span>
+          <span class="feature-tag">Tamper Detection</span>
+          <span class="feature-tag">Full Export</span>
+          <span class="feature-tag">SIEM Integration</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon cyan">📊</div>
+        <h3>Compliance Leadership Dashboard</h3>
+        <p>Real-time workload visibility — open cases by analyst, SLA breach heatmap, case volume trends, regulatory filing rate. Scheduled PDF/CSV reports delivered to leadership weekly or monthly.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Workload View</span>
+          <span class="feature-tag">SLA Heatmap</span>
+          <span class="feature-tag">Scheduled Reports</span>
+          <span class="feature-tag">Export CSV</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon violet">🔎</div>
+        <h3>Subject Intelligence &amp; Alert Queue</h3>
+        <p>Manage watch-listed subjects across multiple cases. Alert queue for incoming suspicious events from core banking, fraud detection, or manual entry. Auto-assign alerts to analysts by rule.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Subject Profiles</span>
+          <span class="feature-tag">Alert Ingestion</span>
+          <span class="feature-tag">Auto-Assignment</span>
+          <span class="feature-tag">Investigation Playbooks</span>
+        </div>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon amber">✅</div>
+        <h3>Case Closure & Findings</h3>
+        <p>Structured finding documentation with severity levels (Critical → Informational). Pre-closure checklist ensures nothing is missed. Manager approval workflow before a case can be closed.</p>
+        <div class="feature-tags">
+          <span class="feature-tag">Severity Levels</span>
+          <span class="feature-tag">Pre-Closure Checklist</span>
+          <span class="feature-tag">Manager Approval</span>
+          <span class="feature-tag">AI Narrative</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How It Works ── -->
+<section class="section workflow-bg" id="workflow">
+  <div class="container">
+    <div style="display:grid; grid-template-columns: 1fr 1.4fr; gap:60px; align-items:start;">
+      <div>
+        <div class="label">How It Works</div>
+        <h2 class="headline">An Investigation from Alert to Regulatory Filing</h2>
+        <p class="subhead mt-16" style="max-width:none;">Walk through a complete compliance investigation as your analyst would experience it — from alert to regulatory filing.</p>
+        <div class="quote-block mt-32">
+          <div class="quote-text">What previously required 3–4 hours of narrative authoring per STR is reduced to a structured review of an AI-generated draft — grounded in approved findings, linked transactions, and attached documents. The output is consistent, compliant, and fully traceable to the evidence record.</div>
+          <div class="quote-author">— Verified workflow outcome · OpsOwl AI STR Module</div>
+        </div>
+      </div>
+      <div class="step-list">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-content">
+            <h4>Alert Received → Case Opened</h4>
+            <p>A suspicious transaction alert arrives via webhook from your core banking system or is manually entered. OpsOwl auto-creates a case, assigns it by rule (round-robin or priority-based), and sets the SLA deadline.</p>
+            <div class="step-tags">
+              <span class="badge badge-cyan">Webhook / Manual</span>
+              <span class="badge badge-cyan">Auto-Assign</span>
+              <span class="badge badge-cyan">SLA Set</span>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-content">
+            <h4>Autonomous Agent Investigates</h4>
+            <p>The AI Investigation Agent reads the full case — notes, transactions, findings, and timeline — and produces a structured risk report in under 2 minutes. Analyst watches every reasoning step live. No manual triage needed.</p>
+            <div class="step-tags">
+              <span class="badge badge-violet">On-Premise AI Inference</span>
+              <span class="badge badge-violet">Multi-Step Agent</span>
+              <span class="badge badge-violet">Zero Cloud</span>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-content">
+            <h4>Investigation Workspace</h4>
+            <p>Analyst attaches documents, links transactions, adds internal notes, assigns tasks to colleagues, and uses the AI Copilot to ask questions about uploaded documents. The live timeline shows every action in real time.</p>
+            <div class="step-tags">
+              <span class="badge badge-green">Documents</span>
+              <span class="badge badge-green">Transactions</span>
+              <span class="badge badge-green">Notes + Tasks</span>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div class="step-content">
+            <h4>AI Generates STR Narrative</h4>
+            <p>When suspicion is formed, analyst clicks "Generate Narrative". AI reads all findings, approved transactions, and documents — and writes a complete, compliant STR narrative in 90 seconds. Analyst edits and approves.</p>
+            <div class="step-tags">
+              <span class="badge badge-amber">AI Draft</span>
+              <span class="badge badge-amber">Analyst Review</span>
+              <span class="badge badge-amber">Grounded in Evidence</span>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div class="step-content">
+            <h4>Maker-Checker → Regulatory Filing Submission</h4>
+            <p>Analyst submits the STR for manager review (maker-checker). Manager approves. System generates goAML 4.0 XML file ready for FIU-IND portal upload. Every decision is logged and signed in the audit trail.</p>
+            <div class="step-tags">
+              <span class="badge badge-cyan">Maker-Checker</span>
+              <span class="badge badge-cyan">goAML XML</span>
+              <span class="badge badge-cyan">Audit Sealed</span>
+            </div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">6</div>
+          <div class="step-content">
+            <h4>Case Closure & Findings Locked</h4>
+            <p>Pre-closure checklist verified. Findings documented with evidence references. Case closed with manager approval. Full audit trail — every view, edit, decision — is permanently sealed and exportable in 30 seconds.</p>
+            <div class="step-tags">
+              <span class="badge badge-green">Checklist</span>
+              <span class="badge badge-green">Evidence Locked</span>
+              <span class="badge badge-green">Audit Export</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Compliance Coverage ── -->
+<section class="section" id="compliance">
+  <div class="container">
+    <div class="label">Regulatory Coverage</div>
+    <h2 class="headline">Deep Regulatory Coverage — Built to Expand</h2>
+    <p class="subhead">Currently shipping with comprehensive India coverage (RBI, FIU-IND, PMLA). The platform architecture is jurisdiction-configurable — designed from day one to support additional regulatory frameworks as you grow.</p>
+
+    <div class="compliance-grid mt-40">
+      <div class="compliance-item">
+        <h4>FIU-IND STR / SAR</h4>
+        <p>Suspicious Transaction Reports filed within the 7-day mandate. goAML 4.0 XML format for direct FIU-IND portal upload. Dual-authorization maker-checker workflow.</p>
+      </div>
+      <div class="compliance-item">
+        <h4>RBI Master Direction on KYC</h4>
+        <p>Customer due diligence documentation, periodic re-KYC tracking, and complete evidence trails for every compliance decision — ready for RBI examination.</p>
+      </div>
+      <div class="compliance-item">
+        <h4>PMLA 2002 Obligations</h4>
+        <p>Covers obligated entities under PMLA — NBFCs, digital lenders, payment aggregators, co-operative banks. Structured record-keeping aligned with PMLA record retention rules.</p>
+      </div>
+      <div class="compliance-item">
+        <h4>Data Sovereignty & Localization</h4>
+        <p>On-premise deployment — all data stays within your own infrastructure, in your jurisdiction. No data sent to any cloud provider. Satisfies data localization mandates across regulatory frameworks, including RBI requirements for payment and lending data.</p>
+      </div>
+      <div class="compliance-item">
+        <h4>Regulatory Audit Readiness</h4>
+        <p>SHA-256 hash-chained audit log that is tamper-evident. One-click export of the full investigation history for any case. Any regulatory examiner can verify every decision point in minutes, not weeks.</p>
+      </div>
+      <div class="compliance-item">
+        <h4>SLA & Escalation Policies</h4>
+        <p>Configurable SLA policies by case type. Automated escalation to Compliance Leadership when SLA is at risk. Real-time countdown visible to analyst, manager, and compliance officer simultaneously.</p>
+      </div>
+    </div>
+
+    <div class="card mt-32" style="background: rgba(34,211,238,.03); border-color: rgba(34,211,238,.15); padding:28px 32px;">
+      <div style="display:flex; align-items:center; gap:20px; flex-wrap:wrap;">
+        <div style="font-size:32px;">🏛️</div>
+        <div style="flex:1;">
+          <div style="font-size:15px; font-weight:700; margin-bottom:4px;">Regulatory Examination Ready — Day One</div>
+          <div style="font-size:13.5px; color:var(--muted);">
+            When your regulator arrives, you export the audit log, hand it over, and walk away. No weeks of document reconstruction. No gaps to explain. Every case, every note, every decision — permanently logged, tamper-proof, and signed with the user's identity and timestamp.
+          </div>
+        </div>
+        <div class="badge badge-green" style="padding:8px 16px; font-size:12px;">Audit-Proof</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Security & Deployment ── -->
+<section class="section" style="background:var(--surface);" id="security">
+  <div class="container">
+    <div class="label">Security & Deployment</div>
+    <h2 class="headline">Your Data Never Leaves Your Building</h2>
+    <p class="subhead">On-premise deployment is not a feature we added later — it is the core design principle of OpsOwl.</p>
+
+    <div class="pillar-grid mt-40">
+      <div class="pillar">
+        <div class="pillar-icon">🖥️</div>
+        <h4>On-Premise Only</h4>
+        <p>Runs on your own Linux server. No SaaS, no cloud subscription. Customer data never leaves your network.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">✈️</div>
+        <h4>Air-Gapped Capable</h4>
+        <p>Works with zero internet access. All AI inference runs on your own infrastructure using a locally hosted language model. Fully functional in a network-isolated, firewall-restricted environment.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">🔐</div>
+        <h4>AES-256 Encryption</h4>
+        <p>All documents encrypted at rest using AES-256-GCM. Keys managed by your team. No vendor key access.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">🔑</div>
+        <h4>MFA + RBAC</h4>
+        <p>TOTP-based MFA for all users. 5 built-in roles. Session limits, IP allowlisting, password policy enforcement.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">⛓️</div>
+        <h4>Hash-Chain Audit Log</h4>
+        <p>Every action SHA-256 chained. Tamper-evident. Any modification to the log breaks the chain and is instantly detectable.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">📡</div>
+        <h4>SIEM Integration</h4>
+        <p>Exports security events to your SIEM via CEF or JSON. Prometheus + Grafana metrics built-in for operational visibility.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">🛡️</div>
+        <h4>Session Security</h4>
+        <p>Concurrent session limits, automatic session expiry, account lockout after failed attempts, security event alerts.</p>
+      </div>
+      <div class="pillar">
+        <div class="pillar-icon">💾</div>
+        <h4>Backup & Recovery</h4>
+        <p>PostgreSQL with point-in-time recovery. Automated daily backups. Full restore runbook included. RTO under 4 hours.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Comparison ── -->
+<section class="section" id="comparison">
+  <div class="container">
+    <div class="label">Competitive Landscape</div>
+    <h2 class="headline">OpsOwl vs. Your Current Options</h2>
+    <p class="subhead">The first time your team has a real choice between the enterprise and the spreadsheet.</p>
+
+    <div class="cmp-table-wrap mt-40">
+      <table class="cmp-table">
+        <thead>
+          <tr>
+            <th style="width:220px;">Capability</th>
+            <th>Spreadsheet + Email</th>
+            <th>Enterprise AML Platform</th>
+            <th>Generic Project Tool</th>
+            <th style="color:var(--cyan);">OpsOwl AI</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="highlight">
+            <td>Cost vs. Enterprise AML</td>
+            <td class="cmp-partial">Low direct cost, high hidden risk</td>
+            <td class="cmp-no">Baseline (₹2–5 Cr+/year)</td>
+            <td class="cmp-partial">Lower cost, significant compliance gaps</td>
+            <td class="cmp-yes">~50× less than enterprise</td>
+          </tr>
+          <tr>
+            <td>Go-Live Time</td>
+            <td class="cmp-partial">Immediate</td>
+            <td class="cmp-no">6–9 months</td>
+            <td class="cmp-partial">4–8 weeks</td>
+            <td class="cmp-yes">7 days</td>
+          </tr>
+          <tr>
+            <td>AI Risk Scoring</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes (expensive add-on)</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes, included</td>
+          </tr>
+          <tr>
+            <td>STR / goAML Export</td>
+            <td class="cmp-no">Manually authored document</td>
+            <td class="cmp-yes">Yes</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes, AI-drafted</td>
+          </tr>
+          <tr>
+            <td>On-Premise / Air-Gapped</td>
+            <td class="cmp-partial">Uncontrolled local file storage</td>
+            <td class="cmp-partial">On-prem option (costly)</td>
+            <td class="cmp-no">SaaS only</td>
+            <td class="cmp-yes">On-prem by default</td>
+          </tr>
+          <tr>
+            <td>Tamper-Evident Audit Log</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">SHA-256 hash chain</td>
+          </tr>
+          <tr>
+            <td>Maker-Checker for STR</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes, built-in</td>
+          </tr>
+          <tr>
+            <td>Flow of Funds Graph</td>
+            <td class="cmp-no">Manual diagramming tools</td>
+            <td class="cmp-yes">Yes</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">Yes, interactive</td>
+          </tr>
+          <tr>
+            <td>Regulatory Audit Export</td>
+            <td class="cmp-no">3 weeks of manual prep</td>
+            <td class="cmp-yes">Yes</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">1 hour</td>
+          </tr>
+          <tr>
+            <td>Jurisdiction-specific Compliance</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-partial">Select markets only</td>
+            <td class="cmp-no">No</td>
+            <td class="cmp-yes">India now · Expandable</td>
+          </tr>
+          <tr>
+            <td>Vendor Lock-In</td>
+            <td class="cmp-partial">Low</td>
+            <td class="cmp-no">High (proprietary)</td>
+            <td class="cmp-partial">Medium</td>
+            <td class="cmp-yes">None — you own the data</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ── Pricing ── -->
+<section class="section pricing-bg" id="pricing">
+  <div class="container">
+    <div class="label">Licensing Model</div>
+    <h2 class="headline">One License. Every Feature. No Gates.</h2>
+    <p class="subhead">No tiers. No feature add-ons. No per-module pricing. One annual license gets your team the full platform — deployed on your own infrastructure.</p>
+
+    <div style="display:grid; grid-template-columns:1.2fr 1fr; gap:32px; align-items:start; margin-top:40px;">
+      <div class="price-card featured">
+        <div class="badge badge-cyan mb-16">Enterprise On-Premise License</div>
+        <div style="font-size:22px; font-weight:800; color:var(--cyan); letter-spacing:-.02em;">Annual Software License</div>
+        <div style="font-size:14px; color:var(--muted); margin-top:8px; line-height:1.65;">
+          Priced per named user, scaled to your team size. Significantly less than enterprise AML platforms — without compromising on capability, compliance coverage, or security.
+        </div>
+
+        <div style="margin:24px 0; border-top:1px solid var(--border); padding-top:20px;">
+          <div class="price-row">
+            <span class="price-row-label">License model</span>
+            <span class="price-row-val text-cyan">Annual · Named Users</span>
+          </div>
+          <div class="price-row">
+            <span class="price-row-label">One-time deployment & setup</span>
+            <span class="price-row-val">Included in first year</span>
+          </div>
+          <div class="price-row">
+            <span class="price-row-label">Annual support & updates</span>
+            <span class="price-row-val text-green">Included</span>
+          </div>
+          <div class="price-row">
+            <span class="price-row-label">Feature tiers / add-ons</span>
+            <span class="price-row-val text-green">None — full product</span>
+          </div>
+          <div class="price-row">
+            <span class="price-row-label">vs. enterprise AML platforms</span>
+            <span class="price-row-val text-cyan">~50× less per year</span>
+          </div>
+          <div class="price-row">
+            <span class="price-row-label">vs. generic project tools</span>
+            <span class="price-row-val text-cyan">Comparable — full investigations coverage</span>
+          </div>
+        </div>
+
+        <a href="#cta" class="btn-primary" style="display:block; text-align:center; margin-top:8px;">Request a Tailored Quote</a>
+        <div style="font-size:12px; color:var(--dim); text-align:center; margin-top:10px;">Pricing shared directly during the demo. Customised by team size and deployment scope.</div>
+      </div>
+
+      <div>
+        <div style="font-size:14px; font-weight:700; margin-bottom:16px; color:var(--text);">Everything included — no add-ons, no gates:</div>
+        <ul class="check-list">
+          <li>Full case management with SLA policies and templates</li>
+          <li>AI Copilot (RAG), Autonomous Investigation Agent, risk scoring, document intelligence (local LLM)</li>
+          <li>STR/SAR filing with goAML 4.0 XML export</li>
+          <li>Transaction flow-of-funds graph</li>
+          <li>Investigation narratives (AI-generated)</li>
+          <li>Findings & evidence documentation</li>
+          <li>Case closure with maker-checker approval</li>
+          <li>Subject intelligence profiles & alert queue</li>
+          <li>Compliance Leadership dashboard & scheduled reports</li>
+          <li>SHA-256 hash-chained tamper-evident audit log</li>
+          <li>MFA, RBAC, session security, AES-256 encryption</li>
+          <li>Investigation playbooks (auto-apply task templates)</li>
+          <li>Bulk CSV case import (up to 1,000 cases/batch)</li>
+          <li>Inbound webhook receiver + outbound webhooks</li>
+          <li>SIEM integration (CEF / JSON export)</li>
+          <li>Prometheus + Grafana monitoring stack</li>
+          <li>Full deployment runbook + backup procedures</li>
+          <li>API keys for integration with existing systems</li>
+        </ul>
+
+        <div class="card mt-24 card-sm" style="background:rgba(34,211,238,.04); border-color:rgba(34,211,238,.15);">
+          <div style="font-size:13px; font-weight:700; color:var(--cyan); margin-bottom:6px;">The Value Equation</div>
+          <div style="font-size:12.5px; color:var(--muted); line-height:1.65;">
+            Each analyst reclaims 8–12 hours per week from manual investigation work. At your team's scale, that recovered capacity typically exceeds the license cost within the first quarter — before accounting for the regulatory risk reduction.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Deployment Timeline ── -->
+<section class="section" id="deploy">
+  <div class="container">
+    <div class="label">Deployment</div>
+    <h2 class="headline">Go Live in 7 Days</h2>
+    <p class="subhead">We have a tested deployment runbook. No consultants, no months of implementation. Your IT team + our guide = one week.</p>
+
+    <div class="tl-wrap mt-40">
+      <div class="timeline-row">
+        <div class="tl-day">
+          <div class="tl-day-num">Day 1</div>
+          <div class="tl-day-title">Server Provisioning</div>
+          <div class="tl-day-desc">Your IT sets up a Linux VM (min. 8 vCPU, 32GB RAM). Docker + PostgreSQL installed. OpsOwl containers pulled from the offline installer bundle.</div>
+        </div>
+        <div class="tl-day">
+          <div class="tl-day-num">Day 2</div>
+          <div class="tl-day-title">Configuration</div>
+          <div class="tl-day-desc">SMTP, domain, SSL certificate, LDAP/SSO (if required). On-premise AI inference engine and language model loaded locally. Environment configuration applied from the deployment runbook.</div>
+        </div>
+        <div class="tl-day">
+          <div class="tl-day-num">Day 3</div>
+          <div class="tl-day-title">Data Setup</div>
+          <div class="tl-day-desc">Create user accounts, configure roles. Set up SLA policies, case templates, and investigation playbooks per your process. Import existing cases via CSV if required.</div>
+        </div>
+        <div class="tl-day">
+          <div class="tl-day-num">Day 4–5</div>
+          <div class="tl-day-title">Team Onboarding</div>
+          <div class="tl-day-desc">2-hour training session for analysts + 1-hour for managers/compliance officers. Platform is intuitive — most analysts are comfortable by end of Day 5.</div>
+        </div>
+        <div class="tl-day">
+          <div class="tl-day-num">Day 6–7</div>
+          <div class="tl-day-title">Go Live + Validation</div>
+          <div class="tl-day-desc">First real cases entered. AI risk scoring validated. Test STR workflow end-to-end. Audit log verified. Sign-off and handover to your compliance head.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-3 mt-24">
+      <div class="card card-sm">
+        <div style="font-size:13px; font-weight:700; margin-bottom:6px;">Minimum Server Spec</div>
+        <div style="font-size:12.5px; color:var(--muted); line-height:1.7;">
+          8 vCPU · 32 GB RAM · 500 GB SSD<br>
+          Ubuntu 22.04 LTS or RHEL 8+<br>
+          Docker 24+ · PostgreSQL 15+<br>
+          GPU optional (2× faster AI inference)
+        </div>
+      </div>
+      <div class="card card-sm">
+        <div style="font-size:13px; font-weight:700; margin-bottom:6px;">What We Provide</div>
+        <div style="font-size:12.5px; color:var(--muted); line-height:1.7;">
+          Offline installer bundle (no internet needed)<br>
+          Full deployment runbook (step-by-step)<br>
+          Backup & recovery procedures<br>
+          90-day post-deployment support
+        </div>
+      </div>
+      <div class="card card-sm">
+        <div style="font-size:13px; font-weight:700; margin-bottom:6px;">What You Need</div>
+        <div style="font-size:12.5px; color:var(--muted); line-height:1.7;">
+          1 IT admin (2–3 hours/day for 7 days)<br>
+          A Linux-capable server or VM<br>
+          Decision-maker sign-off on user roles<br>
+          Existing case data in CSV (optional)
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<section class="cta-section" id="cta">
+  <div class="cta-inner">
+    <div class="label text-center">Get Started</div>
+    <h2 class="headline text-center mt-8">Ready to See OpsOwl in Your Environment?</h2>
+    <p style="font-size:17px; color:var(--muted); margin-top:16px; line-height:1.65;">
+      We offer a 2-hour live demo on your laptop — no cloud, no signup, no data uploaded anywhere. See your team's actual workflow replicated in the platform before you commit.
+    </p>
+    <div style="display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-top:36px;">
+      <a href="mailto:demo@opsowl.dev" class="btn-primary" style="font-size:15px; padding:14px 36px;">
+        Schedule a Live Demo
+      </a>
+      <a href="mailto:demo@opsowl.dev" class="btn-outline" style="font-size:15px; padding:14px 28px;">
+        Connect With Our Team
+      </a>
+    </div>
+    <div style="margin-top:32px; display:flex; justify-content:center; gap:24px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:7px; font-size:13px; color:var(--dim);">
+        <span style="color:var(--green);">✓</span> No cloud account required
+      </div>
+      <div style="display:flex; align-items:center; gap:7px; font-size:13px; color:var(--dim);">
+        <span style="color:var(--green);">✓</span> No data uploaded during demo
+      </div>
+      <div style="display:flex; align-items:center; gap:7px; font-size:13px; color:var(--dim);">
+        <span style="color:var(--green);">✓</span> Runs on a single laptop
+      </div>
+      <div style="display:flex; align-items:center; gap:7px; font-size:13px; color:var(--dim);">
+        <span style="color:var(--green);">✓</span> 7-day deployment guarantee
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Footer ── -->
+<footer class="footer">
+  <div style="display:flex; align-items:center; justify-content:center; gap:10px; margin-bottom:6px;">
+    <div style="width:22px; height:22px; background:rgba(34,211,238,.1); border:1px solid rgba(34,211,238,.2); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:var(--cyan);">O</div>
+    <span style="font-weight:700; color:var(--cyan);">OpsOwl AI</span>
+    <span>·</span>
+    <span>AI-Native Investigations &amp; Operations Intelligence Workspace</span>
+  </div>
+  <div>On-Premise · Air-Gapped · Built for Regulated Financial Institutions · v1.0.1</div>
+  <div style="margin-top:8px;">Confidential — For Demo Purposes Only · 2026</div>
+</footer>
+
+</body>
+</html>

@@ -30,6 +30,10 @@ type ExtractActionsRequest struct {
 	SourceType string `json:"source_type"` // "documents" | "all"
 }
 
+type AgentRunRequest struct {
+	Goal string `json:"goal"`
+}
+
 type ApproveRequest struct{}
 
 type RejectRequest struct {

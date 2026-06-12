@@ -13,12 +13,18 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 	// AI endpoints can be slow — override the global 30s timeout with 120s.
 	aiTimeout := chimw.Timeout(120 * time.Second)
 
+	// Agent streaming: JWT auth but no timeout — runs until done or client disconnects.
+	r.Group(func(r chi.Router) {
+		r.Use(auth.JWTValidate(jwtMgr))
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{caseId}/ai/agent", h.RunAgent)
+	})
+
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTValidate(jwtMgr))
 		r.Use(aiTimeout)
 
 		// ── Per-case copilot actions ──────────────────────────────────────
-		// Rate: 10 req/min for AI endpoints (enforced at infra level for now)
 		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
 			Post("/cases/{caseId}/ai/ask", h.Ask)
 

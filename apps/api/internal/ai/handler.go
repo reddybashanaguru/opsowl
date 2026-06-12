@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"go.uber.org/zap"
 
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/response"
@@ -95,6 +96,28 @@ func (h *Handler) ExtractActions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSON(w, http.StatusOK, result)
+}
+
+func (h *Handler) RunAgent(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
+
+	var req AgentRunRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Goal == "" {
+		response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "goal is required")
+		return
+	}
+
+	claims := auth.ClaimsFromCtx(r.Context())
+	// StreamAgent writes headers only after the Python service confirms 200.
+	// Any error returned here means headers have NOT been written yet — safe to write JSON error.
+	if err := h.svc.StreamAgent(r.Context(), claims, caseID, req.Goal, w); err != nil {
+		h.svc.logger.Warn("agent stream error", zap.String("case_id", caseID.String()), zap.Error(err))
+		h.handleError(w, err)
+	}
 }
 
 func (h *Handler) ListLogs(w http.ResponseWriter, r *http.Request) {

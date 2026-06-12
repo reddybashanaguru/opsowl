@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>04 · AI Copilot — OpsOwl AI Docs</title>
+<title>04 · AI Copilot &amp; Agent — OpsOwl AI Docs</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 <style>
   :root {
@@ -108,7 +108,9 @@
     <div class="nav-section">Sections</div>
     <a href="#overview">Overview</a>
     <a href="#capabilities">Capabilities</a>
-    <a href="#architecture">AI Architecture</a>
+    <a href="#agent">⚡ Investigation Agent</a>
+    <a href="#architecture">RAG Architecture</a>
+    <a href="#agent-arch">Agent Architecture</a>
     <a href="#schema">Database Schema</a>
     <a href="#api">API Endpoints</a>
     <a href="#antihallucination">Anti-Hallucination</a>
@@ -123,41 +125,56 @@
 
 <main>
   <div class="feature-badge"><span class="badge badge-violet">Feature 04</span> MVP · AI Service (Python)</div>
-  <h1>AI Copilot</h1>
-  <p class="subtitle">AI that assists investigators without replacing them. Summarize cases, answer questions on documents, generate notes, and extract action items — every response cites its source and shows a confidence score. Never guesses when context is insufficient.</p>
+  <h1>AI Copilot &amp; Investigation Agent</h1>
+  <p class="subtitle">Two complementary AI modes: a <strong>RAG Copilot</strong> that answers questions on uploaded documents, and an <strong>Autonomous Investigation Agent</strong> that reads the full case — notes, tasks, findings, transactions, timeline — and produces a structured investigation report without analyst hand-holding.</p>
 
   <h2 id="overview">Feature Overview</h2>
-  <p>The AI Copilot is OpsOwl AI's intelligence layer. It surfaces insights that would take an analyst hours to find manually — across hundreds of documents, events, and notes in a case. Critically, every AI output goes through a human review gate before it becomes official. AI assists; humans decide.</p>
+  <p>OpsOwl AI has two distinct intelligence modes that work together in the same panel. The <strong>Copilot</strong> is document-focused and interactive — you ask, it answers from PDFs. The <strong>Agent</strong> is autonomous and case-wide — you set a goal, it investigates everything and reports back. Neither replaces the analyst; both compress hours of work into minutes.</p>
   <div class="callout">
     <div class="callout-title">Core Principle</div>
-    AI outputs are always marked "PENDING REVIEW" until a human approves. No AI content silently enters the case record. This is non-negotiable for regulated BFSI clients.
+    All AI outputs — both Copilot responses and Agent reports — are visible to the analyst in the UI. The Agent is read-only: it can observe any case data but cannot write, mutate, or submit anything. Human action is always required to act on AI findings.
   </div>
 
   <h2 id="capabilities">AI Capabilities</h2>
+
+  <h3>RAG Copilot (document-focused, interactive)</h3>
   <div class="grid-2">
     <div class="card">
       <div class="card-title">📄 Case Summarization</div>
-      <div class="card-desc">Multi-document summarization across all case documents, notes, and timeline events. Produces a structured summary with key facts, entities, and timeline. Async operation — results streamed back via SSE.</div>
+      <div class="card-desc">Multi-document summarization across all case documents. Produces a structured summary with key facts, entities, and timeline. Async operation — results streamed back via SSE.</div>
     </div>
     <div class="card">
-      <div class="card-title">❓ Document Q&A (RAG)</div>
+      <div class="card-title">❓ Document Q&amp;A (RAG)</div>
       <div class="card-desc">Ask natural language questions about uploaded documents. Uses pgvector similarity search to retrieve relevant chunks, augments the prompt, and returns an answer with exact citations (doc name, page, excerpt).</div>
     </div>
     <div class="card">
       <div class="card-title">📝 Note Generation</div>
-      <div class="card-desc">AI drafts investigation notes from case context. Analyst reviews, edits, and saves. Saved notes show "AI Assisted" badge. Draft is never auto-saved — human action required.</div>
+      <div class="card-desc">AI drafts investigation notes from document context. Analyst reviews, edits, and saves. Saved notes show "AI Assisted" badge. Draft is never auto-saved — human action required.</div>
     </div>
     <div class="card">
       <div class="card-title">✅ Action Item Extraction</div>
-      <div class="card-desc">Analyzes documents and notes to extract actionable items. Returns a list of suggested tasks. Analyst accepts, modifies, or rejects each suggestion individually before tasks are created.</div>
+      <div class="card-desc">Analyzes documents to extract actionable items. Returns a list of suggested tasks. Analyst accepts, modifies, or rejects each suggestion before tasks are created.</div>
+    </div>
+  </div>
+
+  <h3 id="agent" style="margin-top: 32px;">⚡ Autonomous Investigation Agent (case-wide, multi-step)</h3>
+  <p style="color: var(--muted); margin-bottom: 16px;">Give the agent a goal in plain English. It autonomously reads the full case — notes, tasks, findings, transactions, timeline, documents — calls tools in sequence, reasons across all gathered data, and produces a structured investigation report. Analyst watches every step live via SSE streaming.</p>
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">🔁 Multi-Step Reasoning Loop</div>
+      <div class="card-desc">Agent calls tools one by one, inspects results, decides what to investigate next. Continues until it has enough data or reaches the 10-iteration safety limit. Never calls the same tool twice with the same input.</div>
     </div>
     <div class="card">
-      <div class="card-title">🔍 Pattern Detection</div>
-      <div class="card-desc">Identifies similar past cases, anomalous patterns, and risk signals. Every detected pattern includes citation of which events/documents triggered the flag. Never raises a flag without a source.</div>
+      <div class="card-title">📡 Live SSE Event Stream</div>
+      <div class="card-desc">Every reasoning step, tool call, tool result, and final answer streams to the analyst in real time. No waiting — analyst sees the agent's thinking as it happens. Frontend uses fetch() + ReadableStream (not EventSource — POST body needed).</div>
     </div>
     <div class="card">
-      <div class="card-title">🗺️ Next Step Suggestions</div>
-      <div class="card-desc">Based on case type, current status, and team activity, suggests next investigative actions. Grounded in case data — not generic playbooks.</div>
+      <div class="card-title">🔒 Read-Only Tools</div>
+      <div class="card-desc">All 8 tools are strictly read-only. The agent can observe any case data but cannot create notes, close cases, file STRs, or mutate anything. Write operations always require explicit human UI action.</div>
+    </div>
+    <div class="card">
+      <div class="card-title">🏠 On-Premise Compatible</div>
+      <div class="card-desc">Anthropic path: AsyncAnthropic with native tool_use. Ollama path: /api/chat with OpenAI-compatible tools format (qwen2.5:7b, mistral-nemo). Set DEFAULT_PROVIDER=ollama — zero data leaves the network.</div>
     </div>
   </div>
 
@@ -189,6 +206,46 @@
 
   <h3>AI Action Ledger</h3>
   <p>Every prompt + response + model + token count + confidence + human_approved stored in <span class="inline-code">ai_logs</span>. Immutable. Used for compliance, debugging, cost tracking, and audit trails.</p>
+
+  <h2 id="agent-arch">Investigation Agent Architecture</h2>
+
+  <h3>Agent Loop (Anthropic)</h3>
+  <div class="flow-box" style="flex-wrap: wrap; gap: 8px;">
+    <div class="flow-step">Goal + Case ID</div><div class="flow-arrow">→</div>
+    <div class="flow-step">AsyncAnthropic<br/><small style="color:var(--muted)">tools=TOOL_SPECS</small></div><div class="flow-arrow">→</div>
+    <div class="flow-step">stop_reason?</div><div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-color:var(--cyan)">tool_use:<br/>execute + append</div><div class="flow-arrow">→</div>
+    <div class="flow-step" style="border-color:var(--green)">end_turn:<br/>stream answer</div>
+  </div>
+  <p style="color:var(--muted); font-size:13px; margin-top:8px;">Max 10 iterations. Each tool result is appended to the message history before the next LLM call. The full conversation context (tools + results) grows with each iteration.</p>
+
+  <h3>SSE Event Types</h3>
+  <table>
+    <tr><th>Event</th><th>Data</th><th>When emitted</th></tr>
+    <tr><td><span class="inline-code">agent_start</span></td><td><span class="inline-code">{case_id, goal}</span></td><td>Immediately when the agent run begins</td></tr>
+    <tr><td><span class="inline-code">thinking</span></td><td><span class="inline-code">{text}</span></td><td>Any text block in the LLM response (reasoning visible to analyst)</td></tr>
+    <tr><td><span class="inline-code">tool_call</span></td><td><span class="inline-code">{id, name, input}</span></td><td>Before each tool is executed</td></tr>
+    <tr><td><span class="inline-code">tool_result</span></td><td><span class="inline-code">{id, name, preview, ok}</span></td><td>After each tool returns (preview: first 300 chars)</td></tr>
+    <tr><td><span class="inline-code">answer</span></td><td><span class="inline-code">{text}</span></td><td>Final investigation report (stop_reason == end_turn)</td></tr>
+    <tr><td><span class="inline-code">done</span></td><td><span class="inline-code">{iterations, tokens_in, tokens_out, elapsed_ms}</span></td><td>Always last — even on error</td></tr>
+    <tr><td><span class="inline-code">error</span></td><td><span class="inline-code">{message}</span></td><td>Unhandled exception in agent loop</td></tr>
+  </table>
+
+  <h3>Agent Tools (8, all read-only)</h3>
+  <table>
+    <tr><th>Tool</th><th>Data source</th><th>Typical use</th></tr>
+    <tr><td><span class="inline-code">get_case_context</span></td><td>cases + users JOIN</td><td>Always first — understands the case type, status, SLA</td></tr>
+    <tr><td><span class="inline-code">get_case_notes</span></td><td>notes + author JOIN</td><td>Reads analyst observations and internal commentary</td></tr>
+    <tr><td><span class="inline-code">get_case_tasks</span></td><td>tasks + assignee JOIN</td><td>Checks what has been done and what is pending</td></tr>
+    <tr><td><span class="inline-code">get_case_findings</span></td><td>case_findings + users</td><td>Reads formally recorded red flags</td></tr>
+    <tr><td><span class="inline-code">get_case_transactions</span></td><td>transactions via case_transactions junction</td><td>Analyses financial flows, amounts, counterparties</td></tr>
+    <tr><td><span class="inline-code">get_case_timeline</span></td><td>timeline_events + actors</td><td>Reconstructs the full sequence of events</td></tr>
+    <tr><td><span class="inline-code">get_case_documents</span></td><td>documents + LATERAL on document_chunks</td><td>Gets document excerpts (not full text — uses chunk previews)</td></tr>
+    <tr><td><span class="inline-code">search_similar_cases</span></td><td>full-text plainto_tsquery on cases</td><td>Surfaces similar prior cases for pattern comparison</td></tr>
+  </table>
+
+  <h3>SSE Proxy (Go → Python)</h3>
+  <p>The Go API's <span class="inline-code">StreamAgent()</span> method POSTs to <span class="inline-code">POST /agent/{case_id}/run</span> on the Python service and pipes the response body byte-by-byte to the HTTP client using <span class="inline-code">io.Copy</span> + <span class="inline-code">http.Flusher</span>. The agent route uses a separate chi router group with <strong>no timeout middleware</strong> — agent runs live as long as the connection is open.</p>
 
   <h2 id="schema">Database Schema</h2>
   <pre><code>-- AI interaction log (immutable — no UPDATE/DELETE)
@@ -253,6 +310,16 @@ CREATE INDEX idx_chunks_embedding ON document_chunks USING ivfflat (embedding ve
   WITH (lists = 100);</code></pre>
 
   <h2 id="api">API Endpoints</h2>
+
+  <div class="endpoint" style="border-color: rgba(6,182,212,0.5); background: rgba(6,182,212,0.04);">
+    <div class="ep-header"><span class="method post" style="background:rgba(6,182,212,0.3); color: var(--cyan);">POST</span><span class="ep-path">/api/v1/cases/:id/ai/agent</span><span style="margin-left:12px; font-size:11px; color:var(--cyan); border:1px solid rgba(6,182,212,0.4); border-radius:4px; padding:2px 8px;">SSE STREAM · NO TIMEOUT</span></div>
+    <div class="ep-desc">Autonomous investigation agent. Body: <span class="inline-code">{goal: string (3–1000 chars)}</span>. Returns <span class="inline-code">text/event-stream</span>. Streams <span class="inline-code">agent_start → thinking → tool_call → tool_result → answer → done</span> events. Required role: analyst+.</div>
+    <table>
+      <tr><th>Field</th><th>Type</th><th>Notes</th></tr>
+      <tr><td>goal</td><td>string</td><td>Plain-English investigation goal. Prompt injection checked on entry.</td></tr>
+      <tr><td>Response</td><td>text/event-stream</td><td>SSE — use fetch() + ReadableStream, not EventSource</td></tr>
+    </table>
+  </div>
 
   <div class="endpoint">
     <div class="ep-header"><span class="method post">POST</span><span class="ep-path">/api/v1/cases/:id/ai/summarize</span></div>
@@ -398,49 +465,62 @@ CREATE INDEX idx_chunks_embedding ON document_chunks USING ivfflat (embedding ve
 
   <h2 id="modules">Module Structure</h2>
   <pre><code>apps/api/internal/ai/
-├── handler.go          # HTTP handlers for all AI endpoints
-├── service.go          # Business logic, calls Python AI service
-├── job_handler.go      # River job: async summarization
-└── review_handler.go   # approve / reject / edit endpoints
+├── handler.go          # HTTP handlers — Ask, Summarize, GenerateNote, ExtractActions, RunAgent
+├── service.go          # Business logic: callPython() for copilot, StreamAgent() SSE proxy
+├── routes.go           # Chi route registration — agent gets no-timeout group
+├── dto.go              # Request/response types, error sentinels
+└── ai_test.go          # Integration tests (testcontainers + real DB)
 
 apps/ai-service/app/
 ├── routers/
-│   ├── copilot.py      # FastAPI router for all copilot endpoints
-│   └── internal.py     # Internal log endpoint (Go calls this)
+│   ├── copilot.py      # FastAPI router: /ask, /summarize, /generate-note, /extract-actions
+│   └── agent.py        # FastAPI router: POST /agent/{case_id}/run → StreamingResponse SSE
+├── agents/
+│   ├── __init__.py
+│   ├── investigation_agent.py  # Core agent loop: run_agent() async generator
+│   └── tools.py                # 8 read-only tool specs + execute_tool() dispatcher
 ├── services/
-│   ├── llm_router.py   # Provider selection, fallback chain
-│   ├── rag.py          # RAG pipeline: embed + search + augment
+│   ├── llm_router.py   # Provider selection, fallback chain (Anthropic / OpenAI / Ollama)
+│   ├── rag.py          # RAG pipeline: embed + pgvector search + augment
 │   ├── pii_masker.py   # Presidio integration
-│   ├── prompt_registry.py  # Fetch + render prompts from DB
-│   └── response_parser.py  # Parse INSUFFICIENT_CONTEXT, citations
-└── models/
-    └── schemas.py      # Pydantic request/response models</code></pre>
+│   └── prompt_registry.py  # Fetch + render prompts from DB
+└── tests/
+    ├── conftest.py         # Shared fixtures: TestClient, mock_llm_router, mock_embed
+    ├── test_copilot.py     # Copilot endpoint tests (mocked LLM)
+    └── test_agent.py       # Agent endpoint tests (mocked run_agent generator)
+
+apps/web/src/
+├── lib/hooks/
+│   ├── useAgentStream.ts   # fetch() + ReadableStream SSE consumer, exposes events[], answer, stats
+│   └── useTimelineSSE.ts   # (existing) case timeline SSE hook
+└── components/ai/
+    └── CopilotPanel.tsx    # 5-tab panel: Ask / Summarize / Draft Note / Extract Tasks / ⚡ Agent</code></pre>
 
   <h2 id="frontend">Frontend Components</h2>
   <div class="grid-2">
     <div class="card">
-      <div class="card-title">AI Copilot Panel</div>
-      <div class="card-desc">Slide-out drawer from case detail. Contains all capability buttons, chat history, pending reviews. Opens via keyboard shortcut Cmd+Shift+A.</div>
+      <div class="card-title">CopilotPanel (5 tabs)</div>
+      <div class="card-desc">Slide-out drawer from case detail. Tabs: Ask · Summarize · Draft Note · Extract Tasks · ⚡ Agent. Opens via Cmd+Shift+A. Each tab is independent — no shared state between RAG and Agent modes.</div>
     </div>
     <div class="card">
-      <div class="card-title">Chat Interface</div>
-      <div class="card-desc">Chronological Q&A history for the case. Each exchange shows question, answer, confidence bar, and expandable citation panel.</div>
+      <div class="card-title">useAgentStream hook</div>
+      <div class="card-desc"><span class="inline-code">fetch() + ReadableStream</span> SSE consumer. Parses event/data lines, maintains <span class="inline-code">events[]</span> array, exposes <span class="inline-code">answer</span>, <span class="inline-code">stats</span>, <span class="inline-code">run(goal)</span>, <span class="inline-code">cancel()</span>, <span class="inline-code">reset()</span>. AbortController cancels in-flight streams.</div>
     </div>
     <div class="card">
-      <div class="card-title">ConfidenceBar</div>
-      <div class="card-desc">Reusable component. Props: score (0-1). Renders colored bar + percentage. Green ≥0.8, amber 0.5–0.79, red &lt;0.5 with "Please review carefully" warning.</div>
+      <div class="card-title">Agent Event Feed</div>
+      <div class="card-desc">Live streaming feed — each SSE event renders as a row: <span style="color:var(--cyan)">→ Case Context</span> (tool_call), <span style="color:var(--green)">✓ preview text</span> (tool_result ok), <span style="color:var(--red)">✗ error</span> (tool_result !ok), italic reasoning (thinking). Auto-scrolls to bottom.</div>
     </div>
     <div class="card">
-      <div class="card-title">Streaming Response</div>
-      <div class="card-desc">SSE token stream renders with typing cursor indicator. Finalizes when stream closes. Falls back to polling if SSE unavailable.</div>
+      <div class="card-title">Investigation Report Card</div>
+      <div class="card-desc">Rendered after <span class="inline-code">answer</span> event. Shows full markdown report, token/iteration stats from <span class="inline-code">done</span> event, and "Run again" reset button. Cyan border visually distinct from RAG response cards.</div>
     </div>
     <div class="card">
-      <div class="card-title">Review Modal</div>
-      <div class="card-desc">Full-screen modal with Approve / Edit / Reject actions. Edit mode uses Tiptap for rich-text modification of AI response.</div>
+      <div class="card-title">AICard (RAG Copilot)</div>
+      <div class="card-desc">Renders Copilot responses with violet left border, "AI Generated" badge, confidence bar, citations panel, and human review actions (Approve / Edit / Reject). TypeScript enforces all required props.</div>
     </div>
     <div class="card">
-      <div class="card-title">Token Usage Display</div>
-      <div class="card-desc">Per-request token count + cost estimate. Daily budget indicator shows % remaining. Shown in copilot panel footer.</div>
+      <div class="card-title">Review Gate (Copilot only)</div>
+      <div class="card-desc">All RAG Copilot outputs go through PENDING → APPROVED/REJECTED/EDITED workflow. Agent reports are read-only observations — they do not enter the AI log as reviewable items.</div>
     </div>
   </div>
 
@@ -456,6 +536,7 @@ apps/ai-service/app/
   <p>River job runs daily to aggregate token costs per user and per case. Alerts sent when approaching 80% budget. Admin dashboard shows cost breakdown by user, case, model, and action type.</p>
 
   <h2 id="tests">Test Strategy</h2>
+  <h3>RAG Copilot</h3>
   <table>
     <tr><th>Test Case</th><th>Layer</th><th>Type</th></tr>
     <tr><td>INSUFFICIENT_CONTEXT sentinel detection</td><td>Python service</td><td>Unit</td></tr>
@@ -464,9 +545,27 @@ apps/ai-service/app/
     <tr><td>RAG retrieval returns citations array</td><td>Python service</td><td>Integration</td></tr>
     <tr><td>Human review state machine transitions</td><td>Go service</td><td>Unit (table-driven)</td></tr>
     <tr><td>approve/reject emits audit_log entry</td><td>Go service</td><td>Integration</td></tr>
-    <tr><td>Budget enforcement — 429 when exceeded</td><td>Go handler</td><td>Integration</td></tr>
     <tr><td>ai_logs immutability (no UPDATE)</td><td>DB layer</td><td>Integration</td></tr>
-    <tr><td>Mock LLM response — full pipeline test</td><td>Python service</td><td>Integration</td></tr>
+  </table>
+
+  <h3 style="margin-top: 24px;">Autonomous Investigation Agent</h3>
+  <table>
+    <tr><th>Test Case</th><th>Layer</th><th>Type</th></tr>
+    <tr><td>SSE stream returns text/event-stream content-type</td><td>Python router</td><td>Unit (mocked generator)</td></tr>
+    <tr><td>Every data: line is valid JSON</td><td>Python router</td><td>Unit</td></tr>
+    <tr><td>All event types present: agent_start, tool_call, answer, done</td><td>Python router</td><td>Unit</td></tr>
+    <tr><td>Rejects empty goal (422), goal &gt; 1000 chars (422)</td><td>Python router</td><td>Unit</td></tr>
+    <tr><td>Rejects invalid UUID case_id (400)</td><td>Python router</td><td>Unit</td></tr>
+    <tr><td>Blocks prompt injection: "jailbreak", "ignore previous instructions"</td><td>Python router</td><td>Unit</td></tr>
+    <tr><td>Go proxy: streams SSE bytes with correct headers</td><td>Go handler</td><td>Integration (testcontainers)</td></tr>
+    <tr><td>Go proxy: viewer role → 403</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>Go proxy: invalid case UUID → 400</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>Go proxy: Python 503 → 500 (pre-stream error path)</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>Go proxy: unauthenticated → 401</td><td>Go handler</td><td>Integration</td></tr>
+    <tr><td>Agent tab visible, Run button disabled when goal empty</td><td>Frontend</td><td>E2E (Playwright)</td></tr>
+    <tr><td>Tool call events render in live feed</td><td>Frontend</td><td>E2E (mocked SSE via page.route)</td></tr>
+    <tr><td>Final answer card displays after done event</td><td>Frontend</td><td>E2E</td></tr>
+    <tr><td>Server error → error state shown</td><td>Frontend</td><td>E2E</td></tr>
   </table>
 
   <footer>

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -1441,4 +1442,200 @@ func TestService_Edit_NotFound(t *testing.T) {
 	if !errors.Is(err, ai.ErrNotFound) {
 		t.Errorf("expected ErrNotFound, got %v", err)
 	}
+}
+
+// ── AI Agent tests ─────────────────────────────────────────────────────────────
+
+// mockSSEServer returns a server that streams a fixed SSE body.
+func mockSSEServer(t *testing.T, events []string) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.WriteHeader(http.StatusOK)
+		for _, evt := range events {
+			fmt.Fprint(w, evt)
+		}
+	}))
+}
+
+func mockAgentSSEEvents() []string {
+	return []string{
+		"event: agent_start\ndata: {\"case_id\":\"test\",\"goal\":\"test goal\"}\n\n",
+		"event: thinking\ndata: {\"text\":\"Calling get_case_context...\"}\n\n",
+		"event: tool_call\ndata: {\"id\":\"tc1\",\"name\":\"get_case_context\",\"input\":{\"case_id\":\"test\"}}\n\n",
+		"event: tool_result\ndata: {\"id\":\"tc1\",\"name\":\"get_case_context\",\"preview\":\"Case details\",\"ok\":true}\n\n",
+		"event: answer\ndata: {\"text\":\"## Case Summary\\nInvestigation complete.\"}\n\n",
+		"event: done\ndata: {\"iterations\":1,\"tokens_in\":100,\"tokens_out\":50,\"elapsed_ms\":1200}\n\n",
+	}
+}
+
+// TestHandler_RunAgent_StreamsSSE verifies the proxy forwards SSE bytes with correct headers.
+func TestHandler_RunAgent_StreamsSSE(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleAnalyst)
+	caseID := insertCase(t, userID)
+	token, jwtMgr := makeJWT(t, userID, dbgen.UserRoleAnalyst)
+
+	srv := mockSSEServer(t, mockAgentSSEEvents())
+	defer srv.Close()
+
+	svc, _ := makeService(t, srv)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := authedRequest(t, http.MethodPost,
+		"/api/v1/cases/"+caseID.String()+"/ai/agent",
+		map[string]string{"goal": "Analyse this case for suspicious activity."},
+		token,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+	ct := w.Header().Get("Content-Type")
+	if ct != "text/event-stream" {
+		t.Errorf("expected text/event-stream, got %q", ct)
+	}
+	body := w.Body.String()
+	for _, want := range []string{"event: agent_start", "event: tool_call", "event: done"} {
+		if !stringContains(body, want) {
+			t.Errorf("expected %q in body", want)
+		}
+	}
+}
+
+// TestHandler_RunAgent_RequiresAnalystRole verifies viewer is denied.
+func TestHandler_RunAgent_RequiresAnalystRole(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleViewer)
+	caseID := insertCase(t, userID)
+	token, jwtMgr := makeJWT(t, userID, dbgen.UserRoleViewer)
+	svc, _ := makeService(t, nil)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := authedRequest(t, http.MethodPost,
+		"/api/v1/cases/"+caseID.String()+"/ai/agent",
+		map[string]string{"goal": "Analyse this case."},
+		token,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusForbidden {
+		t.Errorf("expected 403 for viewer role, got %d", w.Code)
+	}
+}
+
+// TestHandler_RunAgent_InvalidCaseID verifies UUID validation.
+func TestHandler_RunAgent_InvalidCaseID(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleAnalyst)
+	token, jwtMgr := makeJWT(t, userID, dbgen.UserRoleAnalyst)
+	svc, _ := makeService(t, nil)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := authedRequest(t, http.MethodPost,
+		"/api/v1/cases/not-a-uuid/ai/agent",
+		map[string]string{"goal": "Analyse this case."},
+		token,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+// TestHandler_RunAgent_EmptyGoal verifies goal is required.
+func TestHandler_RunAgent_EmptyGoal(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleAnalyst)
+	caseID := insertCase(t, userID)
+	token, jwtMgr := makeJWT(t, userID, dbgen.UserRoleAnalyst)
+	svc, _ := makeService(t, nil)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := authedRequest(t, http.MethodPost,
+		"/api/v1/cases/"+caseID.String()+"/ai/agent",
+		map[string]string{"goal": ""},
+		token,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400 for empty goal, got %d", w.Code)
+	}
+}
+
+// TestHandler_RunAgent_PythonServiceError verifies a non-200 from Python → HTTP 500.
+func TestHandler_RunAgent_PythonServiceError(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleAnalyst)
+	caseID := insertCase(t, userID)
+	token, jwtMgr := makeJWT(t, userID, dbgen.UserRoleAnalyst)
+
+	errSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusServiceUnavailable)
+		fmt.Fprint(w, `{"detail":"AI service temporarily unavailable"}`)
+	}))
+	defer errSrv.Close()
+
+	svc, _ := makeService(t, errSrv)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := authedRequest(t, http.MethodPost,
+		"/api/v1/cases/"+caseID.String()+"/ai/agent",
+		map[string]string{"goal": "Analyse this case."},
+		token,
+	)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500 on Python error, got %d", w.Code)
+	}
+}
+
+// TestHandler_RunAgent_Unauthenticated verifies 401 without JWT.
+func TestHandler_RunAgent_Unauthenticated(t *testing.T) {
+	userID := insertUser(t, dbgen.UserRoleAnalyst)
+	caseID := insertCase(t, userID)
+	_, jwtMgr := makeJWT(t, userID, dbgen.UserRoleAnalyst)
+	svc, _ := makeService(t, nil)
+	router := buildRouter(t, svc, jwtMgr)
+
+	req := httptest.NewRequest(http.MethodPost,
+		"/api/v1/cases/"+caseID.String()+"/ai/agent",
+		bytes.NewBufferString(`{"goal":"Analyse this case."}`),
+	)
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusUnauthorized {
+		t.Errorf("expected 401, got %d", w.Code)
+	}
+}
+
+// TestService_StreamAgent_GoalTooLong verifies service-level goal length validation.
+func TestService_StreamAgent_GoalTooLong(t *testing.T) {
+	svc, _ := makeService(t, nil)
+	claims := &auth.Claims{UserID: uuid.New(), Role: dbgen.UserRoleAnalyst}
+	w := httptest.NewRecorder()
+	err := svc.StreamAgent(context.Background(), claims, uuid.New(), string(make([]byte, 1001)), w)
+	if !errors.Is(err, ai.ErrBadRequest) {
+		t.Errorf("expected ErrBadRequest for goal > 1000 chars, got %v", err)
+	}
+}
+
+func stringContains(s, sub string) bool {
+	if len(sub) == 0 {
+		return true
+	}
+	for i := 0; i <= len(s)-len(sub); i++ {
+		if s[i:i+len(sub)] == sub {
+			return true
+		}
+	}
+	return false
 }

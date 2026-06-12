@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"time"
 
@@ -120,6 +121,79 @@ func (s *Service) ExtractActions(ctx context.Context, claims *auth.Claims, caseI
 	}
 
 	return s.storeLog(ctx, claims, caseID, "extract_actions", resp, db.TimelineEventTypeAiActionSuggested)
+}
+
+// StreamAgent proxies the autonomous agent SSE stream from the Python service to the HTTP client.
+// The response is never buffered — bytes are flushed as they arrive.
+func (s *Service) StreamAgent(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, goal string, w http.ResponseWriter) error {
+	if len(goal) == 0 || len(goal) > 1000 {
+		return fmt.Errorf("%w: goal must be 1–1000 characters", ErrBadRequest)
+	}
+
+	type pyAgentReq struct {
+		Goal string `json:"goal"`
+	}
+	body, _ := json.Marshal(pyAgentReq{Goal: goal})
+
+	// No timeout — agent may run for several minutes
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		fmt.Sprintf("%s/agent/%s/run", s.aiServiceURL, caseID.String()),
+		bytes.NewReader(body),
+	)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	if s.serviceSecret != "" {
+		req.Header.Set("Authorization", "Bearer "+s.serviceSecret)
+	}
+
+	// Use a no-timeout client for streaming
+	streamClient := &http.Client{}
+	resp, err := streamClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("agent stream request failed: %w", err)
+	}
+	defer resp.Body.Close() //nolint:errcheck
+
+	if resp.StatusCode != http.StatusOK {
+		var errBody struct{ Detail string `json:"detail"` }
+		_ = json.NewDecoder(resp.Body).Decode(&errBody)
+		return fmt.Errorf("agent service returned %d: %s", resp.StatusCode, errBody.Detail)
+	}
+
+	// Set SSE headers before writing anything
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Accel-Buffering", "no")
+	w.Header().Set("Connection", "keep-alive")
+	w.WriteHeader(http.StatusOK)
+
+	flusher, canFlush := w.(http.Flusher)
+	buf := make([]byte, 4096)
+	for {
+		n, readErr := resp.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return nil // client disconnected
+			}
+			if canFlush {
+				flusher.Flush()
+			}
+		}
+		if readErr == io.EOF {
+			break
+		}
+		if readErr != nil {
+			return readErr
+		}
+	}
+
+	s.emitTimeline(ctx, caseID, claims.UserID, db.TimelineEventTypeAiQuery, map[string]interface{}{
+		"action_type": "agent_run",
+		"goal":        goal,
+	})
+	return nil
 }
 
 // ── Human review actions ──────────────────────────────────────────────────────
