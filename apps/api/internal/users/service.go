@@ -157,9 +157,20 @@ func (s *Service) Delete(ctx context.Context, actor *auth.Claims, targetID uuid.
 	if err != nil {
 		return ErrUserNotFound
 	}
-	// Revoke all active sessions for deleted user
 	_ = s.repo.RevokeAllTokens(ctx, targetID)
 	return nil
+}
+
+// Purge permanently removes the user row. Restricted to super_admin — intended for test cleanup.
+func (s *Service) Purge(ctx context.Context, actor *auth.Claims, targetID uuid.UUID) error {
+	if actor.Role != db.UserRoleSuperAdmin {
+		return ErrForbidden
+	}
+	if actor.UserID == targetID {
+		return errors.New("cannot_delete_self")
+	}
+	_ = s.repo.RevokeAllTokens(ctx, targetID)
+	return s.repo.HardDelete(ctx, targetID)
 }
 
 func (s *Service) Unlock(ctx context.Context, targetID uuid.UUID) error {

@@ -138,6 +138,22 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if r.URL.Query().Get("purge") == "true" {
+		if err := h.svc.Purge(r.Context(), claims, id); err != nil {
+			switch {
+			case errors.Is(err, ErrForbidden):
+				response.Err(w, http.StatusForbidden, "FORBIDDEN", "super_admin required")
+			case err.Error() == "cannot_delete_self":
+				response.Err(w, http.StatusBadRequest, "CANNOT_DELETE_SELF", "you cannot delete your own account")
+			default:
+				response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not purge user")
+			}
+			return
+		}
+		response.JSON(w, http.StatusOK, map[string]string{"message": "user purged"})
+		return
+	}
+
 	if err := h.svc.Delete(r.Context(), claims, id); err != nil {
 		switch err.Error() {
 		case "cannot_delete_self":

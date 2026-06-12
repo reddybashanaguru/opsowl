@@ -63,6 +63,15 @@ func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) (db.SoftDelet
 	return r.q.SoftDeleteUser(ctx, id)
 }
 
+// HardDelete permanently removes the user row — only for test/cleanup use by super_admin.
+func (r *Repository) HardDelete(ctx context.Context, id uuid.UUID) error {
+	if r.db == nil {
+		return fmt.Errorf("raw db not configured")
+	}
+	_, err := r.db.ExecContext(ctx, `DELETE FROM users WHERE id = $1`, id)
+	return err
+}
+
 func (r *Repository) RevokeAllTokens(ctx context.Context, userID uuid.UUID) error {
 	_ = r.q.RevokeAllUserRefreshTokens(ctx, userID)
 	_ = r.q.RevokeAllUserSessions(ctx, userID)
