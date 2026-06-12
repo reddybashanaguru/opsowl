@@ -8,8 +8,8 @@ test.describe("Global Tasks (My Tasks)", () => {
   });
 
   test("tasks page renders heading", async ({ page }) => {
-    // Heading: "My Tasks" or "My {config_label}"
-    await expect(page.getByRole("heading", { name: /My.*Task/i })).toBeVisible();
+    // Heading: "My Tasks" for analysts, "All Tasks" for managers/admins
+    await expect(page.getByRole("heading", { name: /(?:My|All)\s+\w*Task/i })).toBeVisible();
   });
 
   test("completion progress ring renders", async ({ page }) => {

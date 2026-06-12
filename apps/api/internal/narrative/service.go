@@ -70,7 +70,11 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 	txns, _ := s.repo.GetCaseTransactions(ctx, caseID)
 	subjects, _ := s.repo.GetSubjectNames(ctx, caseID)
 
-	// Build AI request
+	if subjects == nil {
+		subjects = []string{}
+	}
+
+	// Build AI request — use empty slices (not nil) so JSON marshals to [] not null
 	aiReq := aiNarrativeRequest{
 		CaseID:            caseID.String(),
 		CaseNumber:        caseCtx.CaseNumber,
@@ -80,6 +84,8 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 		NarrativeType:     ntype,
 		SubjectNames:      subjects,
 		InvestigatorNotes: req.InvestigatorNotes,
+		Findings:          []aiNarrativeFinding{},
+		Transactions:      []aiNarrativeTransaction{},
 	}
 	for _, f := range findings {
 		aiReq.Findings = append(aiReq.Findings, aiNarrativeFinding{
@@ -92,16 +98,16 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 	}
 	for _, t := range txns {
 		aiReq.Transactions = append(aiReq.Transactions, aiNarrativeTransaction{
-			TxnRef:    t.TxnRef,
-			TxnDate:   t.TxnDate.Format("2006-01-02"),
-			Amount:    t.Amount,
-			Currency:  t.Currency,
-			TxnType:   t.TxnType,
-			Channel:   t.Channel,
-			FromName:  t.FromName,
-			ToName:    t.ToName,
-			Narration: t.Narration,
-			IsFlagged: t.IsFlagged,
+			TxnRef:     t.TxnRef,
+			TxnDate:    t.TxnDate.Format("2006-01-02"),
+			Amount:     t.Amount,
+			Currency:   t.Currency,
+			TxnType:    t.TxnType,
+			Channel:    t.Channel,
+			FromName:   t.FromName,
+			ToName:     t.ToName,
+			Narration:  t.Narration,
+			IsFlagged:  t.IsFlagged,
 			FlagReason: t.FlagReason,
 		})
 	}

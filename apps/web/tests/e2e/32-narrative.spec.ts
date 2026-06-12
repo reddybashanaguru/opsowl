@@ -54,6 +54,7 @@ test.describe("AI Investigation Narrative", () => {
   });
 
   test("API: generate investigation_summary narrative", async () => {
+    test.setTimeout(180_000);
     const res = await fetch(`${API_URL}/cases/${caseId}/narratives/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -127,6 +128,7 @@ test.describe("AI Investigation Narrative", () => {
   });
 
   test("API: generate STR suspicion basis narrative", async () => {
+    test.setTimeout(180_000);
     const res = await fetch(`${API_URL}/cases/${caseId}/narratives/generate`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
@@ -140,21 +142,21 @@ test.describe("AI Investigation Narrative", () => {
 
   test("narrative page shows narrative card after generation", async ({ page }) => {
     await login(page, undefined, undefined, `/cases/${caseId}/narrative`);
-    await page.waitForTimeout(1500);
-    // At least one narrative card should be visible
-    await expect(page.getByText(/Investigation Summary|STR Suspicion/i).first()).toBeVisible();
+    await page.waitForTimeout(2500);
+    // At least one narrative card h3 heading should be visible (not the filter <option>)
+    await expect(page.locator("h3").filter({ hasText: /Investigation Summary|STR Suspicion/i }).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("narrative page shows approved badge", async ({ page }) => {
     await login(page, undefined, undefined, `/cases/${caseId}/narrative`);
-    await page.waitForTimeout(1500);
-    await expect(page.getByText(/approved/i).first()).toBeVisible();
+    await page.waitForTimeout(2500);
+    await expect(page.getByText(/approved/i).first()).toBeVisible({ timeout: 15_000 });
   });
 
   test("narrative card shows word count and model used", async ({ page }) => {
     await login(page, undefined, undefined, `/cases/${caseId}/narrative`);
-    await page.waitForTimeout(1500);
-    await expect(page.getByText(/words/i).first()).toBeVisible();
-    await expect(page.getByText(/template|claude|gpt|ollama/i).first()).toBeVisible();
+    await page.waitForTimeout(2500);
+    await expect(page.getByText(/words/i).first()).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText(/template|claude|gpt|ollama|qwen/i).first()).toBeVisible({ timeout: 15_000 });
   });
 });

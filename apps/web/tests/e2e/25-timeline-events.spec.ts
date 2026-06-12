@@ -49,7 +49,7 @@ test.describe("Timeline events", () => {
     await fetch(`${API_URL}/cases/${caseId}/notes`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ title: "Timeline E2E note", content_text: "Body text for e2e", note_type: "internal" }),
+      body: JSON.stringify({ title: "Timeline E2E note", content: '{"type":"doc","content":[{"type":"paragraph","content":[{"type":"text","text":"Body text for e2e"}]}]}', content_text: "Body text for e2e", note_type: "internal" }),
     });
 
     await goToTimeline(page);
@@ -123,9 +123,12 @@ test.describe("Timeline events", () => {
     // Filter to note_added only
     await page.getByRole("button", { name: /note added/i }).click();
     await page.waitForTimeout(1500);
-    // Either "Note Added" cards exist, or empty state
-    const noteCards = page.getByText("Note Added");
-    const emptyState = page.getByText(/No timeline events/i);
-    await expect(noteCards.first().or(emptyState)).toBeVisible({ timeout: 8_000 });
+    // Either "Note Added" cards exist, or empty state (no other event type should show)
+    await expect(
+      page.getByText("Note Added").first()
+    ).toBeVisible({ timeout: 8_000 }).catch(async () => {
+      // If no Note Added events, the empty-state must be shown
+      await expect(page.getByText(/No timeline events/i)).toBeVisible({ timeout: 3_000 });
+    });
   });
 });

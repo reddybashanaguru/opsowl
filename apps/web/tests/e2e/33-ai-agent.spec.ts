@@ -68,7 +68,9 @@ test.describe("AI Investigation Agent", () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
     await page.goto(`/cases/${caseId}`);
-    await page.waitForLoadState("networkidle");
+    // Wait for the case header to render — avoids networkidle timeout caused
+    // by the persistent SSE timeline stream on the case detail page.
+    await page.waitForSelector("h1", { timeout: 15_000 });
   });
 
   // ── Tab visibility ──────────────────────────────────────────────────────────

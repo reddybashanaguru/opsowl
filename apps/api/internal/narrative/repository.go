@@ -170,8 +170,10 @@ func (r *Repository) GetCaseContext(ctx context.Context, caseID uuid.UUID) (case
 		SELECT c.case_number, c.title, COALESCE(c.description, ''),
 		       COALESCE(ci.risk_level, 'unknown')
 		FROM cases c
-		LEFT JOIN case_insights ci ON ci.case_id = c.id
-		WHERE c.id = $1`, caseID).Scan(&cc.CaseNumber, &cc.Title, &cc.Description, &cc.RiskLevel)
+		LEFT JOIN case_ai_insights ci ON ci.case_id = c.id
+		WHERE c.id = $1
+		ORDER BY ci.analysed_at DESC NULLS LAST
+		LIMIT 1`, caseID).Scan(&cc.CaseNumber, &cc.Title, &cc.Description, &cc.RiskLevel)
 	return cc, err
 }
 

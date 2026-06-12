@@ -129,7 +129,8 @@ func sseAwareTimeout(d time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		withTimeout := chimw.Timeout(d)(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/stream") || strings.HasSuffix(r.URL.Path, "/agent") {
+			if strings.HasSuffix(r.URL.Path, "/stream") || strings.HasSuffix(r.URL.Path, "/agent") ||
+				strings.HasSuffix(r.URL.Path, "/generate") {
 				next.ServeHTTP(w, r)
 				return
 			}
