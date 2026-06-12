@@ -5,10 +5,10 @@ If AI_SERVICE_SECRET is not configured the check is skipped (dev/test convenienc
 """
 from __future__ import annotations
 
-import os
-
 from fastapi import HTTPException, Security, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
+from app.config import settings
 
 _bearer = HTTPBearer(auto_error=False)
 
@@ -17,7 +17,7 @@ def require_service_token(
     credentials: HTTPAuthorizationCredentials | None = Security(_bearer),
 ) -> None:
     """FastAPI dependency — raises 401 when the service secret does not match."""
-    secret = os.getenv("AI_SERVICE_SECRET", "")
+    secret = settings.ai_service_secret
     if not secret:
         return  # unconfigured → open (dev/test)
     if credentials is None or credentials.credentials != secret:

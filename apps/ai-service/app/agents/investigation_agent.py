@@ -198,7 +198,7 @@ async def _run_ollama(case_id: str, goal: str) -> AsyncIterator[str]:
     Uses Ollama's OpenAI-compatible /api/chat endpoint with tools parameter.
     """
     model = settings.ollama_model
-    ollama_tools = to_ollama_tools()
+    ollama_tools = to_ollama_tools(TOOL_SPECS)
 
     messages: list[dict] = [
         {"role": "system", "content": _SYSTEM_PROMPT},

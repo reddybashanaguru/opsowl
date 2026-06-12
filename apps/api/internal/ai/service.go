@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
@@ -181,11 +180,10 @@ func (s *Service) StreamAgent(ctx context.Context, claims *auth.Claims, caseID u
 				flusher.Flush()
 			}
 		}
-		if readErr == io.EOF {
-			break
-		}
 		if readErr != nil {
-			return readErr
+			// Any read error after headers are written is a normal stream end —
+			// the client already received SSE content so we cannot send an HTTP error.
+			break
 		}
 	}
 

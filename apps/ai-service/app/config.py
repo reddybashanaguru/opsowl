@@ -5,6 +5,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = ""
     go_api_url: str = "http://localhost:8080"
+    ai_service_secret: str = ""
 
     # ── Cloud LLM credentials (used only when provider != ollama) ─────────────
     anthropic_api_key: str = ""
