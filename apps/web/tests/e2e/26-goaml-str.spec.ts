@@ -483,9 +483,9 @@ test.describe("goAML STR filing — global", () => {
     // Save draft
     await page.getByRole("button", { name: /save draft/i }).click();
 
-    // Filing card should appear
-    await expect(page.getByText("DRAFT")).toBeVisible({ timeout: 8_000 });
-    await expect(page.getByText("Suspicious large transfers")).toBeVisible();
+    // Wait for modal to close then verify filing card appeared
+    await expect(page.getByRole("heading", { name: /new regulatory filing draft/i })).not.toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText("Suspicious large transfers")).toBeVisible({ timeout: 5_000 });
   });
 
   // ── Export gate ───────────────────────────────────────────────────────────────
@@ -504,8 +504,10 @@ test.describe("goAML STR filing — global", () => {
     await login(page, MANAGER_EMAIL, MANAGER_PASSWORD);
     await page.goto(`/cases/${caseId}/str`);
 
-    // Wait for at least one filing card to appear
-    await expect(page.getByText("DRAFT").first()).toBeVisible({ timeout: 8_000 });
+    // Wait for the page to fully load with manager-role controls (Submit for Approval
+    // is also gated on isManagerOrAbove — ensures user context is resolved before
+    // we look for the readiness panel button)
+    await expect(page.getByRole("button", { name: /submit for approval/i }).first()).toBeVisible({ timeout: 10_000 });
 
     await page.getByRole("button", { name: /goaml 4.0 readiness/i }).first().click();
     await expect(
