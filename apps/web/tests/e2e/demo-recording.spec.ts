@@ -76,6 +76,7 @@ async function hoverCards(page: Page, labels: string[], hoverEach: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 test("OpsOwl AI — Narrated Product Demo", async ({ page }) => {
+  test.skip(process.env.DEMO_MODE !== "true", "Demo recording — run with DEMO_MODE=true and audio assets present");
   test.setTimeout(3_600_000);
 
   // Pre-compute all scene durations (based on audio files)
