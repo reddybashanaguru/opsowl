@@ -110,6 +110,7 @@ function GenerateModal({
   const [selectedType, setSelectedType] = useState("investigation_summary");
   const [notes, setNotes] = useState("");
   const [error, setError] = useState("");
+  const submittingRef = useRef(false);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -118,12 +119,22 @@ function GenerateModal({
         investigator_notes: notes,
       }),
     onSuccess: () => {
+      submittingRef.current = false;
       setError("");
       onGenerated();
       onClose();
     },
-    onError: (e: APIError) => setError(e.message ?? "Generation failed. Check that the AI service is running."),
+    onError: (e: APIError) => {
+      submittingRef.current = false;
+      setError(e.message ?? "Generation failed. Check that the AI service is running.");
+    },
   });
+
+  const handleGenerate = () => {
+    if (submittingRef.current || mutation.isPending) return;
+    submittingRef.current = true;
+    mutation.mutate();
+  };
 
   const typeInfo = NARRATIVE_TYPES.find((t) => t.value === selectedType);
 
@@ -202,7 +213,7 @@ function GenerateModal({
 
           <div className="flex gap-3">
             <button
-              onClick={() => mutation.mutate()}
+              onClick={handleGenerate}
               disabled={mutation.isPending}
               className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-60 text-white text-sm rounded-lg font-medium transition-colors"
             >
