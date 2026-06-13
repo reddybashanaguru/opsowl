@@ -214,8 +214,8 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 		SELECT
 			(SELECT COUNT(*) FROM cases WHERE created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
 			(SELECT COUNT(*) FROM cases WHERE status = 'closed' AND updated_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
-			(SELECT COUNT(*) FROM str_reports WHERE status = 'approved' AND updated_at >= date_trunc('month', NOW())),
-			(SELECT COUNT(*) FROM str_reports WHERE status IN ('draft','submitted')),
+			(SELECT COUNT(*) FROM str_filings WHERE status IN ('approved','filed') AND updated_at >= date_trunc('month', NOW())),
+			(SELECT COUNT(*) FROM str_filings WHERE status IN ('draft','submitted')),
 			(SELECT COUNT(*) FROM cases WHERE sla_breached = true AND status NOT IN ('closed','draft') AND deleted_at IS NULL),
 			(SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - created_at))/86400), 0)::bigint FROM cases WHERE status NOT IN ('closed','draft') AND deleted_at IS NULL)`
 	row := h.rawDB.QueryRowContext(ctx, statsQ)
@@ -244,11 +244,11 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 		SELECT u.id::text, u.full_name,
 			COALESCE(SUM(CASE WHEN c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(CASE WHEN c.status = 'closed' AND c.updated_at >= date_trunc('month', NOW()) THEN 1 ELSE 0 END), 0),
-			COALESCE(COUNT(DISTINCT CASE WHEN sr.status = 'approved' AND sr.updated_at >= date_trunc('month', NOW()) THEN sr.id END), 0),
+			COALESCE(COUNT(DISTINCT CASE WHEN sr.status IN ('approved','filed') AND sr.updated_at >= date_trunc('month', NOW()) THEN sr.id END), 0),
 			COALESCE(SUM(CASE WHEN c.sla_breached = true AND c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0)
 		FROM users u
 		LEFT JOIN cases c ON c.assigned_to = u.id
-		LEFT JOIN str_reports sr ON sr.created_by = u.id
+		LEFT JOIN str_filings sr ON sr.submitted_by = u.id
 		WHERE u.role IN ('analyst','manager') AND u.active = true
 		GROUP BY u.id, u.full_name
 		ORDER BY 3 DESC, u.full_name`
