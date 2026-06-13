@@ -3,7 +3,7 @@
 **Platform:** AI-Native Enterprise Investigation Workspace  
 **Version:** 1.0 (MVP + Phase 8)  
 **Audience:** All users — Analyst, Manager, Admin, Viewer  
-**Last updated:** 2026-05-30
+**Last updated:** 2026-06-13
 
 ---
 
@@ -131,10 +131,58 @@ Analysts are the primary users of OpsOwl. This section covers your full daily wo
 - Shows a score (0–100) and level (Low / Medium / High / Critical) in the case header
 - Updates after each re-analysis
 
-**AI Copilot** (🤖 button in case header)
-- Opens a chat panel — ask questions about the case
-- "Summarise this case", "What are the key risk factors?", "Draft an investigation summary"
-- Responses cite the documents and notes they are based on
+**AI Copilot** (🤖 button in case header, or Cmd+Shift+A / Ctrl+Shift+A)
+
+Opens a slide-over panel with five tabs:
+
+| Tab | What It Does |
+|-----|-------------|
+| **Ask** | Ask a free-text question — answered using RAG over your uploaded documents |
+| **Summarize** | One-click structured summary of all documents in the case |
+| **Draft Note** | AI drafts an investigation note; you review and approve before it is saved |
+| **Extract Tasks** | Pulls suggested investigation tasks out of uploaded documents |
+| **⚡ Agent** | Autonomous investigation — see below |
+
+All Copilot responses are logged in **AI Logs** (case tab) and require analyst review before they are saved to the case record.
+
+**⚡ AI Investigation Agent** (Copilot → Agent tab)
+
+The Agent is an autonomous investigator. Unlike the other tabs (which answer a single question), the Agent plans and executes a multi-step investigation on its own.
+
+*How to use it:*
+
+1. Open the Copilot panel (🤖 button or Cmd+Shift+A)
+2. Click the **⚡ Agent** tab — it has a distinct cyan colour
+3. Type your investigation goal in plain language, for example:
+   - "Analyse this case for suspicious transaction patterns and summarise the risk"
+   - "Identify all entities involved and flag any red flags"
+   - "Produce a structured investigation report suitable for manager review"
+4. Click **⚡ Run Agent**
+5. Watch the live feed as the agent works — each step is shown in real time:
+   - *Italic grey text*: the agent's reasoning
+   - **→ Case Context / Notes / Findings…**: tool being read (all read-only)
+   - **✓ Notes: 2 analyst notes found**: result preview
+6. When finished, the **Investigation Report** appears — a structured markdown summary ready to copy into a note or STR narrative
+7. Click **Run again** to start a new investigation with a different goal, or **Cancel** to stop mid-run
+
+*What the agent can read (all read-only, no data is modified):*
+
+- Case metadata and context
+- Analyst notes
+- Tasks (open and completed)
+- Findings and evidence links
+- Transaction records (flow of funds)
+- Case timeline (full event history)
+- Uploaded documents
+- Similar historical cases (via AI similarity search)
+
+*Stats shown after completion:*  
+Number of reasoning iterations · total tokens used · elapsed time
+
+*Tips:*
+- The more specific your goal, the more focused the report — "look for PEP exposure and cross-border transfers" gives better output than "analyse the case"
+- The agent does not save anything automatically — copy the report text into a Note or the STR Narrative field
+- If the AI service is unavailable, an error banner appears; the agent can be re-run once the service recovers
 
 **Re-run AI Analysis** (⚡ button in case header)
 - Re-extracts entities from new documents and updates risk score
@@ -296,6 +344,19 @@ Click the bell to open the notification dropdown. Mark individual notifications 
 4. The audit log (Admin → Audit Logs) shows every action taken in the system
 5. Export case as **PDF** (📄 button in case header) for offline submission
 6. Export audit logs as **CSV** (Export button on Audit Logs page)
+
+### How to Use the AI Agent for a Quick Investigation Report
+
+1. Open any active case
+2. Click **🤖 AI Copilot** in the case header (or press Cmd+Shift+A)
+3. Switch to the **⚡ Agent** tab
+4. Type your goal: `"Produce a structured AML investigation report covering all parties, transactions, and risk indicators"`
+5. Click **⚡ Run Agent** — the agent typically completes in 10–30 seconds
+6. When "Investigation Report" appears, review the output
+7. Copy the report text → go to the **Notes** tab → "Add Note" → paste as an Internal note
+8. Alternatively, paste the narrative directly into the **STR** tab → Narrative field
+
+This replaces the manual step of reading every tab and writing a summary from scratch.
 
 ### How to Onboard a New Analyst
 

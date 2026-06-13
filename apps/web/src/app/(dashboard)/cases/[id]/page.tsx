@@ -149,7 +149,10 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   // Live timeline feed
   const [liveEvents, setLiveEvents] = useState<TimelineEvent[]>([]);
   const handleTimelineEvent = (event: TimelineEvent) => {
-    setLiveEvents((prev) => [event, ...prev].slice(0, 20));
+    setLiveEvents((prev) => {
+      if (prev.some((e) => e.id === event.id)) return prev;
+      return [event, ...prev].slice(0, 20);
+    });
   };
   useTimelineSSE({ caseId: id, onEvent: handleTimelineEvent });
 
