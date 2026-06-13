@@ -209,6 +209,7 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	var out MLROSummaryResponse
 	out.DispositionCounts = make(map[string]int64)
+	out.Investigators = []InvestigatorKPI{}
 
 	statsQ := `
 		SELECT

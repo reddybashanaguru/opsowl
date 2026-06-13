@@ -164,7 +164,7 @@ export default function MLRODashboardPage() {
               {/* Investigator table */}
               <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5">
                 <h2 className="text-sm font-semibold text-slate-200 mb-4">Investigator Performance (MTD)</h2>
-                {data.investigators.length === 0 ? (
+                {(data.investigators ?? []).length === 0 ? (
                   <p className="text-slate-500 text-sm">No investigators found.</p>
                 ) : (
                   <div className="overflow-x-auto">
@@ -179,7 +179,7 @@ export default function MLRODashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-700/40">
-                        {data.investigators.map((inv) => (
+                        {(data.investigators ?? []).map((inv) => (
                           <tr key={inv.user_id} className="hover:bg-slate-700/20 transition-colors">
                             <td className="py-2 text-slate-200 font-medium">{inv.full_name}</td>
                             <td className="py-2 text-right text-slate-300 tabular-nums">{inv.active_cases}</td>
