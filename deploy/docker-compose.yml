@@ -28,7 +28,9 @@ services:
       -c archive_mode=on
       -c archive_command='cp %p /var/lib/postgresql/wal-archive/%f'
       -c archive_timeout=300
-      -c max_wal_size=1GB
+      -c max_wal_size=256MB
+      -c shared_buffers=256MB
+      -c effective_cache_size=512MB
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - wal_archive:/var/lib/postgresql/wal-archive
@@ -40,8 +42,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
-          cpus: "2.0"
+          memory: 1G
+          cpus: "1.0"
 
   # ── Object Storage ────────────────────────────────────────────────────────────
   minio:
@@ -106,8 +108,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 8G
-          cpus: "4.0"
+          memory: 6G
+          cpus: "2.0"
 
   ollama-init:
     image: curlimages/curl:latest
