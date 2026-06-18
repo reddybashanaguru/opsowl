@@ -255,7 +255,7 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
           return (
             <button
               key={i}
-              onClick={item.cmd}
+              onMouseDown={(e) => { e.preventDefault(); item.cmd(); }}
               title={item.title}
               className={`w-7 h-7 rounded text-xs flex items-center justify-center transition-colors ${
                 isActive
