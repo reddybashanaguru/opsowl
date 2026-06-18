@@ -213,40 +213,6 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
             title: "Strikethrough",
             icon: <span className="line-through text-xs">S</span>,
           },
-          { divider: true },
-          {
-            cmd: () => editor?.chain().focus().toggleBulletList().run(),
-            active: () => !!editor?.isActive("bulletList"),
-            title: "Bullet list — unordered list of items",
-            icon: (
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
-              </svg>
-            ),
-          },
-          {
-            cmd: () => editor?.chain().focus().toggleOrderedList().run(),
-            active: () => !!editor?.isActive("orderedList"),
-            title: "Numbered list — ordered list of items",
-            icon: <span className="text-xs font-mono">1.</span>,
-          },
-          { divider: true },
-          {
-            cmd: () => editor?.chain().focus().toggleCode().run(),
-            active: () => !!editor?.isActive("code"),
-            title: "Inline code — highlight a value, ID, or code snippet",
-            icon: <span className="font-mono text-xs">{`<>`}</span>,
-          },
-          {
-            cmd: () => editor?.chain().focus().toggleBlockquote().run(),
-            active: () => !!editor?.isActive("blockquote"),
-            title: "Blockquote — highlight a quoted statement or important excerpt",
-            icon: (
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
-              </svg>
-            ),
-          },
         ].map((item, i) => {
           if ("divider" in item) {
             return <div key={i} className="w-px h-4 bg-slate-700 mx-1" />;
