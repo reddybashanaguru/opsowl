@@ -363,7 +363,14 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       />
 
       {/* Header */}
-      <div className="flex items-start justify-between mb-6">
+      <div className={`flex items-start justify-between mb-6 pl-4 border-l-4 ${
+        c.status === "open"           ? "border-blue-500" :
+        c.status === "in_progress"    ? "border-violet-500" :
+        c.status === "pending_review" ? "border-amber-500" :
+        c.status === "escalated"      ? "border-red-500" :
+        c.status === "closed"         ? "border-green-500" :
+        "border-slate-600"
+      }`}>
         <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center gap-2 mb-1">
             <div className="font-mono text-sm text-cyan-400">{c.case_number}</div>
@@ -393,7 +400,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           )}
 
           <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <StatusBadge status={c.status} size="md" />
+            <StatusBadge status={c.status} size="lg" />
 
             {/* Priority — inline edit */}
             {editing ? (

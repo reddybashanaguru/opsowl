@@ -165,16 +165,23 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
           <button
             onClick={() => setShowFilters((v) => !v)}
             className={`flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-lg border transition-colors ${
-              activeFilters > 0
+              showFilters || activeFilters > 0
                 ? "border-cyan-500 text-cyan-400 bg-cyan-900/20"
                 : "border-slate-600 text-slate-400 hover:border-slate-500"
             }`}
           >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
+            </svg>
             Filters
-            {activeFilters > 0 && (
+            {activeFilters > 0 ? (
               <span className="bg-cyan-500 text-slate-900 text-xs font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {activeFilters}
               </span>
+            ) : (
+              <svg className={`w-3 h-3 transition-transform ${showFilters ? "rotate-180" : ""}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
             )}
           </button>
           <button
@@ -188,53 +195,109 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
 
       {/* Filters panel */}
       {showFilters && (
-        <div className="border-b border-slate-700 bg-[#131f30] px-6 py-4 flex-shrink-0">
-          <div className="flex gap-8 flex-wrap">
+        <div className="border-b border-slate-700 bg-[#0d1929] flex-shrink-0">
+          {/* Panel header */}
+          <div className="flex items-center justify-between px-6 pt-3 pb-2 border-b border-slate-700/60">
+            <div className="flex items-center gap-3">
+              <span className="text-slate-300 text-sm font-medium">Filter Timeline</span>
+              {activeFilters > 0 && (
+                <span className="text-xs bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 px-2 py-0.5 rounded-full">
+                  {activeFilters} active
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              {activeFilters > 0 && (
+                <button
+                  onClick={resetFilters}
+                  className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors"
+                >
+                  <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  Clear all
+                </button>
+              )}
+              <button
+                onClick={() => setShowFilters(false)}
+                className="text-slate-500 hover:text-slate-300 transition-colors p-1 rounded hover:bg-slate-700/50"
+                title="Close filters"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+
+          {/* Filter options */}
+          <div className="px-6 py-4 space-y-4">
+            {/* Source */}
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Source</div>
               <div className="flex gap-2">
-                {SOURCE_OPTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => toggleSource(s)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                      selectedSources.has(s)
-                        ? "border-cyan-500 text-cyan-400 bg-cyan-900/30"
-                        : "border-slate-600 text-slate-400 hover:border-slate-500"
-                    }`}
-                  >
-                    {s}
-                  </button>
-                ))}
+                {SOURCE_OPTIONS.map((s) => {
+                  const active = selectedSources.has(s);
+                  return (
+                    <button
+                      key={s}
+                      onClick={() => toggleSource(s)}
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                        active
+                          ? "border-cyan-500 text-cyan-300 bg-cyan-900/40 shadow-[0_0_8px_rgba(6,182,212,0.2)]"
+                          : "border-slate-600 text-slate-500 hover:border-slate-400 hover:text-slate-300"
+                      }`}
+                    >
+                      {active && (
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {s}
+                    </button>
+                  );
+                })}
               </div>
             </div>
+
+            {/* Event Type */}
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Event Type</div>
-              <div className="flex gap-2 flex-wrap">
-                {EVENT_TYPE_OPTIONS.map((t) => (
+              <div className="flex items-center justify-between mb-2">
+                <div className="text-slate-500 text-xs uppercase tracking-wide">Event Type</div>
+                {selectedTypes.size > 0 && (
                   <button
-                    key={t}
-                    onClick={() => toggleType(t)}
-                    className={`text-xs px-3 py-1 rounded-full border transition-colors ${
-                      selectedTypes.has(t)
-                        ? "border-violet-500 text-violet-400 bg-violet-900/30"
-                        : "border-slate-600 text-slate-400 hover:border-slate-500"
-                    }`}
+                    onClick={() => setSelectedTypes(new Set())}
+                    className="text-xs text-slate-500 hover:text-slate-400 transition-colors"
                   >
-                    {t.replace(/_/g, " ")}
+                    clear event types
                   </button>
-                ))}
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {EVENT_TYPE_OPTIONS.map((t) => {
+                  const active = selectedTypes.has(t);
+                  return (
+                    <button
+                      key={t}
+                      onClick={() => toggleType(t)}
+                      className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border font-medium transition-all ${
+                        active
+                          ? "border-violet-500 text-violet-300 bg-violet-900/40 shadow-[0_0_8px_rgba(139,92,246,0.2)]"
+                          : "border-slate-700 text-slate-500 hover:border-slate-500 hover:text-slate-300"
+                      }`}
+                    >
+                      {active && (
+                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {t.replace(/_/g, " ")}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
-          {activeFilters > 0 && (
-            <button
-              onClick={resetFilters}
-              className="mt-3 text-xs text-slate-500 hover:text-slate-300 underline"
-            >
-              Reset all filters
-            </button>
-          )}
         </div>
       )}
 
