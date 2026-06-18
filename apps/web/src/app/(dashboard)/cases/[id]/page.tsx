@@ -141,8 +141,16 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [copilotOpen, setCopilotOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [noteText, setNoteText] = useState("");
+  const [noteSuccess, setNoteSuccess] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
   const [isAnalysing, setIsAnalysing] = useState(false);
+
+  // Inline edit state
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [editPriority, setEditPriority] = useState("");
+  const [editDueDate, setEditDueDate] = useState("");
   const analysingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assigneeRef = useRef<HTMLDivElement>(null);
 
@@ -210,12 +218,42 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const assignMutation = useMutation({
     mutationFn: (userId: string) =>
-      api.patch(`/api/v1/cases/${id}`, { assigned_to: userId }),
+      api.post(`/api/v1/cases/${id}/assign`, { assigned_to: userId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["case", id] });
+      qc.invalidateQueries({ queryKey: ["case-activity", id] });
       setAssigneeOpen(false);
     },
   });
+
+  const editMutation = useMutation({
+    mutationFn: (payload: Record<string, string | null>) =>
+      api.put(`/api/v1/cases/${id}`, payload),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["case", id] });
+      qc.invalidateQueries({ queryKey: ["case-activity", id] });
+      setEditing(false);
+    },
+  });
+
+  function openEdit() {
+    if (!c) return;
+    setEditTitle(c.title);
+    setEditDescription(c.description ?? "");
+    setEditPriority(c.priority);
+    setEditDueDate(c.due_date ? c.due_date.slice(0, 10) : "");
+    setEditing(true);
+  }
+
+  function saveEdit() {
+    const payload: Record<string, string | null> = {
+      title: editTitle.trim() || undefined as unknown as string,
+      description: editDescription,
+      priority: editPriority,
+      due_date: editDueDate ? new Date(editDueDate).toISOString() : null,
+    };
+    editMutation.mutate(payload);
+  }
 
   const noteMutation = useMutation({
     mutationFn: (content: string) =>
@@ -226,7 +264,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       }),
     onSuccess: () => {
       setNoteText("");
+      setNoteSuccess(true);
       qc.invalidateQueries({ queryKey: ["case-activity", id] });
+      setTimeout(() => setNoteSuccess(false), 3000);
     },
   });
 
@@ -324,12 +364,53 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
-        <div>
-          <div className="font-mono text-sm text-cyan-400 mb-1">{c.case_number}</div>
-          <h1 className="text-white text-2xl font-bold">{c.title}</h1>
+        <div className="flex-1 min-w-0 pr-4">
+          <div className="flex items-center gap-2 mb-1">
+            <div className="font-mono text-sm text-cyan-400">{c.case_number}</div>
+            {!editing && (
+              <button
+                onClick={openEdit}
+                title="Edit case details"
+                className="text-slate-600 hover:text-cyan-400 transition-colors p-0.5 rounded"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+              </button>
+            )}
+          </div>
+
+          {/* Title — inline edit */}
+          {editing ? (
+            <input
+              value={editTitle}
+              onChange={(e) => setEditTitle(e.target.value)}
+              autoFocus
+              className="w-full bg-[#0d1929] border border-cyan-500 rounded-lg px-3 py-1.5 text-white text-2xl font-bold focus:outline-none mb-2"
+            />
+          ) : (
+            <h1 className="text-white text-2xl font-bold">{c.title}</h1>
+          )}
+
           <div className="flex items-center gap-3 mt-2 flex-wrap">
             <StatusBadge status={c.status} size="md" />
-            <PriorityBadge priority={c.priority} />
+
+            {/* Priority — inline edit */}
+            {editing ? (
+              <select
+                value={editPriority}
+                onChange={(e) => setEditPriority(e.target.value)}
+                className="bg-[#0d1929] border border-cyan-500/60 rounded px-2 py-0.5 text-xs font-medium text-white focus:outline-none"
+              >
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="critical">Critical</option>
+              </select>
+            ) : (
+              <PriorityBadge priority={c.priority} />
+            )}
+
             <SLACountdown breachAt={c.sla_breach_at} breached={c.sla_breached} />
             {c.risk_level && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded border ${RISK_COLORS[c.risk_level] ?? "text-slate-400 bg-slate-700/40 border-slate-600/30"}`}>
@@ -346,7 +427,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Status actions */}
-        {nextStatuses.length > 0 && (
+        {!editing && nextStatuses.length > 0 && (
           <div className="flex gap-2 flex-wrap">
             {nextStatuses.map((s) => {
               const isRoutine = ROUTINE_TRANSITIONS.has(s);
@@ -389,33 +470,83 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       <div className="grid grid-cols-3 gap-6">
         {/* Left column — Investigation Feed (65%) */}
         <div className="col-span-2 space-y-5">
-          {/* Description */}
-          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-            <h2 className="text-slate-300 text-sm font-semibold mb-3 uppercase tracking-wide">Description</h2>
-            <p className="text-slate-300 text-sm whitespace-pre-wrap">
-              {c.description || <span className="text-slate-600 italic">No description provided.</span>}
-            </p>
+          {/* Description — inline editable */}
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 group/desc">
+            <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wide mb-3">Description</h2>
+            {editing ? (
+              <textarea
+                rows={6}
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                placeholder="Describe the investigation context…"
+                className="w-full bg-[#0d1929] border border-cyan-500/60 rounded-lg px-3 py-2 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 resize-none"
+              />
+            ) : (
+              <div
+                onClick={openEdit}
+                className="cursor-text group/text relative"
+                title="Click to edit description"
+              >
+                <p className="text-slate-300 text-sm whitespace-pre-wrap">
+                  {c.description || <span className="text-slate-600 italic">No description yet. Click to add one.</span>}
+                </p>
+                <span className="absolute top-0 right-0 opacity-0 group-hover/text:opacity-100 transition-opacity">
+                  <svg className="w-3.5 h-3.5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Quick Note Input */}
-          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
-            <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Quick Note</div>
-            <textarea
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-              placeholder="Add an internal note…"
-              rows={3}
-              className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 text-sm placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 resize-none"
-            />
-            <div className="flex justify-end mt-2">
+          <div className={`bg-[#131f30] border rounded-xl ring-1 ring-white/[0.04] p-4 transition-colors ${noteSuccess ? "border-emerald-500/50" : "border-[#1e3050]"}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-slate-500 text-xs uppercase tracking-wide">Quick Note</div>
               <button
-                onClick={() => noteText.trim() && noteMutation.mutate(noteText.trim())}
-                disabled={!noteText.trim() || noteMutation.isPending}
-                className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                onClick={() => router.push(`/cases/${id}/notes`)}
+                className="text-slate-600 hover:text-cyan-400 text-xs transition-colors"
               >
-                {noteMutation.isPending ? "Saving…" : "Add Note"}
+                View all notes →
               </button>
             </div>
+
+            {noteSuccess ? (
+              <div className="flex items-center gap-2 py-3 text-emerald-400 text-sm">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Note saved — visible in the <button onClick={() => router.push(`/cases/${id}/notes`)} className="underline hover:text-emerald-300">Notes tab</button>
+              </div>
+            ) : (
+              <>
+                <textarea
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                  placeholder="e.g. Called customer — confirmed transactions were for vendor payments. Awaiting bank statement from Nexgen Traders branch."
+                  rows={3}
+                  className="w-full bg-slate-900/60 border border-slate-700 rounded-lg px-3 py-2 text-slate-300 text-sm placeholder:text-slate-600 focus:outline-none focus:border-cyan-500 resize-none"
+                />
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs bg-slate-700/60 text-slate-400 border border-slate-600/50 px-2 py-0.5 rounded-full">
+                    📋 Saved as internal note · visible in <button onClick={() => router.push(`/cases/${id}/notes`)} className="text-cyan-400 hover:text-cyan-300 underline underline-offset-2">Notes tab</button>
+                  </span>
+                  <button
+                    onClick={() => noteText.trim() && noteMutation.mutate(noteText.trim())}
+                    disabled={!noteText.trim() || noteMutation.isPending}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold px-4 py-1.5 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {noteMutation.isPending && (
+                      <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+                    )}
+                    {noteMutation.isPending ? "Saving…" : "Add Note"}
+                  </button>
+                </div>
+                {noteMutation.isError && (
+                  <p className="text-red-400 text-xs mt-1">{(noteMutation.error as Error).message}</p>
+                )}
+              </>
+            )}
           </div>
 
           {/* Live Timeline Feed */}
@@ -468,19 +599,31 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                   {assigneeOpen && (
                     <div className="absolute top-7 left-0 bg-[#080e1a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
-                      <select
-                        size={5}
-                        className="w-full bg-transparent text-slate-300 text-sm px-3 py-1 focus:outline-none"
-                        onChange={(e) => e.target.value && assignMutation.mutate(e.target.value)}
-                        defaultValue=""
-                      >
-                        <option value="" disabled>Select assignee</option>
-                        {(usersData?.users ?? [])
+                      {!usersData ? (
+                        <div className="flex items-center gap-2 px-3 py-3 text-slate-500 text-sm">
+                          <span className="w-3.5 h-3.5 border border-slate-500 border-t-cyan-400 rounded-full animate-spin flex-shrink-0" />
+                          Loading users…
+                        </div>
+                      ) : (
+                        usersData.users
                           .filter((u) => ["analyst", "manager", "admin", "super_admin"].includes(u.role))
                           .map((u) => (
-                            <option key={u.id} value={u.id}>{u.full_name}</option>
-                          ))}
-                      </select>
+                            <button
+                              key={u.id}
+                              onClick={() => assignMutation.mutate(u.id)}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors hover:bg-slate-700/60 flex items-center justify-between ${
+                                c.assigned_to?.id === u.id ? "text-cyan-400" : "text-slate-300"
+                              }`}
+                            >
+                              <span>{u.full_name}</span>
+                              {c.assigned_to?.id === u.id && (
+                                <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                          ))
+                      )}
                     </div>
                   )}
                 </div>
@@ -494,12 +637,25 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created</div>
               <div className="text-slate-200 text-sm">{new Date(c.created_at).toLocaleString()}</div>
             </div>
-            {c.due_date && (
-              <div>
-                <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Due Date</div>
-                <div className="text-slate-200 text-sm">{new Date(c.due_date).toLocaleDateString()}</div>
-              </div>
-            )}
+            <div>
+              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Due Date</div>
+              {editing ? (
+                <input
+                  type="date"
+                  value={editDueDate}
+                  onChange={(e) => setEditDueDate(e.target.value)}
+                  className="bg-[#0d1929] border border-cyan-500/60 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 w-full"
+                />
+              ) : (
+                <div
+                  onClick={openEdit}
+                  className="text-slate-200 text-sm cursor-text hover:text-cyan-300 transition-colors"
+                  title="Click to edit due date"
+                >
+                  {c.due_date ? new Date(c.due_date).toLocaleDateString() : <span className="text-slate-600 italic text-xs">Not set</span>}
+                </div>
+              )}
+            </div>
             {c.sla_breach_at && (
               <div>
                 <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">SLA Deadline</div>
@@ -631,6 +787,37 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         open={copilotOpen}
         onClose={() => setCopilotOpen(false)}
       />
+
+      {/* Floating save bar — visible only when editing */}
+      {editing && (
+        <div className="fixed bottom-0 left-0 right-0 z-50 bg-[#0d1929]/95 backdrop-blur border-t border-cyan-500/30 px-6 py-3 flex items-center justify-between shadow-2xl">
+          <div className="flex items-center gap-2 text-slate-400 text-sm">
+            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+            Editing case details — changes not saved yet
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setEditing(false)}
+              className="px-4 py-1.5 bg-slate-700 hover:bg-slate-600 text-slate-300 text-sm rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={saveEdit}
+              disabled={editMutation.isPending}
+              className="px-5 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {editMutation.isPending && (
+                <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin" />
+              )}
+              {editMutation.isPending ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+          {editMutation.isError && (
+            <p className="absolute bottom-full left-6 mb-1 text-red-400 text-xs">{(editMutation.error as Error).message}</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

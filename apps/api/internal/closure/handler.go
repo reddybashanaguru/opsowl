@@ -44,7 +44,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	cl, err := h.svc.Get(r.Context(), caseID)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			response.Err(w, http.StatusNotFound, "NOT_FOUND", "no active closure record for this case")
+			// No closure record yet — return 200 with not_started so clients
+			// don't treat an uninitiated closure as an error.
+			response.JSON(w, http.StatusOK, ClosureResponse{Status: "not_started"})
 			return
 		}
 		response.Err(w, http.StatusInternalServerError, "GET_ERROR", err.Error())

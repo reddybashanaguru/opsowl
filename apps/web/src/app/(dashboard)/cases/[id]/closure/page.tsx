@@ -48,7 +48,7 @@ interface ClosureResponse {
   reason_code: string;
   filed_str: boolean;
   str_file_id?: string;
-  status: "draft" | "submitted" | "approved" | "rejected" | "voided";
+  status: "not_started" | "draft" | "submitted" | "approved" | "rejected" | "voided";
   sar_considered: boolean;
   sar_rejection_reason?: string;
   risk_rating_at_close?: string;
@@ -221,16 +221,10 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
 
   const { data: rawClosure, isLoading } = useQuery({
     queryKey: ["closure", caseId],
-    queryFn: async (): Promise<ClosureResponse | null> => {
-      try {
-        return await api.get<ClosureResponse>(`/api/v1/cases/${caseId}/closure`);
-      } catch (e) {
-        if (e instanceof APIError && e.status === 404) return null;
-        throw e;
-      }
-    },
+    queryFn: () => api.get<ClosureResponse>(`/api/v1/cases/${caseId}/closure`),
   });
-  const closure: ClosureResponse | null = rawClosure ?? null;
+  const closure: ClosureResponse | null =
+    rawClosure?.status === "not_started" ? null : (rawClosure ?? null);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["closure", caseId] });
