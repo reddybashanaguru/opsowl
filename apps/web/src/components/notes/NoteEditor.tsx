@@ -63,6 +63,23 @@ function MentionList({
   );
 }
 
+const NOTE_TYPE_CONFIG = {
+  internal: {
+    titlePlaceholder: "e.g. Customer call — 18 Jun 2026",
+    bodyPlaceholder:  "e.g. Called Arjun Mehta. He claims the 9 deposits were advance payments to Nexgen Traders for raw materials. Unable to provide invoices on the spot — will courier within 3 days. Follow-up due 21 Jun.",
+    borderColor:      "border-slate-600",
+    badge:            { label: "Internal",          style: "bg-slate-700 text-slate-300" },
+    hint:             "Only visible to your team. Use for working notes, call logs, and observations.",
+  },
+  formal: {
+    titlePlaceholder: "e.g. MLRO Escalation Decision — Arjun Mehta Structuring Case",
+    bodyPlaceholder:  "e.g. After reviewing transaction records, entity incorporation dates, and GST status, this case has been escalated to the MLRO for STR filing decision. Structuring pattern across 9 deposits confirmed. Three receiving entities (Nexgen Traders, Skyline Ventures, Primo Infra) incorporated within 6 months and have no GST registration. Risk level: High. Recommended action: File STR with FIU-IND.",
+    borderColor:      "border-amber-500/60",
+    badge:            { label: "Formal · Exportable", style: "bg-amber-900/30 text-amber-300 border border-amber-500/40" },
+    hint:             "Part of the official record. Included in PDF exports and visible to auditors.",
+  },
+} as const;
+
 export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onSave, onCancel, isLoading, aiGenerated }: Props) {
   const [title, setTitle] = useState(initialTitle);
   const [noteType, setNoteType] = useState<"internal" | "formal">("internal");
@@ -71,6 +88,7 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
   const [mentionItems, setMentionItems] = useState<CaseMember[]>([]);
   const [mentionRect, setMentionRect] = useState<DOMRect | null>(null);
   const mentionCommandRef = useRef<((item: CaseMember) => void) | null>(null);
+  const typeConfig = NOTE_TYPE_CONFIG[noteType];
 
   useEffect(() => {
     api.get<{ data: CaseMember[] }>(`/api/v1/users?limit=200`).then((res) => {
@@ -82,7 +100,7 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: "Write your findings, observations, or analysis here…" }),
+      Placeholder.configure({ placeholder: typeConfig.bodyPlaceholder }),
       Mention.configure({
         HTMLAttributes: { class: "mention" },
         suggestion: {
@@ -127,7 +145,7 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
         class: "prose prose-invert prose-sm max-w-none focus:outline-none min-h-[120px] text-slate-300 leading-relaxed",
       },
     },
-  });
+  }, [noteType]);
 
   const handleSave = async () => {
     if (!editor) return;
@@ -143,13 +161,25 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
   };
 
   return (
-    <div className="bg-[#131f30] border border-slate-600 rounded-xl overflow-hidden">
-      {aiGenerated && (
-        <div className="px-4 py-2 bg-violet-900/20 border-b border-violet-500/30 flex items-center gap-2">
-          <span className="text-violet-400 text-xs font-semibold">✨ AI Generated</span>
-          <span className="text-slate-500 text-xs">— Review and edit before saving</span>
+    <div className={`bg-[#131f30] border rounded-xl overflow-hidden transition-colors ${typeConfig.borderColor}`}>
+      {/* Type indicator banner */}
+      <div className={`px-4 py-2 border-b flex items-center justify-between ${
+        noteType === "formal"
+          ? "bg-amber-900/10 border-amber-500/20"
+          : "bg-slate-800/40 border-slate-700/60"
+      }`}>
+        <div className="flex items-center gap-2">
+          <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${typeConfig.badge.style}`}>
+            {typeConfig.badge.label}
+          </span>
+          <span className="text-slate-500 text-xs">{typeConfig.hint}</span>
         </div>
-      )}
+        {aiGenerated && (
+          <span className="text-violet-400 text-xs font-semibold flex items-center gap-1">
+            ✨ AI Generated — review before saving
+          </span>
+        )}
+      </div>
 
       {/* Title */}
       <div className="px-4 pt-4 pb-2">
@@ -157,31 +187,86 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Note title (optional)"
+          placeholder={typeConfig.titlePlaceholder}
           className="w-full bg-transparent text-white font-semibold text-base placeholder:text-slate-600 focus:outline-none border-b border-transparent focus:border-slate-600 pb-1 transition-colors"
         />
       </div>
 
       {/* Toolbar */}
-      <div className="px-4 py-1.5 border-y border-slate-700/60 flex items-center gap-1">
+      <div className="px-4 py-1.5 border-y border-slate-700/60 flex items-center gap-0.5">
         {[
-          { cmd: () => editor?.chain().focus().toggleBold().run(), label: "B", title: "Bold", cls: "font-bold" },
-          { cmd: () => editor?.chain().focus().toggleItalic().run(), label: "I", title: "Italic", cls: "italic" },
-          { cmd: () => editor?.chain().focus().toggleStrike().run(), label: "S", title: "Strike", cls: "line-through" },
-          { cmd: () => editor?.chain().focus().toggleBulletList().run(), label: "•", title: "Bullet list", cls: "" },
-          { cmd: () => editor?.chain().focus().toggleOrderedList().run(), label: "1.", title: "Ordered list", cls: "" },
-          { cmd: () => editor?.chain().focus().toggleCode().run(), label: "<>", title: "Code", cls: "font-mono text-xs" },
-          { cmd: () => editor?.chain().focus().toggleBlockquote().run(), label: "❝", title: "Quote", cls: "" },
-        ].map(({ cmd, label, title: ttl, cls }) => (
-          <button
-            key={label}
-            onClick={cmd}
-            title={ttl}
-            className={`w-7 h-7 text-slate-400 hover:text-white hover:bg-slate-700 rounded text-xs flex items-center justify-center transition-colors ${cls}`}
-          >
-            {label}
-          </button>
-        ))}
+          {
+            cmd: () => editor?.chain().focus().toggleBold().run(),
+            active: () => !!editor?.isActive("bold"),
+            title: "Bold (Ctrl+B)",
+            icon: <span className="font-bold text-xs">B</span>,
+          },
+          {
+            cmd: () => editor?.chain().focus().toggleItalic().run(),
+            active: () => !!editor?.isActive("italic"),
+            title: "Italic (Ctrl+I)",
+            icon: <span className="italic font-serif text-sm">I</span>,
+          },
+          {
+            cmd: () => editor?.chain().focus().toggleStrike().run(),
+            active: () => !!editor?.isActive("strike"),
+            title: "Strikethrough",
+            icon: <span className="line-through text-xs">S</span>,
+          },
+          { divider: true },
+          {
+            cmd: () => editor?.chain().focus().toggleBulletList().run(),
+            active: () => !!editor?.isActive("bulletList"),
+            title: "Bullet list — unordered list of items",
+            icon: (
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            ),
+          },
+          {
+            cmd: () => editor?.chain().focus().toggleOrderedList().run(),
+            active: () => !!editor?.isActive("orderedList"),
+            title: "Numbered list — ordered list of items",
+            icon: <span className="text-xs font-mono">1.</span>,
+          },
+          { divider: true },
+          {
+            cmd: () => editor?.chain().focus().toggleCode().run(),
+            active: () => !!editor?.isActive("code"),
+            title: "Inline code — highlight a value, ID, or code snippet",
+            icon: <span className="font-mono text-xs">{`<>`}</span>,
+          },
+          {
+            cmd: () => editor?.chain().focus().toggleBlockquote().run(),
+            active: () => !!editor?.isActive("blockquote"),
+            title: "Blockquote — highlight a quoted statement or important excerpt",
+            icon: (
+              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M6 17h3l2-4V7H5v6h3zm8 0h3l2-4V7h-6v6h3z" />
+              </svg>
+            ),
+          },
+        ].map((item, i) => {
+          if ("divider" in item) {
+            return <div key={i} className="w-px h-4 bg-slate-700 mx-1" />;
+          }
+          const isActive = item.active();
+          return (
+            <button
+              key={i}
+              onClick={item.cmd}
+              title={item.title}
+              className={`w-7 h-7 rounded text-xs flex items-center justify-center transition-colors ${
+                isActive
+                  ? "bg-slate-600 text-white"
+                  : "text-slate-400 hover:text-white hover:bg-slate-700"
+              }`}
+            >
+              {item.icon}
+            </button>
+          );
+        })}
       </div>
 
       {/* Editor area */}
@@ -202,9 +287,13 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
           <select
             value={noteType}
             onChange={(e) => setNoteType(e.target.value as "internal" | "formal")}
-            className="bg-slate-800 border border-slate-600 text-slate-300 text-xs rounded px-2 py-1 focus:outline-none focus:border-cyan-500"
+            className={`border text-xs rounded px-2 py-1 focus:outline-none transition-colors ${
+              noteType === "formal"
+                ? "bg-amber-900/20 border-amber-500/50 text-amber-300 focus:border-amber-400"
+                : "bg-slate-800 border-slate-600 text-slate-300 focus:border-cyan-500"
+            }`}
           >
-            <option value="internal">Internal</option>
+            <option value="internal">Internal (team only)</option>
             <option value="formal">Formal (exportable)</option>
           </select>
           {mentionedIds.size > 0 && (
