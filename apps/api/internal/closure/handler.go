@@ -46,7 +46,10 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		if errors.Is(err, ErrNotFound) {
 			// No closure record yet — return 200 with not_started so clients
 			// don't treat an uninitiated closure as an error.
-			response.JSON(w, http.StatusOK, ClosureResponse{Status: "not_started"})
+			response.JSON(w, http.StatusOK, ClosureResponse{
+				CaseID: caseID.String(),
+				Status: "not_started",
+			})
 			return
 		}
 		response.Err(w, http.StatusInternalServerError, "GET_ERROR", err.Error())
