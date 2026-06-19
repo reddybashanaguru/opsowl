@@ -824,7 +824,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
             </div>
             <div>
               <label className={labelCls}>Date of Birth</label>
-              <input type="date" value={subjectBirthdate} onChange={(e) => setSubjectBirthdate(e.target.value)} className={inputCls} />
+              <input type="date" value={subjectBirthdate} max={new Date().toISOString().split("T")[0]} onChange={(e) => setSubjectBirthdate(e.target.value)} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>Account Number</label>

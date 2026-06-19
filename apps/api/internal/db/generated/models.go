@@ -521,6 +521,7 @@ const (
 	TimelineEventTypeCommentAdded       TimelineEventType = "comment_added"
 	TimelineEventTypeTaskCreated        TimelineEventType = "task_created"
 	TimelineEventTypeTaskCompleted      TimelineEventType = "task_completed"
+	TimelineEventTypeTaskStatusChanged  TimelineEventType = "task_status_changed"
 	TimelineEventTypeTaskOverdue        TimelineEventType = "task_overdue"
 	TimelineEventTypeAiQuery            TimelineEventType = "ai_query"
 	TimelineEventTypeAiSummaryGenerated TimelineEventType = "ai_summary_generated"

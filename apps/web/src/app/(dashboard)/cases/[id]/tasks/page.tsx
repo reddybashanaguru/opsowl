@@ -44,23 +44,26 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
   // Create form state
   const [newTitle, setNewTitle] = useState("");
+  const [newTitleTouched, setNewTitleTouched] = useState(false);
   const [newDesc, setNewDesc] = useState("");
   const [newPriority, setNewPriority] = useState("medium");
   const [newDueDate, setNewDueDate] = useState("");
   const [newAssignedTo, setNewAssignedTo] = useState("");
   const [createError, setCreateError] = useState("");
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   const { data: caseData } = useQuery<CaseSummary>({
     queryKey: ["case-summary", caseId],
     queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
   });
 
-  const { data: usersData } = useQuery<{ data: { id: string; full_name: string }[] }>({
+  const { data: usersList = [] } = useQuery<{ id: string; full_name: string; email: string; role: string; is_active: boolean }[]>({
     queryKey: ["users-list"],
-    queryFn: () => api.get<{ data: { id: string; full_name: string }[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<{ id: string; full_name: string; email: string; role: string; is_active: boolean }[]>("/api/v1/users?limit=100"),
     staleTime: 5 * 60 * 1000,
   });
-  const users = usersData?.data ?? [];
+  const users = usersList.filter((u) => u.is_active);
 
   const buildQueryString = () => {
     const p = new URLSearchParams();
@@ -106,6 +109,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     onSuccess: () => {
       setShowCreate(false);
       setNewTitle("");
+      setNewTitleTouched(false);
       setNewDesc("");
       setNewPriority("medium");
       setNewDueDate("");
@@ -391,14 +395,22 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
             <div className="space-y-3">
               <div>
-                <label className="text-slate-400 text-xs mb-1 block">Title *</label>
+                <label className="text-slate-400 text-xs mb-1 block">Title <span className="text-red-400">*</span></label>
                 <input
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
+                  onBlur={() => setNewTitleTouched(true)}
                   placeholder="Task title…"
-                  className="w-full bg-[#080e1a] border border-slate-600 text-white placeholder:text-slate-500 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500"
+                  className={`w-full bg-[#080e1a] border rounded-lg px-3 py-2 text-sm focus:outline-none placeholder:text-slate-500 text-white ${
+                    newTitleTouched && !newTitle.trim()
+                      ? "border-red-500 focus:border-red-400"
+                      : "border-slate-600 focus:border-cyan-500"
+                  }`}
                   autoFocus
                 />
+                {newTitleTouched && !newTitle.trim() && (
+                  <p className="text-red-400 text-[10px] mt-0.5">Title is required.</p>
+                )}
               </div>
 
               <div>
@@ -431,9 +443,24 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                   <input
                     type="date"
                     value={newDueDate}
-                    onChange={(e) => setNewDueDate(e.target.value)}
-                    className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
+                    min={todayStr}
+                    onChange={(e) => {
+                      setNewDueDate(e.target.value);
+                      if (e.target.value && e.target.value < todayStr) {
+                        setCreateError("Due date cannot be in the past.");
+                      } else {
+                        setCreateError("");
+                      }
+                    }}
+                    className={`w-full bg-[#080e1a] border rounded-lg px-3 py-2 text-sm focus:outline-none [color-scheme:dark] ${
+                      newDueDate && newDueDate < todayStr
+                        ? "border-red-500 text-red-400 focus:border-red-400"
+                        : "border-slate-600 text-white focus:border-cyan-500"
+                    }`}
                   />
+                  {newDueDate && newDueDate < todayStr && (
+                    <p className="text-red-400 text-[10px] mt-0.5">Must be today or a future date.</p>
+                  )}
                 </div>
               </div>
 
@@ -446,7 +473,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 >
                   <option value="">— Unassigned —</option>
                   {users.map((u) => (
-                    <option key={u.id} value={u.id}>{u.full_name}</option>
+                    <option key={u.id} value={u.id}>{u.full_name} [{u.role.replace("_", " ")}] · {u.email}</option>
                   ))}
                 </select>
               </div>
@@ -456,16 +483,30 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
               <p className="text-red-400 text-xs mt-3">{createError}</p>
             )}
 
-            <div className="flex gap-2 mt-4">
+            <div className="flex gap-2 mt-4 items-center">
+              {(() => {
+                const duePast = !!(newDueDate && newDueDate < todayStr);
+                const missingTitle = !newTitle.trim();
+                const isDisabled = missingTitle || duePast || createMutation.isPending;
+                const tooltip = missingTitle
+                  ? "Title is required before creating a task."
+                  : duePast
+                  ? "Due date cannot be in the past."
+                  : "";
+                return (
+                  <span title={tooltip} className={isDisabled ? "cursor-not-allowed" : ""}>
+                    <button
+                      onClick={() => { setNewTitleTouched(true); if (!isDisabled) createMutation.mutate(); }}
+                      disabled={isDisabled}
+                      className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      {createMutation.isPending ? "Creating…" : "Create Task"}
+                    </button>
+                  </span>
+                );
+              })()}
               <button
-                onClick={() => createMutation.mutate()}
-                disabled={!newTitle.trim() || createMutation.isPending}
-                className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm disabled:opacity-60"
-              >
-                {createMutation.isPending ? "Creating…" : "Create Task"}
-              </button>
-              <button
-                onClick={() => { setShowCreate(false); setCreateError(""); }}
+                onClick={() => { setShowCreate(false); setCreateError(""); setNewTitleTouched(false); }}
                 className="text-slate-400 hover:text-slate-200 px-4 py-2 text-sm"
               >
                 Cancel

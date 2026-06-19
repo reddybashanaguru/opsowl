@@ -194,9 +194,9 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     enabled: !!id,
   });
 
-  const { data: usersData } = useQuery<{ users: UserOption[] }>({
+  const { data: usersList } = useQuery<UserOption[]>({
     queryKey: ["users-list"],
-    queryFn: () => api.get<{ users: UserOption[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     staleTime: 60_000,
     enabled: assigneeOpen,
   });
@@ -245,7 +245,10 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     setEditing(true);
   }
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   function saveEdit() {
+    if (editDueDate && editDueDate < todayStr) return;
     const payload: Record<string, string | null> = {
       title: editTitle.trim() || undefined as unknown as string,
       description: editDescription,
@@ -606,13 +609,13 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
                   </button>
                   {assigneeOpen && (
                     <div className="absolute top-7 left-0 bg-[#080e1a] border border-slate-700 rounded-lg shadow-xl z-30 w-56 py-1 max-h-52 overflow-y-auto">
-                      {!usersData ? (
+                      {!usersList ? (
                         <div className="flex items-center gap-2 px-3 py-3 text-slate-500 text-sm">
                           <span className="w-3.5 h-3.5 border border-slate-500 border-t-cyan-400 rounded-full animate-spin flex-shrink-0" />
                           Loading users…
                         </div>
                       ) : (
-                        usersData.users
+                        usersList
                           .filter((u) => ["analyst", "manager", "admin", "super_admin"].includes(u.role))
                           .map((u) => (
                             <button
@@ -647,12 +650,22 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             <div>
               <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Due Date</div>
               {editing ? (
-                <input
-                  type="date"
-                  value={editDueDate}
-                  onChange={(e) => setEditDueDate(e.target.value)}
-                  className="bg-[#0d1929] border border-cyan-500/60 rounded px-2 py-1 text-slate-200 text-sm focus:outline-none focus:border-cyan-400 w-full"
-                />
+                <>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    min={todayStr}
+                    onChange={(e) => setEditDueDate(e.target.value)}
+                    className={`bg-[#0d1929] border rounded px-2 py-1 text-sm focus:outline-none w-full ${
+                      editDueDate && editDueDate < todayStr
+                        ? "border-red-500 text-red-400 focus:border-red-400"
+                        : "border-cyan-500/60 text-slate-200 focus:border-cyan-400"
+                    }`}
+                  />
+                  {editDueDate && editDueDate < todayStr && (
+                    <p className="text-red-400 text-[10px] mt-0.5">Must be today or a future date.</p>
+                  )}
+                </>
               ) : (
                 <div
                   onClick={openEdit}

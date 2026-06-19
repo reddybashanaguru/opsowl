@@ -179,6 +179,11 @@ export function NoteCard({ note, caseId, onDeleted }: Props) {
                 AI Assisted
               </span>
             )}
+            {note.note_type === "internal" && (
+              <span className="bg-slate-700/50 text-slate-400 border border-slate-600/50 text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                Internal
+              </span>
+            )}
             {note.note_type === "formal" && (
               <span className="bg-emerald-900/30 text-emerald-400 border border-emerald-500/30 text-[10px] font-semibold px-1.5 py-0.5 rounded">
                 Formal

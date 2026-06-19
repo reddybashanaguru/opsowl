@@ -91,9 +91,8 @@ export function NoteEditor({ caseId, initialContent = "", initialTitle = "", onS
   const typeConfig = NOTE_TYPE_CONFIG[noteType];
 
   useEffect(() => {
-    api.get<{ data: CaseMember[] }>(`/api/v1/users?limit=200`).then((res) => {
-      const users = (res as unknown as { data: { users: CaseMember[] } }).data?.users ?? [];
-      setMembers(users);
+    api.get<CaseMember[]>(`/api/v1/users?limit=200`).then((users) => {
+      setMembers(users ?? []);
     }).catch(() => {});
   }, [caseId]);
 

@@ -380,6 +380,24 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		return nil, err
 	}
 
+	// Emit timeline event when status changes (e.g. undo-complete, reopen, in_progress)
+	if req.Status != nil && *req.Status != existing.Status {
+		actorID := claims.UserID
+		go s.emitter.Emit(context.Background(), timeline.Event{
+			CaseID:    existing.CaseID,
+			EventType: db.TimelineEventTypeTaskStatusChanged,
+			Source:    db.TimelineEventSourceUser,
+			ActorID:   &actorID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"task_id":    id.String(),
+				"title":      existing.Title,
+				"from_status": string(existing.Status),
+				"to_status":  string(*req.Status),
+			},
+		})
+	}
+
 	// Notify new assignee if the assignment changed
 	if s.notifSvc != nil && req.AssignedTo != nil {
 		newAssignee := *req.AssignedTo

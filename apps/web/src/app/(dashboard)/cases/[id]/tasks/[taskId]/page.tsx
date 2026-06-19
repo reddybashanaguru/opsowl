@@ -39,6 +39,7 @@ interface UserOption {
   full_name: string;
   email: string;
   role: string;
+  is_active: boolean;
 }
 
 function relativeTime(dateStr: string): string {
@@ -68,6 +69,7 @@ export default function TaskDetailPage({
   const [editPriority, setEditPriority] = useState("");
   const [editStatus, setEditStatus] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
+  const todayStr = new Date().toISOString().split("T")[0];
   const [editAssignedTo, setEditAssignedTo] = useState("");
   const [editError, setEditError] = useState("");
   const [reassigning, setReassigning] = useState(false);
@@ -81,12 +83,12 @@ export default function TaskDetailPage({
     queryFn: () => api.get<Task>(`/api/v1/tasks/${taskId}`),
   });
 
-  const { data: usersData } = useQuery<{ data: UserOption[] }>({
+  const { data: usersData } = useQuery<UserOption[]>({
     queryKey: ["users-list"],
-    queryFn: () => api.get<{ data: UserOption[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     staleTime: 5 * 60 * 1000,
   });
-  const users = usersData?.data ?? [];
+  const users = (usersData ?? []).filter((u) => u.is_active);
 
   const { data: commentsData, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery<{ data: Comment[]; meta: CommentMeta }>({
@@ -266,9 +268,17 @@ export default function TaskDetailPage({
                     <input
                       type="date"
                       value={editDueDate}
+                      min={todayStr}
                       onChange={(e) => setEditDueDate(e.target.value)}
-                      className="w-full bg-[#080e1a] border border-slate-600 text-white rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-cyan-500 [color-scheme:dark]"
+                      className={`w-full bg-[#080e1a] border rounded-lg px-3 py-2 text-xs focus:outline-none [color-scheme:dark] ${
+                        editDueDate && editDueDate < todayStr
+                          ? "border-red-500 text-red-400 focus:border-red-400"
+                          : "border-slate-600 text-white focus:border-cyan-500"
+                      }`}
                     />
+                    {editDueDate && editDueDate < todayStr && (
+                      <p className="text-red-400 text-[10px] mt-0.5">Must be today or a future date.</p>
+                    )}
                   </div>
                 </div>
                 <div>
@@ -280,7 +290,7 @@ export default function TaskDetailPage({
                   >
                     <option value="">— Unassigned —</option>
                     {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                      <option key={u.id} value={u.id}>{u.full_name} [{u.role.replace("_", " ")}] · {u.email}</option>
                     ))}
                   </select>
                 </div>
@@ -288,7 +298,7 @@ export default function TaskDetailPage({
                 <div className="flex gap-2">
                   <button
                     onClick={submitEdit}
-                    disabled={!editTitle.trim() || updateMutation.isPending}
+                    disabled={!editTitle.trim() || updateMutation.isPending || !!(editDueDate && editDueDate < todayStr)}
                     className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-1.5 rounded-lg text-sm disabled:opacity-60"
                   >
                     {updateMutation.isPending ? "Saving…" : "Save"}
@@ -446,7 +456,7 @@ export default function TaskDetailPage({
                   >
                     <option value="">— Unassigned —</option>
                     {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.full_name}</option>
+                      <option key={u.id} value={u.id}>{u.full_name} [{u.role.replace("_", " ")}] · {u.email}</option>
                     ))}
                   </select>
                   <button onClick={() => setReassigning(false)} className="text-slate-500 hover:text-slate-300 text-xs">✕</button>

@@ -27,7 +27,7 @@ type Source = (typeof SOURCE_OPTIONS)[number];
 
 const EVENT_TYPE_OPTIONS = [
   "case_created", "case_status_changed", "case_assigned", "case_tagged",
-  "note_added", "task_created", "task_completed",
+  "note_added", "task_created", "task_completed", "task_status_changed",
   "document_uploaded", "document_processed",
   "ai_query", "ai_summary_generated", "ai_insights_generated",
   "str_draft_created", "str_submitted", "str_approved", "str_rejected", "str_filed",

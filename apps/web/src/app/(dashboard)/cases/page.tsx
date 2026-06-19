@@ -281,10 +281,9 @@ function BulkAssignModal({
 }) {
   const [selected, setSelected] = useState("");
 
-  const { data: users } = useQuery({
+  const { data: users } = useQuery<UserOption[]>({
     queryKey: ["users-list"],
-    queryFn: () =>
-      api.get<{ users: UserOption[] }>("/api/v1/users?limit=100").then((d) => d.users ?? []),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     staleTime: 60_000,
   });
 

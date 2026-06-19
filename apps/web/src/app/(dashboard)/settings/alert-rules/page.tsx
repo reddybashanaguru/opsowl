@@ -52,12 +52,12 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState("");
 
-  const { data: usersData } = useQuery<{ users: UserOption[] }>({
+  const { data: usersData } = useQuery<UserOption[]>({
     queryKey: ["users-picker-rules"],
-    queryFn: () => api.get<{ users: UserOption[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     enabled: mode === "auto",
   });
-  const analysts = (usersData?.users ?? []).filter(u => ["analyst","manager","admin","super_admin"].includes(u.role));
+  const analysts = (usersData ?? []).filter(u => ["analyst","manager","admin","super_admin"].includes(u.role));
 
   const parsedTags = tagsRaw.split(",").map((t: string) => t.trim()).filter(Boolean);
 
@@ -238,12 +238,12 @@ export default function AlertRulesPage() {
     queryFn: () => api.get<{ rules: AlertRule[] }>("/api/v1/alert-rules"),
   });
 
-  const { data: usersData } = useQuery<{ users: UserOption[] }>({
+  const { data: usersData2 } = useQuery<UserOption[]>({
     queryKey: ["users-picker-rules"],
-    queryFn: () => api.get<{ users: UserOption[] }>("/api/v1/users?limit=100"),
+    queryFn: () => api.get<UserOption[]>("/api/v1/users?limit=100"),
     staleTime: 5 * 60_000,
   });
-  const userMap = Object.fromEntries((usersData?.users ?? []).map(u => [u.id, u.full_name]));
+  const userMap = Object.fromEntries((usersData2 ?? []).map(u => [u.id, u.full_name]));
 
   const toggleMutation = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
