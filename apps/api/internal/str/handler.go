@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -302,4 +303,35 @@ func (h *Handler) ExportFINnet(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write(xmlData)
+}
+
+// GET /api/v1/str/deadlines?deadline_days=30&window_days=14
+// Returns STR filings with approaching or overdue deadlines across all cases.
+func (h *Handler) Deadlines(w http.ResponseWriter, r *http.Request) {
+	ddStr := r.URL.Query().Get("deadline_days")
+	wdStr  := r.URL.Query().Get("window_days")
+
+	dd := 30
+	wd := 14
+	if v, err := strconv.Atoi(ddStr); err == nil && v > 0 {
+		dd = v
+	}
+	if v, err := strconv.Atoi(wdStr); err == nil && v > 0 {
+		wd = v
+	}
+
+	items, err := h.repo.Deadlines(r.Context(), cases.DefaultOrgID, dd, wd)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR deadlines")
+		return
+	}
+	if items == nil {
+		items = []DeadlineItem{}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{
+		"deadline_days": dd,
+		"window_days":   wd,
+		"count":         len(items),
+		"items":         items,
+	})
 }

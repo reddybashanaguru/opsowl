@@ -188,12 +188,20 @@ function ClosureStatusBanner({ closure }: { closure: ClosureResponse }) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
+interface CaseSummary { case_number: string; }
+
 export default function ClosurePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const roleLevel = { super_admin: 5, admin: 4, manager: 3, analyst: 2, viewer: 1 }[user?.role ?? "viewer"] ?? 0;
   const canReview = roleLevel >= 3;
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", caseId],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
+    staleTime: 5 * 60 * 1000,
+  });
   const canReopen = roleLevel >= 4;
 
   // Form state
@@ -313,6 +321,7 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
       <CaseSubNav
         caseId={caseId}
         activeTab="closure"
+        caseNumber={caseData?.case_number}
         action={closure ? (
           <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[closure.status]}`}>
             {closure.status.charAt(0).toUpperCase() + closure.status.slice(1)}

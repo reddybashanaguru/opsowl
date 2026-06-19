@@ -30,11 +30,21 @@ type AppConfig struct {
 	NotesLabel     string `json:"notes_label"`
 
 	// Regulatory filing labels — jurisdiction-specific
-	StrLabel           string `json:"str_label"`            // "STR" (India), "SAR" (US/UK)
-	StrReferenceLabel  string `json:"str_reference_label"`  // "FIU Reference", "FinCEN Reference"
-	StrRegulatorLabel  string `json:"str_regulator_label"`  // "FIU", "FinCEN", "NCA", "MAS"
-	StrLawReference    string `json:"str_law_reference"`    // "PMLA 2002", "BSA", "POCA 2002"
-	StrIDLabel         string `json:"str_id_label"`         // "PAN", "SSN/TIN", "NI Number"
+	StrLabel           string `json:"str_label"`            // "STR" (India/UAE), "SAR" (US/UK)
+	StrReferenceLabel  string `json:"str_reference_label"`  // "FIU Reference", "UAE FIU Reference"
+	StrRegulatorLabel  string `json:"str_regulator_label"`  // "FIU-IND", "UAE FIU", "FinCEN"
+	StrLawReference    string `json:"str_law_reference"`    // "PMLA 2002", "Federal Decree-Law No. 20 of 2018"
+	StrIDLabel         string `json:"str_id_label"`         // "PAN", "Emirates ID"
+	StrDeadlineDays    int    `json:"str_deadline_days"`    // calendar days to file after suspicion arises
+
+	// Currency & reporting thresholds
+	LocalCurrency  string  `json:"local_currency"`  // ISO 4217: "INR", "AED", "USD"
+	CurrencySymbol string  `json:"currency_symbol"` // display: "₹", "AED", "$"
+	CTRThreshold   float64 `json:"ctr_threshold"`   // cash transaction report threshold in local currency
+	WireThreshold  float64 `json:"wire_threshold"`  // wire record-keeping threshold
+
+	// Identity document types for this jurisdiction
+	IDTypes []string `json:"id_types"`
 }
 
 // envOr returns the env var value if set and non-empty, otherwise fallback.
@@ -66,11 +76,20 @@ func deploymentDefaults() AppConfig {
 		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
 		NoteLabel:          envOr("NOTE_LABEL", "Note"),
 		NotesLabel:         envOr("NOTES_LABEL", "Notes"),
-		StrLabel:           envOr("STR_LABEL", "STR"),
-		StrReferenceLabel:  envOr("STR_REFERENCE_LABEL", "FIU Reference"),
-		StrRegulatorLabel:  envOr("STR_REGULATOR_LABEL", "FIU"),
-		StrLawReference:    envOr("STR_LAW_REFERENCE", "PMLA 2002"),
-		StrIDLabel:         envOr("STR_ID_LABEL", "PAN"),
+		StrLabel:          envOr("STR_LABEL", "STR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "FIU Reference"),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "FIU"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", "PMLA 2002"),
+		StrIDLabel:        envOr("STR_ID_LABEL", "PAN"),
+		StrDeadlineDays:   getEnvInt("STR_DEADLINE_DAYS", 30),
+		LocalCurrency:     envOr("LOCAL_CURRENCY", "INR"),
+		CurrencySymbol:    envOr("CURRENCY_SYMBOL", "₹"),
+		CTRThreshold:      getEnvFloat("CTR_THRESHOLD", 1000000),
+		WireThreshold:     getEnvFloat("WIRE_THRESHOLD", 0),
+		IDTypes:           splitEnv("ID_TYPES", []string{
+			"PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE",
+			"PAN", "AADHAAR_REF", "VOTER_ID", "OTHER",
+		}),
 	}
 }
 

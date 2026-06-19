@@ -28,9 +28,6 @@ interface Props {
   caseNumber?: string;
 }
 
-// Subpages where back goes to case detail (not the cases list)
-const BACK_TO_CASE = new Set<Tab>(["notes", "timeline", "comms", "insights", "ai-logs"]);
-
 export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
   const router = useRouter();
   const cfg = useConfig();
@@ -38,19 +35,11 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
   const ROLE_HIERARCHY: Record<string, number> = { super_admin: 5, admin: 4, manager: 3, analyst: 2, viewer: 1 };
   const userLevel = ROLE_HIERARCHY[user?.role ?? "viewer"] ?? 0;
 
-  const backLabel = BACK_TO_CASE.has(activeTab) ? "← Case" : "← Cases";
-  const backHref  = BACK_TO_CASE.has(activeTab) ? `/cases/${caseId}` : "/cases";
+  const backLabel = "← Cases";
+  const backHref  = "/cases";
 
-  // Breadcrumb button shown between back link and tabs on subpages
-  const breadcrumbLabel =
-    activeTab === "tasks"         ? (caseNumber ?? null) :
-    activeTab === "documents"     ? cfg.case_label :
-    activeTab === "str"           ? cfg.case_label :
-    activeTab === "findings"      ? cfg.case_label :
-    activeTab === "transactions"  ? cfg.case_label :
-    activeTab === "narrative"     ? cfg.case_label :
-    activeTab === "closure"       ? cfg.case_label :
-    null;
+  // All sub-pages show case number (or generic label while loading) as breadcrumb → case detail
+  const breadcrumbLabel = activeTab === "case" ? null : (caseNumber ?? cfg.case_label);
 
   const ALL_TABS: { tab: Tab; label: string; path: string; Icon: React.ElementType; minLevel?: number }[] = [
     { tab: "case",      label: "Case",              path: "",          Icon: LayoutGrid },

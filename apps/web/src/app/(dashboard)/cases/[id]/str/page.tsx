@@ -1,12 +1,13 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { formatEmiratesID, emiratesIDError } from "@/lib/utils/emirates-id";
 
 interface STRFiling {
   id: string;
@@ -64,7 +65,21 @@ const TRANSMODE_OPTIONS = [
   { value: "X", label: "X — Other" },
 ];
 
-const ID_TYPE_OPTIONS = ["PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE", "PAN", "AADHAAR_REF", "VOTER_ID", "OTHER"];
+const ID_TYPE_LABELS: Record<string, string> = {
+  PASSPORT:         "Passport",
+  NATIONAL_ID:      "National ID",
+  TAX_ID:           "Tax ID",
+  DRIVING_LICENSE:  "Driving License",
+  PAN:              "PAN Card",
+  AADHAAR_REF:      "Aadhaar Ref",
+  VOTER_ID:         "Voter ID",
+  EMIRATES_ID:      "Emirates ID",
+  UAE_TRADE_LICENSE:"Trade License",
+  TRN:              "TRN",
+  GCC_NATIONAL_ID:  "GCC National ID",
+  RESIDENCY_VISA:   "Residency Visa",
+  OTHER:            "Other",
+};
 
 // ── goAML Readiness panel ───────────────────────────────────────────────────
 
@@ -143,7 +158,14 @@ function emptyTx(): TxRow {
   };
 }
 
-function TransactionRows({ rows, onChange }: { rows: TxRow[]; onChange: (rows: TxRow[]) => void }) {
+function TransactionRows({
+  rows, onChange, ctrThreshold, currency,
+}: {
+  rows: TxRow[];
+  onChange: (rows: TxRow[]) => void;
+  ctrThreshold: number;
+  currency: string;
+}) {
   const update = (i: number, field: keyof TxRow, val: string) => {
     const next = rows.map((r, idx) => idx === i ? { ...r, [field]: val } : r);
     onChange(next);
@@ -197,7 +219,19 @@ function TransactionRows({ rows, onChange }: { rows: TxRow[]; onChange: (rows: T
               />
             </div>
             <div>
-              <label className="text-slate-500 text-[11px] mb-1 block">Amount (local currency) <span className="text-red-400">*</span></label>
+              <label className="text-slate-500 text-[11px] mb-1 block">
+                Amount ({currency || "local currency"}) <span className="text-red-400">*</span>
+                {ctrThreshold > 0 && parseFloat(tx.amount) >= ctrThreshold && (
+                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5 bg-red-900/50 text-red-300 border border-red-500/40 rounded-full font-medium animate-pulse">
+                    ≥ CTR threshold ({currency} {ctrThreshold.toLocaleString()})
+                  </span>
+                )}
+                {ctrThreshold > 0 && parseFloat(tx.amount) >= ctrThreshold * 0.9 && parseFloat(tx.amount) < ctrThreshold && (
+                  <span className="ml-1.5 text-[10px] px-1.5 py-0.5 bg-amber-900/50 text-amber-300 border border-amber-500/40 rounded-full font-medium">
+                    Near CTR threshold
+                  </span>
+                )}
+              </label>
               <input
                 type="number"
                 value={tx.amount}
@@ -513,11 +547,19 @@ function FilingCard({
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
+interface CaseSummary { case_number: string; }
+
 export default function STRFilingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", caseId],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
+    staleTime: 5 * 60 * 1000,
+  });
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
 
@@ -565,8 +607,18 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   // Transactions
   const [txRows, setTxRows] = useState<TxRow[]>([emptyTx()]);
 
+  // Suspicion date — CBUAE Art. 15: 30-day clock starts here, NOT at STR creation
+  const [suspicionDate, setSuspicionDate] = useState("");
+
   // goAML section toggle
   const [showGoAMLFields, setShowGoAMLFields] = useState(false);
+
+  // Seed localCurrency from config once loaded
+  useEffect(() => {
+    if (cfg.local_currency && !localCurrency) {
+      setLocalCurrency(cfg.local_currency);
+    }
+  }, [cfg.local_currency]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data: filingData, isLoading, isError } = useQuery<{ filings: STRFiling[] }>({
     queryKey: ["str-filings", caseId],
@@ -579,6 +631,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   const buildPayload = () => ({
     report_type: reportType,
+    suspicion_date: suspicionDate || undefined,
     suspicion_basis: suspicionBasis,
     narrative,
     evidence_summary: evidenceSummary,
@@ -637,7 +690,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   });
 
   const resetForm = () => {
-    setSuspicionBasis(""); setNarrative(""); setEvidenceSummary("");
+    setSuspicionDate(""); setSuspicionBasis(""); setNarrative(""); setEvidenceSummary("");
     setSubjectFirstName(""); setSubjectLastName(""); setSubjectGender(""); setSubjectTitle("");
     setSubjectBirthdate(""); setSubjectIDType("NATIONAL_ID"); setSubjectIDNumber("");
     setSubjectAccountNumber(""); setSubjectAccountName(""); setSubjectClientNumber("");
@@ -669,7 +722,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   if (!isManagerOrAbove) {
     return (
       <div className="p-6">
-        <CaseSubNav caseId={caseId} activeTab="str" />
+        <CaseSubNav caseId={caseId} activeTab="str" caseNumber={caseData?.case_number} />
         <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-8 text-center">
           <p className="text-red-400 font-medium">Access Restricted</p>
           <p className="text-slate-500 text-sm mt-1">Regulatory filings are restricted to compliance officers (manager role and above).</p>
@@ -686,6 +739,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
       <CaseSubNav
         caseId={caseId}
         activeTab="str"
+        caseNumber={caseData?.case_number}
         action={isManagerOrAbove ? (
           <button
             onClick={() => setShowCreate(true)}
@@ -740,6 +794,36 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
               </select>
             </div>
 
+            {/* Suspicion Date — starts the regulatory filing clock */}
+            <div>
+              <label className={labelCls}>
+                Date Suspicion Arose <span className="text-red-400">*</span>
+                <span className="text-slate-500 font-normal ml-1">({cfg.str_law_reference || "regulatory"} Article 15 — 30-day clock)</span>
+              </label>
+              <input
+                type="date"
+                value={suspicionDate}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => setSuspicionDate(e.target.value)}
+                className={inputCls}
+              />
+              {suspicionDate && (() => {
+                const d = new Date(suspicionDate);
+                d.setDate(d.getDate() + (cfg.str_deadline_days || 30));
+                const deadline = d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+                const today = new Date();
+                const daysLeft = Math.ceil((d.getTime() - today.getTime()) / 86400000);
+                return (
+                  <p className={`text-[11px] mt-1 flex items-center gap-1 ${daysLeft < 0 ? "text-red-400" : daysLeft <= 7 ? "text-amber-400" : "text-slate-500"}`}>
+                    {daysLeft < 0
+                      ? `⚠ Filing deadline was ${deadline} — overdue by ${Math.abs(daysLeft)} day${Math.abs(daysLeft) !== 1 ? "s" : ""}`
+                      : `Filing deadline: ${deadline} (${daysLeft} day${daysLeft !== 1 ? "s" : ""} remaining)`}
+                  </p>
+                );
+              })()}
+            </div>
+            <div /> {/* grid spacer */}
+
             <div className="col-span-2">
               <label className={labelCls}>Suspicion Basis <span className="text-red-400">*</span></label>
               <input
@@ -789,9 +873,11 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
               <input type="text" value={subjectLastName} onChange={(e) => setSubjectLastName(e.target.value)} placeholder="Last name" className={inputCls} />
             </div>
             <div>
-              <label className={labelCls}>ID Type</label>
+              <label className={labelCls}>{cfg.str_id_label || "ID Type"}</label>
               <select value={subjectIDType} onChange={(e) => setSubjectIDType(e.target.value)} className={inputCls}>
-                {ID_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                {(cfg.id_types ?? []).map((t) => (
+                  <option key={t} value={t}>{ID_TYPE_LABELS[t] ?? t}</option>
+                ))}
               </select>
             </div>
             <div>
@@ -799,10 +885,24 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
               <input
                 type="text"
                 value={subjectIDNumber}
-                onChange={(e) => setSubjectIDNumber(e.target.value.toUpperCase())}
-                placeholder={subjectIDType === "PAN" ? "ABCDE1234F" : "Identifier value"}
+                onChange={(e) => {
+                  const raw = subjectIDType === "EMIRATES_ID"
+                    ? formatEmiratesID(e.target.value)
+                    : e.target.value.toUpperCase();
+                  setSubjectIDNumber(raw);
+                }}
+                placeholder={
+                  subjectIDType === "PAN" ? "ABCDE1234F"
+                  : subjectIDType === "EMIRATES_ID" ? "784-YYYY-XXXXXXX-X"
+                  : "Identifier value"
+                }
                 className={`${inputCls} font-mono uppercase`}
               />
+              {subjectIDType === "EMIRATES_ID" && subjectIDNumber && (
+                <p className={`text-[11px] mt-0.5 ${emiratesIDError(subjectIDNumber) ? "text-red-400" : "text-emerald-400"}`}>
+                  {emiratesIDError(subjectIDNumber) ?? "✓ Valid Emirates ID"}
+                </p>
+              )}
             </div>
             <div>
               <label className={labelCls}>Title</label>
@@ -845,7 +945,12 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 <p className="text-slate-300 text-xs font-semibold uppercase tracking-widest">Transactions</p>
               </div>
             </div>
-            <TransactionRows rows={txRows} onChange={setTxRows} />
+            <TransactionRows
+              rows={txRows}
+              onChange={setTxRows}
+              ctrThreshold={cfg.ctr_threshold ?? 0}
+              currency={localCurrency || cfg.local_currency || ""}
+            />
 
             {/* ── Reporting officer / goAML fields (collapsible) ── */}
             <div className="col-span-2">
@@ -930,7 +1035,9 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 <div>
                   <label className={labelCls}>ID Type</label>
                   <select value={officerIDType} onChange={(e) => setOfficerIDType(e.target.value)} className={inputCls}>
-                    {ID_TYPE_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                    {(cfg.id_types ?? []).map((t) => (
+                      <option key={t} value={t}>{ID_TYPE_LABELS[t] ?? t}</option>
+                    ))}
                   </select>
                 </div>
                 <div>

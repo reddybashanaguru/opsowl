@@ -11,6 +11,7 @@ import (
 
 type CreateDraftRequest struct {
 	ReportType      string          `json:"report_type"`       // STR | SAR | CTR
+	SuspicionDate   *time.Time      `json:"suspicion_date"`    // Art. 15 — filing clock starts here
 	SuspicionBasis  string          `json:"suspicion_basis"`
 	Narrative       string          `json:"narrative"`
 	EvidenceSummary string          `json:"evidence_summary"`
@@ -47,12 +48,15 @@ type FilingResponse struct {
 	FiledAt         *time.Time      `json:"filed_at,omitempty"`
 	FIUReference    string          `json:"fiu_reference,omitempty"`
 	RejectionReason string          `json:"rejection_reason,omitempty"`
+	SuspicionDate   *time.Time      `json:"suspicion_date,omitempty"`
 	SuspicionBasis  string          `json:"suspicion_basis"`
 	Narrative       string          `json:"narrative"`
 	EvidenceSummary string          `json:"evidence_summary"`
 	FilingEntity    json.RawMessage `json:"filing_entity"`
 	Subject         json.RawMessage `json:"subject"`
 	Transactions    json.RawMessage `json:"transactions"`
+	DeadlineDays    int             `json:"deadline_days"`    // days remaining until filing deadline
+	IsOverdue       bool            `json:"is_overdue"`       // true when past the regulatory deadline
 	CreatedAt       time.Time       `json:"created_at"`
 	UpdatedAt       time.Time       `json:"updated_at"`
 }

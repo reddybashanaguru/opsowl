@@ -67,10 +67,18 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const { data: ins, isLoading, isError, error, refetch } = useQuery<InsightsData>({
     queryKey: ["insights", id],
@@ -110,7 +118,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   if (isError) {
     return (
       <div className="p-6">
-        <CaseSubNav caseId={id} activeTab="insights" />
+        <CaseSubNav caseId={id} activeTab="insights" caseNumber={caseData?.case_number} />
         <PageError error={error as Error | null} onRetry={() => refetch()} />
       </div>
     );
@@ -121,6 +129,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
       <CaseSubNav
         caseId={id}
         activeTab="insights"
+        caseNumber={caseData?.case_number}
         action={
           <button
             onClick={() => analyseMutation.mutate()}

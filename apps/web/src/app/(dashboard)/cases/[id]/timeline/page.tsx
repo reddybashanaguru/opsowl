@@ -2,7 +2,7 @@
 
 import { use, useState, useCallback, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { useTimelineSSE, type TimelineEvent } from "@/lib/hooks/useTimelineSSE";
@@ -52,11 +52,19 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function TimelinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [selectedSources, setSelectedSources] = useState<Set<Source>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
@@ -149,7 +157,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="px-6 pt-4 flex-shrink-0">
-        <CaseSubNav caseId={id} activeTab="timeline" />
+        <CaseSubNav caseId={id} activeTab="timeline" caseNumber={caseData?.case_number} />
       </div>
       <div className="flex flex-col flex-1 overflow-hidden">
       {/* Header */}
