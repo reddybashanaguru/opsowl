@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useConfigStore, DEFAULT_CONFIG, type AppConfig } from "@/lib/stores/config.store";
+import { useConfigStore, DEFAULT_CONFIG, INDUSTRY_PRESETS, UAE_PRESET, type AppConfig } from "@/lib/stores/config.store";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -30,6 +30,29 @@ const REGULATORY_LABEL_FIELDS: { key: keyof AppConfig; label: string; hint: stri
   { key: "str_regulator_label", label: "Regulator / Authority",    hint: "e.g. FIU, FinCEN, NCA, MAS, FINTRAC, goAML" },
   { key: "str_law_reference",   label: "Applicable law",           hint: "e.g. PMLA 2002, BSA, POCA 2002, CDSA — leave blank if not applicable" },
   { key: "str_id_label",        label: "Subject ID field label",   hint: "e.g. PAN, SSN/TIN, NI Number, TFN, NRIC" },
+];
+
+const JURISDICTION_PRESETS: {
+  id: string;
+  label: string;
+  flag: string;
+  description: string;
+  preset: Partial<AppConfig>;
+}[] = [
+  {
+    id: "india",
+    label: "India",
+    flag: "🇮🇳",
+    description: "PMLA 2002 · FIU-IND · PAN · ₹ INR · CTR ₹10L",
+    preset: INDUSTRY_PRESETS.financial_services,
+  },
+  {
+    id: "uae",
+    label: "UAE",
+    flag: "🇦🇪",
+    description: "Federal Decree-Law No. 20 · UAE FIU · Emirates ID · AED · CTR AED 55K",
+    preset: UAE_PRESET,
+  },
 ];
 
 interface MFAEnrollResponse {
@@ -510,10 +533,33 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 
-  function handleField(key: keyof AppConfig, value: string) {
+  function handleField(key: keyof AppConfig, value: string | number | string[]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   }
+
+  function applyPreset(preset: Partial<AppConfig>) {
+    setForm((prev) => ({ ...prev, ...preset }));
+    setSaved(false);
+  }
+
+  function activePresetId(): string | null {
+    for (const jp of JURISDICTION_PRESETS) {
+      const keys = Object.keys(jp.preset) as (keyof AppConfig)[];
+      const matches = keys.every((k) => {
+        const pVal = jp.preset[k];
+        const fVal = form[k];
+        if (Array.isArray(pVal) && Array.isArray(fVal)) {
+          return JSON.stringify(pVal) === JSON.stringify(fVal);
+        }
+        return pVal === fVal;
+      });
+      if (matches) return jp.id;
+    }
+    return null;
+  }
+
+  const currentPreset = activePresetId();
 
   async function handleSave() {
     setSaving(true);
@@ -569,6 +615,54 @@ export default function SettingsPage() {
         allowedRoles={["admin", "super_admin"]}
         fallback={null}
       >
+        {/* ── Jurisdiction Quick-Setup ── */}
+        <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+            Jurisdiction Quick Setup
+          </h2>
+          <p className="text-slate-500 text-xs mb-5">
+            Apply a jurisdiction preset to auto-fill all regulatory labels, currency, thresholds, and ID types in one click.
+            You can fine-tune individual fields afterwards.
+          </p>
+          <div className="flex flex-wrap gap-3" data-testid="jurisdiction-presets">
+            {JURISDICTION_PRESETS.map((jp) => {
+              const isActive = currentPreset === jp.id;
+              return (
+                <button
+                  key={jp.id}
+                  data-testid={`preset-${jp.id}`}
+                  onClick={() => applyPreset(jp.preset)}
+                  className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border transition-all text-left min-w-[180px] ${
+                    isActive
+                      ? "bg-cyan-600/20 border-cyan-500/60 ring-1 ring-cyan-500/30"
+                      : "bg-slate-800/60 border-slate-700/50 hover:border-slate-500/80 hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{jp.flag}</span>
+                    <span className={`text-sm font-semibold ${isActive ? "text-cyan-300" : "text-slate-200"}`}>
+                      {jp.label}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-cyan-600/30 text-cyan-400 border border-cyan-500/40 rounded-full font-medium">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-500 leading-relaxed">{jp.description}</span>
+                </button>
+              );
+            })}
+          </div>
+          {currentPreset && (
+            <p className="text-emerald-400 text-xs mt-4 flex items-center gap-1.5">
+              <span>✓</span>
+              {JURISDICTION_PRESETS.find((j) => j.id === currentPreset)?.label} preset applied —
+              click <strong>Save Settings</strong> below to persist for all users.
+            </p>
+          )}
+        </section>
+
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
             Workspace Terminology
@@ -596,7 +690,7 @@ export default function SettingsPage() {
             Regulatory Filings
           </h2>
           <p className="text-slate-500 text-xs mb-4">
-            Customise the terminology for your jurisdiction — India (FIU/PMLA), US (FinCEN/BSA), UK (NCA/POCA), SG (MAS/CDSA), etc.
+            Customise the terminology for your jurisdiction — India (FIU/PMLA), US (FinCEN/BSA), UK (NCA/POCA), SG (MAS/CDSA), UAE (CBUAE), etc.
           </p>
           <div className="grid grid-cols-2 gap-4">
             {REGULATORY_LABEL_FIELDS.map(({ key, label, hint }) => (
@@ -612,6 +706,82 @@ export default function SettingsPage() {
                 <p className="text-slate-600 text-[10px] mt-0.5">{hint}</p>
               </div>
             ))}
+
+            {/* STR filing deadline */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Filing deadline (calendar days)</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={form.str_deadline_days}
+                onChange={(e) => handleField("str_deadline_days", parseInt(e.target.value) || 30)}
+                data-testid="field-str_deadline_days"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Days from suspicion date to file — India/UAE: 30, US: 60</p>
+            </div>
+
+            {/* Currency */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Local currency (ISO 4217)</label>
+              <input
+                type="text"
+                maxLength={3}
+                value={form.local_currency}
+                onChange={(e) => handleField("local_currency", e.target.value.toUpperCase())}
+                placeholder="INR, AED, USD, GBP…"
+                data-testid="field-local_currency"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors font-mono uppercase"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Used for amount formatting and CTR threshold displays</p>
+            </div>
+
+            {/* CTR threshold */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">CTR threshold (0 = disabled)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.ctr_threshold}
+                onChange={(e) => handleField("ctr_threshold", parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 55000 (UAE) or 1000000 (India)"
+                data-testid="field-ctr_threshold"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Transactions ≥ this amount show a CTR badge. India: ₹10L · UAE: AED 55,000</p>
+            </div>
+
+            {/* Wire threshold */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Wire record-keeping threshold (0 = disabled)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.wire_threshold}
+                onChange={(e) => handleField("wire_threshold", parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 3675 (UAE AED equiv of USD 1,000)"
+                data-testid="field-wire_threshold"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Wire transfers ≥ this amount require record-keeping. CBUAE: AED 3,675</p>
+            </div>
+
+            {/* ID types */}
+            <div className="col-span-2">
+              <label className="block text-xs text-slate-400 mb-1">
+                Accepted ID types <span className="text-slate-600 font-normal">(comma-separated)</span>
+              </label>
+              <input
+                type="text"
+                value={(form.id_types ?? []).join(", ")}
+                onChange={(e) => handleField("id_types", e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))}
+                placeholder="PASSPORT, NATIONAL_ID, EMIRATES_ID, PAN…"
+                data-testid="field-id_types"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Drives the ID type dropdown on STR filing forms. Use ALL_CAPS identifiers.</p>
+            </div>
           </div>
         </section>
 

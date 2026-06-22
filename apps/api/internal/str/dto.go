@@ -11,7 +11,7 @@ import (
 
 type CreateDraftRequest struct {
 	ReportType      string          `json:"report_type"`       // STR | SAR | CTR
-	SuspicionDate   *time.Time      `json:"suspicion_date"`    // Art. 15 — filing clock starts here
+	SuspicionDate   *string         `json:"suspicion_date"`    // Art. 15 — "YYYY-MM-DD" date string
 	SuspicionBasis  string          `json:"suspicion_basis"`
 	Narrative       string          `json:"narrative"`
 	EvidenceSummary string          `json:"evidence_summary"`

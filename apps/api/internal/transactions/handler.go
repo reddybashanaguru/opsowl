@@ -61,7 +61,7 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 // POST /api/v1/cases/:id/transactions
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
-	_, err := uuid.Parse(chi.URLParam(r, "id"))
+	caseID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
 		return
@@ -74,7 +74,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	claims := auth.ClaimsFromCtx(r.Context())
-	txn, err := h.svc.Create(r.Context(), claims, req)
+	txn, err := h.svc.CreateAndLink(r.Context(), claims, caseID, req)
 	if err != nil {
 		h.writeErr(w, err)
 		return

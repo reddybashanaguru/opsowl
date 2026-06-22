@@ -119,6 +119,23 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		response.JSON(w, http.StatusOK, deploymentDefaults())
 		return
 	}
+	// Backfill new fields from deployment defaults if they were missing in the stored blob.
+	defaults := deploymentDefaults()
+	if cfg.LocalCurrency == "" {
+		cfg.LocalCurrency = defaults.LocalCurrency
+	}
+	if cfg.CurrencySymbol == "" {
+		cfg.CurrencySymbol = defaults.CurrencySymbol
+	}
+	if cfg.CTRThreshold == 0 {
+		cfg.CTRThreshold = defaults.CTRThreshold
+	}
+	if cfg.StrDeadlineDays == 0 {
+		cfg.StrDeadlineDays = defaults.StrDeadlineDays
+	}
+	if len(cfg.IDTypes) == 0 {
+		cfg.IDTypes = defaults.IDTypes
+	}
 	response.JSON(w, http.StatusOK, cfg)
 }
 
