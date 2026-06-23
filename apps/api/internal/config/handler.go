@@ -273,7 +273,11 @@ func (h *Handler) injectReadOnlyFields(cfg *AppConfig) {
 }
 
 // GET /api/v1/config — public, no auth required so FE can load before login.
-// Priority: DB row (admin-edited) → deployment defaults (from .env) → hardcoded.
+// Priority: DB row (admin-edited, same jurisdiction) → deployment defaults.
+// If the stored config was saved under a different jurisdiction (detected via
+// the hidden "_saved_for_jurisdiction" marker), the DB row is treated as stale
+// and fresh deployment defaults are returned so labels/currency/thresholds
+// always match the active jurisdiction without requiring a manual reset.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	var raw []byte
 	err := h.db.QueryRowContext(r.Context(),
@@ -286,13 +290,27 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check jurisdiction marker before deserializing.
+	var rawMap map[string]interface{}
+	if jsonErr := json.Unmarshal(raw, &rawMap); jsonErr == nil {
+		savedFor, _ := rawMap["_saved_for_jurisdiction"].(string)
+		if savedFor == "" {
+			savedFor = "india" // backward compat: rows without marker assumed India
+		}
+		if savedFor != h.jurisdiction {
+			cfg := deploymentDefaults()
+			response.JSON(w, http.StatusOK, cfg)
+			return
+		}
+	}
+
 	var cfg AppConfig
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		cfg := deploymentDefaults()
 		response.JSON(w, http.StatusOK, cfg)
 		return
 	}
-	// Backfill new fields from deployment defaults if they were missing in the stored blob.
+	// Backfill fields missing from older stored blobs.
 	defaults := deploymentDefaults()
 	if cfg.LocalCurrency == "" {
 		cfg.LocalCurrency = defaults.LocalCurrency
@@ -346,7 +364,14 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	incoming.RetentionYears = 0
 	incoming.UBOThresholdPct = 0
 
-	raw, _ := json.Marshal(incoming)
+	// Embed a hidden jurisdiction marker so Get() can detect stale configs
+	// when the deployment jurisdiction changes between saves.
+	configMap := make(map[string]interface{})
+	if b, err := json.Marshal(incoming); err == nil {
+		_ = json.Unmarshal(b, &configMap)
+	}
+	configMap["_saved_for_jurisdiction"] = h.jurisdiction
+	raw, _ := json.Marshal(configMap)
 
 	result, err := h.db.ExecContext(r.Context(),
 		`UPDATE system_config SET config = $1, updated_at = NOW(), updated_by = $2`,
