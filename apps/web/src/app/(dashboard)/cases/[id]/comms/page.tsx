@@ -152,12 +152,20 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
   );
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function CommsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const canWrite = hasRole("analyst");
 
@@ -217,6 +225,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
       <CaseSubNav
         caseId={id}
         activeTab="comms"
+        caseNumber={caseData?.case_number}
         action={canWrite ? (
           <button
             onClick={() => setShowForm(!showForm)}

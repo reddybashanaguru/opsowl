@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState } from "react";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
@@ -14,12 +14,20 @@ interface ListMeta {
   next_cursor: string | null;
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function AILogsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
   const canReview = hasRole("analyst");
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [statusFilter, setStatusFilter] = useState("");
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);
@@ -60,7 +68,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
 
   return (
     <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="ai-logs" />
+      <CaseSubNav caseId={id} activeTab="ai-logs" caseNumber={caseData?.case_number} />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">

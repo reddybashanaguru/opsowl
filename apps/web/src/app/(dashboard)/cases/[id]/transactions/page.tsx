@@ -5,6 +5,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useConfig } from "@/lib/hooks/useConfig";
+import { formatCurrency, getCTRStatus } from "@/lib/utils/currency";
 import {
   AlertTriangle,
   ArrowLeftRight,
@@ -102,7 +104,7 @@ interface FlowGraph {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function fmtAmount(amount: number, currency = "INR") {
-  return new Intl.NumberFormat("en-IN", { style: "currency", currency, maximumFractionDigits: 2 }).format(amount);
+  return formatCurrency(amount, currency);
 }
 
 function fmtDate(iso: string) {
@@ -151,10 +153,12 @@ function TxnRow({
   txn,
   onFlag,
   onRemove,
+  ctrThreshold = 0,
 }: {
   txn: TransactionResponse;
   onFlag: (id: string, flagged: boolean) => void;
   onRemove: (id: string) => void;
+  ctrThreshold?: number;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -204,6 +208,12 @@ function TxnRow({
             {fmtAmount(txn.amount, txn.currency)}
           </p>
           <p className="text-[10px] text-slate-500 capitalize">{txn.txn_type}</p>
+          {getCTRStatus(txn.amount, ctrThreshold) === "above" && (
+            <span className="inline-block text-[9px] px-1 py-0.5 bg-red-900/50 text-red-300 border border-red-500/40 rounded mt-0.5 animate-pulse">CTR</span>
+          )}
+          {getCTRStatus(txn.amount, ctrThreshold) === "near" && (
+            <span className="inline-block text-[9px] px-1 py-0.5 bg-amber-900/50 text-amber-300 border border-amber-500/40 rounded mt-0.5">Near-CTR</span>
+          )}
         </div>
 
         {/* Risk score */}
@@ -779,10 +789,19 @@ function AddTransactionForm({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+interface CaseSummary { case_number: string; }
+
 export default function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
+  const cfg = useConfig();
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", caseId],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [view, setView] = useState<"list" | "flow">("list");
   const [search, setSearch] = useState("");
@@ -850,6 +869,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
       <CaseSubNav
         caseId={caseId}
         activeTab="transactions"
+        caseNumber={caseData?.case_number}
         action={
           <div className="flex items-center gap-2">
             <button
@@ -955,6 +975,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
                 txn={txn}
                 onFlag={(id, flagged) => flagMutation.mutate({ id, flagged })}
                 onRemove={(id) => removeMutation.mutate(id)}
+                ctrThreshold={cfg.ctr_threshold ?? 0}
               />
             ))}
           </div>

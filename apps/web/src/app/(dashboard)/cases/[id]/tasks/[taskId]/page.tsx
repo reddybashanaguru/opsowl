@@ -78,6 +78,12 @@ export default function TaskDetailPage({
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
+  const { data: caseData } = useQuery<{ case_number: string }>({
+    queryKey: ["case-summary", caseId],
+    queryFn: () => api.get<{ case_number: string }>(`/api/v1/cases/${caseId}`),
+    staleTime: 5 * 60 * 1000,
+  });
+
   const { data: task, isLoading } = useQuery<Task>({
     queryKey: ["task", taskId],
     queryFn: () => api.get<Task>(`/api/v1/tasks/${taskId}`),
@@ -210,7 +216,7 @@ export default function TaskDetailPage({
 
   return (
     <div className="p-6">
-      <CaseSubNav caseId={caseId} activeTab="tasks" />
+      <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main */}
@@ -508,9 +514,9 @@ export default function TaskDetailPage({
 
           <button
             onClick={() => router.push(`/cases/${caseId}/tasks`)}
-            className="w-full text-slate-500 hover:text-slate-300 text-sm py-2 text-center transition-colors"
+            className="w-full text-slate-500 hover:text-slate-300 text-xs py-2 text-left transition-colors flex items-center gap-1"
           >
-            ← Back to tasks
+            ← All tasks
           </button>
         </div>
       </div>

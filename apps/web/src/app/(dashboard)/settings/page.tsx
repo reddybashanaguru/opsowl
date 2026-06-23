@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useConfigStore, DEFAULT_CONFIG, type AppConfig } from "@/lib/stores/config.store";
+import { useConfigStore, DEFAULT_CONFIG, INDUSTRY_PRESETS, UAE_PRESET, EU_PRESET, type AppConfig } from "@/lib/stores/config.store";
 import { api, APIError } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -31,6 +31,201 @@ const REGULATORY_LABEL_FIELDS: { key: keyof AppConfig; label: string; hint: stri
   { key: "str_law_reference",   label: "Applicable law",           hint: "e.g. PMLA 2002, BSA, POCA 2002, CDSA — leave blank if not applicable" },
   { key: "str_id_label",        label: "Subject ID field label",   hint: "e.g. PAN, SSN/TIN, NI Number, TFN, NRIC" },
 ];
+
+const JURISDICTION_PRESETS: {
+  id: string;
+  label: string;
+  flag: string;
+  description: string;
+  preset: Partial<AppConfig>;
+}[] = [
+  {
+    id: "india",
+    label: "India",
+    flag: "🇮🇳",
+    description: "PMLA 2002 · FIU-IND · PAN · ₹ INR · CTR ₹10L",
+    preset: INDUSTRY_PRESETS.financial_services,
+  },
+  {
+    id: "uae",
+    label: "UAE",
+    flag: "🇦🇪",
+    description: "Federal Decree-Law No. 20 · UAE FIU · Emirates ID · AED · CTR AED 55K",
+    preset: UAE_PRESET,
+  },
+  {
+    id: "eu",
+    label: "EU / Greece",
+    flag: "🇪🇺",
+    description: "EU AMLR 2024 · Hellenic FIU · AFM / ID Card · EUR · CTR €10K",
+    preset: EU_PRESET,
+  },
+];
+
+const JURISDICTION_META: Record<string, { label: string; flag: string; regulatory: string }> = {
+  india: { label: "India", flag: "🇮🇳", regulatory: "PMLA 2002 · FIU-IND" },
+  uae:   { label: "UAE",   flag: "🇦🇪", regulatory: "Federal Decree-Law No. 20 of 2018 · UAE FIU" },
+  eu:    { label: "EU",    flag: "🇪🇺", regulatory: "EU AMLR 2024 · AMLD6" },
+};
+
+const COUNTRY_NAMES: Record<string, string> = {
+  in: "India", ae: "UAE",
+  gr: "Greece", de: "Germany", fr: "France", nl: "Netherlands",
+  it: "Italy", es: "Spain", pl: "Poland", pt: "Portugal",
+  be: "Belgium", at: "Austria", se: "Sweden", dk: "Denmark",
+  fi: "Finland", ie: "Ireland", cz: "Czech Republic", ro: "Romania",
+  hu: "Hungary", bg: "Bulgaria", hr: "Croatia", sk: "Slovakia",
+  si: "Slovenia", lt: "Lithuania", lv: "Latvia", ee: "Estonia",
+  lu: "Luxembourg", cy: "Cyprus", mt: "Malta",
+};
+
+// ── Deployment Info Section (always shown, read-only) ───────────────────────
+function DeploymentInfoSection({ config }: { config: AppConfig }) {
+  const meta = JURISDICTION_META[config.jurisdiction] ?? { label: config.jurisdiction, flag: "🌐", regulatory: "—" };
+  const countryName = COUNTRY_NAMES[config.country] ?? config.country?.toUpperCase() ?? "—";
+
+  return (
+    <section className="mb-8 p-6 bg-[#0e1929] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-lg">{meta.flag}</span>
+        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+          Deployment Jurisdiction
+        </h2>
+        <span className="ml-auto text-[10px] px-2 py-0.5 bg-slate-700 text-slate-400 rounded-full">Read-only</span>
+      </div>
+      <p className="text-slate-500 text-xs mb-4">
+        Set via <span className="font-mono text-slate-400">DEPLOYMENT_JURISDICTION</span> and{" "}
+        <span className="font-mono text-slate-400">DEPLOYMENT_COUNTRY</span> environment variables.
+        Change requires redeployment.
+      </p>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs max-w-lg">
+        <span className="text-slate-500">Jurisdiction</span>
+        <span className="text-slate-200 font-medium">{meta.label}</span>
+        <span className="text-slate-500">Country</span>
+        <span className="text-slate-200 font-medium">{countryName}</span>
+        <span className="text-slate-500">Regulatory framework</span>
+        <span className="text-slate-200">{meta.regulatory}</span>
+        <span className="text-slate-500">Record retention</span>
+        <span className="text-slate-200">{config.retention_years} years</span>
+        {config.ubo_enabled && (
+          <>
+            <span className="text-slate-500">UBO threshold</span>
+            <span className="text-slate-200">{config.ubo_threshold_pct}% beneficial ownership</span>
+          </>
+        )}
+      </div>
+      <div className="flex flex-wrap gap-2 mt-4">
+        {config.goaml_enabled && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-400 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 inline-block" />
+            goAML XML reporting
+          </span>
+        )}
+        {config.ubo_enabled && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-violet-500/10 border border-violet-500/30 text-violet-400 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+            UBO verification required
+          </span>
+        )}
+        {config.gdpr_enabled && (
+          <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px]">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+            GDPR erasure workflow
+          </span>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ── goAML Section (EU + UAE only) ──────────────────────────────────────────
+function GoAMLSection({ config }: { config: AppConfig }) {
+  return (
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+        goAML Reporting
+      </h2>
+      <p className="text-slate-500 text-xs mb-5">
+        goAML XML is the UNODC-standard FIU submission format used by{" "}
+        {config.jurisdiction === "eu" ? "~19 of 27 EU member states" : "UAE FIU"}. Configure
+        your entity registration details for automated STR export.
+      </p>
+      <div className="grid grid-cols-2 gap-4 max-w-lg">
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Reporting entity ID</label>
+          <div className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-500 cursor-not-allowed">
+            Set via <span className="font-mono text-slate-400">GOAML_ENTITY_ID</span>
+          </div>
+          <p className="text-slate-600 text-[10px] mt-0.5">Assigned by your national FIU after registration</p>
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">FIU submission portal</label>
+          <div className="w-full bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-sm text-slate-500 cursor-not-allowed">
+            Set via <span className="font-mono text-slate-400">GOAML_PORTAL_URL</span>
+          </div>
+          <p className="text-slate-600 text-[10px] mt-0.5">
+            {config.jurisdiction === "eu"
+              ? "Each EU member state has its own national goAML portal"
+              : "UAE FIU — goaml.uaefiu.gov.ae"}
+          </p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+// ── Beneficial Ownership Section (EU only) ──────────────────────────────────
+function BeneficialOwnershipSection({ config }: { config: AppConfig }) {
+  return (
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+        Beneficial Ownership (UBO)
+      </h2>
+      <p className="text-slate-500 text-xs mb-5">
+        EU AMLR 2024 mandates verification of beneficial owners above the {config.ubo_threshold_pct}% control
+        threshold. OpsOwl flags subjects and entities that require UBO verification before case closure.
+      </p>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs max-w-lg">
+        <span className="text-slate-500">Control threshold</span>
+        <span className="text-slate-200 font-mono">{config.ubo_threshold_pct}%</span>
+        <span className="text-slate-500">Legal basis</span>
+        <span className="text-slate-200">EU AMLR 2024, Art. 42–55</span>
+        <span className="text-slate-500">Register cross-check</span>
+        <span className="text-slate-200">National UBO registry (per member state)</span>
+        <span className="text-slate-500">Threshold configured via</span>
+        <span className="text-slate-400 font-mono">UBO_THRESHOLD_PCT</span>
+      </div>
+    </section>
+  );
+}
+
+// ── GDPR Section (EU only) ──────────────────────────────────────────────────
+function GDPRSection() {
+  return (
+    <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+        GDPR Compliance
+      </h2>
+      <p className="text-slate-500 text-xs mb-5">
+        GDPR right-to-erasure conflicts with AML 5-year retention obligations.
+        OpsOwl resolves this via anonymisation — personal data is replaced with pseudonyms
+        while preserving the audit trail and transaction record.
+      </p>
+      <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-xs max-w-lg">
+        <span className="text-slate-500">Right-to-erasure handling</span>
+        <span className="text-slate-200">Anonymisation (not deletion)</span>
+        <span className="text-slate-500">AML retention override</span>
+        <span className="text-slate-200">5 years from case close</span>
+        <span className="text-slate-500">Legal basis</span>
+        <span className="text-slate-200">GDPR Art. 17(3)(b) vs. EU AMLR 2024 Art. 77</span>
+        <span className="text-slate-500">DPO name</span>
+        <span className="text-slate-400 font-mono">Set via DPO_NAME</span>
+        <span className="text-slate-500">DPO contact</span>
+        <span className="text-slate-400 font-mono">Set via DPO_EMAIL</span>
+      </div>
+    </section>
+  );
+}
 
 interface MFAEnrollResponse {
   secret: string;
@@ -510,10 +705,33 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
 
-  function handleField(key: keyof AppConfig, value: string) {
+  function handleField(key: keyof AppConfig, value: string | number | string[]) {
     setForm((prev) => ({ ...prev, [key]: value }));
     setSaved(false);
   }
+
+  function applyPreset(preset: Partial<AppConfig>) {
+    setForm((prev) => ({ ...prev, ...preset }));
+    setSaved(false);
+  }
+
+  function activePresetId(): string | null {
+    for (const jp of JURISDICTION_PRESETS) {
+      const keys = Object.keys(jp.preset) as (keyof AppConfig)[];
+      const matches = keys.every((k) => {
+        const pVal = jp.preset[k];
+        const fVal = form[k];
+        if (Array.isArray(pVal) && Array.isArray(fVal)) {
+          return JSON.stringify(pVal) === JSON.stringify(fVal);
+        }
+        return pVal === fVal;
+      });
+      if (matches) return jp.id;
+    }
+    return null;
+  }
+
+  const currentPreset = activePresetId();
 
   async function handleSave() {
     setSaving(true);
@@ -569,6 +787,71 @@ export default function SettingsPage() {
         allowedRoles={["admin", "super_admin"]}
         fallback={null}
       >
+        {/* ── Deployment Jurisdiction Info — always shown ── */}
+        <DeploymentInfoSection config={config} />
+
+        {/* ── goAML — UAE + EU deployments ── */}
+        {(config.goaml_enabled) && (
+          <GoAMLSection config={config} />
+        )}
+
+        {/* ── Beneficial Ownership — EU only ── */}
+        {config.ubo_enabled && (
+          <BeneficialOwnershipSection config={config} />
+        )}
+
+        {/* ── GDPR — EU only ── */}
+        {config.gdpr_enabled && (
+          <GDPRSection />
+        )}
+        {/* ── Jurisdiction Quick-Setup ── */}
+        <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+            Jurisdiction Quick Setup
+          </h2>
+          <p className="text-slate-500 text-xs mb-5">
+            Apply a jurisdiction preset to auto-fill all regulatory labels, currency, thresholds, and ID types in one click.
+            You can fine-tune individual fields afterwards.
+          </p>
+          <div className="flex flex-wrap gap-3" data-testid="jurisdiction-presets">
+            {JURISDICTION_PRESETS.map((jp) => {
+              const isActive = currentPreset === jp.id;
+              return (
+                <button
+                  key={jp.id}
+                  data-testid={`preset-${jp.id}`}
+                  onClick={() => applyPreset(jp.preset)}
+                  className={`flex flex-col items-start gap-1 px-4 py-3 rounded-xl border transition-all text-left min-w-[180px] ${
+                    isActive
+                      ? "bg-cyan-600/20 border-cyan-500/60 ring-1 ring-cyan-500/30"
+                      : "bg-slate-800/60 border-slate-700/50 hover:border-slate-500/80 hover:bg-slate-800"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xl">{jp.flag}</span>
+                    <span className={`text-sm font-semibold ${isActive ? "text-cyan-300" : "text-slate-200"}`}>
+                      {jp.label}
+                    </span>
+                    {isActive && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-cyan-600/30 text-cyan-400 border border-cyan-500/40 rounded-full font-medium">
+                        Active
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-[11px] text-slate-500 leading-relaxed">{jp.description}</span>
+                </button>
+              );
+            })}
+          </div>
+          {currentPreset && (
+            <p className="text-emerald-400 text-xs mt-4 flex items-center gap-1.5">
+              <span>✓</span>
+              {JURISDICTION_PRESETS.find((j) => j.id === currentPreset)?.label} preset applied —
+              click <strong>Save Settings</strong> below to persist for all users.
+            </p>
+          )}
+        </section>
+
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
             Workspace Terminology
@@ -596,7 +879,7 @@ export default function SettingsPage() {
             Regulatory Filings
           </h2>
           <p className="text-slate-500 text-xs mb-4">
-            Customise the terminology for your jurisdiction — India (FIU/PMLA), US (FinCEN/BSA), UK (NCA/POCA), SG (MAS/CDSA), etc.
+            Customise the terminology for your jurisdiction — India (FIU/PMLA), US (FinCEN/BSA), UK (NCA/POCA), SG (MAS/CDSA), UAE (CBUAE), etc.
           </p>
           <div className="grid grid-cols-2 gap-4">
             {REGULATORY_LABEL_FIELDS.map(({ key, label, hint }) => (
@@ -612,6 +895,82 @@ export default function SettingsPage() {
                 <p className="text-slate-600 text-[10px] mt-0.5">{hint}</p>
               </div>
             ))}
+
+            {/* STR filing deadline */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Filing deadline (calendar days)</label>
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={form.str_deadline_days}
+                onChange={(e) => handleField("str_deadline_days", parseInt(e.target.value) || 30)}
+                data-testid="field-str_deadline_days"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Days from suspicion date to file — India/UAE: 30, US: 60</p>
+            </div>
+
+            {/* Currency */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Local currency (ISO 4217)</label>
+              <input
+                type="text"
+                maxLength={3}
+                value={form.local_currency}
+                onChange={(e) => handleField("local_currency", e.target.value.toUpperCase())}
+                placeholder="INR, AED, USD, GBP…"
+                data-testid="field-local_currency"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors font-mono uppercase"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Used for amount formatting and CTR threshold displays</p>
+            </div>
+
+            {/* CTR threshold */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">CTR threshold (0 = disabled)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.ctr_threshold}
+                onChange={(e) => handleField("ctr_threshold", parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 55000 (UAE) or 1000000 (India)"
+                data-testid="field-ctr_threshold"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Transactions ≥ this amount show a CTR badge. India: ₹10L · UAE: AED 55,000</p>
+            </div>
+
+            {/* Wire threshold */}
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Wire record-keeping threshold (0 = disabled)</label>
+              <input
+                type="number"
+                min={0}
+                value={form.wire_threshold}
+                onChange={(e) => handleField("wire_threshold", parseFloat(e.target.value) || 0)}
+                placeholder="e.g. 3675 (UAE AED equiv of USD 1,000)"
+                data-testid="field-wire_threshold"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Wire transfers ≥ this amount require record-keeping. CBUAE: AED 3,675</p>
+            </div>
+
+            {/* ID types */}
+            <div className="col-span-2">
+              <label className="block text-xs text-slate-400 mb-1">
+                Accepted ID types <span className="text-slate-600 font-normal">(comma-separated)</span>
+              </label>
+              <input
+                type="text"
+                value={(form.id_types ?? []).join(", ")}
+                onChange={(e) => handleField("id_types", e.target.value.split(",").map((s) => s.trim().toUpperCase()).filter(Boolean))}
+                placeholder="PASSPORT, NATIONAL_ID, EMIRATES_ID, PAN…"
+                data-testid="field-id_types"
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">Drives the ID type dropdown on STR filing forms. Use ALL_CAPS identifiers.</p>
+            </div>
           </div>
         </section>
 

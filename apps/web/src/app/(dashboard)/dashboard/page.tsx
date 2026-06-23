@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useRef, useEffect, useState } from "react";
-import { AlertTriangle, TrendingUp, Bot, ClipboardList, FolderOpen, CheckSquare, Users, Clock } from "lucide-react";
+import { AlertTriangle, TrendingUp, Bot, ClipboardList, FolderOpen, CheckSquare, Users, Clock, FileWarning } from "lucide-react";
+import { STRDeadlineBadge } from "@/components/str/STRDeadlineBadge";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { api } from "@/lib/api";
@@ -219,6 +220,22 @@ export default function DashboardPage() {
     refetchInterval: 120_000,
   });
 
+  const isComplianceOfficer = ["manager", "admin", "super_admin"].includes(user?.role ?? "");
+  const { data: strDeadlines } = useQuery<{
+    items: Array<{
+      filing_id: string; case_id: string; case_number: string;
+      suspicion_date: string; deadline_date: string;
+      days_remaining: number; is_overdue: boolean;
+      status: string; report_type: string;
+    }>;
+    count: number;
+  }>({
+    queryKey: ["str-deadlines", cfg.str_deadline_days],
+    queryFn: () => api.get(`/api/v1/str/deadlines?deadline_days=${cfg.str_deadline_days || 30}&window_days=14`),
+    enabled: isComplianceOfficer,
+    refetchInterval: 120_000,
+  });
+
   useEffect(() => {
     if (stats?.sla_breached === undefined) return;
     if (prevBreached.current !== null && stats.sla_breached > prevBreached.current) {
@@ -364,6 +381,44 @@ export default function DashboardPage() {
                 </Link>
               );
             })}
+          </div>
+        </div>
+      )}
+
+      {/* STR Regulatory Deadlines — compliance officers only */}
+      {isComplianceOfficer && strDeadlines && strDeadlines.count > 0 && (
+        <div className="bg-[#131f30] border border-red-800/30 rounded-xl ring-1 ring-red-500/10 p-5 mb-6">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <FileWarning size={14} className="text-red-400" />
+              <span className="text-slate-400 text-xs uppercase tracking-widest font-semibold">
+                {cfg.str_label} Filing Deadlines
+              </span>
+              <span className="text-[10px] px-1.5 py-0.5 bg-red-900/40 text-red-300 border border-red-500/30 rounded-full font-medium">
+                {strDeadlines.count} approaching
+              </span>
+            </div>
+            <Link href="/cases" className="text-cyan-400 text-xs hover:text-cyan-300">View all cases →</Link>
+          </div>
+          <div className="space-y-2">
+            {strDeadlines.items.map((item) => (
+              <Link
+                key={item.filing_id}
+                href={`/cases/${item.case_id}/str`}
+                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
+              >
+                <span className="font-mono text-cyan-400 text-xs w-28 flex-shrink-0">{item.case_number}</span>
+                <span className="text-slate-400 text-xs flex-shrink-0">{item.report_type}</span>
+                <span className="text-slate-500 text-xs flex-1 truncate">
+                  Suspicion: {new Date(item.suspicion_date).toLocaleDateString()}
+                </span>
+                <STRDeadlineBadge
+                  daysRemaining={item.days_remaining}
+                  isOverdue={item.is_overdue}
+                  compact
+                />
+              </Link>
+            ))}
           </div>
         </div>
       )}

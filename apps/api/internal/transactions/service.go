@@ -68,6 +68,39 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateTra
 	return toResponse(row), nil
 }
 
+// CreateAndLink creates a transaction and immediately links it to the case.
+// Used by POST /api/v1/cases/:id/transactions so the transaction appears in
+// the case's transaction list without a separate link call.
+func (s *Service) CreateAndLink(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CreateTransactionRequest) (TransactionResponse, error) {
+	txn, err := s.Create(ctx, claims, req)
+	if err != nil {
+		return TransactionResponse{}, err
+	}
+
+	txnID, _ := uuid.Parse(txn.ID)
+	if err := s.repo.LinkToCase(ctx, caseID, txnID, claims.UserID, ""); err != nil {
+		return txn, nil // transaction created; link failure is non-fatal
+	}
+
+	actorID := claims.UserID
+	worker.TrySubmit(func() {
+		s.emitter.Emit(context.Background(), timeline.Event{ //nolint:errcheck
+			CaseID:     caseID,
+			EventType:  evtTransactionAdded,
+			Source:     db.TimelineEventSourceUser,
+			ActorID:    &actorID,
+			OccurredAt: time.Now(),
+			Payload: map[string]any{
+				"transaction_id": txnID.String(),
+				"txn_ref":        txn.TxnRef,
+				"amount":         txn.Amount,
+				"currency":       txn.Currency,
+			},
+		})
+	})
+	return txn, nil
+}
+
 func (s *Service) Get(ctx context.Context, claims *auth.Claims, id uuid.UUID) (TransactionResponse, error) {
 	row, err := s.repo.GetByID(ctx, id)
 	if err != nil {

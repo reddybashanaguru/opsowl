@@ -44,5 +44,9 @@ func RegisterRoutes(r chi.Router, sqlDB *sql.DB, jwtMgr *auth.JWTManager, emitte
 			Get("/cases/{id}/str/{str_id}/validate/goaml", h.ValidateGoAML)
 		r.With(auth.RequireRole("admin", "super_admin")).
 			Get("/cases/{id}/str/{str_id}/export/goaml", h.ExportGoAML)
+
+		// Regulatory deadline tracking — compliance dashboard widget
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Get("/str/deadlines", h.Deadlines)
 	})
 }

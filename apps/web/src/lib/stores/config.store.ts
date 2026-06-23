@@ -24,7 +24,35 @@ export interface AppConfig {
   str_regulator_label: string;
   str_law_reference: string;
   str_id_label: string;
+  str_deadline_days: number;
+  // Currency & reporting thresholds
+  local_currency: string;
+  currency_symbol: string;
+  ctr_threshold: number;
+  wire_threshold: number;
+  // Jurisdiction-specific identity document types
+  id_types: string[];
+
+  // ── Jurisdiction metadata — READ-ONLY, injected by backend from env vars ──
+  jurisdiction: "india" | "uae" | "eu" | string;
+  country: string; // ISO 3166-1 alpha-2, e.g. "in", "ae", "gr"
+  goaml_enabled: boolean;
+  ubo_enabled: boolean;
+  gdpr_enabled: boolean;
+  retention_years: number;
+  ubo_threshold_pct: number;
 }
+
+const INDIA_IDS = [
+  "PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE",
+  "PAN", "AADHAAR_REF", "VOTER_ID", "OTHER",
+];
+
+const UAE_IDS = [
+  "PASSPORT", "EMIRATES_ID", "UAE_TRADE_LICENSE",
+  "TRN", "GCC_NATIONAL_ID", "RESIDENCY_VISA",
+  "DRIVING_LICENSE", "OTHER",
+];
 
 export const DEFAULT_CONFIG: AppConfig = {
   app_name: "OpsOwl AI",
@@ -45,9 +73,22 @@ export const DEFAULT_CONFIG: AppConfig = {
   notes_label: "Notes",
   str_label: "STR",
   str_reference_label: "FIU Reference",
-  str_regulator_label: "FIU",
+  str_regulator_label: "FIU-IND",
   str_law_reference: "PMLA 2002",
   str_id_label: "PAN",
+  str_deadline_days: 30,
+  local_currency: "INR",
+  currency_symbol: "₹",
+  ctr_threshold: 1000000,
+  wire_threshold: 0,
+  id_types: INDIA_IDS,
+  jurisdiction: "india",
+  country: "in",
+  goaml_enabled: false,
+  ubo_enabled: false,
+  gdpr_enabled: false,
+  retention_years: 5,
+  ubo_threshold_pct: 0,
 };
 
 export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
@@ -69,9 +110,15 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     notes_label: "Notes",
     str_label: "STR",
     str_reference_label: "FIU Reference",
-    str_regulator_label: "FIU",
+    str_regulator_label: "FIU-IND",
     str_law_reference: "PMLA 2002",
     str_id_label: "PAN",
+    str_deadline_days: 30,
+    local_currency: "INR",
+    currency_symbol: "₹",
+    ctr_threshold: 1000000,
+    wire_threshold: 0,
+    id_types: INDIA_IDS,
   },
   insurance: {
     industry: "insurance",
@@ -94,6 +141,12 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     str_regulator_label: "Regulator",
     str_law_reference: "",
     str_id_label: "ID Number",
+    str_deadline_days: 30,
+    local_currency: "INR",
+    currency_symbol: "₹",
+    ctr_threshold: 0,
+    wire_threshold: 0,
+    id_types: INDIA_IDS,
   },
   security_ops: {
     industry: "security_ops",
@@ -116,6 +169,12 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     str_regulator_label: "Authority",
     str_law_reference: "",
     str_id_label: "ID Number",
+    str_deadline_days: 30,
+    local_currency: "INR",
+    currency_symbol: "₹",
+    ctr_threshold: 0,
+    wire_threshold: 0,
+    id_types: ["PASSPORT", "NATIONAL_ID", "DRIVING_LICENSE", "OTHER"],
   },
   legal: {
     industry: "legal",
@@ -138,6 +197,12 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     str_regulator_label: "Authority",
     str_law_reference: "",
     str_id_label: "ID Number",
+    str_deadline_days: 30,
+    local_currency: "INR",
+    currency_symbol: "₹",
+    ctr_threshold: 0,
+    wire_threshold: 0,
+    id_types: ["PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE", "OTHER"],
   },
   hr: {
     industry: "hr",
@@ -160,7 +225,73 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     str_regulator_label: "Authority",
     str_law_reference: "",
     str_id_label: "ID Number",
+    str_deadline_days: 30,
+    local_currency: "INR",
+    currency_symbol: "₹",
+    ctr_threshold: 0,
+    wire_threshold: 0,
+    id_types: ["PASSPORT", "NATIONAL_ID", "DRIVING_LICENSE", "OTHER"],
   },
+};
+
+// EU — AMLR 2024 / AMLD6 generic defaults (Hellenic FIU for Greece deployment)
+export const EU_PRESET: Partial<AppConfig> = {
+  industry: "financial_services",
+  case_label: "Case",
+  cases_label: "Cases",
+  task_label: "Task",
+  tasks_label: "Tasks",
+  document_label: "Document",
+  documents_label: "Documents",
+  risk_score_label: "Risk Score",
+  risk_level_label: "Risk Level",
+  sla_label: "SLA",
+  comms_label: "Communications",
+  analyst_label: "Analyst",
+  timeline_label: "Timeline",
+  note_label: "Note",
+  notes_label: "Notes",
+  str_label: "STR",
+  str_reference_label: "AMLA Reference",
+  str_regulator_label: "Hellenic FIU",
+  str_law_reference: "EU AMLR 2024 / AMLD6",
+  str_id_label: "AFM / ID Card",
+  str_deadline_days: 5,
+  local_currency: "EUR",
+  currency_symbol: "€",
+  ctr_threshold: 10000,
+  wire_threshold: 1000,
+  id_types: ["PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE", "EU_RESIDENCE_PERMIT", "OTHER"],
+};
+
+// UAE 2026 — Federal Decree-Law No. 20 of 2018 on AML/CFT
+export const UAE_PRESET: Partial<AppConfig> = {
+  industry: "financial_services",
+  case_label: "Case",
+  cases_label: "Cases",
+  task_label: "Task",
+  tasks_label: "Tasks",
+  document_label: "Document",
+  documents_label: "Documents",
+  risk_score_label: "Risk Score",
+  risk_level_label: "Risk Level",
+  sla_label: "SLA",
+  comms_label: "Communications",
+  analyst_label: "Analyst",
+  timeline_label: "Timeline",
+  note_label: "Note",
+  notes_label: "Notes",
+  str_label: "STR",
+  str_reference_label: "UAE FIU Reference",
+  str_regulator_label: "UAE FIU",
+  str_law_reference: "Federal Decree-Law No. 20 of 2018",
+  str_id_label: "Emirates ID",
+  str_deadline_days: 30,
+  local_currency: "AED",
+  currency_symbol: "AED",
+  ctr_threshold: 55000,    // CBUAE cash transaction report threshold
+  wire_threshold: 3675,    // USD 1,000 at 3.6725 peg — wire record-keeping
+  id_types: UAE_IDS,
 };
 
 interface ConfigState {
@@ -185,7 +316,13 @@ export const useConfigStore = create<ConfigState>((set, get) => ({
       const res = await fetch(`${API_BASE}/api/v1/config`);
       if (res.ok) {
         const body = await res.json();
-        const cfg = (body.data ?? body) as AppConfig;
+        const raw = (body.data ?? body) as Partial<AppConfig>;
+        // Merge with defaults so new fields always have values even on old DB rows
+        const cfg: AppConfig = { ...DEFAULT_CONFIG, ...raw };
+        // Ensure id_types is always a non-empty array
+        if (!Array.isArray(cfg.id_types) || cfg.id_types.length === 0) {
+          cfg.id_types = DEFAULT_CONFIG.id_types;
+        }
         set({ config: cfg, loaded: true });
       } else {
         set({ loaded: true });

@@ -2,7 +2,7 @@
 
 import { use, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
@@ -17,6 +17,8 @@ interface ListMeta {
   next_cursor: string | null;
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function CaseDocumentsPage({
   params,
 }: {
@@ -28,6 +30,12 @@ export default function CaseDocumentsPage({
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
   const cfg = useConfig();
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
@@ -101,7 +109,7 @@ export default function CaseDocumentsPage({
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="documents" />
+      <CaseSubNav caseId={id} activeTab="documents" caseNumber={caseData?.case_number} />
 
       {/* Header */}
       <div className="mb-6">

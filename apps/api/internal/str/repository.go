@@ -30,6 +30,7 @@ type filing struct {
 	FiledAt         sql.NullTime
 	FIUReference    sql.NullString
 	RejectionReason sql.NullString
+	SuspicionDate   sql.NullTime
 	SuspicionBasis  string
 	Narrative       string
 	EvidenceSummary string
@@ -38,10 +39,10 @@ type filing struct {
 	Transactions    json.RawMessage
 	CreatedAt       time.Time
 	UpdatedAt       time.Time
-	SubmittedByName sql.NullString
+	SubmittedByName  sql.NullString
 	SubmittedByEmail sql.NullString
-	ApprovedByName  sql.NullString
-	ApprovedByEmail sql.NullString
+	ApprovedByName   sql.NullString
+	ApprovedByEmail  sql.NullString
 }
 
 type Repository struct {
@@ -69,21 +70,21 @@ func (r *Repository) Create(ctx context.Context, caseID, orgID uuid.UUID, req Cr
 	var f filing
 	err := r.db.QueryRowContext(ctx, `
 		INSERT INTO str_filings (
-			case_id, org_id, report_type, suspicion_basis, narrative,
+			case_id, org_id, report_type, suspicion_date, suspicion_basis, narrative,
 			evidence_summary, filing_entity, subject, transactions
-		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+		) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		RETURNING id, case_id, org_id, report_type, status,
 		          submitted_by, approved_by, submitted_at, approved_at,
 		          filed_at, fiu_reference, rejection_reason,
-		          suspicion_basis, narrative, evidence_summary,
+		          suspicion_date, suspicion_basis, narrative, evidence_summary,
 		          filing_entity, subject, transactions, created_at, updated_at`,
-		caseID, orgID, req.ReportType, req.SuspicionBasis, req.Narrative,
+		caseID, orgID, req.ReportType, req.SuspicionDate, req.SuspicionBasis, req.Narrative,
 		req.EvidenceSummary, req.FilingEntity, req.Subject, req.Transactions,
 	).Scan(
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 	)
 	if err != nil {
@@ -99,7 +100,7 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (*filing,
 			f.id, f.case_id, f.org_id, f.report_type, f.status,
 			f.submitted_by, f.approved_by, f.submitted_at, f.approved_at,
 			f.filed_at, f.fiu_reference, f.rejection_reason,
-			f.suspicion_basis, f.narrative, f.evidence_summary,
+			f.suspicion_date, f.suspicion_basis, f.narrative, f.evidence_summary,
 			f.filing_entity, f.subject, f.transactions, f.created_at, f.updated_at,
 			s.full_name, s.email,
 			a.full_name, a.email
@@ -112,7 +113,7 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (*filing,
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 		&f.SubmittedByName, &f.SubmittedByEmail,
 		&f.ApprovedByName, &f.ApprovedByEmail,
@@ -129,7 +130,7 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID, orgID uuid.UUID) 
 			f.id, f.case_id, f.org_id, f.report_type, f.status,
 			f.submitted_by, f.approved_by, f.submitted_at, f.approved_at,
 			f.filed_at, f.fiu_reference, f.rejection_reason,
-			f.suspicion_basis, f.narrative, f.evidence_summary,
+			f.suspicion_date, f.suspicion_basis, f.narrative, f.evidence_summary,
 			f.filing_entity, f.subject, f.transactions, f.created_at, f.updated_at,
 			s.full_name, s.email,
 			a.full_name, a.email
@@ -152,7 +153,7 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID, orgID uuid.UUID) 
 			&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 			&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 			&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-			&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+			&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 			&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 			&f.SubmittedByName, &f.SubmittedByEmail,
 			&f.ApprovedByName, &f.ApprovedByEmail,
@@ -173,14 +174,14 @@ func (r *Repository) Submit(ctx context.Context, id, orgID, submitterID uuid.UUI
 		RETURNING id, case_id, org_id, report_type, status,
 		          submitted_by, approved_by, submitted_at, approved_at,
 		          filed_at, fiu_reference, rejection_reason,
-		          suspicion_basis, narrative, evidence_summary,
+		          suspicion_date, suspicion_basis, narrative, evidence_summary,
 		          filing_entity, subject, transactions, created_at, updated_at`,
 		id, orgID, submitterID,
 	).Scan(
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -202,14 +203,14 @@ func (r *Repository) Approve(ctx context.Context, id, orgID, approverID uuid.UUI
 		RETURNING id, case_id, org_id, report_type, status,
 		          submitted_by, approved_by, submitted_at, approved_at,
 		          filed_at, fiu_reference, rejection_reason,
-		          suspicion_basis, narrative, evidence_summary,
+		          suspicion_date, suspicion_basis, narrative, evidence_summary,
 		          filing_entity, subject, transactions, created_at, updated_at`,
 		id, orgID, approverID,
 	).Scan(
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -235,14 +236,14 @@ func (r *Repository) Reject(ctx context.Context, id, orgID uuid.UUID, reason str
 		RETURNING id, case_id, org_id, report_type, status,
 		          submitted_by, approved_by, submitted_at, approved_at,
 		          filed_at, fiu_reference, rejection_reason,
-		          suspicion_basis, narrative, evidence_summary,
+		          suspicion_date, suspicion_basis, narrative, evidence_summary,
 		          filing_entity, subject, transactions, created_at, updated_at`,
 		id, orgID, reason,
 	).Scan(
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -260,14 +261,14 @@ func (r *Repository) MarkFiled(ctx context.Context, id, orgID uuid.UUID, fiuRef 
 		RETURNING id, case_id, org_id, report_type, status,
 		          submitted_by, approved_by, submitted_at, approved_at,
 		          filed_at, fiu_reference, rejection_reason,
-		          suspicion_basis, narrative, evidence_summary,
+		          suspicion_date, suspicion_basis, narrative, evidence_summary,
 		          filing_entity, subject, transactions, created_at, updated_at`,
 		id, orgID, fiuRef,
 	).Scan(
 		&f.ID, &f.CaseID, &f.OrgID, &f.ReportType, &f.Status,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
-		&f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
+		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
 		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
 	)
 	if errors.Is(err, sql.ErrNoRows) {
@@ -276,8 +277,81 @@ func (r *Repository) MarkFiled(ctx context.Context, id, orgID uuid.UUID, fiuRef 
 	return &f, err
 }
 
+// DeadlineItem is a lightweight row returned by the deadlines endpoint.
+type DeadlineItem struct {
+	FilingID      string  `json:"filing_id"`
+	CaseID        string  `json:"case_id"`
+	CaseNumber    string  `json:"case_number"`
+	SuspicionDate string  `json:"suspicion_date"`
+	DeadlineDate  string  `json:"deadline_date"`
+	DaysRemaining int     `json:"days_remaining"`
+	IsOverdue     bool    `json:"is_overdue"`
+	Status        string  `json:"status"`
+	ReportType    string  `json:"report_type"`
+}
+
+// Deadlines returns STR filings with approaching or overdue deadlines.
+// Only considers filings where suspicion_date is set and status is not 'filed'.
+// windowDays: how many days ahead to look (default 14).
+// deadlineDays: regulatory filing deadline from config (default 30).
+func (r *Repository) Deadlines(ctx context.Context, orgID uuid.UUID, deadlineDays, windowDays int) ([]DeadlineItem, error) {
+	if deadlineDays <= 0 {
+		deadlineDays = 30
+	}
+	if windowDays <= 0 {
+		windowDays = 14
+	}
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			f.id, f.case_id, c.case_number,
+			f.suspicion_date,
+			(f.suspicion_date + ($1 * INTERVAL '1 day'))::date AS deadline_date,
+			EXTRACT(DAY FROM (f.suspicion_date + ($1 * INTERVAL '1 day')) - NOW())::int AS days_remaining,
+			f.status, f.report_type
+		FROM str_filings f
+		JOIN cases c ON c.id = f.case_id
+		WHERE f.org_id = $2
+		  AND f.suspicion_date IS NOT NULL
+		  AND f.status NOT IN ('filed')
+		  AND (f.suspicion_date + ($1 * INTERVAL '1 day')) <= (NOW() + ($3 * INTERVAL '1 day'))
+		ORDER BY deadline_date ASC
+		LIMIT 100`,
+		deadlineDays, orgID, windowDays,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []DeadlineItem
+	for rows.Next() {
+		var it DeadlineItem
+		var suspDate, dlDate sql.NullString
+		var daysLeft sql.NullInt64
+		if err := rows.Scan(
+			&it.FilingID, &it.CaseID, &it.CaseNumber,
+			&suspDate, &dlDate, &daysLeft,
+			&it.Status, &it.ReportType,
+		); err != nil {
+			return nil, err
+		}
+		it.SuspicionDate = suspDate.String
+		it.DeadlineDate = dlDate.String
+		it.DaysRemaining = int(daysLeft.Int64)
+		it.IsOverdue = !daysLeft.Valid || daysLeft.Int64 < 0
+		out = append(out, it)
+	}
+	return out, rows.Err()
+}
+
 // toResponse maps a DB filing row to the API response shape.
-func toResponse(f *filing) *FilingResponse {
+// deadlineDays is sourced from system_config (str_deadline_days); defaults to 30 if zero.
+func toResponse(f *filing, deadlineDays ...int) *FilingResponse {
+	dlDays := 30
+	if len(deadlineDays) > 0 && deadlineDays[0] > 0 {
+		dlDays = deadlineDays[0]
+	}
+
 	r := &FilingResponse{
 		ID:              f.ID,
 		CaseID:          f.CaseID,
@@ -291,6 +365,14 @@ func toResponse(f *filing) *FilingResponse {
 		Transactions:    f.Transactions,
 		CreatedAt:       f.CreatedAt,
 		UpdatedAt:       f.UpdatedAt,
+	}
+
+	if f.SuspicionDate.Valid {
+		t := f.SuspicionDate.Time
+		r.SuspicionDate = &t
+		deadline := t.AddDate(0, 0, dlDays)
+		r.DeadlineDays = int(time.Until(deadline).Hours() / 24)
+		r.IsOverdue = time.Now().After(deadline)
 	}
 	if f.SubmittedBy.Valid {
 		id := f.SubmittedBy.UUID

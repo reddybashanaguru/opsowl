@@ -1,7 +1,7 @@
 "use client";
 
 import { use, useState, useEffect, useCallback } from "react";
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, getSseTicket } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
@@ -38,12 +38,20 @@ function SkeletonNote() {
   );
 }
 
+interface CaseSummary { case_number: string; }
+
 export default function CaseNotesPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
+
+  const { data: caseData } = useQuery<CaseSummary>({
+    queryKey: ["case-summary", id],
+    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
+    staleTime: 5 * 60 * 1000,
+  });
 
   const [showEditor, setShowEditor] = useState(false);
   const [filterType, setFilterType] = useState("");
@@ -145,7 +153,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
 
   return (
     <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="notes" />
+      <CaseSubNav caseId={id} activeTab="notes" caseNumber={caseData?.case_number} />
 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
