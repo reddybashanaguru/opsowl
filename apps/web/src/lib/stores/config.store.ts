@@ -32,6 +32,15 @@ export interface AppConfig {
   wire_threshold: number;
   // Jurisdiction-specific identity document types
   id_types: string[];
+
+  // ── Jurisdiction metadata — READ-ONLY, injected by backend from env vars ──
+  jurisdiction: "india" | "uae" | "eu" | string;
+  country: string; // ISO 3166-1 alpha-2, e.g. "in", "ae", "gr"
+  goaml_enabled: boolean;
+  ubo_enabled: boolean;
+  gdpr_enabled: boolean;
+  retention_years: number;
+  ubo_threshold_pct: number;
 }
 
 const INDIA_IDS = [
@@ -73,6 +82,13 @@ export const DEFAULT_CONFIG: AppConfig = {
   ctr_threshold: 1000000,
   wire_threshold: 0,
   id_types: INDIA_IDS,
+  jurisdiction: "india",
+  country: "in",
+  goaml_enabled: false,
+  ubo_enabled: false,
+  gdpr_enabled: false,
+  retention_years: 5,
+  ubo_threshold_pct: 0,
 };
 
 export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
@@ -216,6 +232,36 @@ export const INDUSTRY_PRESETS: Record<string, Partial<AppConfig>> = {
     wire_threshold: 0,
     id_types: ["PASSPORT", "NATIONAL_ID", "DRIVING_LICENSE", "OTHER"],
   },
+};
+
+// EU — AMLR 2024 / AMLD6 generic defaults (Hellenic FIU for Greece deployment)
+export const EU_PRESET: Partial<AppConfig> = {
+  industry: "financial_services",
+  case_label: "Case",
+  cases_label: "Cases",
+  task_label: "Task",
+  tasks_label: "Tasks",
+  document_label: "Document",
+  documents_label: "Documents",
+  risk_score_label: "Risk Score",
+  risk_level_label: "Risk Level",
+  sla_label: "SLA",
+  comms_label: "Communications",
+  analyst_label: "Analyst",
+  timeline_label: "Timeline",
+  note_label: "Note",
+  notes_label: "Notes",
+  str_label: "STR",
+  str_reference_label: "AMLA Reference",
+  str_regulator_label: "Hellenic FIU",
+  str_law_reference: "EU AMLR 2024 / AMLD6",
+  str_id_label: "AFM / ID Card",
+  str_deadline_days: 5,
+  local_currency: "EUR",
+  currency_symbol: "€",
+  ctr_threshold: 10000,
+  wire_threshold: 1000,
+  id_types: ["PASSPORT", "NATIONAL_ID", "TAX_ID", "DRIVING_LICENSE", "EU_RESIDENCE_PERMIT", "OTHER"],
 };
 
 // UAE 2026 — Federal Decree-Law No. 20 of 2018 on AML/CFT
