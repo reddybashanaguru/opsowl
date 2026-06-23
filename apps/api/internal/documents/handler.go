@@ -48,7 +48,12 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 
 	doc, err := h.svc.Upload(r.Context(), claims, caseID, fh.Filename, file, fh.Size)
 	if err != nil {
+		var dupErr *DuplicateDocError
 		switch {
+		case errors.As(err, &dupErr):
+			response.ErrDetail(w, http.StatusConflict, "DUPLICATE_DOCUMENT",
+				"identical file already uploaded to this case",
+				map[string]string{"existing_id": dupErr.ExistingID.String()})
 		case errors.Is(err, ErrFileTooLarge):
 			response.Err(w, http.StatusRequestEntityTooLarge, "FILE_TOO_LARGE", "file exceeds 50 MB limit")
 		case errors.Is(err, ErrFileTypeBlocked):

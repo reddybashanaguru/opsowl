@@ -44,7 +44,7 @@ func NewService(repo *Repository, store storage.Client, emitter timeline.Emitter
 		store:        store,
 		emitter:      emitter,
 		logger:       logger,
-		httpClient:   &http.Client{Timeout: 30 * time.Second},
+		httpClient:   &http.Client{Timeout: 20 * time.Minute},
 		aiServiceURL: aiServiceURL,
 		av:           scanner.NoopScanner{},
 		retryBackoff: processBackoff,
@@ -192,6 +192,12 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 
 	fileHash := fmt.Sprintf("%x", hasher.Sum(nil))
 
+	// Reject duplicates: same file already uploaded to this case.
+	if existingID, err := s.repo.FindBySHA256InCase(ctx, caseID, fileHash); err == nil && existingID != uuid.Nil {
+		_ = s.store.Delete(ctx, key)
+		return nil, &DuplicateDocError{ExistingID: existingID}
+	}
+
 	doc, err := s.repo.Create(ctx, db.CreateDocumentParams{
 		ID:               docID,
 		CaseID:           caseID,
@@ -207,13 +213,11 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		return nil, err
 	}
 
-	// Store SHA-256 for chain-of-custody verification.
-	go func() {
-		_ = s.repo.q.UpdateDocumentHash(context.Background(), db.UpdateDocumentHashParams{
-			ID:         doc.ID,
-			FileSha256: sql.NullString{String: fileHash, Valid: true},
-		})
-	}()
+	// Store SHA-256 synchronously so subsequent uploads see it immediately.
+	_ = s.repo.q.UpdateDocumentHash(ctx, db.UpdateDocumentHashParams{
+		ID:         doc.ID,
+		FileSha256: sql.NullString{String: fileHash, Valid: true},
+	})
 
 	s.emitTimeline(ctx, caseID, db.TimelineEventTypeDocumentUploaded, map[string]interface{}{
 		"document_id": docID.String(),

@@ -11,11 +11,12 @@ import (
 )
 
 type MinIOClient struct {
-	client *minio.Client
-	bucket string
+	client         *minio.Client
+	bucket         string
+	publicEndpoint string // overrides the host in presigned URLs (browser-accessible)
 }
 
-func NewMinIO(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinIOClient, error) {
+func NewMinIO(endpoint, publicEndpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinIOClient, error) {
 	client, err := minio.New(endpoint, &minio.Options{
 		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
 		Secure: useSSL,
@@ -23,7 +24,7 @@ func NewMinIO(endpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinI
 	if err != nil {
 		return nil, err
 	}
-	return &MinIOClient{client: client, bucket: bucket}, nil
+	return &MinIOClient{client: client, bucket: bucket, publicEndpoint: publicEndpoint}, nil
 }
 
 func (m *MinIOClient) Upload(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error {
@@ -37,6 +38,10 @@ func (m *MinIOClient) PresignedURL(ctx context.Context, key string, expiry time.
 	u, err := m.client.PresignedGetObject(ctx, m.bucket, key, expiry, url.Values{})
 	if err != nil {
 		return "", err
+	}
+	// Rewrite internal Docker hostname to public endpoint so browsers can resolve it.
+	if m.publicEndpoint != "" {
+		u.Host = m.publicEndpoint
 	}
 	return u.String(), nil
 }

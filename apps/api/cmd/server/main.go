@@ -107,7 +107,7 @@ func main() {
 	// Wire AT revocation — Verify() will reject explicitly-revoked tokens.
 	jwtMgr.WithRevoker(revoker)
 
-	minioClient, err := storage.NewMinIO(cfg.StorageEndpoint, cfg.StorageAccessKey, cfg.StorageSecretKey, cfg.StorageBucket, cfg.StorageUseSSL)
+	minioClient, err := storage.NewMinIO(cfg.StorageEndpoint, cfg.StoragePublicEndpoint, cfg.StorageAccessKey, cfg.StorageSecretKey, cfg.StorageBucket, cfg.StorageUseSSL)
 	if err != nil {
 		logger.Fatal("failed to init MinIO client", zap.Error(err))
 	}

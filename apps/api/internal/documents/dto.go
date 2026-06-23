@@ -17,6 +17,16 @@ var (
 	ErrVirusFound      = errors.New("file rejected by antivirus scan — threat detected")
 )
 
+// DuplicateDocError is returned when an uploaded file's SHA-256 hash matches
+// an existing document in the same case. ExistingID points to the original.
+type DuplicateDocError struct {
+	ExistingID uuid.UUID
+}
+
+func (e *DuplicateDocError) Error() string {
+	return "document already exists: " + e.ExistingID.String()
+}
+
 const (
 	MaxFileSizeBytes = 50 * 1024 * 1024 // 50 MB
 	PresignExpiry    = time.Hour

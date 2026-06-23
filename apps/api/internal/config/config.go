@@ -19,11 +19,12 @@ type Config struct {
 	JWTAccessExpiry   string
 	JWTRefreshExpiry  string
 
-	StorageEndpoint  string
-	StorageAccessKey string
-	StorageSecretKey string
-	StorageBucket    string
-	StorageUseSSL    bool
+	StorageEndpoint        string
+	StoragePublicEndpoint  string // public hostname/port browsers use to reach MinIO (e.g. localhost:9000)
+	StorageAccessKey       string
+	StorageSecretKey       string
+	StorageBucket          string
+	StorageUseSSL          bool
 
 	AIServiceURL    string
 	AIServiceSecret string // shared secret for Go→Python inter-service auth
@@ -78,11 +79,12 @@ func Load() (*Config, error) {
 		JWTPrivateKeyPath: getEnv("JWT_PRIVATE_KEY_PATH", "keys/private.pem"),
 		JWTAccessExpiry:   getEnv("JWT_ACCESS_EXPIRY", "1h"),
 		JWTRefreshExpiry:  getEnv("JWT_REFRESH_EXPIRY", "168h"),
-		StorageEndpoint:   getEnv("STORAGE_ENDPOINT", "localhost:9000"),
-		StorageAccessKey:  getEnv("STORAGE_ACCESS_KEY", ""),
-		StorageSecretKey:  getEnv("STORAGE_SECRET_KEY", ""),
-		StorageBucket:     getEnv("STORAGE_BUCKET", "opsowl"),
-		StorageUseSSL:     getEnv("STORAGE_USE_SSL", "false") == "true",
+		StorageEndpoint:       getEnv("STORAGE_ENDPOINT", "localhost:9000"),
+		StoragePublicEndpoint: getEnv("STORAGE_PUBLIC_ENDPOINT", ""),
+		StorageAccessKey:      getEnv("STORAGE_ACCESS_KEY", ""),
+		StorageSecretKey:      getEnv("STORAGE_SECRET_KEY", ""),
+		StorageBucket:         getEnv("STORAGE_BUCKET", "opsowl"),
+		StorageUseSSL:         getEnv("STORAGE_USE_SSL", "false") == "true",
 		AIServiceURL:      getEnv("AI_SERVICE_URL", "http://localhost:8000"),
 		AIServiceSecret:   getEnv("AI_SERVICE_SECRET", ""),
 		AnthropicAPIKey:   getEnv("ANTHROPIC_API_KEY", ""),

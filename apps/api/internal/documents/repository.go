@@ -81,6 +81,23 @@ func (r *Repository) CountAll(ctx context.Context, status db.NullDocumentProcess
 	return r.q.CountAllDocuments(ctx, status)
 }
 
+// FindBySHA256InCase returns the ID of an existing non-deleted document in the
+// same case that has the given SHA-256 hex hash, or uuid.Nil if none found.
+func (r *Repository) FindBySHA256InCase(ctx context.Context, caseID uuid.UUID, hash string) (uuid.UUID, error) {
+	var id uuid.UUID
+	err := r.sqlDB.QueryRowContext(ctx, `
+		SELECT id FROM documents
+		WHERE case_id = $1
+		  AND file_sha256 = $2
+		  AND deleted_at IS NULL
+		LIMIT 1
+	`, caseID, hash).Scan(&id)
+	if errors.Is(err, sql.ErrNoRows) {
+		return uuid.Nil, nil
+	}
+	return id, err
+}
+
 func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	_, err := r.q.SoftDeleteDocument(ctx, id)
 	if err != nil {
