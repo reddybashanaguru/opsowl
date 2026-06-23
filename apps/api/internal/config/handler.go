@@ -73,8 +73,10 @@ func envOr(key, fallback string) string {
 }
 
 // deploymentDefaults returns jurisdiction-aware defaults.
-// Jurisdiction is read from DEPLOYMENT_JURISDICTION (india|uae|eu).
+// Jurisdiction is read from DEPLOYMENT_JURISDICTION (india|uae|eu|<any>).
 // Country fine-tunes within the jurisdiction (e.g. DEPLOYMENT_COUNTRY=gr for Greece).
+// Unknown jurisdictions (singapore, uk, us, etc.) fall through to genericDefaults(),
+// which reads all values from env vars — no code change needed for new markets.
 func deploymentDefaults() AppConfig {
 	jurisdiction := strings.ToLower(strings.TrimSpace(os.Getenv("DEPLOYMENT_JURISDICTION")))
 	country := strings.ToLower(strings.TrimSpace(os.Getenv("DEPLOYMENT_COUNTRY")))
@@ -83,8 +85,52 @@ func deploymentDefaults() AppConfig {
 		return uaeDefaults()
 	case "eu":
 		return euDefaults(country)
-	default:
+	case "india", "":
 		return indiaDefaults()
+	default:
+		return genericDefaults(jurisdiction, country)
+	}
+}
+
+// genericDefaults handles any jurisdiction not explicitly modelled (Singapore, UK, US, etc.).
+// Every value is driven by an env var, so deploying to a new market only requires
+// setting the appropriate env vars — zero code changes required.
+func genericDefaults(jurisdiction, country string) AppConfig {
+	return AppConfig{
+		AppName:           "OpsOwl AI",
+		Industry:          envOr("INDUSTRY", "financial_services"),
+		CaseLabel:         envOr("CASE_LABEL", "Case"),
+		CasesLabel:        envOr("CASES_LABEL", "Cases"),
+		TaskLabel:         envOr("TASK_LABEL", "Task"),
+		TasksLabel:        envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:     envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel:    envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel:    envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel:    envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:          envOr("SLA_LABEL", "SLA"),
+		CommsLabel:        envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:      envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:     envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:         envOr("NOTE_LABEL", "Note"),
+		NotesLabel:        envOr("NOTES_LABEL", "Notes"),
+		StrLabel:          envOr("STR_LABEL", "STR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "Reference No."),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "FIU"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", ""),
+		StrIDLabel:        envOr("STR_ID_LABEL", "ID Number"),
+		StrDeadlineDays:   getEnvInt("STR_DEADLINE_DAYS", 30),
+		LocalCurrency:     envOr("LOCAL_CURRENCY", "USD"),
+		CurrencySymbol:    envOr("CURRENCY_SYMBOL", "$"),
+		CTRThreshold:      getEnvFloat("CTR_THRESHOLD", 0),
+		WireThreshold:     getEnvFloat("WIRE_THRESHOLD", 0),
+		IDTypes:           splitEnv("ID_TYPES", []string{"PASSPORT", "NATIONAL_ID", "DRIVING_LICENSE", "OTHER"}),
+		Jurisdiction:      jurisdiction,
+		Country:           envOr("DEPLOYMENT_COUNTRY", country),
+		GoAMLEnabled:      getEnvBool("GOAML_ENABLED", false),
+		UBOEnabled:        getEnvBool("UBO_ENABLED", false),
+		GDPREnabled:       getEnvBool("GDPR_ENABLED", false),
+		RetentionYears:    getEnvInt("RETENTION_YEARS", 5),
+		UBOThresholdPct:   getEnvInt("UBO_THRESHOLD_PCT", 0),
 	}
 }
 
@@ -122,9 +168,9 @@ func indiaDefaults() AppConfig {
 		}),
 		Jurisdiction:    "india",
 		Country:         envOr("DEPLOYMENT_COUNTRY", "in"),
-		GoAMLEnabled:    false,
-		UBOEnabled:      false,
-		GDPREnabled:     false,
+		GoAMLEnabled:    getEnvBool("GOAML_ENABLED", false),
+		UBOEnabled:      getEnvBool("UBO_ENABLED", false),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 0),
 	}
@@ -165,9 +211,9 @@ func uaeDefaults() AppConfig {
 		}),
 		Jurisdiction:    "uae",
 		Country:         envOr("DEPLOYMENT_COUNTRY", "ae"),
-		GoAMLEnabled:    true,
-		UBOEnabled:      false,
-		GDPREnabled:     false,
+		GoAMLEnabled:    getEnvBool("GOAML_ENABLED", true),
+		UBOEnabled:      getEnvBool("UBO_ENABLED", false),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 0),
 	}
@@ -236,9 +282,9 @@ func euDefaults(country string) AppConfig {
 		}),
 		Jurisdiction:    "eu",
 		Country:         envOr("DEPLOYMENT_COUNTRY", country),
-		GoAMLEnabled:    true,
-		UBOEnabled:      true,
-		GDPREnabled:     true,
+		GoAMLEnabled:    getEnvBool("GOAML_ENABLED", true),
+		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", true),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
 	}

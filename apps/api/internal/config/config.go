@@ -190,6 +190,13 @@ func getEnvFloat(key string, fallback float64) float64 {
 	return fallback
 }
 
+func getEnvBool(key string, fallback bool) bool {
+	if v := os.Getenv(key); v != "" {
+		return strings.ToLower(strings.TrimSpace(v)) == "true"
+	}
+	return fallback
+}
+
 func splitEnv(key string, fallback []string) []string {
 	if v := os.Getenv(key); v != "" {
 		parts := strings.Split(v, ",")
