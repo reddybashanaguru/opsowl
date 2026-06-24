@@ -31,9 +31,10 @@ def chunk_text(text: str, chunk_size: int = 2000, overlap: int = 200) -> list[Ch
                 piece = piece[:boundary]
         chunks.append(Chunk(index=idx, content=piece.strip()))
         idx += 1
-        start += len(piece) - overlap
-        if start <= 0:
+        advance = len(piece) - overlap
+        if advance <= 0:
             break
+        start += advance
     return [c for c in chunks if c.content]
 
 

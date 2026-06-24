@@ -75,6 +75,12 @@ export function DocumentCard({ document: doc, onDelete, onRetry, retrying }: Pro
               {doc.error_message}
             </p>
           )}
+          {(doc.processing_status === "processing" || doc.processing_status === "pending") && !doc.error_message && (
+            <p className="mt-1 text-xs text-slate-500 flex items-center gap-1">
+              <span className="inline-block w-2.5 h-2.5 border border-slate-400 border-t-cyan-400 rounded-full animate-spin" />
+              Extracting text and building AI index… auto-updates when complete.
+            </p>
+          )}
         </div>
 
         <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">

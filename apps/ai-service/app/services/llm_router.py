@@ -183,7 +183,7 @@ class LLMRouter:
     async def _embed_ollama(self, text: str) -> list[float]:
         """Embed text via Ollama nomic-embed-text (768-dim, pgvector compatible)."""
         payload = {"model": settings.ollama_embedding_model, "prompt": text}
-        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=30.0) as client:
+        async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=120.0) as client:
             resp = await client.post("/api/embeddings", json=payload)
             resp.raise_for_status()
             return resp.json()["embedding"]

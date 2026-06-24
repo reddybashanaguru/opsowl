@@ -1,6 +1,7 @@
 """Document processing pipeline: extract → chunk → embed → store."""
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid as uuid_lib
 
@@ -37,21 +38,25 @@ class ProcessDocumentResponse(BaseModel):
 async def process_document(req: ProcessDocumentRequest) -> ProcessDocumentResponse:
     """
     Full async processing pipeline:
-    1. Download file from MinIO
-    2. Extract text
-    3. Chunk text
-    4. Embed chunks
+    1. Download file from MinIO (thread pool — blocking I/O)
+    2. Extract text      (thread pool — CPU-bound, blocks event loop if called directly)
+    3. Chunk text        (thread pool — CPU-bound)
+    4. Embed chunks      (async — Ollama HTTP, serialized to avoid overwhelming Ollama on cold load)
     5. Store in document_chunks table
     """
     doc_id = uuid_lib.UUID(req.document_id)
     case_id = uuid_lib.UUID(req.case_id)
 
+    logger.info("process_document START doc_id=%s file=%s", req.document_id, req.original_filename)
     try:
-        # 1. Download
-        content = storage_client.download(req.stored_path)
+        # 1. Download — run in thread pool so we don't block the event loop
+        content = await asyncio.to_thread(storage_client.download, req.stored_path)
+        logger.info("process_document DOWNLOADED %d bytes doc_id=%s", len(content), req.document_id)
 
-        # 2. Extract text
-        result = extractor.extract(content, req.file_type, req.mime_type)
+        # 2. Extract text — CPU-bound (PyMuPDF, Tesseract OCR), must run in thread pool
+        result = await asyncio.to_thread(
+            extractor.extract, content, req.file_type, req.mime_type
+        )
         if result.error:
             logger.warning("extraction error for %s: %s", req.document_id, result.error)
             return ProcessDocumentResponse(success=False, error_message=result.error)
@@ -63,8 +68,9 @@ async def process_document(req: ProcessDocumentRequest) -> ProcessDocumentRespon
                 error_message="no extractable text found in document",
             )
 
-        # 3. Chunk
-        chunks = chunker.chunk_text(
+        # 3. Chunk — CPU-bound, run in thread pool
+        chunks = await asyncio.to_thread(
+            chunker.chunk_text,
             result.text,
             chunk_size=settings.max_chunk_size,
             overlap=settings.chunk_overlap,
@@ -76,13 +82,14 @@ async def process_document(req: ProcessDocumentRequest) -> ProcessDocumentRespon
                 error_message="chunking produced no content",
             )
 
-        # 4. Embed (batch in groups of 50; Ollama parallelizes, OpenAI uses batch API)
-        texts = [c.content for c in chunks]
+        # 4. Embed — serialize chunk-by-chunk to avoid overwhelming Ollama on cold model load.
+        # Each call waits for the previous to finish; Ollama queues are small.
+        logger.info("process_document EMBEDDING %d chunks doc_id=%s", len(chunks), req.document_id)
         all_embeddings: list[list[float]] = []
-        batch_size = 50
-        for i in range(0, len(texts), batch_size):
-            batch = texts[i : i + batch_size]
-            all_embeddings.extend(await llm_router.embed_batch(batch))
+        for i, chunk in enumerate(chunks):
+            logger.info("process_document embed chunk %d/%d doc_id=%s", i + 1, len(chunks), req.document_id)
+            vec = await llm_router.embed(chunk.content)
+            all_embeddings.append(vec)
 
         # 5. Store chunks
         pool = await get_pool()
@@ -108,6 +115,8 @@ async def process_document(req: ProcessDocumentRequest) -> ProcessDocumentRespon
             chunk_count=len(chunks),
         )
 
-    except Exception as exc:
+    except BaseException as exc:
+        # Catch asyncio.CancelledError (BaseException subclass) too — without this,
+        # a cancelled coroutine causes an EOF to the Go caller instead of a clean error response.
         logger.exception("failed to process document %s", req.document_id)
-        return ProcessDocumentResponse(success=False, error_message=str(exc))
+        return ProcessDocumentResponse(success=False, error_message=str(exc) or type(exc).__name__)
