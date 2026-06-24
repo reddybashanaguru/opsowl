@@ -618,7 +618,7 @@ function AddTransactionForm({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
-interface CaseSummary { case_number: string; }
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 export default function TransactionsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
@@ -626,11 +626,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", caseId],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(caseId);
 
   const [view, setView] = useState<"list" | "flow">("list");
   const [search, setSearch] = useState("");

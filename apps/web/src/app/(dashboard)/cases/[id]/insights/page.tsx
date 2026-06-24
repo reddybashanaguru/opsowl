@@ -41,7 +41,7 @@ interface CaseTypology extends Typology {
   is_ai_suggested: boolean;
 }
 
-interface CaseSummary { case_number: string; }
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -392,11 +392,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", id],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(id);
 
   const { data: ins, isLoading, isError, error, refetch } = useQuery<InsightsData>({
     queryKey: ["insights", id],

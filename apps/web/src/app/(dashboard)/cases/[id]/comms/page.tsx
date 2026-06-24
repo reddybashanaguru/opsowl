@@ -152,7 +152,7 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
   );
 }
 
-interface CaseSummary { case_number: string; }
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 export default function CommsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -161,11 +161,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", id],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(id);
 
   const canWrite = hasRole("analyst");
 

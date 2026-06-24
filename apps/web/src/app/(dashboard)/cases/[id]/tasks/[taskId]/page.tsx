@@ -9,6 +9,7 @@ import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
 import { TaskPriorityBadge } from "@/components/tasks/TaskPriorityBadge";
 import { Task } from "@/components/tasks/TaskCard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 interface Comment {
   id: string;
@@ -78,11 +79,7 @@ export default function TaskDetailPage({
   const [comment, setComment] = useState("");
   const [commentError, setCommentError] = useState("");
 
-  const { data: caseData } = useQuery<{ case_number: string }>({
-    queryKey: ["case-summary", caseId],
-    queryFn: () => api.get<{ case_number: string }>(`/api/v1/cases/${caseId}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(caseId);
 
   const { data: task, isLoading } = useQuery<Task>({
     queryKey: ["task", taskId],

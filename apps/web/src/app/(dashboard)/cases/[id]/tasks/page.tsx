@@ -21,11 +21,7 @@ interface ListMeta {
   next_cursor: string | null;
 }
 
-interface CaseSummary {
-  id: string;
-  case_number: string;
-  title: string;
-}
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 const PRIORITY_OPTIONS = ["critical", "high", "medium", "low"] as const;
 
@@ -53,10 +49,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", caseId],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
-  });
+  const caseData = useCaseSummary(caseId);
 
   const { data: usersList = [] } = useQuery<{ id: string; full_name: string; email: string; role: string; is_active: boolean }[]>({
     queryKey: ["users-list"],

@@ -27,11 +27,7 @@ interface UBORecord {
   created_at: string;
 }
 
-interface CaseSummary {
-  id: string;
-  case_number: string;
-  title: string;
-}
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 const STATUS_CONFIG = {
   pending:    { label: "Pending",    color: "bg-amber-500/15 text-amber-400",   Icon: Loader2 },
@@ -200,10 +196,7 @@ export default function CaseUBOPage({ params }: { params: Promise<{ id: string }
   const [showAdd, setShowAdd] = useState(false);
   const [discrepancyTarget, setDiscrepancyTarget] = useState<UBORecord | null>(null);
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", caseId],
-    queryFn: () => api.get(`/api/v1/cases/${caseId}`),
-  });
+  const caseData = useCaseSummary(caseId);
 
   const { data: records = [], isFetching } = useQuery<UBORecord[]>({
     queryKey: ["ubo", caseId],

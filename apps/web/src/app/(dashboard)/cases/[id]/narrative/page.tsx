@@ -481,7 +481,7 @@ function NarrativeCard({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-interface CaseSummary { case_number: string; }
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 export default function NarrativePage({ params }: { params: Promise<{ id: string }> }) {
   const { id: caseId } = use(params);
@@ -490,11 +490,7 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
   const roleLevel = { super_admin: 5, admin: 4, manager: 3, analyst: 2, viewer: 1 }[user?.role ?? "viewer"] ?? 0;
   const canReview = roleLevel >= 3;
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", caseId],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${caseId}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(caseId);
 
   const [showGenerate, setShowGenerate] = useState(false);
   const [filterType, setFilterType] = useState("");

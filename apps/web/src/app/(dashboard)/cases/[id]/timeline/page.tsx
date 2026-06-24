@@ -52,7 +52,7 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
-interface CaseSummary { case_number: string; }
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 export default function TimelinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -60,11 +60,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", id],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(id);
 
   const [selectedSources, setSelectedSources] = useState<Set<Source>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());

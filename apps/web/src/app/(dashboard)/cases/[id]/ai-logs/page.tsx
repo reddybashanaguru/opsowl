@@ -7,14 +7,13 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 interface ListMeta {
   total_count: number;
   has_more: boolean;
   next_cursor: string | null;
 }
-
-interface CaseSummary { case_number: string; }
 
 export default function AILogsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -23,11 +22,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   const hasRole = useAuthStore((s) => s.hasRole);
   const canReview = hasRole("analyst");
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", id],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(id);
 
   const [statusFilter, setStatusFilter] = useState("");
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);

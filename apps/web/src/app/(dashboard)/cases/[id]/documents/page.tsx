@@ -10,14 +10,13 @@ import { DocumentCard, Document } from "@/components/documents/DocumentCard";
 import { DocumentUploadZone } from "@/components/documents/DocumentUploadZone";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 interface ListMeta {
   total_count: number;
   has_more: boolean;
   next_cursor: string | null;
 }
-
-interface CaseSummary { case_number: string; }
 
 export default function CaseDocumentsPage({
   params,
@@ -31,11 +30,7 @@ export default function CaseDocumentsPage({
   const hasRole = useAuthStore((s) => s.hasRole);
   const cfg = useConfig();
 
-  const { data: caseData } = useQuery<CaseSummary>({
-    queryKey: ["case-summary", id],
-    queryFn: () => api.get<CaseSummary>(`/api/v1/cases/${id}`),
-    staleTime: 5 * 60 * 1000,
-  });
+  const caseData = useCaseSummary(id);
 
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [uploadError, setUploadError] = useState<string | null>(null);
