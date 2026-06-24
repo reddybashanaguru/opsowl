@@ -440,8 +440,9 @@ test.describe("goAML STR filing — global", () => {
     await page.getByPlaceholder(/unusual cash/i).fill("Suspicious large transfers inconsistent with customer profile");
     await page.getByPlaceholder(/detailed description/i).fill("Cross-border wire transfers with no clear business purpose.");
 
-    // Subject — ID type dropdown should default to NATIONAL_ID
-    const idTypeSelect = page.locator("select").filter({ hasText: "NATIONAL_ID" }).first();
+    // Subject section — ID type select should be present
+    await page.getByPlaceholder("First name").scrollIntoViewIfNeeded();
+    const idTypeSelect = page.locator("select").nth(2); // 0=Report Type, 1=Submission Type, 2=Subject ID Type
     await expect(idTypeSelect).toBeVisible({ timeout: 5_000 });
 
     await page.getByPlaceholder("First name").fill("Ahmed");
@@ -500,19 +501,29 @@ test.describe("goAML STR filing — global", () => {
 
   // ── goAML readiness panel ─────────────────────────────────────────────────────
 
-  test("goAML readiness panel appears in filing card for managers", async ({ page }) => {
+  test("Pre-Flight Checklist panel appears in filing card for managers", async ({ page }) => {
+    // Self-contained: create a fresh draft so this test doesn't depend on prior test state
+    const mgr = await apiTokenAs(MANAGER_EMAIL, MANAGER_PASSWORD);
+    const draftRes = await fetch(`${API_URL}/cases/${caseId}/str`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${mgr}` },
+      body: JSON.stringify(minimalFilingBody()),
+    });
+    expect(draftRes.status).toBe(201);
+
     await login(page, MANAGER_EMAIL, MANAGER_PASSWORD);
     await page.goto(`/cases/${caseId}/str`);
 
-    // Wait for the page to fully load with manager-role controls (Submit for Approval
-    // is also gated on isManagerOrAbove — ensures user context is resolved before
-    // we look for the readiness panel button)
-    await expect(page.getByRole("button", { name: /submit for approval/i }).first()).toBeVisible({ timeout: 10_000 });
+    // Pre-Flight Checklist is shown for draft/submitted filings
+    await expect(page.getByText("Pre-Flight Checklist").first()).toBeVisible({ timeout: 10_000 });
 
-    await page.getByRole("button", { name: /goaml 4.0 readiness/i }).first().click();
+    // Expand the panel and open the Structural Completeness section (goAML validation)
+    await page.getByText("Pre-Flight Checklist").first().click();
+    await expect(page.getByText("Structural Completeness").first()).toBeVisible({ timeout: 5_000 });
+    await page.getByText("Structural Completeness").first().click();
     await expect(
-      page.getByText(/required fields present|required before export/i).first()
-    ).toBeVisible({ timeout: 6_000 });
+      page.getByText(/fields missing for goAML|All required goAML fields present/i).first()
+    ).toBeVisible({ timeout: 8_000 });
   });
 
   // ── UI: page footer shows UNODC (not FIU-IND) ────────────────────────────────

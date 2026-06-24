@@ -1,10 +1,12 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
 
 interface InsightsData {
   id?: string;
@@ -21,12 +23,64 @@ interface InsightsData {
   ai_available: boolean;
 }
 
+interface Typology {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+  red_flags: string[];
+  risk_keywords: string[];
+  fatf_reference: string;
+}
+
+interface CaseTypology extends Typology {
+  tagged_by?: string;
+  tagged_at: string;
+  notes: string;
+  is_ai_suggested: boolean;
+}
+
+interface CaseSummary { case_number: string; }
+
+// ── Constants ──────────────────────────────────────────────────────────────────
+
 const RISK_COLORS: Record<string, string> = {
   high: "text-red-400 border-red-500/40 bg-red-500/10",
   medium: "text-amber-400 border-amber-500/40 bg-amber-500/10",
   low: "text-emerald-400 border-emerald-500/40 bg-emerald-500/10",
   unknown: "text-slate-400 border-slate-600 bg-slate-700/30",
 };
+
+const CATEGORY_COLORS: Record<string, string> = {
+  PLACEMENT:   "bg-red-500/15 text-red-300 border-red-500/30",
+  LAYERING:    "bg-amber-500/15 text-amber-300 border-amber-500/30",
+  INTEGRATION: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+  STRUCTURING: "bg-orange-500/15 text-orange-300 border-orange-500/30",
+  TF:          "bg-purple-500/15 text-purple-300 border-purple-500/30",
+  PF:          "bg-pink-500/15 text-pink-300 border-pink-500/30",
+};
+
+const ALL_CATEGORIES = ["PLACEMENT", "LAYERING", "INTEGRATION", "STRUCTURING", "TF", "PF"];
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+function categoryBadge(cat: string) {
+  return (
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wide ${CATEGORY_COLORS[cat] ?? "bg-slate-700 text-slate-400 border-slate-600"}`}>
+      {cat}
+    </span>
+  );
+}
+
+function scoreTypology(typology: Typology, riskText: string): number {
+  if (!riskText) return 0;
+  const lower = riskText.toLowerCase();
+  const matched = typology.risk_keywords.filter(kw => lower.includes(kw.toLowerCase()));
+  return matched.length;
+}
+
+// ── Sub-components ─────────────────────────────────────────────────────────────
 
 function RiskGauge({ score }: { score: number | null }) {
   const pct = score ?? 0;
@@ -58,16 +112,280 @@ function RiskGauge({ score }: { score: number | null }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
     <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-      <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wide mb-4">{title}</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wide">{title}</h3>
+        {action}
+      </div>
       {children}
     </div>
   );
 }
 
-interface CaseSummary { case_number: string; }
+// ── Tag Typology Modal ─────────────────────────────────────────────────────────
+
+function TagTypologyModal({
+  caseId,
+  taggedIds,
+  onClose,
+}: {
+  caseId: string;
+  taggedIds: Set<string>;
+  onClose: () => void;
+}) {
+  const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [category, setCategory] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { inputRef.current?.focus(); }, []);
+
+  const { data: library = [] } = useQuery<Typology[]>({
+    queryKey: ["typology-library"],
+    queryFn: () => api.get<Typology[]>("/api/v1/typologies"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const tagMutation = useMutation({
+    mutationFn: (typologyId: string) =>
+      api.post(`/api/v1/cases/${caseId}/typologies`, { typology_id: typologyId, notes: "", is_ai_suggested: false }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
+  });
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return library.filter(t => {
+      const matchCat = !category || t.category === category;
+      const matchQ = !q || t.name.toLowerCase().includes(q) || t.description.toLowerCase().includes(q) || t.code.toLowerCase().includes(q);
+      return matchCat && matchQ;
+    });
+  }, [library, search, category]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={onClose}>
+      <div
+        className="bg-[#0d1824] border border-[#1e3050] rounded-2xl w-full max-w-2xl max-h-[80vh] flex flex-col shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#1e3050]">
+          <h2 className="text-white font-semibold text-base">Tag FATF Typology</h2>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors text-xl leading-none">×</button>
+        </div>
+
+        {/* Filters */}
+        <div className="px-6 py-3 border-b border-[#1e3050] flex gap-3">
+          <input
+            ref={inputRef}
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search typologies…"
+            className="flex-1 bg-[#131f30] border border-[#1e3050] rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+          />
+          <select
+            value={category}
+            onChange={e => setCategory(e.target.value)}
+            className="bg-[#131f30] border border-[#1e3050] rounded-lg px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-cyan-500/50"
+          >
+            <option value="">All categories</option>
+            {ALL_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        {/* List */}
+        <div className="overflow-y-auto flex-1 px-4 py-3 space-y-2">
+          {filtered.length === 0 && (
+            <p className="text-slate-500 text-sm text-center py-8">No typologies match your search.</p>
+          )}
+          {filtered.map(t => {
+            const isTagged = taggedIds.has(t.id);
+            return (
+              <div key={t.id} className="flex items-center gap-3 bg-[#131f30] border border-[#1e3050] rounded-xl px-4 py-3 hover:border-cyan-500/20 transition-colors">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    {categoryBadge(t.category)}
+                    <span className="text-white text-sm font-medium truncate">{t.name}</span>
+                  </div>
+                  <p className="text-slate-500 text-xs line-clamp-1">{t.description}</p>
+                </div>
+                <button
+                  disabled={isTagged || tagMutation.isPending}
+                  onClick={() => tagMutation.mutate(t.id)}
+                  className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                    isTagged
+                      ? "bg-emerald-500/15 text-emerald-400 cursor-default"
+                      : "bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
+                  }`}
+                >
+                  {isTagged ? "Tagged ✓" : "Tag"}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Matched Typologies Section ─────────────────────────────────────────────────
+
+function MatchedTypologies({
+  caseId,
+  riskFactors,
+}: {
+  caseId: string;
+  riskFactors: string[];
+}) {
+  const qc = useQueryClient();
+  const [showModal, setShowModal] = useState(false);
+
+  const { data: caseTypologies = [], isLoading } = useQuery<CaseTypology[]>({
+    queryKey: ["case-typologies", caseId],
+    queryFn: () => api.get<CaseTypology[]>(`/api/v1/cases/${caseId}/typologies`),
+  });
+
+  const { data: library = [] } = useQuery<Typology[]>({
+    queryKey: ["typology-library"],
+    queryFn: () => api.get<Typology[]>("/api/v1/typologies"),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const untagMutation = useMutation({
+    mutationFn: (typologyId: string) =>
+      api.delete(`/api/v1/cases/${caseId}/typologies/${typologyId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
+  });
+
+  const tagMutation = useMutation({
+    mutationFn: ({ typologyId, isAI }: { typologyId: string; isAI: boolean }) =>
+      api.post(`/api/v1/cases/${caseId}/typologies`, {
+        typology_id: typologyId,
+        notes: isAI ? "Auto-suggested based on risk factor keyword match" : "",
+        is_ai_suggested: isAI,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
+  });
+
+  const taggedIds = useMemo(() => new Set(caseTypologies.map(t => t.id)), [caseTypologies]);
+
+  // Client-side AI suggestions: score typologies against concatenated risk factors
+  const suggestions = useMemo(() => {
+    if (!riskFactors.length || !library.length) return [];
+    const riskText = riskFactors.join(" ");
+    return library
+      .filter(t => !taggedIds.has(t.id))
+      .map(t => ({ ...t, score: scoreTypology(t, riskText) }))
+      .filter(t => t.score > 0)
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+  }, [library, taggedIds, riskFactors]);
+
+  return (
+    <>
+      <Section
+        title="Matched FATF Typologies"
+        action={
+          <button
+            onClick={() => setShowModal(true)}
+            className="bg-[#0d1824] hover:bg-[#1e3050] border border-[#1e3050] text-slate-300 hover:text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5"
+          >
+            <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Tag Typology
+          </button>
+        }
+      >
+        {isLoading ? (
+          <div className="flex items-center gap-2 text-slate-500 text-sm py-2">
+            <div className="w-3.5 h-3.5 border-2 border-slate-600 border-t-slate-400 rounded-full animate-spin" />
+            Loading…
+          </div>
+        ) : caseTypologies.length === 0 ? (
+          <p className="text-slate-600 text-sm italic">No typologies tagged to this case yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {caseTypologies.map(ct => (
+              <div key={ct.id} className="flex items-center gap-3 bg-[#0d1824] border border-[#1e3050] rounded-xl px-4 py-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    {categoryBadge(ct.category)}
+                    <span className="text-white text-sm font-medium">{ct.name}</span>
+                    {ct.is_ai_suggested && (
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-violet-500/15 text-violet-300 border-violet-500/30 uppercase tracking-wide">
+                        AI Suggested
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-slate-500 text-xs line-clamp-1">{ct.description}</p>
+                  {ct.notes && (
+                    <p className="text-slate-600 text-xs mt-1 italic">"{ct.notes}"</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => untagMutation.mutate(ct.id)}
+                  disabled={untagMutation.isPending}
+                  className="flex-shrink-0 text-xs text-slate-500 hover:text-red-400 transition-colors p-1 rounded hover:bg-red-500/10 disabled:opacity-50"
+                  title="Remove typology"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* AI Suggestions */}
+        {suggestions.length > 0 && (
+          <div className="mt-4 pt-4 border-t border-[#1e3050]">
+            <p className="text-slate-500 text-xs uppercase tracking-wide font-semibold mb-3 flex items-center gap-2">
+              <svg className="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20">
+                <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.298.03-.6.03-.9A8 8 0 103.97 13.1c0 .3.015.602.03.9H12z" />
+              </svg>
+              AI-Suggested Matches
+            </p>
+            <div className="space-y-2">
+              {suggestions.map(s => (
+                <div key={s.id} className="flex items-center gap-3 bg-violet-500/5 border border-violet-500/20 rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {categoryBadge(s.category)}
+                      <span className="text-slate-200 text-sm font-medium">{s.name}</span>
+                      <span className="text-[10px] text-violet-400 font-medium">{s.score} keyword{s.score !== 1 ? "s" : ""} matched</span>
+                    </div>
+                    <p className="text-slate-500 text-xs line-clamp-1">{s.description}</p>
+                  </div>
+                  <button
+                    onClick={() => tagMutation.mutate({ typologyId: s.id, isAI: true })}
+                    disabled={tagMutation.isPending}
+                    className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50"
+                  >
+                    Tag
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Section>
+
+      {showModal && (
+        <TagTypologyModal
+          caseId={caseId}
+          taggedIds={taggedIds}
+          onClose={() => setShowModal(false)}
+        />
+      )}
+    </>
+  );
+}
+
+// ── Page ───────────────────────────────────────────────────────────────────────
 
 export default function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -90,7 +408,6 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
     },
   });
 
-  // Stop polling once analysis result arrives
   useEffect(() => {
     if (polling && ins?.ai_available) setPolling(false);
   }, [polling, ins?.ai_available]);
@@ -104,7 +421,6 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   });
 
   const analysing = analyseMutation.isPending || polling;
-
   const riskColorClass = RISK_COLORS[ins?.risk_level ?? "unknown"] ?? RISK_COLORS.unknown;
 
   if (isLoading) {
@@ -198,6 +514,9 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
               </ul>
             )}
           </Section>
+
+          {/* FATF Typology Intelligence */}
+          <MatchedTypologies caseId={id} riskFactors={ins?.risk_factors ?? []} />
 
           <Section title="Entities Identified">
             {!ins?.entities || Object.keys(ins.entities).length === 0 ? (

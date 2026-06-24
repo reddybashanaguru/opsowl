@@ -304,3 +304,51 @@ func (h *Handler) UnlinkFromCase(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// ── Fuzzy Entity Resolution ───────────────────────────────────────────────────
+
+// GET /api/v1/subjects/:id/similar?threshold=0.3&limit=10
+func (h *Handler) GetSimilar(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid subject id")
+		return
+	}
+	var threshold float64
+	if v := r.URL.Query().Get("threshold"); v != "" {
+		threshold, _ = strconv.ParseFloat(v, 64)
+	}
+	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
+
+	results, err := h.svc.FindSimilar(r.Context(), id, threshold, limit)
+	if err != nil {
+		if errors.Is(err, ErrNotFound) {
+			response.Err(w, http.StatusNotFound, "NOT_FOUND", "subject not found")
+			return
+		}
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, results)
+}
+
+// POST /api/v1/subjects/:id/confirm-match
+func (h *Handler) ConfirmMatch(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid subject id")
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+
+	var req ConfirmMatchRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
+		return
+	}
+	if err := h.svc.ConfirmMatch(r.Context(), claims, id, req); err != nil {
+		response.Err(w, http.StatusBadRequest, "CONFIRM_MATCH_ERROR", err.Error())
+		return
+	}
+	w.WriteHeader(http.StatusCreated)
+}

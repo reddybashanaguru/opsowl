@@ -512,14 +512,14 @@ test.describe("Subject 360 — UI", () => {
     if (!subjectID) return;
     await login(page, ADMIN_EMAIL, ADMIN_PASS);
     await page.goto(`/subjects/${subjectID}`);
-    await expect(page.getByText(/Connected Entity Network/i)).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText(/Entity Network/i)).toBeVisible({ timeout: 8_000 });
   });
 
   test("Link Entity button opens modal with subject search and relationship dropdown", async ({ page }) => {
     if (!subjectID) return;
     await login(page, ADMIN_EMAIL, ADMIN_PASS);
     await page.goto(`/subjects/${subjectID}`);
-    await expect(page.getByText(/Connected Entity Network/i)).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText(/Entity Network/i)).toBeVisible({ timeout: 8_000 });
     await page.getByRole("button", { name: /link entity/i }).first().click();
     await expect(page.getByRole("heading", { name: /link entity/i })).toBeVisible({ timeout: 6_000 });
     // Subject search input
@@ -532,7 +532,7 @@ test.describe("Subject 360 — UI", () => {
     if (!subjectID) return;
     await login(page, ADMIN_EMAIL, ADMIN_PASS);
     await page.goto(`/subjects/${subjectID}`);
-    await expect(page.getByText(/Connected Entity Network/i)).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText(/Entity Network/i)).toBeVisible({ timeout: 8_000 });
     await page.getByRole("button", { name: /link entity/i }).first().click();
     await expect(page.getByRole("heading", { name: /link entity/i })).toBeVisible({ timeout: 6_000 });
 
@@ -550,15 +550,15 @@ test.describe("Subject 360 — UI", () => {
     if (!subjectID || !peerSubjectID) return;
     await login(page, ADMIN_EMAIL, ADMIN_PASS);
     await page.goto(`/subjects/${subjectID}`);
-    await expect(page.getByText(/Connected Entity Network/i)).toBeVisible({ timeout: 8_000 });
+    await expect(page.getByText(/Entity Network/i)).toBeVisible({ timeout: 8_000 });
 
     await page.getByRole("button", { name: /link entity/i }).first().click();
     await expect(page.getByRole("heading", { name: /link entity/i })).toBeVisible({ timeout: 6_000 });
 
-    // Search for peer subject by name
+    // Search for peer subject by name — click the button in the modal results (not the Similar Entities link)
     await page.getByPlaceholder(/type name or id/i).fill("Dev Corp");
-    await expect(page.getByText(PEER_NAME)).toBeVisible({ timeout: 6_000 });
-    await page.getByText(PEER_NAME).click();
+    await expect(page.getByRole("button", { name: new RegExp(PEER_NAME) }).first()).toBeVisible({ timeout: 6_000 });
+    await page.getByRole("button", { name: new RegExp(PEER_NAME) }).first().click();
 
     // Select EMPLOYED_BY from relationship dropdown
     await page.locator("select").first().selectOption("EMPLOYED_BY");

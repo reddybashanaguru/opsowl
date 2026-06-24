@@ -117,3 +117,33 @@ func (s *Service) RiskHistory(ctx context.Context, subjectID uuid.UUID) ([]RiskH
 func (s *Service) SetWatchlist(ctx context.Context, claims *auth.Claims, subjectID uuid.UUID, on bool) (*SubjectResponse, error) {
 	return s.repo.Update(ctx, subjectID, defaultOrgID, UpdateSubjectRequest{IsWatchlisted: &on})
 }
+
+// ── Fuzzy Entity Resolution ───────────────────────────────────────────────────
+
+func (s *Service) FindSimilar(ctx context.Context, subjectID uuid.UUID, threshold float64, limit int) ([]SimilarSubject, error) {
+	return s.repo.FindSimilar(ctx, subjectID, threshold, limit)
+}
+
+type ConfirmMatchRequest struct {
+	TargetSubjectID string `json:"target_subject_id"`
+	RelationshipType string `json:"relationship_type"` // SAME_ENTITY | ALIAS_OF
+	Notes           string `json:"notes"`
+}
+
+func (s *Service) ConfirmMatch(ctx context.Context, claims *auth.Claims, fromID uuid.UUID, req ConfirmMatchRequest) error {
+	toID, err := uuid.Parse(req.TargetSubjectID)
+	if err != nil {
+		return errors.New("invalid target_subject_id")
+	}
+	if fromID == toID {
+		return errors.New("cannot link a subject to itself")
+	}
+	relType := req.RelationshipType
+	if relType == "" {
+		relType = "SAME_ENTITY"
+	}
+	if relType != "SAME_ENTITY" && relType != "ALIAS_OF" {
+		return errors.New("relationship_type must be SAME_ENTITY or ALIAS_OF")
+	}
+	return s.repo.ConfirmMatch(ctx, fromID, toID, claims.UserID, req.Notes, relType)
+}

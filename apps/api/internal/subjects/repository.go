@@ -528,3 +528,136 @@ func itoa(n int) string {
 	}
 	return itoa(n/10) + string(digits[n%10])
 }
+
+// ── Fuzzy Entity Resolution ───────────────────────────────────────────────────
+
+type SimilarSubject struct {
+	ID            string   `json:"id"`
+	CanonicalName string   `json:"canonical_name"`
+	EntityType    string   `json:"entity_type"`
+	IDNumber      string   `json:"id_number"`
+	Phones        []string `json:"phones"`
+	RiskLevel     string   `json:"risk_level"`
+	RiskScore     int      `json:"risk_score"`
+	IsPEP         bool     `json:"is_pep"`
+	IsSanctioned  bool     `json:"is_sanctioned"`
+	DateOfBirth   *string  `json:"date_of_birth,omitempty"`
+	// Scoring breakdown
+	NameSimilarity float64 `json:"name_similarity"`
+	PhoneMatch     bool    `json:"phone_match"`
+	DOBMatch       bool    `json:"dob_match"`
+	TotalScore     float64 `json:"total_score"`
+	MatchReasons   []string `json:"match_reasons"`
+}
+
+// FindSimilar returns subjects similar to the given one, ranked by composite score.
+// Uses PostgreSQL pg_trgm similarity on canonical_name and phone array overlap.
+func (r *Repository) FindSimilar(ctx context.Context, subjectID uuid.UUID, threshold float64, limit int) ([]SimilarSubject, error) {
+	// First fetch the source subject's name, phones, DOB for comparison
+	var name, dob sql.NullString
+	var phones pq.StringArray
+	err := r.db.QueryRowContext(ctx,
+		`SELECT canonical_name, phones, date_of_birth::text FROM subjects WHERE id = $1 AND deleted_at IS NULL`,
+		subjectID,
+	).Scan(&name, &phones, &dob)
+	if err == sql.ErrNoRows {
+		return nil, ErrNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if limit <= 0 || limit > 50 {
+		limit = 10
+	}
+	if threshold <= 0 {
+		threshold = 0.25
+	}
+
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT
+			s.id,
+			s.canonical_name,
+			s.entity_type,
+			s.id_number,
+			s.phones,
+			s.risk_level,
+			s.risk_score,
+			s.is_pep,
+			s.is_sanctioned,
+			s.date_of_birth::text,
+			similarity(s.canonical_name, $2)                                       AS name_sim,
+			(s.phones && $3::text[] AND cardinality($3::text[]) > 0)              AS phone_match,
+			($4::text IS NOT NULL AND s.date_of_birth::text = $4::text)           AS dob_match,
+			similarity(s.canonical_name, $2)
+			  + CASE WHEN s.phones && $3::text[] AND cardinality($3::text[]) > 0 THEN 0.35 ELSE 0 END
+			  + CASE WHEN $4::text IS NOT NULL AND s.date_of_birth::text = $4::text THEN 0.25 ELSE 0 END
+			  AS total_score
+		FROM subjects s
+		WHERE
+			s.id          != $1
+			AND s.deleted_at IS NULL
+			AND (
+				similarity(s.canonical_name, $2) >= $5
+				OR (s.phones && $3::text[] AND cardinality($3::text[]) > 0)
+			)
+		ORDER BY total_score DESC
+		LIMIT $6`,
+		subjectID, name.String, phones, dob, threshold, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	results := []SimilarSubject{}
+	for rows.Next() {
+		var s SimilarSubject
+		var dobStr sql.NullString
+		var ph pq.StringArray
+		if err := rows.Scan(
+			&s.ID, &s.CanonicalName, &s.EntityType, &s.IDNumber,
+			&ph, &s.RiskLevel, &s.RiskScore, &s.IsPEP, &s.IsSanctioned,
+			&dobStr, &s.NameSimilarity, &s.PhoneMatch, &s.DOBMatch, &s.TotalScore,
+		); err != nil {
+			return nil, err
+		}
+		s.Phones = []string(ph)
+		if s.Phones == nil {
+			s.Phones = []string{}
+		}
+		if dobStr.Valid {
+			s.DateOfBirth = &dobStr.String
+		}
+		// Build human-readable match reasons
+		s.MatchReasons = []string{}
+		if s.NameSimilarity >= 0.8 {
+			s.MatchReasons = append(s.MatchReasons, "Near-identical name")
+		} else if s.NameSimilarity >= 0.5 {
+			s.MatchReasons = append(s.MatchReasons, "Similar name")
+		} else if s.NameSimilarity >= 0.25 {
+			s.MatchReasons = append(s.MatchReasons, "Partial name match")
+		}
+		if s.PhoneMatch {
+			s.MatchReasons = append(s.MatchReasons, "Shared phone number")
+		}
+		if s.DOBMatch {
+			s.MatchReasons = append(s.MatchReasons, "Same date of birth")
+		}
+		results = append(results, s)
+	}
+	return results, nil
+}
+
+// ConfirmMatch creates a SAME_ENTITY relationship between two subjects via entity_relationships.
+func (r *Repository) ConfirmMatch(ctx context.Context, fromID, toID, userID uuid.UUID, notes string, relType string) error {
+	orgID := uuid.MustParse("00000000-0000-0000-0000-000000000001")
+	_, err := r.db.ExecContext(ctx, `
+		INSERT INTO entity_relationships
+		  (org_id, from_subject_id, to_subject_id, relationship_type, strength, source, metadata, created_by)
+		VALUES ($1, $2, $3, $4, 1.0, 'fuzzy_resolution', '{}', $5)
+		ON CONFLICT (org_id, from_subject_id, to_subject_id, relationship_type) DO NOTHING`,
+		orgID, fromID, toID, relType, userID,
+	)
+	return err
+}

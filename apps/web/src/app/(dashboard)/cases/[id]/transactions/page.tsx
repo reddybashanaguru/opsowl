@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { FlowOfFundsGraph } from "@/components/cases/FlowOfFundsGraph";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { formatCurrency, getCTRStatus } from "@/lib/utils/currency";
 import {
@@ -301,178 +302,6 @@ function TxnRow({
   );
 }
 
-// ── Flow-of-Funds Graph ───────────────────────────────────────────────────────
-
-function FlowGraphView({ graph }: { graph: FlowGraph }) {
-  if (graph.nodes.length === 0) {
-    return (
-      <div className="flex items-center justify-center py-12 text-slate-500 text-sm">
-        No transactions to visualize yet.
-      </div>
-    );
-  }
-
-  // Simple SVG adjacency list layout
-  // Topological sort: group nodes into layers by BFS from roots (no incoming edges)
-  const inDegree: Record<string, number> = {};
-  const adj: Record<string, string[]> = {};
-  for (const n of graph.nodes) {
-    inDegree[n.id] = 0;
-    adj[n.id] = [];
-  }
-  for (const e of graph.edges) {
-    adj[e.source] = [...(adj[e.source] || []), e.target];
-    inDegree[e.target] = (inDegree[e.target] || 0) + 1;
-  }
-
-  const layers: string[][] = [];
-  const queue = graph.nodes.filter((n) => !inDegree[n.id]).map((n) => n.id);
-  const placed = new Set<string>();
-  let cur = queue;
-  while (cur.length > 0) {
-    layers.push(cur);
-    cur.forEach((id) => placed.add(id));
-    const next: string[] = [];
-    for (const id of cur) {
-      for (const nxt of adj[id]) {
-        if (!placed.has(nxt)) next.push(nxt);
-      }
-    }
-    cur = [...new Set(next)];
-  }
-  // Nodes not placed (cycles) go to last layer
-  const unplaced = graph.nodes.filter((n) => !placed.has(n.id)).map((n) => n.id);
-  if (unplaced.length > 0) layers.push(unplaced);
-
-  const NODE_W = 140;
-  const NODE_H = 52;
-  const H_GAP = 80;
-  const V_GAP = 20;
-  const PAD = 20;
-
-  const nodePos: Record<string, { x: number; y: number }> = {};
-  let maxY = 0;
-  layers.forEach((layer, li) => {
-    const x = PAD + li * (NODE_W + H_GAP);
-    const totalH = layer.length * NODE_H + (layer.length - 1) * V_GAP;
-    layer.forEach((id, ni) => {
-      const y = PAD + ni * (NODE_H + V_GAP);
-      nodePos[id] = { x, y };
-      if (y + NODE_H > maxY) maxY = y + NODE_H;
-    });
-  });
-
-  const svgW = PAD * 2 + layers.length * (NODE_W + H_GAP);
-  const svgH = maxY + PAD;
-
-  const nodeMap = Object.fromEntries(graph.nodes.map((n) => [n.id, n]));
-
-  const maxAmt = Math.max(...graph.edges.map((e) => e.amount), 1);
-
-  return (
-    <div className="overflow-x-auto">
-      {graph.has_cycles && (
-        <div className="flex items-center gap-2 mb-3 p-2 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-xs">
-          <RotateCcw size={12} />
-          Circular flow detected — potential round-tripping or layering pattern.
-        </div>
-      )}
-      <svg
-        width={svgW}
-        height={svgH}
-        className="min-w-full"
-        style={{ fontFamily: "inherit" }}
-      >
-        {/* Edges */}
-        {graph.edges.map((edge) => {
-          const s = nodePos[edge.source];
-          const t = nodePos[edge.target];
-          if (!s || !t) return null;
-          const sx = s.x + NODE_W;
-          const sy = s.y + NODE_H / 2;
-          const tx = t.x;
-          const ty = t.y + NODE_H / 2;
-          const cpx = (sx + tx) / 2;
-          const strokeW = Math.max(1, Math.round((edge.amount / maxAmt) * 6));
-          const color = edge.is_suspicious ? "#f59e0b" : "#22d3ee";
-
-          return (
-            <g key={edge.id}>
-              <path
-                d={`M ${sx} ${sy} C ${cpx} ${sy}, ${cpx} ${ty}, ${tx} ${ty}`}
-                fill="none"
-                stroke={color}
-                strokeWidth={strokeW}
-                opacity={0.6}
-                markerEnd={`url(#arrow-${edge.is_suspicious ? "warn" : "ok"})`}
-              />
-              {/* Amount label */}
-              <text
-                x={(sx + tx) / 2}
-                y={(sy + ty) / 2 - 6}
-                fill={color}
-                fontSize={9}
-                textAnchor="middle"
-                opacity={0.85}
-              >
-                {fmtAmount(edge.amount)}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Arrow markers */}
-        <defs>
-          <marker id="arrow-ok" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#22d3ee" opacity={0.7} />
-          </marker>
-          <marker id="arrow-warn" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill="#f59e0b" opacity={0.7} />
-          </marker>
-        </defs>
-
-        {/* Nodes */}
-        {graph.nodes.map((node) => {
-          const pos = nodePos[node.id];
-          if (!pos) return null;
-          const isSubject = node.is_subject;
-          const borderColor = isSubject ? "#22d3ee" : "#475569";
-          const bgColor = isSubject ? "#0e7490" : "#131f30";
-
-          return (
-            <g key={node.id} transform={`translate(${pos.x},${pos.y})`}>
-              <rect
-                width={NODE_W}
-                height={NODE_H}
-                rx={6}
-                fill={bgColor}
-                stroke={borderColor}
-                strokeWidth={isSubject ? 1.5 : 1}
-              />
-              <text x={8} y={18} fill="#e2e8f0" fontSize={10} fontWeight="600" className="truncate">
-                {node.label.length > 18 ? node.label.slice(0, 17) + "…" : node.label}
-              </text>
-              <text x={8} y={31} fill="#64748b" fontSize={9}>
-                {node.account_type !== "unknown" ? node.account_type : ""}
-              </text>
-              <text x={8} y={44} fill="#94a3b8" fontSize={9}>
-                ↑{fmtAmount(node.total_in)} ↓{fmtAmount(node.total_out)}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-3 text-xs text-slate-500">
-        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-cyan-400 inline-block" /> Normal flow</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-0.5 bg-amber-400 inline-block" /> Flagged flow</span>
-        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-cyan-800 border border-cyan-400 inline-block" /> Subject account</span>
-        <span>Line thickness ∝ amount</span>
-      </div>
-    </div>
-  );
-}
 
 // ── CSV Import Modal ──────────────────────────────────────────────────────────
 
@@ -979,15 +808,11 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
               />
             ))}
           </div>
+        ) : flowGraph ? (
+          <FlowOfFundsGraph graph={flowGraph} currency={cfg.local_currency} />
         ) : (
-          <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5">
-            {flowGraph ? (
-              <FlowGraphView graph={flowGraph} />
-            ) : (
-              <div className="h-32 flex items-center justify-center text-slate-500 text-sm">
-                Loading flow graph…
-              </div>
-            )}
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl h-32 flex items-center justify-center text-slate-500 text-sm animate-pulse">
+            Building flow graph…
           </div>
         )}
 

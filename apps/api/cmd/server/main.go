@@ -21,6 +21,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/middleware"
 	"github.com/reddybashanaguru/opsowl/internal/server"
 	"github.com/reddybashanaguru/opsowl/internal/storage"
+	"github.com/reddybashanaguru/opsowl/internal/typologies"
 	"github.com/reddybashanaguru/opsowl/internal/worker"
 )
 
@@ -78,6 +79,7 @@ func main() {
 	logger.Info("database migrations up-to-date")
 
 	seedAdminUser(ctx, sqlDB, logger)
+	typologies.SeedTypologies(ctx, sqlDB)
 
 	queries := dbgen.New(sqlDB)
 

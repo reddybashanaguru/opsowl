@@ -33,6 +33,12 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.With(auth.RequireRole("manager", "admin", "super_admin")).
 			Delete("/subjects/{id}", h.Delete)
 
+		// Fuzzy Entity Resolution
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Get("/subjects/{id}/similar", h.GetSimilar)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/subjects/{id}/confirm-match", h.ConfirmMatch)
+
 		// Case ↔ Subject linking (mounted under /cases/{caseId}/subjects)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Get("/cases/{caseId}/subjects", h.ListForCase)
