@@ -62,6 +62,14 @@ export default function CaseDocumentsPage({
         if (err instanceof APIError && err.status === 404) return false;
         return failureCount < 2;
       },
+      // Poll every 5s while any document is still being extracted — stops automatically once all settle.
+      refetchInterval: (query) => {
+        const docs = query.state.data?.pages.flatMap((p) => p.data) ?? [];
+        const hasInFlight = docs.some(
+          (d) => d.processing_status === "processing" || d.processing_status === "pending",
+        );
+        return hasInFlight ? 5_000 : false;
+      },
     });
 
   const seen = new Set<string>();
