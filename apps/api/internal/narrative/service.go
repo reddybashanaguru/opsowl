@@ -160,6 +160,10 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 		return NarrativeResponse{}, fmt.Errorf("AI service unavailable: %w", aiErr)
 	}
 
+	// Remove existing drafts of the same type so regeneration doesn't accumulate duplicates.
+	// Approved/rejected narratives are preserved.
+	_ = s.repo.DeleteDraftsByType(ctx, caseID, ntype)
+
 	body := aiResp.Narrative
 	row, err := s.repo.Create(ctx, caseID, claims.UserID, aiLogID,
 		body, ntype, modelUsed, promptVersion,

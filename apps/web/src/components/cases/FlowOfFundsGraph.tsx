@@ -102,7 +102,7 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
   g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100, edgesep: 25 });
   g.setDefaultEdgeLabel(() => ({}));
   nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
-  edges.forEach(e => g.setEdge(e.source, e.target));
+  edges.forEach(e => g.setEdge(e.source, e.target, { weight: 1 }));
   dagre.layout(g);
   return nodes.map(n => {
     const pos = g.node(n.id);

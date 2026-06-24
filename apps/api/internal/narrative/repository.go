@@ -155,6 +155,13 @@ func (r *Repository) Delete(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+func (r *Repository) DeleteDraftsByType(ctx context.Context, caseID uuid.UUID, narrativeType string) error {
+	_, err := r.db.ExecContext(ctx,
+		`DELETE FROM case_narratives WHERE case_id = $1 AND narrative_type = $2 AND status = 'draft'`,
+		caseID, narrativeType)
+	return err
+}
+
 // ── Context gathering for AI ──────────────────────────────────────────────────
 
 type caseContext struct {

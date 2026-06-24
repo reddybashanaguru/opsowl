@@ -104,7 +104,7 @@ interface FlowGraph {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtAmount(amount: number, currency = "INR") {
+function fmtAmount(amount: number, currency = "EUR") {
   return formatCurrency(amount, currency);
 }
 
@@ -114,8 +114,18 @@ function fmtDate(iso: string) {
 }
 
 const CHANNEL_LABELS: Record<string, string> = {
-  neft: "NEFT", rtgs: "RTGS", imps: "IMPS", upi: "UPI",
-  cash: "Cash", card: "Card", swift: "SWIFT", internal: "Internal", unknown: "—",
+  sepa:     "SEPA Credit Transfer",
+  target2:  "TARGET2 (RTGS)",
+  swift:    "SWIFT / Cross-border Wire",
+  chaps:    "CHAPS",
+  neft:     "NEFT",
+  rtgs:     "RTGS",
+  imps:     "IMPS",
+  upi:      "UPI",
+  cash:     "Cash",
+  card:     "Card",
+  internal: "Internal Transfer",
+  unknown:  "—",
 };
 
 const TXN_TYPE_STYLES: Record<string, string> = {
@@ -128,14 +138,14 @@ const TXN_TYPE_STYLES: Record<string, string> = {
 
 // ── Summary Stats ─────────────────────────────────────────────────────────────
 
-function SummaryBar({ summary }: { summary: TransactionSummary }) {
+function SummaryBar({ summary, currency }: { summary: TransactionSummary; currency: string }) {
   return (
     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
       {[
         { label: "Transactions", value: summary.total_count, fmt: (v: number) => v.toString() },
-        { label: "Total Flow", value: summary.total_amount, fmt: (v: number) => fmtAmount(v) },
-        { label: "Debits", value: summary.debit_total, fmt: (v: number) => fmtAmount(v), icon: TrendingDown, color: "text-red-400" },
-        { label: "Credits", value: summary.credit_total, fmt: (v: number) => fmtAmount(v), icon: TrendingUp, color: "text-emerald-400" },
+        { label: "Total Flow", value: summary.total_amount, fmt: (v: number) => fmtAmount(v, currency) },
+        { label: "Debits", value: summary.debit_total, fmt: (v: number) => fmtAmount(v, currency), color: "text-red-400" },
+        { label: "Credits", value: summary.credit_total, fmt: (v: number) => fmtAmount(v, currency), color: "text-emerald-400" },
         { label: "Flagged", value: summary.flagged_count, fmt: (v: number) => v.toString(), color: summary.flagged_count > 0 ? "text-amber-400" : undefined },
         { label: "Accounts", value: summary.unique_accounts, fmt: (v: number) => v.toString() },
       ].map(({ label, value, fmt, color }) => (
@@ -499,99 +509,268 @@ function CSVImportModal({
 
 // ── Add Transaction Form ──────────────────────────────────────────────────────
 
-const EMPTY_FORM = {
-  txn_ref: "", txn_date: "", amount: "", currency: "INR", txn_type: "debit",
-  channel: "unknown", narration: "", description: "",
-  from_account_raw: "", to_account_raw: "", from_name_raw: "", to_name_raw: "",
-  counterparty_bank: "", counterparty_country: "",
-  is_flagged: false, flag_reason: "", risk_score: "0",
-};
+// IBAN: 15–34 alphanumeric chars, starts with 2-letter country code
+const IBAN_RE = /^[A-Z]{2}[0-9]{2}[A-Z0-9]{11,30}$/;
+// BIC/SWIFT: 8 or 11 alphanumeric chars
+const BIC_RE = /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/;
+
+function ibanError(val: string): string {
+  if (!val) return "";
+  const clean = val.replace(/\s/g, "").toUpperCase();
+  if (!IBAN_RE.test(clean)) return "Invalid IBAN format (e.g. GR16 0110 1250 0000 0001 2300 695)";
+  return "";
+}
+function bicError(val: string): string {
+  if (!val) return "";
+  const clean = val.replace(/\s/g, "").toUpperCase();
+  if (!BIC_RE.test(clean)) return "Invalid BIC/SWIFT (e.g. ETHNGRAA or BARCGB22)";
+  return "";
+}
+
+const EU_CHANNEL_ORDER = ["sepa", "target2", "swift", "chaps", "cash", "card", "internal", "unknown"];
+const IN_CHANNEL_ORDER = ["neft", "rtgs", "imps", "upi", "cash", "card", "swift", "internal", "unknown"];
 
 function AddTransactionForm({
   caseId,
+  defaultCurrency,
+  defaultCountry,
+  jurisdiction,
   onDone,
   onCancel,
 }: {
   caseId: string;
+  defaultCurrency: string;
+  defaultCountry: string;
+  jurisdiction: string;
   onDone: () => void;
   onCancel: () => void;
 }) {
-  const [form, setForm] = useState(EMPTY_FORM);
+  const isEU = jurisdiction === "eu" || jurisdiction === "europe";
+  const emptyForm = {
+    txn_ref: "", txn_date: "", amount: "", currency: defaultCurrency || "EUR", txn_type: "debit",
+    channel: isEU ? "sepa" : "unknown", narration: "", description: "",
+    from_account_raw: "", to_account_raw: "", from_name_raw: "", to_name_raw: "",
+    counterparty_bank: "", counterparty_country: defaultCountry || "",
+    bic_swift: "",
+    is_flagged: false, flag_reason: "", risk_score: "0",
+  };
+
+  const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const submittingRef = useRef(false);
+
+  const set = (field: string, value: string | boolean) => {
+    setForm((f) => ({ ...f, [field]: value }));
+    setFieldErrors((e) => ({ ...e, [field]: "" }));
+  };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!form.txn_ref.trim()) errs.txn_ref = "Reference is required";
+    if (!form.txn_date) errs.txn_date = "Date is required";
+    if (!form.amount || isNaN(parseFloat(form.amount))) errs.amount = "Valid amount required";
+    if (parseFloat(form.amount) <= 0) errs.amount = "Amount must be positive";
+    if (isEU) {
+      const fromErr = form.from_account_raw ? ibanError(form.from_account_raw) : "";
+      if (fromErr) errs.from_account_raw = fromErr;
+      const toErr = form.to_account_raw ? ibanError(form.to_account_raw) : "";
+      if (toErr) errs.to_account_raw = toErr;
+      const bErr = form.bic_swift ? bicError(form.bic_swift) : "";
+      if (bErr) errs.bic_swift = bErr;
+    }
+    setFieldErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const mutation = useMutation({
     mutationFn: async () => {
-      // Step 1: create transaction
+      const { bic_swift, ...rest } = form;
       const txn = await api.post<TransactionResponse>(`/api/v1/cases/${caseId}/transactions`, {
-        ...form,
+        ...rest,
+        counterparty_bank: form.counterparty_bank || (bic_swift ? `BIC: ${bic_swift}` : ""),
         amount: parseFloat(form.amount) || 0,
         risk_score: parseInt(form.risk_score) || 0,
       });
-      // Step 2: link it to the case
       await api.post(`/api/v1/cases/${caseId}/transactions/link`, {
         transaction_id: txn.id,
         relevance_note: "",
       });
     },
-    onSuccess: () => { setError(""); onDone(); },
-    onError: (e: APIError) => setError(e.message ?? "Failed to add transaction"),
+    onSuccess: () => { setError(""); submittingRef.current = false; onDone(); },
+    onError: (e: APIError) => { submittingRef.current = false; setError(e.message ?? "Failed to add transaction"); },
   });
 
-  const set = (field: string, value: string | boolean) =>
-    setForm((f) => ({ ...f, [field]: value }));
+  const handleSubmit = () => {
+    if (submittingRef.current || mutation.isPending) return;
+    if (!validate()) return;
+    submittingRef.current = true;
+    mutation.mutate();
+  };
+
+  const inputCls = (field: string) =>
+    `w-full bg-slate-700/60 border ${fieldErrors[field] ? "border-red-500" : "border-slate-600"} rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500`;
+
+  const channelOrder = isEU ? EU_CHANNEL_ORDER : IN_CHANNEL_ORDER;
+  const countryPlaceholder = defaultCountry ? defaultCountry.toUpperCase() : "e.g. GR";
+  const bankPlaceholder = isEU
+    ? "e.g. National Bank of Greece / Alpha Bank"
+    : "e.g. SBI / HDFC";
+  const refPlaceholder = isEU ? "e.g. SEPA2026062400001" : "TXN123456";
+  const ibanPlaceholder = isEU ? "GR16 0110 1250 0000 0001 2300 695" : "Account number";
 
   return (
     <div className="bg-slate-800/80 border border-cyan-500/30 rounded-xl p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-slate-200">Add Transaction</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-200">Add Transaction</h3>
+        {isEU && (
+          <span className="text-[10px] bg-blue-900/40 text-blue-300 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">
+            EU / SEPA · IBAN validated
+          </span>
+        )}
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
-        {[
-          { label: "Reference *", field: "txn_ref", placeholder: "TXN123456" },
-          { label: "Date *", field: "txn_date", placeholder: "YYYY-MM-DD", type: "date" },
-          { label: "Amount *", field: "amount", placeholder: "0.00", type: "number" },
-          { label: "Currency", field: "currency", placeholder: "INR" },
-          { label: "From Account", field: "from_account_raw", placeholder: "XXXXXXXX1234" },
-          { label: "From Name", field: "from_name_raw", placeholder: "Sender name" },
-          { label: "To Account", field: "to_account_raw", placeholder: "XXXXXXXX5678" },
-          { label: "To Name", field: "to_name_raw", placeholder: "Recipient name" },
-          { label: "Bank", field: "counterparty_bank", placeholder: "SBI / HDFC" },
-          { label: "Country", field: "counterparty_country", placeholder: "IN" },
-        ].map(({ label, field, placeholder, type }) => (
-          <div key={field}>
-            <label className="block text-xs text-slate-400 mb-1">{label}</label>
-            <input
-              type={type ?? "text"}
-              value={(form as Record<string, string | boolean>)[field] as string}
-              onChange={(e) => set(field, e.target.value)}
-              placeholder={placeholder}
-              className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500"
-            />
+        {/* Reference */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Reference <span className="text-red-400">*</span></label>
+          <input type="text" value={form.txn_ref} onChange={(e) => set("txn_ref", e.target.value)}
+            placeholder={refPlaceholder} className={inputCls("txn_ref")} />
+          {fieldErrors.txn_ref && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.txn_ref}</p>}
+        </div>
+
+        {/* Date */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Date <span className="text-red-400">*</span></label>
+          <input type="date" value={form.txn_date} onChange={(e) => set("txn_date", e.target.value)}
+            max={new Date().toISOString().split("T")[0]}
+            className={inputCls("txn_date")} />
+          {fieldErrors.txn_date && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.txn_date}</p>}
+        </div>
+
+        {/* Amount */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Amount <span className="text-red-400">*</span></label>
+          <div className="relative">
+            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500 text-sm select-none">
+              {defaultCurrency || "EUR"}
+            </span>
+            <input type="number" min="0.01" step="0.01" value={form.amount}
+              onChange={(e) => set("amount", e.target.value)}
+              placeholder="0.00"
+              className={`${inputCls("amount")} pl-12`} />
           </div>
-        ))}
+          {fieldErrors.amount && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.amount}</p>}
+        </div>
+
+        {/* Currency — read-only display from config */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">Currency</label>
+          <input type="text" value={form.currency} readOnly
+            className="w-full bg-slate-900/60 border border-slate-700 rounded px-2.5 py-1.5 text-sm text-slate-400 cursor-not-allowed" />
+        </div>
+
+        {/* From Account (IBAN for EU) */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">
+            From Account {isEU && <span className="text-slate-600">(IBAN)</span>}
+          </label>
+          <input type="text" value={form.from_account_raw}
+            onChange={(e) => set("from_account_raw", e.target.value.replace(/\s/g, "").toUpperCase())}
+            placeholder={ibanPlaceholder} className={inputCls("from_account_raw")} />
+          {fieldErrors.from_account_raw && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.from_account_raw}</p>}
+        </div>
+
+        {/* From Name */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">From Name / Payer</label>
+          <input type="text" value={form.from_name_raw} onChange={(e) => set("from_name_raw", e.target.value)}
+            placeholder="e.g. Aegean Holdings SA" className={inputCls("from_name_raw")} />
+        </div>
+
+        {/* To Account (IBAN for EU) */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">
+            To Account {isEU && <span className="text-slate-600">(IBAN)</span>}
+          </label>
+          <input type="text" value={form.to_account_raw}
+            onChange={(e) => set("to_account_raw", e.target.value.replace(/\s/g, "").toUpperCase())}
+            placeholder={ibanPlaceholder} className={inputCls("to_account_raw")} />
+          {fieldErrors.to_account_raw && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.to_account_raw}</p>}
+        </div>
+
+        {/* To Name */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">To Name / Beneficiary</label>
+          <input type="text" value={form.to_name_raw} onChange={(e) => set("to_name_raw", e.target.value)}
+            placeholder="e.g. Hellenic Commerce Ltd" className={inputCls("to_name_raw")} />
+        </div>
+
+        {/* Bank */}
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">
+            {isEU ? "Counterparty Bank" : "Bank"}
+          </label>
+          <input type="text" value={form.counterparty_bank} onChange={(e) => set("counterparty_bank", e.target.value)}
+            placeholder={bankPlaceholder} className={inputCls("counterparty_bank")} />
+        </div>
+
+        {/* BIC/SWIFT — EU only */}
+        {isEU ? (
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">BIC / SWIFT</label>
+            <input type="text" value={form.bic_swift}
+              onChange={(e) => set("bic_swift", e.target.value.replace(/\s/g, "").toUpperCase())}
+              placeholder="e.g. ETHNGRAA" className={inputCls("bic_swift")} maxLength={11} />
+            {fieldErrors.bic_swift && <p className="text-[10px] text-red-400 mt-0.5">{fieldErrors.bic_swift}</p>}
+          </div>
+        ) : (
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Country</label>
+            <input type="text" value={form.counterparty_country} onChange={(e) => set("counterparty_country", e.target.value.toUpperCase())}
+              placeholder={countryPlaceholder} maxLength={2} className={inputCls("counterparty_country")} />
+          </div>
+        )}
+
+        {/* Country — EU shows separately after BIC row */}
+        {isEU && (
+          <div>
+            <label className="block text-xs text-slate-400 mb-1">Counterparty Country</label>
+            <input type="text" value={form.counterparty_country} onChange={(e) => set("counterparty_country", e.target.value.toUpperCase())}
+              placeholder={countryPlaceholder} maxLength={2} className={inputCls("counterparty_country")} />
+          </div>
+        )}
+
+        {/* Transaction Type */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">Type</label>
           <select value={form.txn_type} onChange={(e) => set("txn_type", e.target.value)}
             className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
             {["debit", "credit", "reversal", "fee", "interest"].map((v) => (
-              <option key={v} value={v}>{v}</option>
+              <option key={v} value={v}>{v.charAt(0).toUpperCase() + v.slice(1)}</option>
             ))}
           </select>
         </div>
+
+        {/* Channel */}
         <div>
-          <label className="block text-xs text-slate-400 mb-1">Channel</label>
+          <label className="block text-xs text-slate-400 mb-1">Channel / Rail</label>
           <select value={form.channel} onChange={(e) => set("channel", e.target.value)}
             className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 focus:outline-none focus:ring-1 focus:ring-cyan-500">
-            {["neft", "rtgs", "imps", "upi", "cash", "card", "swift", "internal", "unknown"].map((v) => (
+            {channelOrder.map((v) => (
               <option key={v} value={v}>{CHANNEL_LABELS[v] ?? v}</option>
             ))}
           </select>
         </div>
       </div>
+
       <div>
-        <label className="block text-xs text-slate-400 mb-1">Narration</label>
+        <label className="block text-xs text-slate-400 mb-1">Narration / Description</label>
         <input value={form.narration} onChange={(e) => set("narration", e.target.value)}
-          placeholder="Raw bank narration text"
+          placeholder={isEU ? "e.g. SEPA CT /ROC/INV-2026-0042 Aegean Holdings" : "Raw bank narration text"}
           className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500" />
       </div>
+
       <label className="flex items-center gap-2 cursor-pointer">
         <input type="checkbox" checked={form.is_flagged} onChange={(e) => set("is_flagged", e.target.checked)}
           className="w-4 h-4 rounded accent-amber-500" />
@@ -600,11 +779,11 @@ function AddTransactionForm({
       {form.is_flagged && (
         <input value={form.flag_reason} onChange={(e) => set("flag_reason", e.target.value)}
           placeholder="Reason for flagging"
-          className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500" />
+          className="w-full bg-slate-700/60 border border-amber-500/50 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-500" />
       )}
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2">
-        <button onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.txn_ref || !form.txn_date || !form.amount}
+        <button onClick={handleSubmit} disabled={mutation.isPending}
           className="flex-1 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors">
           {mutation.isPending ? "Adding…" : "Add Transaction"}
         </button>
@@ -719,13 +898,16 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
       </div>
 
       {/* Summary bar */}
-      {summary && <SummaryBar summary={summary} />}
+      {summary && <SummaryBar summary={summary} currency={cfg.local_currency || "EUR"} />}
 
         {/* Add form */}
         {showAdd && (
           <div className="mb-5">
             <AddTransactionForm
               caseId={caseId}
+              defaultCurrency={cfg.local_currency || "EUR"}
+              defaultCountry={cfg.country || "GR"}
+              jurisdiction={cfg.jurisdiction || "eu"}
               onDone={() => { setShowAdd(false); invalidateAll(); }}
               onCancel={() => setShowAdd(false)}
             />

@@ -1301,7 +1301,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
             <div>
               <label className={labelCls}>
                 Date Suspicion Arose <span className="text-red-400">*</span>
-                <span className="text-slate-500 font-normal ml-1">({cfg.str_law_reference || "regulatory"} Article 15 — 30-day clock)</span>
+                <span className="text-slate-500 font-normal ml-1">({cfg.str_law_reference || "regulatory"} — {cfg.str_deadline_days || 30}-day clock)</span>
               </label>
               <input
                 type="date"
