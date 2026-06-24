@@ -29,6 +29,8 @@ var RelationshipTypes = []string{
 	"SAME_DEVICE",
 	"GUARANTOR_OF",
 	"INTRODUCED_BY",
+	"SAME_ENTITY", // confirmed fuzzy resolution: two records are the same real-world entity
+	"ALIAS_OF",    // confirmed alias: one name is an alias of another entity
 }
 
 var relTypeSet map[string]struct{}

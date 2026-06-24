@@ -1,12 +1,12 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useConfig } from "@/lib/hooks/useConfig";
-import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
+import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Brain, Zap, BookOpen, Wand2, Loader2, ShieldCheck } from "lucide-react";
 import { formatEmiratesID, emiratesIDError } from "@/lib/utils/emirates-id";
 
 interface STRFiling {
@@ -42,6 +42,263 @@ interface GoAMLReadiness {
   ready: boolean;
   errors: GoAMLValidationError[];
 }
+
+// ── Intelligence types ───────────────────────────────────────────────────────
+
+interface Typology {
+  id: string;
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+  risk_keywords: string[];
+}
+
+interface NarrativeCheck {
+  key: string;
+  label: string;
+  pass: boolean;
+  tip: string;
+}
+
+interface NarrativeResult {
+  score: number;
+  word_count: number;
+  checks: NarrativeCheck[];
+}
+
+interface TxSignal {
+  severity: "high" | "medium" | "low";
+  label: string;
+  detail: string;
+}
+
+interface ScoredTypology extends Typology {
+  match_score: number;
+}
+
+// ── Auto-populate types ──────────────────────────────────────────────────────
+
+interface CaseSubjectRef {
+  id: string;
+  canonical_name: string;
+  id_type: string;
+  id_number: string;
+  date_of_birth?: string;
+  phones: string[];
+  role: string;
+}
+
+interface CaseNarrative {
+  id: string;
+  status: string;
+  active_body: string;
+  narrative_type: string;
+}
+
+interface CaseInsights {
+  risk_score: number | null;
+  risk_level: string;
+  risk_factors: string[];
+  anomalies: string[];
+}
+
+interface CaseTransaction {
+  id: string;
+  txn_date: string;
+  amount: number;
+  currency: string;
+  channel: string;
+  description: string;
+  reference: string;
+  from_account_raw: string;
+  to_account_raw: string;
+  from_account?: { account_number: string };
+  to_account?: { account_number: string };
+}
+
+interface AutoPopulateResult {
+  subject?: CaseSubjectRef;
+  narrative?: CaseNarrative;
+  insights?: CaseInsights;
+  transactions: CaseTransaction[];
+}
+
+async function fetchCaseContext(caseId: string): Promise<AutoPopulateResult> {
+  const [subjectsRes, narrativesRes, insightsRes, txnsRes] = await Promise.allSettled([
+    fetch(`/api/v1/cases/${caseId}/subjects`, { credentials: "include" }),
+    fetch(`/api/v1/cases/${caseId}/narratives`, { credentials: "include" }),
+    fetch(`/api/v1/cases/${caseId}/insights`, { credentials: "include" }),
+    fetch(`/api/v1/cases/${caseId}/transactions?limit=20`, { credentials: "include" }),
+  ]);
+
+  let subject: CaseSubjectRef | undefined;
+  if (subjectsRes.status === "fulfilled" && subjectsRes.value.ok) {
+    const body = await subjectsRes.value.json() as { data: CaseSubjectRef[] };
+    subject = (body.data ?? [])[0];
+  }
+
+  let narrative: CaseNarrative | undefined;
+  if (narrativesRes.status === "fulfilled" && narrativesRes.value.ok) {
+    const body = await narrativesRes.value.json() as { data: CaseNarrative[] };
+    const narrs = body.data ?? [];
+    narrative = narrs.find((n) => n.status === "approved") ?? narrs.find((n) => n.active_body?.trim()) ?? narrs[0];
+  }
+
+  let insights: CaseInsights | undefined;
+  if (insightsRes.status === "fulfilled" && insightsRes.value.ok) {
+    const body = await insightsRes.value.json() as { data: CaseInsights };
+    insights = body.data;
+  }
+
+  let transactions: CaseTransaction[] = [];
+  if (txnsRes.status === "fulfilled" && txnsRes.value.ok) {
+    const body = await txnsRes.value.json() as { data: { transactions?: CaseTransaction[]; items?: CaseTransaction[] } };
+    transactions = body.data?.transactions ?? body.data?.items ?? [];
+  }
+
+  return { subject, narrative, insights, transactions };
+}
+
+function channelToTransmode(channel: string): string {
+  const c = (channel ?? "").toUpperCase();
+  if (c === "CASH") return "C";
+  if (c === "WIRE" || c === "SWIFT") return "W";
+  if (c === "TRANSFER" || c === "NEFT" || c === "RTGS" || c === "IMPS") return "T";
+  if (c === "DEPOSIT") return "D";
+  return "X";
+}
+
+// ── Intelligence helpers ─────────────────────────────────────────────────────
+
+function scoreNarrative(narrative: string, basis: string): NarrativeResult {
+  const combined = `${basis} ${narrative}`.toLowerCase();
+  const wordCount = narrative.trim().split(/\s+/).filter(Boolean).length;
+
+  const checks: NarrativeCheck[] = [
+    {
+      key: "word_count",
+      label: "Substantive narrative (≥ 100 words)",
+      pass: wordCount >= 100,
+      tip: `Currently ${wordCount} words. FIU expects ≥ 100 words of detailed suspicious activity description.`,
+    },
+    {
+      key: "who",
+      label: "Subject / entity identified",
+      pass: /name|customer|individual|entity|company|firm|person|subject|account holder/.test(combined),
+      tip: "Explicitly name the subject or entity whose behavior is suspicious.",
+    },
+    {
+      key: "what",
+      label: "Transaction specifics included",
+      pass: /amount|transfer|deposit|withdrawal|payment|transaction|₹|rs\.|inr|usd|aed|kes|remittance|wire/.test(combined),
+      tip: "Reference specific transaction amounts, types, and account numbers.",
+    },
+    {
+      key: "when",
+      label: "Time period / dates referenced",
+      pass: /\d{4}|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|quarter|month|week|period|between/.test(combined),
+      tip: "Specify when the suspicious activity occurred (dates or time window).",
+    },
+    {
+      key: "why",
+      label: "Suspicion indicators explained",
+      pass: /unusual|suspicious|inconsistent|exceed|pattern|structur|layer|plac|smurfing|hawala|shell|nominee|offshore|high.risk|not consistent|no apparent|unexplained/.test(combined),
+      tip: "Explain what specific behaviors or patterns triggered your suspicion.",
+    },
+  ];
+
+  const passed = checks.filter((c) => c.pass).length;
+  return { score: Math.round((passed / checks.length) * 100), word_count: wordCount, checks };
+}
+
+function detectTxSignals(transactions: unknown[], ctrThreshold: number): TxSignal[] {
+  const txs = (Array.isArray(transactions) ? transactions : []) as Array<{
+    amount?: number;
+    date?: string;
+    transmode_code?: string;
+    from_account_number?: string;
+    to_account_number?: string;
+  }>;
+
+  const signals: TxSignal[] = [];
+  if (txs.length === 0) return signals;
+
+  if (ctrThreshold > 0) {
+    const structuring = txs.filter(
+      (t) => (t.amount ?? 0) >= ctrThreshold * 0.8 && (t.amount ?? 0) < ctrThreshold,
+    );
+    if (structuring.length >= 2) {
+      signals.push({
+        severity: "high",
+        label: "Structuring / smurfing pattern",
+        detail: `${structuring.length} transactions between ${Math.round(ctrThreshold * 0.8).toLocaleString()} and ${ctrThreshold.toLocaleString()} — classic sub-threshold structuring indicative of smurfing.`,
+      });
+    }
+  }
+
+  const roundLarge = txs.filter((t) => (t.amount ?? 0) >= 500_000 && (t.amount ?? 0) % 100_000 === 0);
+  if (roundLarge.length >= 2) {
+    signals.push({
+      severity: "medium",
+      label: "Round-number transaction batch",
+      detail: `${roundLarge.length} large round-number amounts detected — often associated with layering and placement.`,
+    });
+  }
+
+  const wireNoCounterparty = txs.filter(
+    (t) => (t.transmode_code === "W" || t.transmode_code === "T") && !t.to_account_number,
+  );
+  if (wireNoCounterparty.length > 0) {
+    signals.push({
+      severity: "low",
+      label: "Missing counterparty on wire/transfer",
+      detail: `${wireNoCounterparty.length} transfer transaction(s) lack a destination account number — required for goAML export.`,
+    });
+  }
+
+  const dateCounts: Record<string, number> = {};
+  txs.forEach((t) => { if (t.date) dateCounts[t.date] = (dateCounts[t.date] ?? 0) + 1; });
+  const hotDays = Object.values(dateCounts).filter((c) => c >= 3).length;
+  if (hotDays > 0) {
+    signals.push({
+      severity: "medium",
+      label: "High-frequency same-day activity",
+      detail: "3 or more transactions on a single date — velocity indicator for ML placement or layering.",
+    });
+  }
+
+  return signals;
+}
+
+function scoreTypologies(typologies: Typology[], text: string): ScoredTypology[] {
+  const lower = text.toLowerCase();
+  return typologies
+    .map((t) => ({
+      ...t,
+      match_score: t.risk_keywords.filter((kw) => lower.includes(kw.toLowerCase())).length,
+    }))
+    .filter((t) => t.match_score > 0)
+    .sort((a, b) => b.match_score - a.match_score)
+    .slice(0, 3);
+}
+
+// ── STR Intelligence Panel ───────────────────────────────────────────────────
+
+const SEVERITY_COLORS: Record<string, string> = {
+  high:   "text-red-400 bg-red-500/10 border-red-500/30",
+  medium: "text-amber-400 bg-amber-500/10 border-amber-500/30",
+  low:    "text-slate-400 bg-slate-700/40 border-slate-600/40",
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  PLACEMENT:    "text-red-400 bg-red-500/10 border-red-500/20",
+  LAYERING:     "text-orange-400 bg-orange-500/10 border-orange-500/20",
+  INTEGRATION:  "text-amber-400 bg-amber-500/10 border-amber-500/20",
+  STRUCTURING:  "text-yellow-400 bg-yellow-500/10 border-yellow-500/20",
+  TF:           "text-violet-400 bg-violet-500/10 border-violet-500/20",
+  PF:           "text-pink-400 bg-pink-500/10 border-pink-500/20",
+};
 
 const STATUS_COLORS: Record<string, string> = {
   draft:     "bg-slate-700 text-slate-300",
@@ -81,53 +338,211 @@ const ID_TYPE_LABELS: Record<string, string> = {
   OTHER:            "Other",
 };
 
-// ── goAML Readiness panel ───────────────────────────────────────────────────
+// ── Pre-Flight Checklist Panel ───────────────────────────────────────────────
+// Unified panel replacing separate GoAML + Intelligence panels.
+// Sections: goAML Structural · Narrative Quality · Transaction Risk · FATF Match
 
-function GoAMLReadinessPanel({ caseId, filingId }: { caseId: string; filingId: string }) {
+function PreFlightChecklistPanel({
+  filing, caseId, ctrThreshold,
+}: {
+  filing: STRFiling;
+  caseId: string;
+  ctrThreshold: number;
+}) {
   const [open, setOpen] = useState(false);
-  const { data, isLoading, refetch } = useQuery<GoAMLReadiness>({
-    queryKey: ["goaml-readiness", filingId],
-    queryFn: () => api.get<GoAMLReadiness>(`/api/v1/cases/${caseId}/str/${filingId}/validate/goaml`),
+  const [activeSection, setActiveSection] = useState<string | null>(null);
+
+  const { data: goaml, isLoading: goamlLoading, refetch: refetchGoAML } = useQuery<GoAMLReadiness>({
+    queryKey: ["goaml-readiness", filing.id],
+    queryFn: () => api.get<GoAMLReadiness>(`/api/v1/cases/${caseId}/str/${filing.id}/validate/goaml`),
     enabled: open,
     staleTime: 0,
   });
 
+  const { data: typologies = [] } = useQuery<Typology[]>({
+    queryKey: ["typologies-all"],
+    queryFn: () => api.get<Typology[]>("/api/v1/typologies?limit=100"),
+    staleTime: 5 * 60 * 1000,
+    enabled: open,
+  });
+
+  const narrative = useMemo(
+    () => scoreNarrative(filing.narrative, filing.suspicion_basis),
+    [filing.narrative, filing.suspicion_basis],
+  );
+  const txSignals = useMemo(
+    () => detectTxSignals(filing.transactions, ctrThreshold),
+    [filing.transactions, ctrThreshold],
+  );
+  const typologyMatches = useMemo(
+    () => scoreTypologies(typologies, `${filing.suspicion_basis} ${filing.narrative}`),
+    [typologies, filing.suspicion_basis, filing.narrative],
+  );
+
+  const goamlOk  = goaml?.ready === true;
+  const narOk    = narrative.score >= 60;
+  const txOk     = txSignals.filter((s) => s.severity === "high").length === 0;
+  const typoOk   = typologyMatches.length > 0;
+  const totalPass = [goamlOk, narOk, txOk, typoOk].filter(Boolean).length;
+  const allGreen  = totalPass === 4;
+
+  const toggle = (section: string) => {
+    if (!open) { setOpen(true); refetchGoAML(); }
+    setActiveSection((v) => (v === section ? null : section));
+  };
+
+  const SectionHeader = ({
+    id, icon, label, ok, loadingState,
+  }: {
+    id: string; icon: React.ReactNode; label: string; ok: boolean | null; loadingState?: boolean;
+  }) => (
+    <button
+      onClick={() => toggle(id)}
+      className="w-full flex items-center justify-between px-3 py-2 hover:bg-slate-800/40 transition-colors text-xs"
+    >
+      <span className="flex items-center gap-2">
+        {loadingState
+          ? <Loader2 size={12} className="text-slate-500 animate-spin" />
+          : ok === true
+            ? <CheckCircle size={12} className="text-emerald-400" />
+            : ok === false
+              ? <XCircle size={12} className="text-red-400" />
+              : <AlertTriangle size={12} className="text-amber-400" />}
+        {icon}
+        <span className="text-slate-300 font-medium">{label}</span>
+      </span>
+      {activeSection === id ? <ChevronUp size={11} className="text-slate-500" /> : <ChevronDown size={11} className="text-slate-500" />}
+    </button>
+  );
+
   return (
-    <div className="border border-slate-700/50 rounded-lg overflow-hidden">
+    <div className="border border-slate-700/50 rounded-lg overflow-hidden" data-testid="str-intelligence-panel">
+      {/* Master toggle */}
       <button
-        onClick={() => { setOpen((v) => !v); if (!open) refetch(); }}
-        className="w-full flex items-center justify-between px-3 py-2.5 bg-slate-800/40 hover:bg-slate-800/70 transition-colors text-xs text-slate-400"
+        onClick={() => { setOpen((v) => { const next = !v; if (next) refetchGoAML(); return next; }); }}
+        className="w-full flex items-center justify-between px-3 py-2.5 bg-slate-800/40 hover:bg-slate-800/70 transition-colors text-xs"
       >
-        <span className="flex items-center gap-1.5">
-          {data?.ready === true && <CheckCircle size={13} className="text-emerald-400" />}
-          {data?.ready === false && <AlertTriangle size={13} className="text-amber-400" />}
-          {!data && <AlertTriangle size={13} className="text-slate-500" />}
-          goAML 4.0 Readiness Check
+        <span className="flex items-center gap-2">
+          <ShieldCheck size={13} className={allGreen ? "text-emerald-400" : "text-amber-400"} />
+          <span className="text-slate-300 font-medium">Pre-Flight Checklist</span>
+          <span className="text-slate-500">—</span>
+          <span className={allGreen ? "text-emerald-400" : "text-amber-400"}>
+            {totalPass}/4 checks passed
+          </span>
         </span>
-        {open ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+        {open ? <ChevronUp size={13} className="text-slate-500" /> : <ChevronDown size={13} className="text-slate-500" />}
       </button>
 
       {open && (
-        <div className="px-3 py-3 space-y-1.5 bg-slate-900/40">
-          {isLoading && <p className="text-slate-500 text-xs">Checking…</p>}
-          {data?.ready && (
-            <p className="text-emerald-400 text-xs flex items-center gap-1.5">
-              <CheckCircle size={13} /> All required fields present — ready to export goAML XML
-            </p>
-          )}
-          {data && !data.ready && (
-            <div className="space-y-1">
-              <p className="text-amber-400 text-xs font-medium mb-2">
-                {data.errors.length} field{data.errors.length !== 1 ? "s" : ""} required before export:
-              </p>
-              {data.errors.map((e) => (
-                <div key={e.field} className="flex items-start gap-1.5 text-xs">
-                  <XCircle size={12} className="text-red-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-300">{e.message}</span>
+        <div className="divide-y divide-slate-700/40 bg-slate-900/30">
+
+          {/* ── Section 1: goAML Structural ── */}
+          <div>
+            <SectionHeader id="goaml" icon={<span className="text-slate-500">goAML 4.0</span>} label="Structural Completeness" ok={goaml ? goamlOk : null} loadingState={goamlLoading} />
+            {activeSection === "goaml" && (
+              <div className="px-4 py-3 space-y-1.5 bg-slate-900/40">
+                {goamlLoading && <p className="text-slate-500 text-xs flex items-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Validating fields…</p>}
+                {goaml?.ready && (
+                  <p className="text-emerald-400 text-xs flex items-center gap-1.5">
+                    <CheckCircle size={12} /> All required goAML fields present — ready to export XML
+                  </p>
+                )}
+                {goaml && !goaml.ready && (
+                  <div className="space-y-1.5">
+                    <p className="text-amber-400 text-xs font-medium">{goaml.errors.length} field{goaml.errors.length !== 1 ? "s" : ""} missing for goAML export:</p>
+                    {goaml.errors.map((e) => (
+                      <div key={e.field} className="flex items-start gap-1.5 text-xs">
+                        <XCircle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />
+                        <span className="text-slate-300">{e.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Section 2: Narrative Quality ── */}
+          <div>
+            <SectionHeader id="narrative" icon={<Brain size={11} className="text-slate-500" />} label={`Narrative Quality — ${narrative.score}%`} ok={narOk} />
+            {activeSection === "narrative" && (
+              <div className="px-4 py-3 space-y-2 bg-slate-900/40">
+                <div className="h-1.5 rounded-full bg-slate-700/50 mb-3">
+                  <div
+                    className={`h-full rounded-full transition-all ${narrative.score >= 80 ? "bg-emerald-500" : narrative.score >= 60 ? "bg-amber-500" : "bg-red-500"}`}
+                    style={{ width: `${narrative.score}%` }}
+                  />
                 </div>
-              ))}
-            </div>
-          )}
+                {narrative.checks.map((c) => (
+                  <div key={c.key} className="flex items-start gap-2">
+                    {c.pass
+                      ? <CheckCircle size={11} className="text-emerald-400 flex-shrink-0 mt-0.5" />
+                      : <XCircle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />}
+                    <div>
+                      <span className={`text-xs ${c.pass ? "text-slate-400" : "text-slate-300"}`}>{c.label}</span>
+                      {!c.pass && <p className="text-[11px] text-slate-500 mt-0.5">{c.tip}</p>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ── Section 3: Transaction Risk ── */}
+          <div>
+            <SectionHeader id="txrisk" icon={<Zap size={11} className="text-slate-500" />} label="Transaction Risk Signals" ok={txOk} />
+            {activeSection === "txrisk" && (
+              <div className="px-4 py-3 space-y-2 bg-slate-900/40">
+                {txSignals.length === 0 ? (
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5">
+                    <CheckCircle size={11} className="text-emerald-400" /> No anomalous patterns in transaction data
+                  </p>
+                ) : (
+                  txSignals.map((s, i) => (
+                    <div key={i} className={`flex items-start gap-2 text-xs px-2.5 py-2 rounded border ${SEVERITY_COLORS[s.severity]}`}>
+                      <AlertTriangle size={11} className="flex-shrink-0 mt-0.5" />
+                      <div>
+                        <span className="font-medium">{s.label}</span>
+                        <p className="text-[11px] opacity-80 mt-0.5">{s.detail}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* ── Section 4: FATF Typology Match ── */}
+          <div>
+            <SectionHeader id="fatf" icon={<BookOpen size={11} className="text-slate-500" />} label="FATF Typology Match" ok={typoOk} />
+            {activeSection === "fatf" && (
+              <div className="px-4 py-3 space-y-2 bg-slate-900/40">
+                {typologies.length === 0 ? (
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Loading typology library…</p>
+                ) : typologyMatches.length === 0 ? (
+                  <p className="text-xs text-amber-400 flex items-center gap-1.5">
+                    <AlertTriangle size={11} /> No FATF typology keywords matched — reference a known ML/TF pattern in your narrative to strengthen the filing.
+                  </p>
+                ) : (
+                  typologyMatches.map((t) => (
+                    <div key={t.id} className="flex items-start gap-2 bg-slate-800/40 rounded px-2.5 py-2 border border-slate-700/30">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <span className="text-xs text-slate-200 font-medium">{t.name}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded border font-medium ${CATEGORY_COLORS[t.category] ?? "text-slate-400 bg-slate-700/40 border-slate-600/40"}`}>
+                            {t.category}
+                          </span>
+                          <span className="text-[10px] text-cyan-400 font-mono">{t.match_score} kw</span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{t.description}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+
         </div>
       )}
     </div>
@@ -433,9 +848,9 @@ function FilingCard({
         )}
       </div>
 
-      {/* goAML readiness — shown to manager+ when filing is in draft or submitted */}
-      {isManagerOrAbove && (filing.status === "draft" || filing.status === "submitted") && (
-        <GoAMLReadinessPanel caseId={caseId} filingId={filing.id} />
+      {/* Unified Pre-Flight Checklist — goAML + narrative + tx risk + FATF */}
+      {(filing.status === "draft" || filing.status === "submitted") && (
+        <PreFlightChecklistPanel filing={filing} caseId={caseId} ctrThreshold={cfg.ctr_threshold ?? 0} />
       )}
 
       {/* Error */}
@@ -562,6 +977,8 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   });
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
+  const [populating, setPopulating] = useState(false);
+  const [populatedFrom, setPopulatedFrom] = useState<{ subjects: number; transactions: number; narrative: boolean; insights: boolean } | null>(null);
 
   // Basic fields
   const [reportType, setReportType] = useState("STR");
@@ -703,6 +1120,68 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
     setTxRows([emptyTx()]);
     setShowGoAMLFields(false);
     setCreateError("");
+    setPopulatedFrom(null);
+  };
+
+  const handleAutoPopulate = async () => {
+    setPopulating(true);
+    try {
+      const ctx = await fetchCaseContext(caseId);
+
+      let subjectCount = 0;
+      if (ctx.subject) {
+        subjectCount = 1;
+        const parts = ctx.subject.canonical_name.trim().split(/\s+/);
+        setSubjectFirstName(parts.slice(0, -1).join(" ") || parts[0] || "");
+        setSubjectLastName(parts.length > 1 ? parts[parts.length - 1] : "");
+        setSubjectIDType(ctx.subject.id_type || "NATIONAL_ID");
+        setSubjectIDNumber(ctx.subject.id_number || "");
+        if (ctx.subject.date_of_birth) setSubjectBirthdate(ctx.subject.date_of_birth);
+        if (ctx.subject.phones?.[0]) setSubjectAccountNumber(ctx.subject.phones[0]);
+      }
+
+      if (ctx.narrative?.active_body?.trim()) {
+        setNarrative(ctx.narrative.active_body.trim());
+      }
+
+      if (ctx.insights) {
+        const factors = ctx.insights.risk_factors ?? [];
+        const anomalies = ctx.insights.anomalies ?? [];
+        const basisParts = [
+          factors.slice(0, 3).join("; "),
+          anomalies.slice(0, 2).join("; "),
+        ].filter(Boolean);
+        if (basisParts.length > 0) setSuspicionBasis(basisParts.join(". "));
+        if (ctx.insights.risk_level) {
+          setEvidenceSummary(`Risk level: ${ctx.insights.risk_level}${ctx.insights.risk_score != null ? ` (score: ${ctx.insights.risk_score})` : ""}. ${factors.join("; ")}`);
+        }
+      }
+
+      const mappedTxs: typeof txRows = ctx.transactions.slice(0, 10).map((t) => ({
+        date: t.txn_date ?? "",
+        amount: String(t.amount ?? ""),
+        transmode_code: channelToTransmode(t.channel),
+        description: t.description ?? "",
+        transaction_number: t.reference ?? "",
+        transaction_location: "",
+        from_account_number: t.from_account?.account_number ?? t.from_account_raw ?? "",
+        from_institution: "",
+        to_account_number: t.to_account?.account_number ?? t.to_account_raw ?? "",
+        to_institution: "",
+      }));
+      if (mappedTxs.length > 0) setTxRows(mappedTxs);
+
+      setPopulatedFrom({
+        subjects: subjectCount,
+        transactions: ctx.transactions.length,
+        narrative: !!ctx.narrative?.active_body?.trim(),
+        insights: !!ctx.insights,
+      });
+    } catch {
+      // Silently fall back — form remains empty, user fills manually
+    } finally {
+      setPopulating(false);
+    }
   };
 
   const createMut = useMutation({
@@ -769,10 +1248,38 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
       {/* Create form */}
       {showCreate && (
         <div className="bg-slate-800/80 border border-slate-700 rounded-xl p-6 mb-6">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-4">
             <h2 className="text-white font-semibold">New Regulatory Filing Draft</h2>
-            <button onClick={() => { setShowCreate(false); resetForm(); }} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleAutoPopulate}
+                disabled={populating}
+                data-testid="auto-populate-btn"
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg text-xs font-medium transition-colors disabled:opacity-60"
+              >
+                {populating
+                  ? <Loader2 size={12} className="animate-spin" />
+                  : <Wand2 size={12} />}
+                {populating ? "Populating…" : "Auto-populate from Case"}
+              </button>
+              <button onClick={() => { setShowCreate(false); resetForm(); }} className="text-slate-400 hover:text-white text-lg leading-none">×</button>
+            </div>
           </div>
+
+          {populatedFrom && (
+            <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-violet-500/10 border border-violet-500/20 rounded-lg text-xs text-violet-300">
+              <Wand2 size={11} />
+              <span>
+                Auto-populated from case:
+                {populatedFrom.subjects > 0 && <> · <strong>{populatedFrom.subjects} subject</strong></>}
+                {populatedFrom.transactions > 0 && <> · <strong>{populatedFrom.transactions} transaction{populatedFrom.transactions !== 1 ? "s" : ""}</strong></>}
+                {populatedFrom.narrative && <> · <strong>AI narrative</strong></>}
+                {populatedFrom.insights && <> · <strong>risk insights</strong></>}
+              </span>
+              <span className="text-violet-400/60 ml-1">— review and adjust before saving</span>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             {/* ── Basic fields ── */}

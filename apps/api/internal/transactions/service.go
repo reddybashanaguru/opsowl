@@ -272,7 +272,7 @@ func (s *Service) FlowGraph(ctx context.Context, caseID uuid.UUID) (FlowGraph, e
 	}
 
 	nodeMap := map[string]*FlowNode{}
-	var flowEdges []FlowEdge
+	flowEdges := []FlowEdge{}
 	var totalFlow float64
 
 	for _, e := range edges {

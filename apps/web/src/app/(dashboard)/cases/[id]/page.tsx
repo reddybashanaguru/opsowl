@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useRef } from "react";
+import { use, useState, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, APIError } from "@/lib/api";
@@ -126,6 +126,211 @@ function timelineLabel(event: TimelineEvent): string {
     case "case_tagged":         return `${actor} updated tags`;
     default:                    return `${actor}: ${event.event_type.replace(/_/g, " ")}`;
   }
+}
+
+// ── Feature 6: Proactive AI Investigation Partner ────────────────────────────
+
+interface Nudge {
+  id: string;
+  severity: "critical" | "warning" | "info";
+  icon: string;
+  message: string;
+  actionLabel: string;
+  onAction: () => void;
+}
+
+interface STRListResponse { filings: Array<{ id: string; status: string }> }
+interface AILogListResponse { data: Array<{ id: string }> }
+
+function InvestigationNudgePanel({
+  caseId,
+  c,
+  hasOverdueTasks,
+  onRunAnalysis,
+  onOpenCopilot,
+  analysePending,
+}: {
+  caseId: string;
+  c: CaseDetail;
+  hasOverdueTasks: boolean;
+  onRunAnalysis: () => void;
+  onOpenCopilot: () => void;
+  analysePending: boolean;
+}) {
+  const router = useRouter();
+
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try {
+      const raw = sessionStorage.getItem(`nudges-dismissed-${caseId}`);
+      return raw ? new Set(JSON.parse(raw) as string[]) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const { data: strData } = useQuery<STRListResponse>({
+    queryKey: ["str-list-nudge", caseId],
+    queryFn: () => api.get<STRListResponse>(`/api/v1/cases/${caseId}/str`),
+    staleTime: 60_000,
+  });
+
+  const { data: pendingAI } = useQuery<AILogListResponse>({
+    queryKey: ["ai-logs-pending-nudge", caseId],
+    queryFn: () => api.getList<{ id: string }>(`/api/v1/cases/${caseId}/ai/logs?status=pending_review&limit=10`),
+    staleTime: 30_000,
+  });
+
+  const nudges = useMemo((): Nudge[] => {
+    const isActive = ["open", "in_progress", "pending_review", "escalated"].includes(c.status);
+    if (!isActive) return [];
+
+    const strFilings = strData?.filings ?? [];
+    const pendingCount = pendingAI?.data?.length ?? 0;
+    const daysSinceUpdate = (Date.now() - new Date(c.updated_at).getTime()) / 86_400_000;
+
+    const list: Nudge[] = [
+      c.sla_breached && {
+        id: "sla-breached",
+        severity: "critical" as const,
+        icon: "🚨",
+        message: "SLA deadline has passed — this case is overdue.",
+        actionLabel: "Escalate →",
+        onAction: () => {},
+      },
+      !c.assigned_to && {
+        id: "unassigned",
+        severity: "critical" as const,
+        icon: "👤",
+        message: "No investigator assigned to this case.",
+        actionLabel: "Assign",
+        onAction: () => {},
+      },
+      (c.risk_level === "high" || c.risk_level === "critical") && strFilings.length === 0 && {
+        id: "high-risk-no-str",
+        severity: "warning" as const,
+        icon: "📋",
+        message: "High-risk case — no STR filing initiated yet.",
+        actionLabel: "Initiate STR →",
+        onAction: () => router.push(`/cases/${caseId}/str`),
+      },
+      pendingCount > 0 && {
+        id: "ai-pending",
+        severity: "warning" as const,
+        icon: "🤖",
+        message: `${pendingCount} AI output${pendingCount !== 1 ? "s" : ""} awaiting human review.`,
+        actionLabel: "Review",
+        onAction: onOpenCopilot,
+      },
+      hasOverdueTasks && {
+        id: "overdue-tasks",
+        severity: "warning" as const,
+        icon: "⏰",
+        message: "One or more investigation tasks are overdue.",
+        actionLabel: "View Tasks →",
+        onAction: () => router.push(`/cases/${caseId}/tasks`),
+      },
+      !c.risk_level && !analysePending && (c.documents_count ?? 0) > 0 && {
+        id: "no-analysis",
+        severity: "info" as const,
+        icon: "⚡",
+        message: "AI hasn't scored this case — run analysis to surface risk insights.",
+        actionLabel: "Run Analysis",
+        onAction: onRunAnalysis,
+      },
+      daysSinceUpdate > 14 && {
+        id: "inactive",
+        severity: "info" as const,
+        icon: "💤",
+        message: `No activity for ${Math.floor(daysSinceUpdate)} days — add a note or update the status.`,
+        actionLabel: "Add Note",
+        onAction: () => document.querySelector<HTMLTextAreaElement>("textarea[placeholder*='Quick']")?.focus(),
+      },
+      (c.documents_count ?? 0) === 0 && {
+        id: "no-docs",
+        severity: "info" as const,
+        icon: "📎",
+        message: "No evidence documents uploaded to support this case.",
+        actionLabel: "Upload Docs →",
+        onAction: () => router.push(`/cases/${caseId}/documents`),
+      },
+    ].filter((n): n is Nudge => Boolean(n) && !dismissed.has((n as Nudge).id));
+
+    return list;
+  }, [c, strData, pendingAI, hasOverdueTasks, analysePending, dismissed, caseId, router, onRunAnalysis, onOpenCopilot]);
+
+  const dismiss = (id: string) => {
+    setDismissed(prev => {
+      const next = new Set([...prev, id]);
+      try { sessionStorage.setItem(`nudges-dismissed-${caseId}`, JSON.stringify([...next])); } catch {}
+      return next;
+    });
+  };
+
+  const dismissAll = () => {
+    const ids = new Set([...dismissed, ...nudges.map(n => n.id)]);
+    try { sessionStorage.setItem(`nudges-dismissed-${caseId}`, JSON.stringify([...ids])); } catch {}
+    setDismissed(ids);
+  };
+
+  if (nudges.length === 0) return null;
+
+  const hasCritical = nudges.some(n => n.severity === "critical");
+  const hasWarning  = !hasCritical && nudges.some(n => n.severity === "warning");
+  const borderCls   = hasCritical ? "border-red-500/30"   : hasWarning ? "border-amber-500/30"   : "border-cyan-500/20";
+  const bgCls       = hasCritical ? "bg-red-950/20"       : hasWarning ? "bg-amber-950/15"        : "bg-cyan-950/15";
+  const badgeCls    = hasCritical ? "bg-red-500/20 text-red-300" : hasWarning ? "bg-amber-500/20 text-amber-300" : "bg-cyan-500/20 text-cyan-300";
+
+  return (
+    <div className={`${bgCls} border ${borderCls} rounded-xl p-3 mb-5`} data-testid="investigation-nudge-panel">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+          <span>🤖</span>
+          <span>AI Partner</span>
+          <span className={`ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold ${badgeCls}`}>
+            {nudges.length} {nudges.length === 1 ? "item" : "items"}
+          </span>
+        </div>
+        <button
+          onClick={dismissAll}
+          className="text-slate-600 hover:text-slate-400 text-[10px] transition-colors"
+          data-testid="nudge-dismiss-all"
+        >
+          Dismiss all
+        </button>
+      </div>
+
+      <div className="space-y-1.5">
+        {nudges.map(n => {
+          const textCls = n.severity === "critical" ? "text-red-300" : n.severity === "warning" ? "text-amber-300" : "text-slate-300";
+          const btnCls  = n.severity === "critical"
+            ? "border-red-500/40 text-red-300 hover:bg-red-500/10"
+            : n.severity === "warning"
+            ? "border-amber-500/40 text-amber-300 hover:bg-amber-500/10"
+            : "border-cyan-500/30 text-cyan-400 hover:bg-cyan-500/10";
+
+          return (
+            <div key={n.id} className="flex items-center gap-2 group" data-testid={`nudge-${n.id}`}>
+              <span className="text-sm flex-shrink-0 leading-none">{n.icon}</span>
+              <span className={`text-xs flex-1 leading-snug ${textCls}`}>{n.message}</span>
+              <div className="flex items-center gap-1 flex-shrink-0">
+                <button
+                  onClick={n.onAction}
+                  className={`text-[10px] font-medium px-2 py-0.5 rounded border transition-colors ${btnCls}`}
+                >
+                  {n.actionLabel}
+                </button>
+                <button
+                  onClick={() => dismiss(n.id)}
+                  title="Dismiss"
+                  className="text-slate-700 hover:text-slate-400 text-xs transition-colors opacity-0 group-hover:opacity-100 leading-none"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export default function CaseDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -476,6 +681,16 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
       </div>
+
+      {/* Feature 6: AI Partner nudge panel */}
+      <InvestigationNudgePanel
+        caseId={id}
+        c={c}
+        hasOverdueTasks={(tasksPreview?.data ?? []).some(t => t.is_overdue)}
+        onRunAnalysis={() => analyseMutation.mutate()}
+        onOpenCopilot={() => setCopilotOpen(true)}
+        analysePending={analyseMutation.isPending || isAnalysing}
+      />
 
       <div className="grid grid-cols-3 gap-6">
         {/* Left column — Investigation Feed (65%) */}

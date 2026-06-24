@@ -26,6 +26,7 @@ import {
   UserSearch,
   Plug,
   Filter,
+  Library,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -87,6 +88,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Scheduled Reports",    href: "/settings/reports",           icon: BarChart3 },
     { label: "Templates",            href: "/settings/templates",         icon: LayoutTemplate },
     { label: "Playbooks",            href: "/settings/playbooks",         icon: BookOpen },
+    { label: "FATF Typologies",      href: "/settings/typologies",        icon: Library },
     { label: "API Keys",             href: "/settings/api-keys",          icon: KeyRound },
     { label: "Alert Sources",         href: "/settings/alert-sources",     icon: Plug },
     { label: "Alert Rules",          href: "/settings/alert-rules",       icon: Filter },

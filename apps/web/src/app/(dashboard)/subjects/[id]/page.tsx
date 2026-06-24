@@ -1,14 +1,15 @@
 "use client";
 
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api } from "@/lib/api";
 import {
-  UserSearch, AlertTriangle, Eye, Shield, FileText, FolderKanban,
-  TrendingUp, TrendingDown, Minus, Clock, GitFork, Plus, Trash2, X
+  AlertTriangle, Eye, FileText, FolderKanban,
+  TrendingUp, TrendingDown, Minus, Clock, GitFork, Plus, Trash2, X, Users, CheckCircle2, GitMerge
 } from "lucide-react";
+import { EntityNetworkGraph } from "@/components/subjects/EntityNetworkGraph";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -111,6 +112,24 @@ interface NetworkData {
   high_risk_count: number;
 }
 
+interface SimilarSubject {
+  id: string;
+  canonical_name: string;
+  entity_type: string;
+  id_number: string;
+  phones: string[];
+  risk_level: string;
+  risk_score: number;
+  is_pep: boolean;
+  is_sanctioned: boolean;
+  date_of_birth?: string;
+  name_similarity: number;
+  phone_match: boolean;
+  dob_match: boolean;
+  total_score: number;
+  match_reasons: string[];
+}
+
 // ── Constants ──────────────────────────────────────────────────────────────
 
 const RELATIONSHIP_TYPES = [
@@ -137,10 +156,150 @@ const RISK_BG: Record<string, string> = {
   medium: "bg-yellow-500/10 border-yellow-500/30", low: "bg-green-500/10 border-green-500/30",
 };
 
-// Node fill colour in SVG by risk level
-const NODE_FILL: Record<string, string> = {
-  critical: "#f87171", high: "#fb923c", medium: "#facc15", low: "#4ade80",
-};
+// ── Similar Entities Panel ─────────────────────────────────────────────────
+
+function ScoreBadge({ score }: { score: number }) {
+  const pct = Math.round(score * 100);
+  const color = pct >= 80
+    ? "bg-red-500/15 text-red-300 border-red-500/30"
+    : pct >= 55
+    ? "bg-amber-500/15 text-amber-300 border-amber-500/30"
+    : "bg-slate-700/50 text-slate-400 border-slate-600";
+  return (
+    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${color}`}>
+      {pct}% match
+    </span>
+  );
+}
+
+function SimilarEntitiesPanel({ subjectId }: { subjectId: string }) {
+  const qc = useQueryClient();
+  const [confirming, setConfirming] = useState<string | null>(null);
+
+  const { data: similar = [], isLoading } = useQuery<SimilarSubject[]>({
+    queryKey: ["subject-similar", subjectId],
+    queryFn: () => api.get<SimilarSubject[]>(`/api/v1/subjects/${subjectId}/similar?threshold=0.25&limit=8`),
+    staleTime: 60_000,
+  });
+
+  const confirmMutation = useMutation({
+    mutationFn: ({ targetId, relType }: { targetId: string; relType: string }) =>
+      api.post(`/api/v1/subjects/${subjectId}/confirm-match`, {
+        target_subject_id: targetId,
+        relationship_type: relType,
+        notes: "Confirmed via fuzzy entity resolution",
+      }),
+    onSuccess: () => {
+      setConfirming(null);
+      qc.invalidateQueries({ queryKey: ["subject-similar", subjectId] });
+      qc.invalidateQueries({ queryKey: ["subject-relationships", subjectId] });
+      qc.invalidateQueries({ queryKey: ["subject-network", subjectId] });
+    },
+  });
+
+  return (
+    <div className="mt-5 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
+      <div className="px-4 py-3 border-b border-[#1e3050] flex items-center gap-2">
+        <Users size={14} className="text-cyan-400" />
+        <span className="text-sm font-semibold text-slate-200">Similar Entities</span>
+        <span className="text-xs text-slate-500 ml-1">— fuzzy name + phone match</span>
+      </div>
+
+      {isLoading ? (
+        <div className="flex items-center justify-center h-16 text-slate-600 text-xs gap-2">
+          <div className="w-3 h-3 border-2 border-slate-600 border-t-cyan-400 rounded-full animate-spin" />
+          Scanning subjects…
+        </div>
+      ) : similar.length === 0 ? (
+        <div className="flex items-center justify-center h-14 text-slate-600 text-xs">
+          No similar subjects found
+        </div>
+      ) : (
+        <div className="divide-y divide-[#1e3050]">
+          {similar.map(s => (
+            <div key={s.id} className="px-4 py-3 hover:bg-[#0d1824]/50 transition-colors">
+              <div className="flex items-start gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <Link href={`/subjects/${s.id}`}
+                      className="text-sm text-slate-200 hover:text-cyan-400 font-medium transition-colors">
+                      {s.canonical_name}
+                    </Link>
+                    <ScoreBadge score={s.total_score} />
+                    {s.is_pep && (
+                      <span className="text-[9px] px-1 bg-violet-500/15 text-violet-400 rounded border border-violet-500/20">PEP</span>
+                    )}
+                    {s.is_sanctioned && (
+                      <span className="text-[9px] px-1 bg-red-500/15 text-red-400 rounded border border-red-500/20">SANC</span>
+                    )}
+                    <span className={`text-[9px] capitalize px-1.5 py-0.5 rounded ${
+                      s.risk_level === "critical" ? "bg-red-500/10 text-red-400" :
+                      s.risk_level === "high"     ? "bg-orange-500/10 text-orange-400" :
+                      s.risk_level === "medium"   ? "bg-yellow-500/10 text-yellow-400" :
+                      "bg-slate-700 text-slate-500"
+                    }`}>{s.risk_level}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2 text-[10px] text-slate-500">
+                    <span className="capitalize">{s.entity_type}</span>
+                    {s.id_number && <span>· {s.id_number}</span>}
+                    {s.phones?.length > 0 && <span>· {s.phones[0]}</span>}
+                    {s.date_of_birth && <span>· DOB {s.date_of_birth}</span>}
+                  </div>
+                  {s.match_reasons.length > 0 && (
+                    <div className="flex gap-1.5 mt-1.5 flex-wrap">
+                      {s.match_reasons.map((r, i) => (
+                        <span key={i} className="text-[9px] px-1.5 py-0.5 bg-cyan-500/10 text-cyan-400 rounded border border-cyan-500/20">
+                          {r}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex flex-col gap-1.5 flex-shrink-0">
+                  {confirming === s.id ? (
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => confirmMutation.mutate({ targetId: s.id, relType: "SAME_ENTITY" })}
+                        disabled={confirmMutation.isPending}
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded bg-red-600 hover:bg-red-500 text-white transition-colors disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={10} />
+                        Same Entity
+                      </button>
+                      <button
+                        onClick={() => confirmMutation.mutate({ targetId: s.id, relType: "ALIAS_OF" })}
+                        disabled={confirmMutation.isPending}
+                        className="flex items-center gap-1 text-[10px] font-semibold px-2 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white transition-colors disabled:opacity-50"
+                      >
+                        <GitMerge size={10} />
+                        Alias
+                      </button>
+                      <button
+                        onClick={() => setConfirming(null)}
+                        className="text-[10px] text-slate-500 hover:text-slate-300 text-center"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setConfirming(s.id)}
+                      className="text-[10px] font-semibold px-2 py-1 rounded bg-[#0d1824] hover:bg-[#1e3050] border border-[#1e3050] text-slate-400 hover:text-slate-200 transition-colors"
+                    >
+                      Link
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 // ── Risk trend ────────────────────────────────────────────────────────────
 
@@ -151,106 +310,6 @@ function RiskTrend({ entries }: { entries: RiskEntry[] }) {
   if (latest.score > prev.score) return <span className="flex items-center gap-0.5 text-red-400 text-xs"><TrendingUp size={12} />rising</span>;
   if (latest.score < prev.score) return <span className="flex items-center gap-0.5 text-green-400 text-xs"><TrendingDown size={12} />falling</span>;
   return <span className="flex items-center gap-0.5 text-slate-500 text-xs"><Minus size={12} />stable</span>;
-}
-
-// ── Network SVG graph ──────────────────────────────────────────────────────
-
-function NetworkGraph({ data, rootID }: { data: NetworkData; rootID: string }) {
-  const W = 520, H = 380, CX = 260, CY = 190;
-
-  // Place nodes in concentric rings by depth
-  const positions: Record<string, { x: number; y: number }> = {};
-  const byDepth: Record<number, NetworkNode[]> = {};
-  data.nodes.forEach(n => {
-    (byDepth[n.depth] = byDepth[n.depth] || []).push(n);
-  });
-
-  const radii: Record<number, number> = { 0: 0, 1: 115, 2: 215 };
-  Object.entries(byDepth).forEach(([d, nodes]) => {
-    const depth = Number(d);
-    const r = radii[depth] ?? 215;
-    nodes.forEach((n, i) => {
-      if (depth === 0) {
-        positions[n.id] = { x: CX, y: CY };
-      } else {
-        const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2;
-        positions[n.id] = { x: CX + r * Math.cos(angle), y: CY + r * Math.sin(angle) };
-      }
-    });
-  });
-
-  return (
-    <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-full" style={{ minHeight: 320 }}>
-      {/* Edge glow filter */}
-      <defs>
-        <filter id="glow">
-          <feGaussianBlur stdDeviation="2" result="blur" />
-          <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
-        </filter>
-      </defs>
-
-      {/* Edges */}
-      {data.edges.map(e => {
-        const s = positions[e.source];
-        const t = positions[e.target];
-        if (!s || !t) return null;
-        const midX = (s.x + t.x) / 2;
-        const midY = (s.y + t.y) / 2;
-        const opacity = 0.3 + e.strength * 0.5;
-        return (
-          <g key={e.id}>
-            <line x1={s.x} y1={s.y} x2={t.x} y2={t.y}
-              stroke="#94a3b8" strokeWidth={1 + e.strength}
-              strokeOpacity={opacity} strokeDasharray={e.source !== rootID && e.target !== rootID ? "4 3" : undefined} />
-            <text x={midX} y={midY - 5} textAnchor="middle"
-              fill="#64748b" fontSize="9" fontFamily="monospace">
-              {REL_LABELS[e.relationship_type] ?? e.relationship_type}
-            </text>
-          </g>
-        );
-      })}
-
-      {/* Nodes */}
-      {data.nodes.map(n => {
-        const p = positions[n.id];
-        if (!p) return null;
-        const r = n.is_root ? 22 : n.depth === 1 ? 16 : 12;
-        const fill = n.is_root ? "#22d3ee" : (NODE_FILL[n.risk_level] ?? "#94a3b8");
-        const strokeW = n.is_pep || n.is_sanctioned ? 2.5 : 1.5;
-        const stroke = n.is_sanctioned ? "#f87171" : n.is_pep ? "#c084fc" : "#131f30";
-        const shortLabel = n.label.length > 12 ? n.label.slice(0, 11) + "…" : n.label;
-        return (
-          <Link key={n.id} href={`/subjects/${n.id}`}>
-            <g className="cursor-pointer group">
-              {/* outer glow ring on hover */}
-              <circle cx={p.x} cy={p.y} r={r + 6}
-                fill="none" stroke={fill} strokeOpacity={0}
-                className="group-hover:stroke-opacity-30 transition-all" strokeWidth={8} />
-              <circle cx={p.x} cy={p.y} r={r}
-                fill={fill} fillOpacity={n.is_root ? 1 : 0.85}
-                stroke={stroke} strokeWidth={strokeW} />
-              {/* Root pulse ring */}
-              {n.is_root && (
-                <circle cx={p.x} cy={p.y} r={r + 8}
-                  fill="none" stroke="#22d3ee" strokeOpacity={0.2} strokeWidth={2} />
-              )}
-              {/* PEP/Sanctioned badge */}
-              {(n.is_pep || n.is_sanctioned) && (
-                <circle cx={p.x + r - 3} cy={p.y - r + 3} r={5}
-                  fill={n.is_sanctioned ? "#ef4444" : "#a855f7"} />
-              )}
-              <text x={p.x} y={p.y + r + 13} textAnchor="middle"
-                fill={n.is_root ? "#e2e8f0" : "#94a3b8"}
-                fontSize={n.is_root ? "11" : "9"}
-                fontWeight={n.is_root ? "700" : "400"}>
-                {shortLabel}
-              </text>
-            </g>
-          </Link>
-        );
-      })}
-    </svg>
-  );
 }
 
 // ── Add Relationship Modal ─────────────────────────────────────────────────
@@ -353,8 +412,10 @@ function AddRelationshipModal({
 
 export default function SubjectDetailPage() {
   const { id } = useParams<{ id: string }>();
+  const router = useRouter();
   const qc = useQueryClient();
   const [addingRel, setAddingRel] = useState(false);
+  const [graphDepth, setGraphDepth] = useState(2);
 
   const { data: subject, isLoading } = useQuery<SubjectDetail>({
     queryKey: ["subject", id],
@@ -389,8 +450,8 @@ export default function SubjectDetailPage() {
   });
 
   const { data: networkData } = useQuery<NetworkData>({
-    queryKey: ["subject-network", id],
-    queryFn: () => api.get<NetworkData>(`/api/v1/subjects/${id}/network?depth=2`),
+    queryKey: ["subject-network", id, graphDepth],
+    queryFn: () => api.get<NetworkData>(`/api/v1/subjects/${id}/network?depth=${graphDepth}`),
     enabled: !!id,
     select: (d: any) => d,
   });
@@ -594,114 +655,89 @@ export default function SubjectDetailPage() {
       </div>
 
       {/* ── Connected Entity Network ─────────────────────────────────────── */}
-      <div className="mt-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
-        <div className="px-4 py-3 border-b border-slate-700 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GitFork size={14} className="text-cyan-400" />
-            <span className="text-sm font-semibold text-slate-200">Connected Entity Network</span>
-            {rels.length > 0 && (
-              <span className="px-2 py-0.5 bg-cyan-500/15 text-cyan-400 rounded-full text-[10px] font-semibold border border-cyan-500/30">
-                {rels.length} connection{rels.length !== 1 ? "s" : ""}
+      <div className="mt-6">
+        {/* Relationship list (compact, above graph) */}
+        {rels.length > 0 && (
+          <div className="mb-4 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-slate-700 flex items-center gap-2">
+              <GitFork size={13} className="text-slate-400" />
+              <span className="text-xs font-semibold text-slate-300">
+                {rels.length} Direct Connection{rels.length !== 1 ? "s" : ""}
               </span>
-            )}
-            {networkData && networkData.high_risk_count > 0 && (
-              <span className="px-2 py-0.5 bg-red-500/15 text-red-400 rounded-full text-[10px] font-semibold border border-red-500/30">
-                {networkData.high_risk_count} high-risk node{networkData.high_risk_count !== 1 ? "s" : ""}
-              </span>
-            )}
-          </div>
-          <button onClick={() => setAddingRel(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-xs font-medium transition-colors">
-            <Plus size={12} />Link Entity
-          </button>
-        </div>
-
-        {rels.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-32 text-slate-600">
-            <GitFork size={28} className="mb-2 text-slate-700" />
-            <p className="text-sm">No connections recorded</p>
-            <p className="text-xs mt-1">Link related entities to build institutional memory</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 divide-x divide-slate-700/50">
-            {/* Left: connections table */}
-            <div>
-              <div className="divide-y divide-slate-700/40">
-                {rels.map(rel => (
-                  <div key={rel.id} className="flex items-start justify-between px-4 py-3 hover:bg-slate-700/15 transition-colors group">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Link href={`/subjects/${rel.peer_subject_id}`}
-                          className="text-sm text-slate-200 hover:text-cyan-400 font-medium transition-colors">
-                          {rel.peer_name}
-                        </Link>
-                        {rel.peer_is_pep && (
-                          <span className="text-[9px] px-1 bg-violet-500/15 text-violet-400 rounded border border-violet-500/20">PEP</span>
-                        )}
-                        {rel.peer_is_sanctioned && (
-                          <span className="text-[9px] px-1 bg-red-500/15 text-red-400 rounded border border-red-500/20">SANC</span>
-                        )}
-                        <span className={`text-[9px] capitalize px-1 py-0.5 rounded ${
-                          rel.peer_risk_level === "critical" ? "bg-red-500/10 text-red-400" :
-                          rel.peer_risk_level === "high"     ? "bg-orange-500/10 text-orange-400" :
-                          rel.peer_risk_level === "medium"   ? "bg-yellow-500/10 text-yellow-400" :
-                          "bg-slate-700 text-slate-500"
-                        }`}>{rel.peer_risk_level}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-slate-500">
-                          {rel.direction === "outbound" ? "→" : "←"}&nbsp;
-                          <span className="text-slate-400">{REL_LABELS[rel.relationship_type] ?? rel.relationship_type}</span>
-                        </span>
-                        {rel.strength < 1 && (
-                          <span className="text-[9px] text-slate-600">· {Math.round(rel.strength * 100)}% confidence</span>
-                        )}
-                      </div>
-                      {rel.notes && (
-                        <div className="text-[10px] text-slate-600 mt-0.5 truncate max-w-xs">{rel.notes}</div>
+            </div>
+            <div className="divide-y divide-slate-700/40 max-h-48 overflow-y-auto">
+              {rels.map(rel => (
+                <div key={rel.id} className="flex items-start justify-between px-4 py-2.5 hover:bg-slate-700/15 transition-colors group">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Link href={`/subjects/${rel.peer_subject_id}`}
+                        className="text-sm text-slate-200 hover:text-cyan-400 font-medium transition-colors">
+                        {rel.peer_name}
+                      </Link>
+                      {rel.peer_is_pep && (
+                        <span className="text-[9px] px-1 bg-violet-500/15 text-violet-400 rounded border border-violet-500/20">PEP</span>
+                      )}
+                      {rel.peer_is_sanctioned && (
+                        <span className="text-[9px] px-1 bg-red-500/15 text-red-400 rounded border border-red-500/20">SANC</span>
+                      )}
+                      <span className={`text-[9px] capitalize px-1 py-0.5 rounded ${
+                        rel.peer_risk_level === "critical" ? "bg-red-500/10 text-red-400" :
+                        rel.peer_risk_level === "high"     ? "bg-orange-500/10 text-orange-400" :
+                        rel.peer_risk_level === "medium"   ? "bg-yellow-500/10 text-yellow-400" :
+                        "bg-slate-700 text-slate-500"
+                      }`}>{rel.peer_risk_level}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-[10px] text-slate-500">
+                        {rel.direction === "outbound" ? "→" : "←"}&nbsp;
+                        <span className="text-slate-400">{REL_LABELS[rel.relationship_type] ?? rel.relationship_type}</span>
+                      </span>
+                      {rel.strength < 1 && (
+                        <span className="text-[9px] text-slate-600">· {Math.round(rel.strength * 100)}% confidence</span>
                       )}
                     </div>
-                    <button onClick={() => {
-                      if (confirm(`Remove connection to ${rel.peer_name}?`)) {
-                        deleteRelMutation.mutate(rel.id);
-                      }
-                    }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-600 hover:text-red-400 transition-all ml-2 flex-shrink-0">
-                      <Trash2 size={12} />
-                    </button>
+                    {rel.notes && (
+                      <div className="text-[10px] text-slate-600 mt-0.5 truncate max-w-xs">{rel.notes}</div>
+                    )}
                   </div>
-                ))}
-              </div>
+                  <button onClick={() => {
+                    if (confirm(`Remove connection to ${rel.peer_name}?`)) {
+                      deleteRelMutation.mutate(rel.id);
+                    }
+                  }} className="opacity-0 group-hover:opacity-100 p-1 text-slate-600 hover:text-red-400 transition-all ml-2 flex-shrink-0">
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              ))}
             </div>
+          </div>
+        )}
 
-            {/* Right: SVG network graph */}
-            <div className="p-3 flex items-center justify-center bg-slate-900/20">
-              {networkData && networkData.nodes.length > 1 ? (
-                <div className="w-full">
-                  <NetworkGraph data={networkData} rootID={id ?? ""} />
-                  <div className="flex items-center gap-4 justify-center mt-1 px-3">
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <div className="w-3 h-3 rounded-full bg-cyan-400" />Root
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <div className="w-3 h-3 rounded-full bg-green-400" />Low risk
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <div className="w-3 h-3 rounded-full bg-orange-400" />High risk
-                    </div>
-                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
-                      <div className="w-3 h-3 rounded-full bg-red-400" />Critical / Sanctioned
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-slate-600 text-xs text-center py-8">
-                  Graph renders when 2+ connections exist
-                </div>
-              )}
+        {/* Full-width interactive graph */}
+        {networkData ? (
+          <EntityNetworkGraph
+            data={networkData}
+            rootID={id ?? ""}
+            depth={graphDepth}
+            onDepthChange={(d) => {
+              setGraphDepth(d);
+              qc.invalidateQueries({ queryKey: ["subject-network", id, d] });
+            }}
+            onAddRelationship={() => setAddingRel(true)}
+            onNavigateToSubject={(subjectId) => router.push(`/subjects/${subjectId}`)}
+          />
+        ) : (
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] h-32 flex items-center justify-center">
+            <div className="flex items-center gap-2 text-slate-600 text-sm">
+              <div className="w-4 h-4 rounded-full border-2 border-slate-600 border-t-cyan-400 animate-spin" />
+              Loading entity network…
             </div>
           </div>
         )}
       </div>
+
+      {/* Similar Entities — Fuzzy Resolution */}
+      <SimilarEntitiesPanel subjectId={id ?? ""} />
 
       {/* Notes */}
       {subject.notes && (

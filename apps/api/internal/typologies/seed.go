@@ -1,0 +1,453 @@
+package typologies
+
+import (
+	"context"
+	"database/sql"
+	"encoding/json"
+	"log"
+)
+
+type seedEntry struct {
+	Code          string
+	Name          string
+	Category      string
+	Description   string
+	RedFlags      []string
+	RiskKeywords  []string
+	FATFReference string
+}
+
+// SeedTypologies inserts the canonical FATF typology library on startup.
+// Uses ON CONFLICT DO NOTHING so it is safe to call multiple times.
+func SeedTypologies(ctx context.Context, db *sql.DB) {
+	entries := []seedEntry{
+		{
+			Code:        "SMURFING",
+			Name:        "Smurfing / Structuring",
+			Category:    "STRUCTURING",
+			Description: "Breaking large cash amounts into multiple smaller transactions to evade Currency Transaction Report thresholds. Often involves multiple branches, agents, or accounts.",
+			RedFlags: []string{
+				"Multiple cash deposits just below the reporting threshold",
+				"Several different individuals depositing on the same day",
+				"Frequent small deposits accumulating to a large total",
+				"Deposits at multiple branches of the same bank in one day",
+				"No apparent business justification for the pattern",
+			},
+			RiskKeywords:  []string{"structuring", "smurfing", "below threshold", "cash deposits", "fragmented", "ctr avoidance", "reporting threshold"},
+			FATFReference: "FATF Guidance on AML/CFT Measures and Financial Inclusion",
+		},
+		{
+			Code:        "TBML",
+			Name:        "Trade-Based Money Laundering (TBML)",
+			Category:    "LAYERING",
+			Description: "Exploiting international trade transactions to disguise the movement of criminal proceeds. Techniques include over/under invoicing, phantom shipments, multiple invoicing, and falsely described goods.",
+			RedFlags: []string{
+				"Invoice amounts inconsistent with market prices",
+				"Counterparty in FATF grey-listed jurisdiction",
+				"Back-to-back letter of credit with unrelated third party",
+				"Goods description vague or inconsistent with trade route",
+				"Sudden change in trade partners or commodities",
+				"Payments routed through unrelated third countries",
+			},
+			RiskKeywords:  []string{"invoice", "trade", "export", "import", "letter of credit", "shipment", "commodity", "customs", "grey-list", "TBML", "over-invoicing", "under-invoicing"},
+			FATFReference: "FATF Report on Trade-Based Money Laundering (2022)",
+		},
+		{
+			Code:        "SHELL_COMPANY",
+			Name:        "Shell / Front Company Abuse",
+			Category:    "LAYERING",
+			Description: "Using companies with no genuine business operations or economic substance to hold assets, receive payments, or conduct transactions on behalf of criminal principals.",
+			RedFlags: []string{
+				"Company has no employees, premises, or business activity",
+				"Registered in secrecy jurisdiction",
+				"Director is a nominee with no real control",
+				"Ownership structure obscures beneficial owner",
+				"Rapid movement of funds in and out",
+				"Business purpose inconsistent with transaction volumes",
+			},
+			RiskKeywords:  []string{"shell company", "nominee director", "beneficial ownership", "secrecy jurisdiction", "offshore", "holding company", "front company", "nominee shareholder", "UBO"},
+			FATFReference: "FATF Guidance on Beneficial Ownership (2023)",
+		},
+		{
+			Code:        "REAL_ESTATE",
+			Name:        "Real Estate Abuse",
+			Category:    "INTEGRATION",
+			Description: "Purchasing, selling, or renting real estate using criminal proceeds. Common methods include all-cash purchases, use of third-party nominees, and rapid resale at inflated prices.",
+			RedFlags: []string{
+				"All-cash purchase with no mortgage",
+				"Property sold at significant premium shortly after purchase",
+				"Nominee buyer with no apparent income",
+				"Payment received from unrelated third party",
+				"Under or over-valuation vs market price",
+				"Funds originating from high-risk jurisdiction",
+			},
+			RiskKeywords:  []string{"real estate", "property", "land", "mortgage", "developer", "nominee", "all-cash", "overvalued", "flipped", "rental income", "real property"},
+			FATFReference: "FATF Guidance on Money Laundering through Real Estate (2022)",
+		},
+		{
+			Code:        "HAWALA",
+			Name:        "Hawala / Informal Value Transfer",
+			Category:    "PLACEMENT",
+			Description: "Using informal networks of brokers (hawaladars) to transfer value across borders without physical movement of funds. Commonly used to avoid KYC/AML controls and formal banking.",
+			RedFlags: []string{
+				"High volume of small remittances to same destination",
+				"Counterparty is a money service business in high-risk country",
+				"No obvious economic rationale for transfers",
+				"Funds received from third parties without explanation",
+				"Frequent use of cash followed by overseas transfer",
+				"No reciprocal flow of goods or services",
+			},
+			RiskKeywords:  []string{"hawala", "hundi", "fei-chien", "informal transfer", "remittance", "money service", "exchange house", "underground banking", "value transfer"},
+			FATFReference: "FATF Guidance on Best Practices for Alternative Remittance Systems",
+		},
+		{
+			Code:        "CRYPTO_ASSETS",
+			Name:        "Virtual Asset / Cryptocurrency Abuse",
+			Category:    "LAYERING",
+			Description: "Using cryptocurrencies, DeFi protocols, mixing services, or peer-to-peer exchanges to obscure the origin of funds and convert between fiat and virtual assets.",
+			RedFlags: []string{
+				"Large fiat-to-crypto conversions with no business context",
+				"Use of privacy coins (Monero, Zcash)",
+				"Transactions routed through unregulated P2P exchanges",
+				"Multiple wallet hops before reaching exchange",
+				"Funds received from sanctioned wallet addresses",
+				"Rapid conversion to stablecoins post-transaction",
+			},
+			RiskKeywords:  []string{"crypto", "bitcoin", "ethereum", "virtual asset", "P2P exchange", "mixing", "tumbler", "DeFi", "blockchain", "wallet", "NFT", "stablecoin", "USDT", "privacy coin"},
+			FATFReference: "FATF Updated Guidance for a Risk-Based Approach to Virtual Assets (2021)",
+		},
+		{
+			Code:        "LOAN_BACK",
+			Name:        "Loan-Back Scheme",
+			Category:    "INTEGRATION",
+			Description: "Criminal uses previously laundered funds held offshore to make a loan to a legitimate business or individual. Loan repayments create a clean paper trail justifying income.",
+			RedFlags: []string{
+				"Loan from offshore entity with no obvious lender profile",
+				"Interest rate significantly below or above market",
+				"No evidence of loan negotiations or due diligence",
+				"Repayments do not match business cash flows",
+				"Lender is a recently incorporated shell",
+				"Cross-border loan with no currency controls compliance",
+			},
+			RiskKeywords:  []string{"loan back", "back-to-back loan", "offshore loan", "loan repayment", "interest", "credit facility", "intercompany loan", "sham loan"},
+			FATFReference: "FATF Typologies on Corporate Vehicles and Nominee Arrangements",
+		},
+		{
+			Code:        "CASINO",
+			Name:        "Casino / Gaming Layering",
+			Category:    "LAYERING",
+			Description: "Using gambling establishments or online gaming platforms to convert criminal cash into casino chips or credits and cashing out as gambling winnings.",
+			RedFlags: []string{
+				"Large cash buy-in with minimal or no gambling",
+				"Frequent buy-in and immediate cash-out",
+				"Use of third parties to purchase chips",
+				"Consistent winnings from high-variance games",
+				"Online gaming accounts funded by multiple payment methods",
+				"Large prize claims inconsistent with known activity",
+			},
+			RiskKeywords:  []string{"casino", "gambling", "chips", "buy-in", "cash out", "gaming", "lottery", "prize", "winnings", "online gaming"},
+			FATFReference: "FATF Report on Vulnerabilities of Casinos and the Gaming Sector (2009)",
+		},
+		{
+			Code:        "MULE_NETWORK",
+			Name:        "Money Mule Network",
+			Category:    "LAYERING",
+			Description: "Using recruited or coerced third parties to receive and forward funds, creating distance between the criminal and the money trail. Mules may be witting or unwitting.",
+			RedFlags: []string{
+				"Account receives large credit then immediately transfers out most of it",
+				"Account holder is young, newly employed, or financially vulnerable",
+				"Account opened recently with immediate high activity",
+				"Multiple accounts receiving identical amounts simultaneously",
+				"Account holder reports receiving unsolicited job offer involving payments",
+				"IP address for online banking matches multiple accounts",
+			},
+			RiskKeywords:  []string{"money mule", "third party account", "recipient", "transfer on", "pass through", "recruited", "job scam", "account takeover", "mule"},
+			FATFReference: "FATF Guidance on Money Mule Recruitment (2020)",
+		},
+		{
+			Code:        "ROUND_TRIPPING",
+			Name:        "Round-Tripping / Capital Flight Return",
+			Category:    "INTEGRATION",
+			Description: "Funds are moved offshore and returned to the country of origin disguised as legitimate foreign investment, export proceeds, or business income.",
+			RedFlags: []string{
+				"Inward foreign investment from secrecy jurisdiction with no known counterparty",
+				"Export declared but goods never shipped",
+				"FDI followed by immediate dividend or royalty payment back",
+				"Correspondent bank in same jurisdiction as investor",
+				"Amount mirrors prior outward remittance exactly",
+				"Investment routed through chain of related offshore entities",
+			},
+			RiskKeywords:  []string{"round tripping", "capital flight", "foreign investment", "FDI", "offshore", "repatriation", "export proceeds", "dividend", "royalty"},
+			FATFReference: "FATF Typologies: Laundering Proceeds of Corruption",
+		},
+		{
+			Code:        "COMMINGLING",
+			Name:        "Commingling of Funds",
+			Category:    "INTEGRATION",
+			Description: "Mixing criminal proceeds with legitimate business revenue so that illicit funds appear to be normal business income. Common in cash-intensive businesses such as restaurants or retail.",
+			RedFlags: []string{
+				"Revenue reported significantly above industry benchmarks",
+				"Cash-intensive business with unexplained volume spikes",
+				"Staff numbers inconsistent with reported turnover",
+				"Large cash deposits with minimal corresponding business activity",
+				"Purchases of inventory not matching sales revenue",
+				"Revenue fluctuates with criminal activity not economic cycles",
+			},
+			RiskKeywords:  []string{"commingling", "cash business", "restaurant", "car wash", "laundromat", "retail", "mixing", "inflated revenue", "false invoicing", "front business"},
+			FATFReference: "FATF Best Practices Paper on the Use of Financial Intelligence",
+		},
+		{
+			Code:        "NOMINEE_ACCOUNTS",
+			Name:        "Nominee Account Abuse",
+			Category:    "LAYERING",
+			Description: "Using the identity documents and bank accounts of third parties to receive and hold criminal funds, concealing the true beneficial owner from financial institutions.",
+			RedFlags: []string{
+				"Account operated by someone other than the registered holder",
+				"Third party controls internet banking credentials",
+				"Regular transfers to the account holder are immediately withdrawn",
+				"Account holder has no connection to the business generating funds",
+				"Power of attorney or third-party mandate in place",
+				"Account holder appears unaware of transactions in their name",
+			},
+			RiskKeywords:  []string{"nominee", "third party", "power of attorney", "mandate", "identity documents", "straw man", "beneficial owner"},
+			FATFReference: "FATF Guidance on Beneficial Ownership (2023)",
+		},
+		{
+			Code:        "PROFESSIONAL_ML",
+			Name:        "Professional Money Laundering",
+			Category:    "LAYERING",
+			Description: "Organized criminal enterprises using professional intermediaries such as lawyers, accountants, real estate agents, and trust companies to execute laundering schemes.",
+			RedFlags: []string{
+				"Legal or accounting firm receiving and disbursing large sums on behalf of clients",
+				"Trust account used as a clearing house",
+				"Multiple unrelated clients routing funds through same professional",
+				"Fee income disproportionate to apparent services rendered",
+				"Client refuses to provide source of funds explanation",
+				"Attorney-client privilege invoked to block due diligence",
+			},
+			RiskKeywords:  []string{"lawyer", "solicitor", "accountant", "notary", "trust account", "professional", "intermediary", "facilitator", "third-party", "DNFBP"},
+			FATFReference: "FATF Guidance for Legal Professionals (2023)",
+		},
+		{
+			Code:        "INVESTMENT_FRAUD",
+			Name:        "Investment Fraud / Boiler Room",
+			Category:    "PLACEMENT",
+			Description: "Generating criminal proceeds through fraudulent investment schemes such as boiler rooms, pump-and-dump, or forex scams, then laundering proceeds through layered bank transfers.",
+			RedFlags: []string{
+				"High-pressure sales calls for unregulated investments",
+				"Returns promised well above market rates",
+				"Victim unable to withdraw funds",
+				"Sudden influx of funds followed by rapid outflows",
+				"Multiple victims sending to same account",
+				"Proceeds routed through multiple jurisdictions immediately",
+			},
+			RiskKeywords:  []string{"investment fraud", "scam", "boiler room", "pump and dump", "forex fraud", "ponzi", "pyramid", "scheme", "unregistered", "victim", "fraud proceeds"},
+			FATFReference: "FATF Guidance on Money Laundering from Fraud (2021)",
+		},
+		{
+			Code:        "PONZI",
+			Name:        "Ponzi / Pyramid Scheme",
+			Category:    "INTEGRATION",
+			Description: "Using funds from new investors to pay earlier investors, creating the illusion of legitimate returns. Laundered proceeds are often commingled with investor funds.",
+			RedFlags: []string{
+				"Returns consistently above market rates regardless of market conditions",
+				"New investor inflows used to pay earlier investors",
+				"Operator avoids regulatory registration",
+				"Sudden collapse with large unexplained withdrawals",
+				"Investor lists cross-reference previous fraud cases",
+				"Funds pooled in single account with little documentation",
+			},
+			RiskKeywords:  []string{"ponzi", "pyramid", "investment scheme", "guaranteed returns", "referral", "multi-level", "MLM", "fraudulent returns", "investor"},
+			FATFReference: "FATF Report on Ponzi Schemes and Money Laundering",
+		},
+		{
+			Code:        "CYBER_FRAUD",
+			Name:        "Cyber-Enabled Fraud",
+			Category:    "PLACEMENT",
+			Description: "Using phishing, malware, BEC (Business Email Compromise), or SIM swapping to steal funds electronically and then rapidly moving them through layered transfers.",
+			RedFlags: []string{
+				"Account compromise followed by large outward transfer",
+				"Transaction initiated from new device or location",
+				"Beneficiary account opened recently",
+				"Funds moved to multiple accounts in rapid succession",
+				"Payment to new beneficiary not previously paid",
+				"Urgency in instructions with unusual payee details",
+			},
+			RiskKeywords:  []string{"BEC", "phishing", "malware", "account takeover", "SIM swap", "social engineering", "cyber fraud", "email compromise", "authorized push payment", "APP fraud"},
+			FATFReference: "FATF Guidance on Digital Identity (2020)",
+		},
+		{
+			Code:        "IDENTITY_FRAUD",
+			Name:        "Identity Fraud / Synthetic Identity",
+			Category:    "PLACEMENT",
+			Description: "Using stolen or fabricated identity documents to open bank accounts, apply for credit, or conduct transactions in order to distance the criminal from the proceeds.",
+			RedFlags: []string{
+				"Customer details match known fraud typology databases",
+				"Address linked to multiple unrelated accounts",
+				"ID documents have inconsistent or altered features",
+				"Account opened with forged utility bills or payslips",
+				"Multiple accounts opened with slight variations on same identity",
+				"Account activity begins immediately after opening",
+			},
+			RiskKeywords:  []string{"identity fraud", "synthetic identity", "fake ID", "forged documents", "KYC bypass", "impersonation", "stolen identity", "mule account"},
+			FATFReference: "FATF Guidance on Digital Identity (2020)",
+		},
+		{
+			Code:        "DRUG_PROCEEDS",
+			Name:        "Drug Trafficking Proceeds",
+			Category:    "PLACEMENT",
+			Description: "Laundering proceeds from narcotics trafficking through cash-intensive businesses, currency exchange, or bulk cash smuggling.",
+			RedFlags: []string{
+				"Large unexplained cash deposits",
+				"Business type inconsistent with cash volume",
+				"Bulk cash transactions in high-denomination notes",
+				"Counterparty associated with known trafficking routes",
+				"Funds received from jurisdiction with high drug trafficking risk",
+				"Frequent cash-to-wire-transfer pattern",
+			},
+			RiskKeywords:  []string{"narcotics", "drugs", "trafficking", "cash", "bulk cash", "money service", "currency exchange", "high denomination", "placement", "drug proceeds"},
+			FATFReference: "FATF Report on ML from Narcotics Trafficking (2012)",
+		},
+		{
+			Code:        "CORRUPTION",
+			Name:        "Corruption / PEP Bribery Proceeds",
+			Category:    "PLACEMENT",
+			Description: "Laundering bribes, embezzlement, or other proceeds of corruption typically involving Politically Exposed Persons (PEPs) or their associates. Often uses offshore structures.",
+			RedFlags: []string{
+				"Customer is a PEP or close associate",
+				"Funds received from government contracts",
+				"Transaction inconsistent with known salary or income",
+				"Use of offshore accounts in secrecy jurisdictions",
+				"Sudden acquisition of expensive assets",
+				"Payments received from entities with government links",
+			},
+			RiskKeywords:  []string{"PEP", "corruption", "bribery", "embezzlement", "kleptocracy", "government contract", "politically exposed", "state asset", "kickback", "official"},
+			FATFReference: "FATF Guidance on Politically Exposed Persons (2013)",
+		},
+		{
+			Code:        "TF_GENERAL",
+			Name:        "Terrorist Financing",
+			Category:    "TF",
+			Description: "Moving funds to support terrorist organizations or activities. Unlike ML, amounts may be small and source may be legitimate. Often involves multiple jurisdictions and complex routing.",
+			RedFlags: []string{
+				"Transfers to designated terrorist individuals or entities",
+				"Funds to conflict zones or sanctioned countries",
+				"Small amounts collected from multiple donors",
+				"Payments to non-profit organizations without clear purpose",
+				"Unusual routing through multiple intermediaries",
+				"Account holder matches terrorist designation list",
+			},
+			RiskKeywords:  []string{"terrorist financing", "TF", "designated entity", "sanctions", "conflict zone", "charity", "donation", "extremism", "radicalization", "OFAC", "UNSC"},
+			FATFReference: "FATF Guidance on Terrorist Financing Risk Assessment (2019)",
+		},
+		{
+			Code:        "TF_SELF_FUNDED",
+			Name:        "Self-Funded / Retail Terrorism",
+			Category:    "TF",
+			Description: "Terrorist acts funded from legitimate income such as wages, benefits, or small loans without large-scale financing networks. Minimal financial footprint makes detection difficult.",
+			RedFlags: []string{
+				"Multiple small withdrawals prior to a significant event",
+				"Sudden unusual purchases such as chemicals or equipment",
+				"Increased travel spending to conflict-related destinations",
+				"Large personal loan with no apparent use",
+				"Normal income pattern suddenly becomes erratic",
+			},
+			RiskKeywords:  []string{"lone wolf", "self-funded", "low value", "retail", "domestic terrorism", "personal loan", "consumer credit", "small amounts"},
+			FATFReference: "FATF Report on Financing of Recruitment for Terrorist Purposes (2018)",
+		},
+		{
+			Code:        "PF_EVASION",
+			Name:        "Proliferation Financing",
+			Category:    "PF",
+			Description: "Raising and moving funds to finance the development or acquisition of weapons of mass destruction. Often involves sanctions evasion through front companies and false documentation.",
+			RedFlags: []string{
+				"Counterparty in sanctioned country",
+				"Shipment of dual-use goods without required export licence",
+				"Payment through multiple intermediaries obscuring end-use",
+				"Invoice details vague or inconsistent with goods shipped",
+				"Customer appears to have no legitimate need for the goods",
+				"Front companies in third countries used as procurement intermediaries",
+			},
+			RiskKeywords:  []string{"proliferation", "WMD", "sanctions evasion", "dual-use", "export control", "DPRK", "Iran", "nuclear", "missile", "biological", "chemical weapon"},
+			FATFReference: "FATF Guidance on Counter-Proliferation Financing (2018)",
+		},
+		{
+			Code:        "LAYERING_COMPLEX",
+			Name:        "Complex Multi-Jurisdiction Layering",
+			Category:    "LAYERING",
+			Description: "Rapidly moving funds through multiple bank accounts, shell companies, and jurisdictions to sever the paper trail. May involve 5-10+ entities across multiple countries.",
+			RedFlags: []string{
+				"Funds pass through 3+ jurisdictions in under 48 hours",
+				"Each receiving entity appears to be a shell or nominee",
+				"No economic rationale for routing through intermediate countries",
+				"Entities share registered agents or addresses",
+				"Amounts reduce slightly at each hop suggesting fees",
+				"Ultimate beneficial owner unknown despite layers of enquiry",
+			},
+			RiskKeywords:  []string{"layering", "wire transfers", "correspondent", "multi-jurisdiction", "rapid movement", "multiple accounts", "complex structure", "obfuscation"},
+			FATFReference: "FATF Guidance on Complex Layering Arrangements",
+		},
+		{
+			Code:        "CORRESPONDENT_RISK",
+			Name:        "Correspondent Banking Exploitation",
+			Category:    "LAYERING",
+			Description: "Using correspondent banking relationships to move funds across borders without direct oversight, exploiting the trusted relationship between respondent and correspondent banks.",
+			RedFlags: []string{
+				"Respondent bank in high-risk or poorly supervised jurisdiction",
+				"Payable-through account with unverified customer base",
+				"Nested correspondent relationships",
+				"Unusual pattern of activity in nostro/vostro accounts",
+				"High volume of US dollar clearing despite minimal US nexus",
+				"Respondent bank subject to prior enforcement action",
+			},
+			RiskKeywords:  []string{"correspondent banking", "respondent", "nostro", "vostro", "wire", "SWIFT", "payable-through", "nested", "de-risking"},
+			FATFReference: "FATF Guidance on Correspondent Banking Services (2016)",
+		},
+		{
+			Code:        "INSURANCE_ABUSE",
+			Name:        "Insurance Policy Abuse",
+			Category:    "INTEGRATION",
+			Description: "Using insurance products — single premium policies, life insurance, annuities — to launder funds by paying large premiums with criminal proceeds and then surrendering early.",
+			RedFlags: []string{
+				"Single large premium payment with no apparent justification",
+				"Early surrender or partial withdrawal shortly after inception",
+				"Policy funded by third-party payment",
+				"Policy issued in different name from beneficiary",
+				"Multiple policies with same beneficial owner",
+				"Unusual insistence on cash payment for premium",
+			},
+			RiskKeywords:  []string{"insurance", "premium", "policy", "surrender", "annuity", "life insurance", "investment-linked", "beneficiary", "early redemption"},
+			FATFReference: "FATF Guidance on the Life Insurance Sector (2004)",
+		},
+		{
+			Code:        "PROFESSIONAL_ML_TRUST",
+			Name:        "Trust / Company Service Provider Abuse",
+			Category:    "LAYERING",
+			Description: "Misusing trust and company service providers to create complex legal structures that obscure beneficial ownership and facilitate laundering through layered corporate arrangements.",
+			RedFlags: []string{
+				"Trust or company created in secrecy jurisdiction with no business rationale",
+				"Nominee directors and shareholders with no knowledge of business",
+				"Trust deed appears designed to obscure beneficial owner",
+				"Assets transferred to trust immediately after criminal activity",
+				"TCSP refuses to disclose beneficial owner",
+				"Multiple trusts sharing same trustee across unrelated clients",
+			},
+			RiskKeywords:  []string{"trust", "trustee", "TCSP", "company service", "formation agent", "nominee", "bearer shares", "beneficial owner", "BVI", "Cayman"},
+			FATFReference: "FATF Guidance on Transparency and Beneficial Ownership (2014)",
+		},
+	}
+
+	for _, e := range entries {
+		rf, _  := json.Marshal(e.RedFlags)
+		rk, _  := json.Marshal(e.RiskKeywords)
+		_, err := db.ExecContext(ctx, `
+			INSERT INTO typologies (code, name, category, description, red_flags, risk_keywords, fatf_reference)
+			VALUES ($1, $2, $3, $4, $5, $6, $7)
+			ON CONFLICT (code) DO NOTHING`,
+			e.Code, e.Name, e.Category, e.Description, rf, rk, e.FATFReference,
+		)
+		if err != nil {
+			log.Printf("typologies seed: failed to insert %s: %v", e.Code, err)
+		}
+	}
+}

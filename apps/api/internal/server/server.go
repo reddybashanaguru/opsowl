@@ -23,6 +23,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/findings"
 	"github.com/reddybashanaguru/opsowl/internal/narrative"
 	"github.com/reddybashanaguru/opsowl/internal/transactions"
+	"github.com/reddybashanaguru/opsowl/internal/typologies"
 	"github.com/reddybashanaguru/opsowl/internal/analytics"
 	"github.com/reddybashanaguru/opsowl/internal/apikeys"
 	"github.com/reddybashanaguru/opsowl/internal/assignment"
@@ -382,6 +383,10 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		txnSvc := transactions.NewService(txnRepo, timelineEmitter)
 		txnHandler := transactions.NewHandler(txnSvc)
 		transactions.RegisterRoutes(r, txnHandler, s.jwtMgr)
+
+		// FATF Typology Library + Case Intelligence (Feature 3)
+		typologiesHandler := typologies.NewHandler(s.sqlDB)
+		typologies.RegisterRoutes(r, typologiesHandler, s.jwtMgr)
 
 		// API Key management
 		apiKeysHandler := apikeys.NewHandler(s.sqlDB)

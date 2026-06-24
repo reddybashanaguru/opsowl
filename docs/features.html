@@ -1,0 +1,2136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OpsOwl AI — All 40 Features</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --surface: #1e293b;
+    --surface2: #263348;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --faint: #475569;
+    --cyan: #22d3ee;
+    --cyan-dim: #0e7490;
+    --green: #4ade80;
+    --amber: #fbbf24;
+    --red: #f87171;
+    --violet: #a78bfa;
+    --orange: #fb923c;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; line-height: 1.6; }
+
+  /* ── NAV ── */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(15,23,42,0.95); backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex; align-items: center; gap: 6px;
+    overflow-x: auto; white-space: nowrap; height: 48px;
+  }
+  nav a {
+    color: var(--muted); text-decoration: none; font-size: 12px; font-weight: 500;
+    padding: 4px 10px; border-radius: 6px; transition: all .15s;
+    flex-shrink: 0;
+  }
+  nav a:hover { color: var(--text); background: var(--surface); }
+  nav .brand { color: var(--cyan); font-weight: 700; font-size: 13px; margin-right: 12px; flex-shrink: 0; }
+  nav .sep { color: var(--faint); }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 32px 40px;
+    text-align: center;
+  }
+  .hero h1 { font-size: 32px; font-weight: 800; color: var(--cyan); margin-bottom: 8px; }
+  .hero p { color: var(--muted); max-width: 680px; margin: 0 auto 32px; font-size: 15px; }
+
+  /* ── PIPELINE FLOW ── */
+  .pipeline {
+    display: flex; align-items: center; justify-content: center;
+    gap: 0; flex-wrap: wrap; max-width: 1000px; margin: 0 auto;
+  }
+  .pipe-step {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 14px; text-align: center;
+    min-width: 110px;
+  }
+  .pipe-step .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .pipe-step .label { font-size: 11px; font-weight: 600; color: var(--text); }
+  .pipe-step .sub { font-size: 10px; color: var(--muted); }
+  .pipe-arrow { color: var(--cyan-dim); font-size: 18px; padding: 0 6px; flex-shrink: 0; }
+
+  /* ── MODULE HEADER ── */
+  .module-header {
+    padding: 32px 32px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .module-number {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--cyan-dim); color: #fff;
+    font-weight: 800; font-size: 14px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .module-title { font-size: 20px; font-weight: 700; color: var(--text); }
+  .module-desc { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+  /* ── FEATURES GRID ── */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(480px, 1fr));
+    gap: 20px;
+    padding: 24px 32px;
+  }
+
+  /* ── FEATURE CARD ── */
+  .feature-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 22px;
+    display: flex; flex-direction: column; gap: 14px;
+    transition: border-color .2s;
+  }
+  .feature-card:hover { border-color: var(--cyan-dim); }
+
+  .fcard-header { display: flex; align-items: flex-start; gap: 12px; }
+  .fcard-num {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--surface2); border: 1px solid var(--border);
+    font-size: 11px; font-weight: 700; color: var(--cyan);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .fcard-icon { font-size: 22px; flex-shrink: 0; }
+  .fcard-title { font-size: 16px; font-weight: 700; color: var(--text); }
+  .fcard-url {
+    font-size: 11px; font-family: monospace;
+    color: var(--cyan); background: rgba(34,211,238,.08);
+    border: 1px solid rgba(34,211,238,.2); border-radius: 5px;
+    padding: 1px 6px; display: inline-block; margin-top: 3px;
+  }
+
+  .section-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: var(--faint); margin-bottom: 4px;
+  }
+  .fcard-why { color: var(--muted); font-size: 13px; line-height: 1.65; }
+  .fcard-helps { color: var(--text); font-size: 13px; line-height: 1.65; }
+
+  /* connects */
+  .connects { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .connect-pill {
+    font-size: 11px; font-weight: 600;
+    background: rgba(34,211,238,.1); color: var(--cyan);
+    border: 1px solid rgba(34,211,238,.25); border-radius: 20px;
+    padding: 2px 9px; text-decoration: none; transition: background .15s;
+  }
+  .connect-pill:hover { background: rgba(34,211,238,.2); }
+
+  /* examples */
+  .examples { display: flex; flex-direction: column; gap: 10px; }
+  .example {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px;
+  }
+  .example-badge {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .07em; margin-bottom: 6px;
+    display: flex; align-items: center; gap-6px;
+  }
+  .ex1 .example-badge { color: var(--cyan); }
+  .ex2 .example-badge { color: var(--violet); }
+  .example p { color: var(--muted); font-size: 12.5px; line-height: 1.65; }
+  .example strong { color: var(--text); }
+
+  /* scrolltop */
+  .back-top {
+    position: fixed; bottom: 20px; right: 20px;
+    background: var(--cyan-dim); color: #fff;
+    border: none; border-radius: 50%; width: 40px; height: 40px;
+    font-size: 18px; cursor: pointer; z-index: 99;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* footer */
+  footer {
+    text-align: center; padding: 32px;
+    color: var(--faint); font-size: 12px;
+    border-top: 1px solid var(--border);
+  }
+
+  @media (max-width: 600px) {
+    .features-grid { grid-template-columns: 1fr; padding: 16px; }
+    .module-header { padding: 24px 16px 12px; }
+    .hero { padding: 32px 16px; }
+    nav { padding: 0 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <span class="brand">🦉 OpsOwl AI</span>
+  <a href="#m1">Administration</a>
+  <a href="#m2">Alert Ingestion</a>
+  <a href="#m3">Investigation</a>
+  <a href="#m4">Transactions</a>
+  <a href="#m5">AI &amp; Documents</a>
+  <a href="#m6">Findings</a>
+  <a href="#m7">Regulatory</a>
+  <a href="#m8">Reporting</a>
+  <a href="#m9">Audit</a>
+  <a href="#m10">Deployment</a>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <h1>OpsOwl AI — All 40 Features</h1>
+  <p>Complete guide to the AI-native on-premise AML/compliance investigation platform for Indian NBFCs and banks. Every feature explained with real-world examples and cross-feature connections.</p>
+
+  <!-- Pipeline -->
+  <div class="pipeline">
+    <div class="pipe-step">
+      <span class="icon">🏦</span>
+      <span class="label">TMS Alert</span>
+      <span class="sub">Actimize / SAS / CBS</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">📡</span>
+      <span class="label">Alert Sources</span>
+      <span class="sub">Webhook ingest</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">⚡</span>
+      <span class="label">Alert Rules</span>
+      <span class="sub">Auto-triage</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">📋</span>
+      <span class="label">Case Created</span>
+      <span class="sub">SLA + Playbook</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">🔍</span>
+      <span class="label">Investigation</span>
+      <span class="sub">Notes·Tasks·Docs</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">🤖</span>
+      <span class="label">AI Analysis</span>
+      <span class="sub">Risk + Narrative</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">📑</span>
+      <span class="label">STR + Closure</span>
+      <span class="sub">FIU-IND goAML</span>
+    </div>
+    <span class="pipe-arrow">→</span>
+    <div class="pipe-step">
+      <span class="icon">🔒</span>
+      <span class="label">Audit Trail</span>
+      <span class="sub">SHA-256 chain</span>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 1 — ADMINISTRATION SETUP                        -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m1">
+  <div class="module-header">
+    <div class="module-number">1</div>
+    <div>
+      <div class="module-title">Administration Setup</div>
+      <div class="module-desc">Features 1–12 — Configure users, SLA, templates, playbooks, rules, and system settings before any investigation begins</div>
+    </div>
+  </div>
+
+  <div class="features-grid">
+
+    <!-- F1 -->
+    <div class="feature-card" id="f1">
+      <div class="fcard-header">
+        <div class="fcard-num">01</div>
+        <span class="fcard-icon">👥</span>
+        <div>
+          <div class="fcard-title">Users &amp; Roles</div>
+          <span class="fcard-url">/users</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Compliance teams have multiple personas — analysts, managers, auditors, admins. Without role separation, a junior analyst can close a case prematurely, an auditor can tamper with records, and there is no accountability when something goes wrong. When someone leaves, their access must be revoked instantly — not after IT raises a ticket three days later.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">5 roles with fixed permission sets: <strong>Super Admin</strong> (full control), <strong>Admin</strong> (config + users), <strong>Manager</strong> (full case visibility + approve), <strong>Analyst</strong> (assigned cases only), <strong>Viewer</strong> (read-only). One-click deactivation removes access without deleting history. Inline role change via hover on any role badge. Role count chips show team composition at a glance.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f5">Assignment Rules</a>
+          <a class="connect-pill" href="#f19">Tasks</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+          <a class="connect-pill" href="#f33">Workload</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — New Analyst Onboarding</div>
+          <p>Priya Sharma joins as a new AML analyst. Admin invites her: Full Name = <strong>Priya Sharma</strong>, Role = <strong>Analyst</strong>, Temp Password = <strong>Test@1234</strong>. Priya logs in — she can only see cases assigned to her. She cannot close a case, cannot change roles, cannot access the Settings menu. Her first login is recorded in the audit log.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — RBI Spot Inspection</div>
+          <p>An external examiner from RBI arrives for a 3-day on-site inspection. Admin creates a <strong>Viewer</strong> account for them. They can read every case, note, document, timeline, and audit log — but every page shows all controls greyed out. They cannot make a single change. After the inspection ends, admin clicks <strong>Deactivate</strong> — access removed in one click, no IT ticket needed.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F2 -->
+    <div class="feature-card" id="f2">
+      <div class="fcard-header">
+        <div class="fcard-num">02</div>
+        <span class="fcard-icon">⏱️</span>
+        <div>
+          <div class="fcard-title">SLA Policies</div>
+          <span class="fcard-url">/sla</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">RBI, FIU-IND, and SEBI mandate investigation turnaround times. Without enforced SLA, cases age silently in queues and "case aged beyond regulatory TAT" becomes the most common examination finding. There is no automated signal when a deadline is approaching — the breach is discovered after it happens.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">4 fixed policies (Critical / High / Medium / Low) each with 3 controls: <strong>Warning Hours</strong> — private analyst notification before anything turns amber. <strong>Warning % of Breach</strong> — when the case row turns amber platform-wide. <strong>Breach Hours</strong> — hard regulatory deadline, case turns red and manager is alerted. The three layers give advance warning before a breach, not just a notification after it.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f16">Cases List</a>
+          <a class="connect-pill" href="#f32">Dashboard</a>
+          <a class="connect-pill" href="#f34">Analytics</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Critical Sanctions Hit (3-layer timeline)</div>
+          <p>A sanctions hit arrives at <strong>2:00 PM</strong>. Critical SLA = 4h breach. At <strong>4:00 PM</strong> (2h elapsed = Warning Hours), analyst Divya gets a private notification: "Your sanctions case needs attention — 2 hours remaining." At <strong>5:00 PM</strong> (3h = 80% of 4h), the case row turns <strong>amber</strong> on the dashboard — everyone sees it. At <strong>6:00 PM</strong> (4h = breach), the case turns <strong>red</strong>, the manager receives an alert.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Tightening SLA After a Regulatory Letter</div>
+          <p>RBI sends a letter requiring all high-priority AML investigations to be resolved within <strong>12 hours</strong> (down from 24). CCO opens SLA Policies, edits the <strong>High</strong> policy: Breach Hours = <strong>12</strong>, Warning % = <strong>80</strong> (amber at 9.6h), Warning Hours = <strong>8</strong> (analyst notified at 8h). From this moment, every new High case gets the updated SLA clock. Historical cases are not affected — only new ones.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F3 -->
+    <div class="feature-card" id="f3">
+      <div class="fcard-header">
+        <div class="fcard-num">03</div>
+        <span class="fcard-icon">📄</span>
+        <div>
+          <div class="fcard-title">Case Templates</div>
+          <span class="fcard-url">/settings/templates</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Every AML investigation starts the same way — same description structure, same initial priority, same standard tags, same first set of tasks. Without templates, analysts fill all fields from scratch, introduce inconsistencies, and sometimes set the wrong priority — breaking SLA assignment and reporting accuracy.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">When an analyst picks a template at case creation, it pre-fills: description (structured brief for the analyst), default priority (so SLA clock starts correctly), tags (consistent categorisation from day one), and a starter task checklist (tasks auto-created on the case the moment the template is applied). Templates can be toggled Active/Inactive without deletion — deactivate during process reviews, reactivate when the new process is ready.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f19">Tasks</a>
+          <a class="connect-pill" href="#f2">SLA Policies</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — AML Suspicious Transaction</div>
+          <p>Template: <strong>AML — Suspicious Transaction</strong>. Priority = High (SLA clock starts at 24h). Description pre-filled: "Customer flagged for suspicious activity. Review transaction history, KYC, and counterparty profiles." Tags: <em>structuring, threshold, aml</em>. 3 starter tasks auto-created: KYC review, 6-month transaction analysis, counterparty check. Analyst starts investigating immediately — not filling forms.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — PEP Enhanced Due Diligence</div>
+          <p>Template: <strong>PEP Enhanced Due Diligence</strong>. Priority = High. Description: "Politically Exposed Person — requires enhanced KYC, source of wealth verification, and senior management sign-off per RBI KYC Master Direction 2023." Tags: <em>pep, edd, senior-approval</em>. 4 tasks: Source of wealth docs, beneficial ownership mapping, counterparty screening, EDD sign-off. Analyst knows exactly what is required without reading the regulation.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F4 -->
+    <div class="feature-card" id="f4">
+      <div class="fcard-header">
+        <div class="fcard-num">04</div>
+        <span class="fcard-icon">📋</span>
+        <div>
+          <div class="fcard-title">Investigation Playbooks</div>
+          <span class="fcard-url">/settings/playbooks</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Under pressure — high volumes, tight deadlines — investigators skip steps. A KYC check is missed. A counterparty is not screened. The STR decision is made without documenting rationale. In regulatory examinations, missed steps become findings. Excel and email cannot enforce investigation procedure — it relies entirely on individual discipline.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">A playbook is triggered by <strong>case_type</strong> — when a case of matching type is created, all playbook steps are auto-created as tasks on that case instantly. Each step has a title, priority, due date (hours from case creation), and a <strong>dependency</strong> ("After step N") — the step is BLOCKED until its dependency is completed. This enforces investigation sequence, not just a checklist. The Case Type registry (shared with case creation) prevents typo mismatches that silently break the trigger.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f19">Tasks</a>
+          <a class="connect-pill" href="#f6">Alert Rules</a>
+          <a class="connect-pill" href="#f3">Templates</a>
+          <a class="connect-pill" href="#f29">STR</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Sanctions Hit Review Playbook</div>
+          <p>Playbook case_type = <strong>sanctions</strong>. When a sanctions case is created, 6 tasks auto-appear: (1) Freeze flagged transaction — due 1h, no dependency. (2) Verify identity match — due 3h, blocked until Step 1. (3) Collect KYC + source of funds — due 8h, blocked until Step 2. (4) Escalate to Compliance Head — due 10h. (5) File FIU-IND report — due 24h. (6) Document final disposition — due 48h. Analyst cannot skip to Step 5 without completing Steps 1–4 first.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Fraud Investigation Playbook</div>
+          <p>Playbook case_type = <strong>fraud</strong>. Steps: (1) Block customer account immediately. (2) Preserve all digital evidence — blocked until Step 1. (3) Record customer statement. (4) Coordinate with law enforcement liaison — blocked until Step 3. (5) Initiate insurance recovery process. (6) Draft closure report. A new analyst joins the fraud team on Day 1. They open a fraud case and the procedure is already laid out — they follow the steps, in order, without needing to know the SOP by memory.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F5 -->
+    <div class="feature-card" id="f5">
+      <div class="fcard-header">
+        <div class="fcard-num">05</div>
+        <span class="fcard-icon">🎯</span>
+        <div>
+          <div class="fcard-title">Assignment Rules</div>
+          <span class="fcard-url">/settings/assignment-rules</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">When alerts arrive during high-volume periods, cases sit unassigned. A manager manually reads each alert, decides which analyst to route it to, and makes the assignment. This creates a triage bottleneck. If the manager is unavailable, cases queue up. Senior analysts get overloaded while junior ones have capacity. There is no audit evidence of why a case was routed to whom.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Rules fire <strong>synchronously at case creation</strong> (same HTTP request, under 1 second). Rules are evaluated in <strong>priority_order ASC</strong> — first match wins. Match conditions: <strong>Priority</strong> + <strong>Case Type</strong> (both optional, AND logic). Assignment modes: <strong>Specific User</strong> (direct routing) or <strong>Role round-robin</strong> (picks the analyst/manager with fewest open cases at that moment — automatic load balancing). If no rule matches, the system falls back to the least-loaded manager → admin → super_admin. Nothing ever stays unassigned.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f1">Users &amp; Roles</a>
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f6">Alert Rules</a>
+          <a class="connect-pill" href="#f33">Workload</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Sanctions Specialist Direct Routing</div>
+          <p>A SANCTIONS_HIT alert arrives at 3:15 PM. Auto-conversion creates a <strong>Critical / sanctions</strong> case. Assignment engine runs in &lt;1 second. Rule 1 matches (priority=Critical AND case_type=sanctions). Case is directly assigned to <strong>Divya Reddy</strong> — the sanctions specialist. No manager decision needed. Divya receives a notification. PMLA 24-hour clock starts. The entire flow takes under 2 seconds from alert arrival to assignment.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Overnight Load Balancing</div>
+          <p>50 routine AML alerts arrive overnight from Actimize. All create <strong>Medium / aml</strong> cases. Rule 5 fires for each (any priority + aml → Role: Analyst). At Case 1, Sneha has 6 open cases, Arjun has 4, Priya has 5 — Case 1 goes to Arjun. At Case 2, Arjun now has 5, Priya has 5, Sneha has 6 — tie broken alphabetically. By morning, all 50 cases are distributed across the team with no single analyst disproportionately loaded.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F6 -->
+    <div class="feature-card" id="f6">
+      <div class="fcard-header">
+        <div class="fcard-num">06</div>
+        <span class="fcard-icon">📡</span>
+        <div>
+          <div class="fcard-title">Alert Sources &amp; Alert Routing Rules</div>
+          <span class="fcard-url">/settings/alert-sources &nbsp;·&nbsp; /settings/alert-rules</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Every bank has a TMS (Transaction Monitoring System) that fires alerts. Today those alerts arrive in email, Excel exports, or a separate queue — and a human manually reads each one to decide if it needs a case. This is slow, error-prone, and creates a gap between when the alert fires and when the investigation starts. That gap is where regulatory breaches happen.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps"><strong>Alert Sources</strong>: register each TMS (Actimize, SAS AML, Oracle FCCM, Core Banking CBS) as a source. Each source gets a unique ingest URL + HMAC-SHA256 secret for authentication. The webhook URL is always visible on the source card with a copy button. <strong>Alert Routing Rules</strong>: evaluated in sort_order ASC, first match wins. Match on: alert type + min risk score. Set: priority mapping, mode (queue = analyst reviews manually, auto = case created immediately), dedup window (same entity+type within N hours = skipped), case type (which playbook to trigger).</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f7">Inbound Webhook</a>
+          <a class="connect-pill" href="#f13">Alert Queue</a>
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f5">Assignment Rules</a>
+          <a class="connect-pill" href="#f39">Inbound Events Log</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Auto Case Creation from Actimize</div>
+          <p>Actimize fires a STRUCTURING alert with risk_score=82 for account HDFC0000123456. Source = "Actimize Production TMS." Alert Routing Rules engine runs: Rule 2 matches (STRUCTURING + min_score=70, mode=<strong>auto</strong>). A <strong>High / aml</strong> case is created in under 1 second. Playbook fires (6 AML tasks auto-created). Assignment Rule 3 routes it to Sneha Patel. SLA clock starts. All of this happens before a human has read the alert.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Queue Mode for Analyst Review</div>
+          <p>Core Banking CBS fires a DORMANT_REACTIVATION alert with risk_score=38. Alert Rule matches (min_score=30, mode=<strong>queue</strong>). The alert sits in the Alert Queue — no case is created yet. Analyst Arjun reviews it: the reactivated account has ₹45L deposited within 12 hours. Arjun manually converts it to a case. The dedup window (72h) means if CBS fires a second alert for the same account within 72 hours, it is silently skipped — no duplicate case.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F7 -->
+    <div class="feature-card" id="f7">
+      <div class="fcard-header">
+        <div class="fcard-num">07</div>
+        <span class="fcard-icon">🔗</span>
+        <div>
+          <div class="fcard-title">Inbound Webhook Setup</div>
+          <span class="fcard-url">/settings/inbound</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Alert sources need a documented, secure, authenticated endpoint to push events to. Without this, integrations are ad-hoc — different teams configure different endpoints, payloads are inconsistent, and there is no centralised log of what came in and when.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Single documented endpoint per source at <code>/api/v1/alerts/ingest/{source_id}</code>. The UI shows the full base URL, sample JSON payload, and HMAC signing instructions. Every inbound event is logged regardless of whether a rule matched — full traceability from the first byte. TMS team has everything they need to complete integration without contacting OpsOwl support.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f6">Alert Sources</a>
+          <a class="connect-pill" href="#f13">Alert Queue</a>
+          <a class="connect-pill" href="#f39">Inbound Events Log</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Actimize Integration Go-Live</div>
+          <p>Actimize production TMS team needs to integrate. Compliance admin copies the webhook URL: <strong>https://opsowl.bank.internal/api/v1/alerts/ingest/a3f2...</strong> and the HMAC secret (shown once at source creation). Actimize is configured to POST alerts to this URL with the HMAC signature in the <code>X-OpsOwl-Signature: sha256=&lt;hex&gt;</code> header. First test alert arrives — OpsOwl verifies the HMAC, logs the event, and routes it through Alert Rules. Integration complete in under 2 hours.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Loan Origination System Integration</div>
+          <p>The bank's Loan Origination System (LOS) flags a suspicious high-value loan application. LOS developer reads the sample payload in the Inbound Webhook Setup page. They map: <em>application_id → external_alert_id</em>, <em>risk_flag → alert_type = "HIGH_RISK_APPLICATION"</em>, <em>risk_score → risk_score</em>. First test event: OpsOwl receives, logs, rule matches (type=HIGH_RISK_APPLICATION → queue). Alert sits in the queue for analyst review. Integration done without a single API support ticket.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F8 -->
+    <div class="feature-card" id="f8">
+      <div class="fcard-header">
+        <div class="fcard-num">08</div>
+        <span class="fcard-icon">📤</span>
+        <div>
+          <div class="fcard-title">Outbound Webhooks</div>
+          <span class="fcard-url">/settings/webhooks</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigation outcomes need to flow back to downstream systems — the risk platform, core banking, loan origination, regulatory reporting tools. Today, compliance teams copy-paste case closure details into emails or update systems manually. This is slow, creates data inconsistency, and means downstream systems are always stale.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Configure webhooks for any downstream system. Events that can trigger a webhook: case created, case closed, case escalated, STR filed, case status changed. Multiple webhooks supported simultaneously. HMAC-SHA256 signing on outbound payloads — downstream systems verify the signature before acting, ensuring the payload was not tampered with in transit. A <strong>Test</strong> button sends a test payload to verify the integration before going live.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f31">Case Closure</a>
+          <a class="connect-pill" href="#f29">STR Filing</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Risk Platform Auto-Update on Case Close</div>
+          <p>Webhook configured: URL = <strong>https://risk.bank.internal/api/case-outcome</strong>, trigger = <em>case_closed</em>. When Case C-0089 is closed with disposition "STR Filed," OpsOwl immediately POSTs a signed payload: {case_id, subject_id, disposition, str_reference, closed_at}. The risk platform receives it, verifies the HMAC signature, and automatically updates Rajesh Kumar's risk rating to "High — STR Filed." No manual notification. No copy-paste. No delay.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Core Banking Account Freeze on Escalation</div>
+          <p>Webhook configured: URL = <strong>https://cbs.bank.internal/compliance/freeze</strong>, trigger = <em>case_escalated</em>. When a case is escalated (sanctions confirmed), OpsOwl fires the webhook with {customer_id, account_number, escalation_reason}. CBS receives the HMAC-verified payload and automatically freezes the customer's account pending investigation — within 3 seconds of the analyst clicking "Escalate." No internal email, no phone call to the CBS team.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F9 -->
+    <div class="feature-card" id="f9">
+      <div class="fcard-header">
+        <div class="fcard-num">09</div>
+        <span class="fcard-icon">🔑</span>
+        <div>
+          <div class="fcard-title">API Keys</div>
+          <span class="fcard-url">/settings/api-keys</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Some systems — loan origination, onboarding, fraud engines — need to create or read cases programmatically, without a human logging in. Without API keys, every integration requires a shared user account, which cannot be audited per-system, cannot be revoked per-integration, and creates a security risk if one system is compromised.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Each external system gets its own named API key. Keys are shown only once at creation — they cannot be retrieved later (preventing exposure). Every API call made with a key is logged with the key name — audit trail shows which system did what and when. Revoking one key does not affect other integrations. Keys are scoped: external systems can create/read cases but cannot access admin functions.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f15">Bulk Import</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Loan Origination System Creates Cases</div>
+          <p>The bank's LOS flags a suspicious ₹2Cr business loan application. LOS developer uses the API key <strong>"LOS Integration"</strong> to POST to <code>/api/v1/cases</code> — creates a KYC review case directly. The audit log records: <em>case C-0091 created via API key "LOS Integration" at 10:42 AM</em>. Assignment rules and playbooks fire exactly as they would for a manually created case. No human needed for case creation.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Risk Analytics Engine Reads Case Outcomes</div>
+          <p>The bank's internal risk analytics team wants to train their ML model on case outcomes. They use a read-scoped API key <strong>"Risk Analytics Read"</strong> to GET closed cases via <code>/api/v1/cases?status=closed</code>. The key cannot POST, PATCH, or DELETE — read-only. When the analytics engine is decommissioned 6 months later, admin revokes the key in one click. Every read the analytics engine made is logged by key name in the audit trail.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F10 -->
+    <div class="feature-card" id="f10">
+      <div class="fcard-header">
+        <div class="fcard-num">10</div>
+        <span class="fcard-icon">📊</span>
+        <div>
+          <div class="fcard-title">Scheduled Reports</div>
+          <span class="fcard-url">/settings/reports</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Compliance heads and CCOs need regular visibility into investigation health. Today this requires someone to manually query the system, compile numbers, and email a summary. If that person is on leave, the report doesn't go out. There is no consistent cadence — board meetings happen but the data isn't ready.</p>
+      </div>
+
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Reports are generated and emailed automatically on a defined schedule — daily, weekly, monthly, or custom cron. PDF format requires no system access to read — suitable for board-level and regulatory circulation. Reports go to configured recipients regardless of who is in the office. Report types include: Case Summary, SLA Compliance, STR Filing Rate, Analyst Performance, and Risk Distribution.</p>
+      </div>
+
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f34">Analytics</a>
+          <a class="connect-pill" href="#f33">Workload</a>
+          <a class="connect-pill" href="#f2">SLA Policies</a>
+          <a class="connect-pill" href="#f29">STR Filing</a>
+        </div>
+      </div>
+
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Weekly CCO Summary</div>
+          <p>Schedule: type = <strong>Case Summary</strong>, frequency = <strong>Weekly</strong>, day = <strong>Monday</strong>, time = <strong>08:00</strong>, format = PDF, recipients = cco@bank.com. Every Monday at 8 AM, a PDF lands in the CCO's inbox: open cases by priority, SLA breaches in the last 7 days, STRs filed, cases closed, average resolution time. The compliance cadence never slips — even if the compliance manager is on leave.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Daily SLA Breach Alert for Manager</div>
+          <p>Schedule: type = <strong>SLA Compliance</strong>, frequency = <strong>Daily</strong>, time = <strong>17:00</strong>, recipients = manager@bank.com. Every evening at 5 PM, the manager receives a PDF showing every case that breached SLA in the last 24 hours, grouped by analyst and case type. Manager uses this to identify patterns — are breaches clustering on one analyst? One case type? The data drives the next day's case distribution decisions.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /features-grid M1 part 1 -->
+</div><!-- /m1 partial - continued below -->
+
+
+    <!-- F11 -->
+    <div class="feature-card" id="f11">
+      <div class="fcard-header">
+        <div class="fcard-num">11</div>
+        <span class="fcard-icon">🗂️</span>
+        <div>
+          <div class="fcard-title">Data Retention Policies</div>
+          <span class="fcard-url">/settings/retention</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">PMLA requires retention of all investigation records for a minimum of 5 years. Without managed retention, data may be deleted too early (regulatory breach) or stored indefinitely (storage and privacy risk). There is also no audit evidence that retention rules were applied consistently.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Configure retention periods per data category: case records, documents, notes, audit logs, AI logs. The system enforces minimum retention — no record can be deleted before its retention date. After the retention period expires, data can be purged systematically with a logged purge action. Examiners can verify the policy was in place and enforced.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f27">AI Logs</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — PMLA 5-Year Compliance</div>
+          <p>Admin sets retention: Case documents = <strong>1825 days (5 years)</strong>, Case notes = 1825 days, Audit logs = 1825 days, AI logs = 730 days (2 years). A user attempts to delete a document from a 2023 case. The system blocks it: <em>"Document cannot be deleted — retention policy requires retention until 2028-04-15."</em> No accidental PMLA breach possible.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Post-Retention Systematic Purge</div>
+          <p>A batch of cases from 2019 has passed its 5-year window in 2024. The system surfaces a purge notification to the compliance admin. Admin reviews the list of 312 eligible records, confirms. The system purges the data and creates a final <strong>audit log entry</strong> recording the purge: which records, how many, by whom, at what timestamp. The purge itself is permanently auditable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F12 -->
+    <div class="feature-card" id="f12">
+      <div class="fcard-header">
+        <div class="fcard-num">12</div>
+        <span class="fcard-icon">⚙️</span>
+        <div>
+          <div class="fcard-title">Workspace Settings</div>
+          <span class="fcard-url">/settings</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Every bank uses different terminology. Some call it "Investigation," others "Case." Some use "TAT" instead of "SLA," "Investigating Officer" instead of "Analyst." A platform that forces its own terminology creates friction with existing SOPs, training materials, and regulatory reports — staff spend time translating instead of investigating.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every label in the application is configurable. Changes reflect instantly across the entire platform — dashboard, cases list, reports, audit logs, notifications. New staff see terminology consistent with internal SOPs from day one. Regulatory reports generated by OpsOwl use your institution's own terminology, not generic labels from a foreign product.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f32">Dashboard</a>
+          <a class="connect-pill" href="#f16">Cases List</a>
+          <a class="connect-pill" href="#f34">Analytics</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — State Bank Terminology</div>
+          <p>State Bank of India uses "Investigation" not "Case" and "Investigating Officer" not "Analyst". Admin opens Workspace Settings: <strong>Case → Investigation</strong>, <strong>Analyst → Investigating Officer</strong>, <strong>SLA → TAT</strong>. Immediately, every page shows the new labels — the dashboard reads "Open Investigations: 47," the cases list page title is "Investigations," and every role label shows "Investigating Officer." Zero retraining needed.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — NBFC Custom Labels</div>
+          <p>An NBFC uses "Inquiry" instead of "Note" and "Resolution" instead of "Closure." Admin relabels both. Analysts filling in the investigation workspace now see <strong>Add Inquiry</strong> instead of Add Note, and the final step reads <strong>Resolution</strong> instead of Closure. The PDF reports generated for the board also use the NBFC's own terminology — board members see a report that matches every internal document they have previously seen.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /features-grid M1 -->
+</div><!-- /m1 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 2 — ALERT INGESTION & CASE CREATION             -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m2">
+  <div class="module-header">
+    <div class="module-number" style="background:#7c3aed;">2</div>
+    <div>
+      <div class="module-title">Alert Ingestion &amp; Case Creation</div>
+      <div class="module-desc">Features 13–16 — Every alert is captured, triaged, and converted into a structured case with SLA and playbook applied</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F13 -->
+    <div class="feature-card" id="f13">
+      <div class="fcard-header">
+        <div class="fcard-num">13</div>
+        <span class="fcard-icon">📥</span>
+        <div>
+          <div class="fcard-title">Alert Queue</div>
+          <span class="fcard-url">/alerts</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">When alerts arrive via webhook, the team needs a centralised view of every inbound event — what arrived, from which source, when, what payload it carried, and which case was created. Without this, if an alert-to-case pipeline fails or a rule doesn't match, the event is invisible — no one knows the alert arrived.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every inbound alert is visible in one queue regardless of source. Alerts in <strong>queue mode</strong> sit here for analyst review before a case is created. Status is shown: <em>queued, auto_converted, deduplicated, dismissed</em>. Linked case is shown next to each converted alert — one click to jump to the investigation. Full payload is stored — if a rule was misconfigured, the original alert data is available for reprocessing. Filter by source, risk level, status, or date range.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f6">Alert Rules</a>
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f39">Inbound Events Log</a>
+          <a class="connect-pill" href="#f24">Subjects</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Mixed Auto and Queue Alerts Overnight</div>
+          <p>12 alerts arrive from Actimize overnight. 8 match auto-mode rules — cases were created automatically, shown as <em>auto_converted</em> with linked case numbers (C-0090 to C-0097). 4 match queue-mode rules — they sit here as <em>queued</em>. Analyst Arjun opens the queue at 9 AM, reviews 4 alerts. He converts 2 to cases (VELOCITY_BREACH looks suspicious) and dismisses 2 (UNUSUAL_PATTERN — same customer, already has an open case).</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manual Conversion of Borderline Alert</div>
+          <p>An alert arrives with risk_score=28 — below the rule threshold of 30. It shows in the queue as <em>unmatched</em>. Analyst Sneha reviews the payload: the entity is the same one she investigated last month. Despite the low score, she clicks <strong>Convert to Case</strong> manually, sets priority = Medium, case type = aml. The case is created, playbook fires, assignment runs. The unmatched alert's audit trail records: <em>manually converted by Sneha Patel at 11:23 AM</em>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F14 -->
+    <div class="feature-card" id="f14">
+      <div class="fcard-header">
+        <div class="fcard-num">14</div>
+        <span class="fcard-icon">➕</span>
+        <div>
+          <div class="fcard-title">Create Case (Manual)</div>
+          <span class="fcard-url">/cases/new</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Not every investigation originates from an automated alert. Referrals from relationship managers, internal tips, STR reviews, and manual transaction reviews all require a case to be opened manually. Without a structured creation form, cases are opened inconsistently — wrong priority, missing tags, no assignment — breaking downstream automation.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Structured form ensures all required fields are present before the case is created. The moment the case is created: <strong>SLA clock starts</strong> (based on the priority set), <strong>Assignment Rules fire</strong> (routes to the right analyst automatically), <strong>Playbook triggers</strong> (all steps auto-created as tasks). Case number is assigned immediately. Optional: apply a Template to pre-fill description, tags, and create a starter task checklist simultaneously.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f2">SLA Policies</a>
+          <a class="connect-pill" href="#f3">Templates</a>
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f5">Assignment Rules</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Relationship Manager Tip</div>
+          <p>A RM calls compliance: "My customer Rajesh Kumar has been making 9 NEFT transfers of ₹9.5L each — just below the ₹10L CTR threshold." Analyst creates a case manually: title = <em>Suspicious NEFT Transfers — Rajesh Kumar</em>, type = <strong>aml</strong>, priority = <strong>High</strong>, applies the "AML Suspicious Transaction" template. The moment they click Create: SLA clock starts (24h), AML playbook fires (6 tasks created), Assignment Rule 3 routes it to Sneha Patel. Sneha is notified. All under 2 seconds.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Internal Audit Finding</div>
+          <p>Internal audit flags unusual transfers between two branch accounts. Branch Compliance Officer creates a case: type = <strong>insider</strong>, priority = <strong>Critical</strong>. Assignment Rule 8 fires immediately — routes to <strong>Manager</strong> (insider cases are sensitive, not routed to analyst pool — information perimeter is controlled). SLA clock: Critical = 4h. Manager receives the assignment and begins a restricted investigation. Only the manager and above can see this case.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F15 -->
+    <div class="feature-card" id="f15">
+      <div class="fcard-header">
+        <div class="fcard-num">15</div>
+        <span class="fcard-icon">📦</span>
+        <div>
+          <div class="fcard-title">Bulk Import Cases</div>
+          <span class="fcard-url">/cases/import</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Banks migrating from Excel, legacy case management systems, or another compliance tool need to bring existing cases in without re-entering them one by one. Periodic imports from screening systems or watchlist hits also require batch case creation. Without bulk import, migration is either manual (weeks of effort) or not done (history is lost).</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Download a template CSV showing the exact column format expected. Fill it from any source (Excel, legacy system export) and upload. Import errors are flagged row by row — no silent failures. Each imported case gets its SLA clock, assignment rules, playbook tasks, and full audit trail from the moment it lands. Thousands of cases can be imported in a single operation.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f14">Case Creation</a>
+          <a class="connect-pill" href="#f16">Cases List</a>
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f5">Assignment Rules</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Migration from Excel</div>
+          <p>A mid-sized NBFC has been managing 2,847 cases in Excel for 3 years. Compliance team exports to CSV, maps the columns to the OpsOwl template (title, case_type, priority, status, created_at, assigned_to). Upload takes 4 minutes. All 2,847 cases appear in OpsOwl with their original dates and statuses preserved. Historical cases are now searchable, filterable, and linked to subject profiles. Migration complete in one afternoon.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Weekly Sanctions Screening Batch</div>
+          <p>The sanctions screening tool runs a batch check every Sunday night against the UN/OFAC list and outputs a CSV of 12 new potential hits. Compliance admin uploads the CSV every Monday morning. 12 sanctions cases are created in one operation — each triggers the Sanctions playbook, routes via Assignment Rule 1 to Divya Reddy, and starts the 4-hour Critical SLA clock. No manual case creation needed for the weekly batch.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F16 -->
+    <div class="feature-card" id="f16">
+      <div class="fcard-header">
+        <div class="fcard-num">16</div>
+        <span class="fcard-icon">📑</span>
+        <div>
+          <div class="fcard-title">Cases List</div>
+          <span class="fcard-url">/cases</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Analysts need to work their queue efficiently. Without filtering, searching, and SLA visibility on the list view, the analyst has to open each case to understand its urgency. In a queue of 200 cases, finding near-breach cases is impossible without tooling. Bulk operations — reassigning when an analyst is on leave — need to happen in seconds, not one case at a time.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">SLA countdown on every row — no case needs to be opened to know its urgency. Filter by status, priority, assignee, case type. Search by case number or title. Priority badges provide at-a-glance severity. <strong>Bulk operations</strong>: select multiple cases → bulk assign (e.g. when an analyst goes on leave) or bulk status change. Cases sorted by SLA countdown by default — most urgent first. Infinite scroll loads more cases as you reach the bottom.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f17">Case Overview</a>
+          <a class="connect-pill" href="#f2">SLA Policies</a>
+          <a class="connect-pill" href="#f32">Dashboard</a>
+          <a class="connect-pill" href="#f37">Search</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Analyst's Monday Morning Triage</div>
+          <p>Analyst Sneha logs in Monday 9 AM. She filters: <strong>Assigned to = Me</strong>, <strong>Status = Open, In Progress</strong>. 8 cases appear, sorted by SLA countdown ascending. The first row shows: <em>C-0089 — Suspicious NEFT Transfers</em>, SLA countdown = <strong style="color:#f87171;">47 minutes</strong> (red — about to breach). Sneha opens that case immediately. All urgency is visible without opening a single case — decisions made in under 30 seconds.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Pre-Leave Bulk Reassignment</div>
+          <p>Analyst Arjun goes on 2-week leave tomorrow. Manager opens Cases List, filters: <strong>Assigned to = Arjun Mehta</strong>, <strong>Status = Open, In Progress</strong>. 12 cases appear. Manager clicks the checkbox at the top (select all), clicks <strong>Bulk Assign</strong>, selects Sneha Patel. All 12 cases reassigned in one action — 5 seconds total. Each reassignment is recorded in the audit log. Sneha receives 12 assignment notifications.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /features-grid M2 -->
+</div><!-- /m2 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 3 — INVESTIGATION WORKSPACE                     -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m3">
+  <div class="module-header">
+    <div class="module-number" style="background:#059669;">3</div>
+    <div>
+      <div class="module-title">Investigation Workspace</div>
+      <div class="module-desc">Features 17–22 — The unified space where all investigation activity — notes, tasks, documents, communications, timeline — is recorded inside the case</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F17 -->
+    <div class="feature-card" id="f17">
+      <div class="fcard-header">
+        <div class="fcard-num">17</div>
+        <span class="fcard-icon">🏠</span>
+        <div>
+          <div class="fcard-title">Case Overview</div>
+          <span class="fcard-url">/cases/[id]</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigation involves reviewing documents, recording notes, completing tasks, analysing transactions, and producing a narrative. Without a unified workspace, investigators bounce between email, shared drives, spreadsheets, and multiple systems. Context is lost between sessions. There is no single source of truth for what has been done on a case.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Everything about a case is on one screen: status, priority, SLA countdown, assignee, AI risk score, task counts, and access to all sub-sections. <strong>One-click status transitions</strong>: Open → In Progress → Pending Review (routine — no modal). Escalate / Close → modal with required rationale. <strong>AI Copilot</strong> available from the header. <strong>Export PDF</strong> produces a complete formatted report. Sub-navigation: Notes · Tasks · Documents · Transactions · Findings · Narrative · Closure · Timeline · AI Logs · STR.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f18">Notes</a>
+          <a class="connect-pill" href="#f19">Tasks</a>
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Morning Case Pickup</div>
+          <p>Analyst Sneha opens Case C-0089 (Suspicious NEFT Transfers — Rajesh Kumar). Header shows: Status = <strong>In Progress</strong>, Priority = <strong>High</strong>, SLA = <strong>3h 12m remaining</strong> (amber), 6 tasks (2 open), AI risk score = <strong>HIGH</strong>. Full situational awareness in under 5 seconds. Sneha clicks <strong>Move to Pending Review</strong> — one click, no modal, status changes immediately. Manager is notified to review and approve.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manager Quick Triage</div>
+          <p>Manager Priya gets an SLA breach notification for Case C-0089. Opens the case — header shows SLA = <strong>BREACHED</strong> (red). Clicks <strong>AI Copilot</strong> → asks <em>"What is the current investigation status and what decision is pending?"</em> AI responds in 4 seconds: "Investigation is at Pending Review. Findings submitted: Structuring Pattern (High severity). STR decision pending manager approval." Priya escalates directly from the header — no need to navigate through 6 sub-tabs.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F18 -->
+    <div class="feature-card" id="f18">
+      <div class="fcard-header">
+        <div class="fcard-num">18</div>
+        <span class="fcard-icon">📝</span>
+        <div>
+          <div class="fcard-title">Notes</div>
+          <span class="fcard-url">/cases/[id]/notes</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigation involves continuous judgment calls — "I reviewed the KYC, counterparty looks suspicious, escalating." These observations need to be recorded in real time, attributed to the right person, timestamped, and preserved. Email threads and chat messages are not part of the case record, are not auditable, and are lost when an analyst changes roles.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Rich text notes recorded inside the case — timestamped, attributed to the author, <strong>immutable</strong> (cannot be edited or deleted after submission). Multiple investigators can add notes independently — the case builds a collaborative record. Each note appears automatically in the <strong>Timeline</strong>. In examination, examiners read the note thread in sequence and understand the entire investigation reasoning without asking a single question.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f37">Search</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Analyst Investigation Note</div>
+          <p>Analyst Sneha records at 14:32: <em>"Initial review complete. Customer has 9 NEFT transactions of ₹9.5L each over 3 days. Counterparty — Rahul Enterprises — registered 73 days ago, no verifiable business activity. Sole proprietorship with no GST registration. Escalating to detailed transaction analysis and counterparty KYC deep dive."</em> Note is timestamped, author=Sneha Patel, immutable. Examiner reads this 6 months later and understands exactly what Sneha found and why she escalated.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manager Review Note</div>
+          <p>Manager Priya reviews and adds: <em>"Reviewed Sneha's analysis. Counterparty KYC reviewed — sole proprietorship with no verifiable income source. The 9-transaction pattern is consistent with structuring to avoid CTR. Authorising STR filing. Case to proceed to STR workflow."</em> Now both investigators' reasoning is in the case record. If the STR is ever questioned — both layers of review are documented with timestamps and names.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F19 -->
+    <div class="feature-card" id="f19">
+      <div class="fcard-header">
+        <div class="fcard-num">19</div>
+        <span class="fcard-icon">✅</span>
+        <div>
+          <div class="fcard-title">Tasks</div>
+          <span class="fcard-url">/cases/[id]/tasks</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigation has multiple parallel workstreams — document review, transaction analysis, counterparty check, customer contact. Without task management inside the case, work is tracked in email or chat. Managers cannot see progress without asking the analyst. Steps are missed. There is no audit evidence that procedure was followed.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Playbook tasks are <strong>auto-created</strong> when the case is opened — the analyst's checklist is ready from day one. Each task has an assignee, due date, priority, and status (todo → in_progress → done). <strong>Dependency enforcement</strong>: a task marked "After Step N" is blocked until its dependency is completed — the sequence cannot be skipped. Manual tasks can be added for case-specific needs. Completed tasks record who completed them and when — audit evidence of investigation thoroughness.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f35">Global Tasks</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Playbook Tasks With Dependency Chain</div>
+          <p>AML playbook fires when Case C-0089 is created. 6 tasks appear instantly. Task 1: <strong>Review customer KYC</strong> — due 4h, assigned to Sneha. Task 2: <strong>Analyse 6-month transaction history</strong> — due 8h, <em>BLOCKED</em> (greyed out, cannot be started). Sneha completes Task 1 at 2h. Task 2 unlocks immediately. She starts Task 2. Task 3 is still blocked — it requires Task 2. The sequence is enforced by the system, not by memory.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manual Task for Case-Specific Need</div>
+          <p>During investigation, Sneha discovers the counterparty has a second account at ICICI that isn't in the original case. She adds a <strong>manual task</strong> outside the playbook: <em>"Request 6-month account statement for ICIC0000987654 from ICICI branch"</em>, assigned to herself, due in 24h, priority=High. When she completes it and uploads the statement, the timeline records: <em>Task completed by Sneha Patel at 16:47 — "Request ICICI statement"</em>. The extra investigation step is now auditable.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F20 -->
+    <div class="feature-card" id="f20">
+      <div class="fcard-header">
+        <div class="fcard-num">20</div>
+        <span class="fcard-icon">📁</span>
+        <div>
+          <div class="fcard-title">Documents</div>
+          <span class="fcard-url">/cases/[id]/documents</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigations are built on documents — KYC packets, bank statements, transaction records, correspondence. Today these live in email attachments, shared drives, and personal folders. Documents are not versioned, not searchable by content, and not tied to the specific case. When an examiner asks "show me the KYC document used in this investigation," the analyst has to hunt through email to find it.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every document uploaded is stored permanently against that case with version history. <strong>OCR processing</strong> makes every PDF full-text searchable across the platform. <strong>AI Copilot</strong> can read and answer questions over uploaded documents. <strong>ClamAV antivirus</strong> scans every upload — no malicious files enter the system. Version history tracks every update — examiners see what was available when the decision was made.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f28">Findings</a>
+          <a class="connect-pill" href="#f36">Global Documents</a>
+          <a class="connect-pill" href="#f37">Search</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — AI-Powered Bank Statement Analysis</div>
+          <p>Analyst uploads a 42-page bank statement PDF. OCR processes it in 28 seconds. She then asks AI Copilot: <em>"List all transactions above ₹5 lakhs from this document with dates and counterparty names."</em> AI responds with a structured table of 11 transactions — no manual review of 42 pages needed. What would have taken 45 minutes of reading takes 90 seconds. The document is now searchable by any term from the Global Documents page.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Cross-Document Inconsistency Detection</div>
+          <p>Analyst uploads a KYC document and a transaction record. Asks AI Copilot: <em>"Is the address on the KYC consistent with the counterparty address in the transactions?"</em> AI cross-references both documents: <em>"Mismatch detected — KYC address is Andheri, Mumbai. Transaction narration references a delivery address in Lajpat Nagar, Delhi."</em> Red flag surfaced in 8 seconds. This cross-document check would normally take 20 minutes of manual comparison.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F21 -->
+    <div class="feature-card" id="f21">
+      <div class="fcard-header">
+        <div class="fcard-num">21</div>
+        <span class="fcard-icon">💬</span>
+        <div>
+          <div class="fcard-title">Communications</div>
+          <span class="fcard-url">/cases/[id]/comms</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigations involve communication — emails from customers, letters from counterparties, notices from regulators. Without structured capture, communications sit in email inboxes — they are not part of the case record, not analysed for red flags, and not available to the examiner when they ask "what did the customer say?"</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Communication entries stored inside the case — types: email, letter, phone call summary, regulator notice. AI automatically extracts entities (parties, amounts, dates, account numbers) from the text and flags suspicious indicators. Full communication record becomes part of the case audit trail. Examiners see every customer explanation, every regulatory notice, and every response — all in one place, in chronological order.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f30">AI Narrative</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Customer Explanation Logged and Analysed</div>
+          <p>Customer Rajesh Kumar sends a WhatsApp message explaining: <em>"The 9 transfers were payments for a construction contract with Rahul Enterprises — I can provide the agreement."</em> Analyst logs it as a Communication entry: type=email, direction=inbound. AI extracts entities: Rahul Enterprises (counterparty), construction contract (claimed purpose), and flags: <em>"Customer-provided explanation references a contract — no contract document found in case. Request contract documentation."</em> A task is added immediately.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — RBI Regulatory Notice Logged</div>
+          <p>RBI sends a written notice requesting information on account HDFC0000123456 within 7 days. Compliance officer logs it: type = <strong>Regulatory Notice</strong>, direction = inbound, date = 2026-06-10. This creates a timeline entry: <em>"Regulatory notice received from RBI — response required by 2026-06-17."</em> The notice is part of the case record permanently. When the response is sent, a second Communication entry is added. Examiner sees the full regulatory correspondence chain.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F22 -->
+    <div class="feature-card" id="f22">
+      <div class="fcard-header">
+        <div class="fcard-num">22</div>
+        <span class="fcard-icon">🕒</span>
+        <div>
+          <div class="fcard-title">Timeline</div>
+          <span class="fcard-url">/cases/[id]/timeline</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">In examination, the question is always "walk me through what happened on this case." Without an automated timeline, the analyst reconstructs the investigation from memory and email threads — a process that takes hours and is never complete. There is also no way to verify that actions were taken in the right order or that nothing was altered after the fact.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every action on the case is recorded automatically — notes, document uploads, status changes, task completions, AI queries, communication entries, STR filing. Timeline is <strong>chronological, immutable, and real-time</strong> (new events appear without page refresh via Server-Sent Events). No human maintains it — it builds itself. Filter by event type to find specific actions instantly. Examiners can trace the entire investigation without asking anyone a single question.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f18">Notes</a>
+          <a class="connect-pill" href="#f19">Tasks</a>
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f29">STR</a>
+          <a class="connect-pill" href="#f31">Closure</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — RBI Examination Walkthrough</div>
+          <p>Examiner asks: <em>"Walk me through Case C-0089 from start to finish."</em> Timeline shows: T+0 — alert received from Actimize. T+0.8s — case auto-created and assigned to Sneha Patel. T+2h — KYC review task completed (Sneha). T+4h 32m — note added: "Counterparty has no verifiable business." T+6h — bank statement uploaded, OCR complete. T+8h 15m — structuring finding submitted. T+9h — STR filed, ref STR/2026/00234. T+9h 30m — case closed. Complete audit-defensible record with zero manual preparation.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manager Detects Inactivity</div>
+          <p>Manager Priya notices Case C-0091 has been "In Progress" for 20 hours without status movement. Opens Timeline, filters: <strong>Last 12 hours</strong>. No events in the last 11 hours — last action was a note by Arjun at 10:15 AM. Manager can see exactly when the last action was taken (10:15 AM) and by whom. She reassigns to Sneha immediately and adds a note. The inactivity — and the manager's response — are both permanently recorded.</p>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /features-grid M3 -->
+</div><!-- /m3 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 4 — TRANSACTION & ENTITY INTELLIGENCE           -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m4">
+  <div class="module-header">
+    <div class="module-number" style="background:#b45309;">4</div>
+    <div>
+      <div class="module-title">Transaction &amp; Entity Intelligence</div>
+      <div class="module-desc">Features 23–24 — Structured transaction analysis, flow-of-funds visualisation, and 360° subject profiling</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F23 -->
+    <div class="feature-card" id="f23">
+      <div class="fcard-header">
+        <div class="fcard-num">23</div>
+        <span class="fcard-icon">💸</span>
+        <div>
+          <div class="fcard-title">Transactions &amp; Flow of Funds</div>
+          <span class="fcard-url">/cases/[id]/transactions</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">AML investigations are fundamentally about transactions — amounts, channels, counterparties, timing. Without structured transaction data inside the case, analysts work in Excel, manually building flow-of-funds tables. Structuring patterns — multiple transactions just below reporting thresholds — are invisible until someone plots them manually. This takes hours and the visual insight arrives too late.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Transactions structured inside the case: ref number, amount, currency, channel (NEFT/RTGS/IMPS/cash/wire), from/to accounts, counterparty name, narration, date. <strong>Transaction timeline</strong> shows chronological flow — patterns emerge immediately. <strong>Flow of Funds graph</strong> renders transactions as nodes (accounts/entities) and directed edges (money movement) — structuring, layering, and circular patterns become visually obvious. <strong>Flag a transaction</strong> as suspicious with a reason — feeds directly into Findings and STR.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f28">Findings</a>
+          <a class="connect-pill" href="#f29">STR</a>
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f24">Subjects</a>
+          <a class="connect-pill" href="#f30">AI Narrative</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Structuring Pattern Visualised</div>
+          <p>Analyst adds all 9 NEFT transactions for Rajesh Kumar. Switches to <strong>Flow of Funds graph</strong>. One node: Customer Account (HDFC0000123456). Nine directed edges all pointing to: Rahul Enterprises (ICIC0000987654). Each edge labelled ₹9.5L. Dates: 3 days, 3 transactions per day. The structuring pattern is <strong>visually obvious in 3 seconds</strong>. Analyst flags all 9 transactions as suspicious: <em>"Structuring — below CTR threshold of ₹10L."</em> This feeds directly into the finding and STR.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Layering Investigation</div>
+          <p>Complex fraud investigation: money moves Account A → B → C → D → E → back to A over 6 weeks. Analyst adds 18 transactions. Flow of Funds graph renders the circular path immediately. Without the graph, tracing this chain manually in Excel would take an analyst 3–4 hours and still might be missed. With the graph: 2 minutes. The AI Copilot is then asked: <em>"Summarise the layering pattern shown in these transactions."</em> AI produces a paragraph-level description referencing all 5 accounts and the dates.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F24 -->
+    <div class="feature-card" id="f24">
+      <div class="fcard-header">
+        <div class="fcard-num">24</div>
+        <span class="fcard-icon">🧑‍💼</span>
+        <div>
+          <div class="fcard-title">Subject Directory &amp; 360° Profile</div>
+          <span class="fcard-url">/subjects &nbsp;·&nbsp; /subjects/[id]</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">A subject — customer, counterparty, or entity — often appears across multiple cases. Without a centralised subject profile, investigators have no visibility into the subject's full history. "Has this person been investigated before? What accounts are they linked to? Who are their known associates?" — these questions require manual cross-referencing across multiple cases, which is slow and incomplete.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Subject 360 profile aggregates: all linked cases (with status and outcome), all known accounts and account numbers, risk score history, flags (PEP, sanctions match, adverse media). <strong>Connected entity graph</strong> shows who is linked to whom through what accounts — beneficial ownership networks, corporate relationships, and investigation networks become visible. Relationships between subjects can be added manually. Cross-case history is immediately available when a new case is opened.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f23">Transactions</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f37">Search</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Repeat Subject Detection</div>
+          <p>Analyst Sneha opens Subject 360 for Rajesh Kumar before starting the investigation. Profile shows: <strong>4 linked cases</strong> over 2 years, 3 accounts, 2 linked entities (Rahul Enterprises, RS Trading Pvt Ltd), risk score = <strong>HIGH</strong>. Previous case outcomes: 2 × "No Action," 1 × "STR Filed" in 2024. This context changes the entire assessment — a repeat subject with escalating activity and a prior STR. Sneha prioritises this case immediately.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Beneficial Ownership Network</div>
+          <p>Analyst checks the entity Rahul Enterprises in Subject Directory. Connected entity graph shows: Rahul Enterprises → Director: Suresh Patel → also Director of: RS Trading, NR Ventures, SR Capital. Two of those entities are linked to <strong>sanctions cases</strong> in OpsOwl. Money flowing through Rahul Enterprises may be flowing through a beneficial ownership network connected to sanctioned entities — visible in the graph in 10 seconds, would take days in a manual corporate registry search.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m4 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 5 — AI & DOCUMENT INTELLIGENCE                  -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m5">
+  <div class="module-header">
+    <div class="module-number" style="background:#6d28d9;">5</div>
+    <div>
+      <div class="module-title">AI &amp; Document Intelligence</div>
+      <div class="module-desc">Features 25–27 — Risk scoring, natural language case querying, and fully auditable AI reasoning logs</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F25 -->
+    <div class="feature-card" id="f25">
+      <div class="fcard-header">
+        <div class="fcard-num">25</div>
+        <span class="fcard-icon">🧠</span>
+        <div>
+          <div class="fcard-title">AI Insights &amp; Risk Score</div>
+          <span class="fcard-url">/cases/[id]/insights</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Managers reviewing large case queues cannot read every case in detail to prioritise. They need a fast signal: which cases are high risk and need immediate attention, which can wait. Risk scoring based on gut feel is inconsistent and indefensible in examination. "The analyst thought it was high risk" is not an acceptable answer to a regulator.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">AI reads the <strong>entire case</strong> — documents (OCR text), transactions, notes, entities, communications — and produces a structured risk score: Critical / High / Medium / Low. Risk factors are listed with <strong>explicit justifications</strong> — not a black box. Each factor cites the specific evidence it found. Risk score is stored and auditable. Score <strong>updates</strong> when new information is added — live risk picture, not a one-time snapshot. All AI inference runs locally (Ollama) — data never leaves the server.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f27">AI Logs</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+          <a class="connect-pill" href="#f32">Dashboard</a>
+          <a class="connect-pill" href="#f40">On-Premise AI</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Manager Triage of 45 Cases</div>
+          <p>Manager Priya has 45 cases in Pending Review. She runs AI Analysis on all 45. Results come back in 8 minutes: <strong>8 HIGH</strong> risk, 15 MEDIUM, 22 LOW. She reviews the 8 HIGH first — each one shows risk factors: <em>"9 structuring transactions near CTR threshold / Counterparty registered &lt;90 days / Previous STR history / No contract documentation for claimed purpose."</em> What would have taken 4 hours of case reading takes <strong>20 minutes</strong> of focused review.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Auditable Risk Assessment</div>
+          <p>RBI examiner asks: <em>"You assessed Case C-0089 as High risk — show me the AI's reasoning."</em> Examiner is shown the AI Insights page: risk score = <strong>HIGH</strong>, 4 factors listed: (1) 9 NEFT transactions matching CTR structuring pattern. (2) Counterparty registered 73 days ago — no verifiable business history. (3) No KYC documentation for counterparty found in case documents. (4) Subject has prior STR filed in 2024. Every factor is cited with the specific evidence. The reasoning is <strong>fully defensible</strong>.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F26 -->
+    <div class="feature-card" id="f26">
+      <div class="fcard-header">
+        <div class="fcard-num">26</div>
+        <span class="fcard-icon">🤖</span>
+        <div>
+          <div class="fcard-title">AI Copilot</div>
+          <span class="fcard-url">/cases/[id] → AI Copilot button</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Investigators spend significant time searching through documents and transaction records to answer specific questions. "What transactions are above ₹5 lakhs?" "What does the counterparty's KYC say?" "Are there any red flags in this bank statement?" Without AI, each question requires manual review. Complex cases with hundreds of pages are simply not read thoroughly under time pressure.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Ask any question over the <strong>entire case</strong> in plain English — documents, transactions, notes, communications, subjects all included. Answers are <strong>grounded in case data</strong> — no hallucination, every response cites where it found the information. <strong>PII is masked</strong> before any AI call — customer data is protected even within the query. Every query and response is logged in AI Logs for examination. All inference runs locally via Ollama — data never leaves the institution's server.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f23">Transactions</a>
+          <a class="connect-pill" href="#f27">AI Logs</a>
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f40">On-Premise AI</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Document-Grounded Answer</div>
+          <p>Analyst asks: <em>"Is there any documentation in this case showing the purpose of the 9 transfers?"</em> AI reads all 8 uploaded documents and the 3 communication entries, responds: <em>"No business agreement or invoice found in case documents. The bank statement shows 9 matching debits totalling ₹85.5L. Customer communication (logged 2026-06-09) mentions 'construction contract with Rahul Enterprises' but no supporting contract document has been uploaded."</em> The gap is surfaced — analyst immediately adds a task to request the contract.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — New Analyst Guidance</div>
+          <p>A new analyst (first week on the job) is assigned a complex sanctions case. Unfamiliar with the procedure, they ask Copilot: <em>"What should my next investigation step be given the current case status?"</em> AI responds: <em>"Task 2 (Verify identity match) is due in 1 hour and is now unblocked. For a sanctions case under PMLA Section 12A, the priority is confirming whether this is a true positive or false positive match. You will need the customer's national ID and the OFAC/UN sanctions list entry for comparison. These documents are not yet uploaded — this is the blocking gap."</em></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F27 -->
+    <div class="feature-card" id="f27">
+      <div class="fcard-header">
+        <div class="fcard-num">27</div>
+        <span class="fcard-icon">📋</span>
+        <div>
+          <div class="fcard-title">AI Logs</div>
+          <span class="fcard-url">/cases/[id]/ai-logs</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">AI-assisted decisions in compliance are only defensible if the reasoning is auditable. "The AI said it was high risk" is not an acceptable answer in a regulatory examination without showing exactly what the AI was given, what it produced, and when. Without AI logs, every AI-assisted decision is a black box — and black boxes are a regulatory liability.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every AI call is logged: model used (e.g. llama3.1:8b), prompt sent, full response received, latency in milliseconds, timestamp, and the user who triggered it. Examiners can inspect the exact AI reasoning for any decision in any case. Compliance teams can defend AI-assisted decisions with a complete paper trail. Latency tracking enables performance monitoring — slow or failing AI calls are visible and actionable.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+          <a class="connect-pill" href="#f11">Data Retention</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Examination-Grade AI Audit</div>
+          <p>RBI examiner asks: <em>"You used AI to assess this case as High risk — show me exactly what the AI was given and what it said."</em> Examiner is taken to AI Logs for Case C-0089: entry at 2026-06-09 14:32. Model = <strong>llama3.1:8b</strong>. Prompt tokens = 2,847 (includes all transaction data and OCR'd documents). Response: <em>"Risk: HIGH. Factors: 9 transactions consistent with CTR structuring…"</em> Latency = 3.2s. User = Sneha Patel. The AI's reasoning is <strong>fully auditable</strong> to the token level.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Compliance Head Performance Review</div>
+          <p>Compliance Head wants to verify the AI is performing accurately before the next board presentation. Opens AI Logs across all cases this month: <strong>340 AI calls</strong>, average latency 3.4 seconds, 0 errors. Selects 10 random entries for manual review — AI correctly identified structuring in 9/10, correctly flagged the one that was later STR-filed. Performance confirmed without requiring an external AI audit. This evidence is available if a regulator asks "how do you ensure your AI is accurate?"</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m5 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 6 — FINDINGS & EVIDENCE                         -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m6">
+  <div class="module-header">
+    <div class="module-number" style="background:#dc2626;">6</div>
+    <div>
+      <div class="module-title">Findings &amp; Evidence</div>
+      <div class="module-desc">Feature 28 — Structured investigation conclusions with mandatory evidence attachment and manager approval workflow</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F28 -->
+    <div class="feature-card" id="f28">
+      <div class="fcard-header">
+        <div class="fcard-num">28</div>
+        <span class="fcard-icon">🔍</span>
+        <div>
+          <div class="fcard-title">Findings &amp; Evidence</div>
+          <span class="fcard-url">/cases/[id]/findings</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">The conclusion of an investigation — "this is suspicious, here is why, here is the evidence" — needs to be formally documented. Without a structured findings module, conclusions are buried in notes or narrative text. High-severity findings without attached evidence are conclusions without proof — indefensible in examination. Without an approval workflow, findings are not reviewed before driving STR decisions.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Findings have: title, description, severity (Critical/High/Medium/Low). <strong>Severity gate</strong>: High and Critical findings cannot be submitted without at least one attached evidence document — the system enforces documentation discipline. <strong>Approval workflow</strong>: manager reviews and approves/rejects every finding before it is finalised. Approved findings feed directly into the AI Narrative and STR — the chain from evidence → finding → report is fully traceable.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f23">Transactions</a>
+          <a class="connect-pill" href="#f29">STR</a>
+          <a class="connect-pill" href="#f30">AI Narrative</a>
+          <a class="connect-pill" href="#f31">Closure</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — High Severity Finding With Evidence Gate</div>
+          <p>Analyst Sneha creates Finding: <strong>"Structuring Pattern Detected"</strong>, severity = High, description = "9 NEFT transactions of ₹9.5L each over 3 days — consistent pattern just below ₹10L CTR threshold." She tries to submit — the system blocks: <em>"High severity findings require at least one attached evidence document."</em> She attaches the bank statement PDF. System now allows submission. Manager Priya reviews, adds comment: "Pattern confirmed — 3 transactions per day for 3 days, all to the same new entity. Approved." Finding finalised.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Second Finding Feeding Into STR</div>
+          <p>Second finding: <strong>"Counterparty Due Diligence Failure"</strong>, severity = Medium. Description: "Rahul Enterprises — counterparty for all 9 transactions — registered 73 days ago, no GST registration, no verifiable business activity, no KYC documentation." Evidence: company registration screenshot, GST portal screenshot showing no records. Manager approves. Both approved findings are now available in the STR module — they auto-populate the "basis for suspicion" section. The AI Narrative also references both findings by name when generating the case summary.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m6 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 7 — REGULATORY REPORTING & CLOSURE              -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m7">
+  <div class="module-header">
+    <div class="module-number" style="background:#0369a1;">7</div>
+    <div>
+      <div class="module-title">Regulatory Reporting &amp; Closure</div>
+      <div class="module-desc">Features 29–31 — goAML STR generation, AI-drafted investigation narrative, and enforced case closure with disposition</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F29 -->
+    <div class="feature-card" id="f29">
+      <div class="fcard-header">
+        <div class="fcard-num">29</div>
+        <span class="fcard-icon">📨</span>
+        <div>
+          <div class="fcard-title">STR / goAML Report</div>
+          <span class="fcard-url">/cases/[id]/str</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Suspicious Transaction Reports must be filed with FIU-IND in goAML XML format. Without automation, analysts fill a separate template, manually format the XML, and submit — 1–2 hours per STR with frequent data entry errors. The XML format is complex and version-sensitive. Errors mean re-filing, delays, and regulatory scrutiny.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Case data — subject details (name, PAN, account number), transactions, and reporting entity details — are <strong>pre-filled</strong> from the case automatically. Analyst fills only the reporting-specific fields (FIU reference, reporting officer, agency details). <strong>goAML-compatible XML</strong> is generated automatically — no manual XML editing. Download and submit directly to FIU-IND. STR filing is recorded on the Timeline with the exact timestamp. Per-STR effort reduced from 1–2 hours to under 15 minutes.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f23">Transactions</a>
+          <a class="connect-pill" href="#f28">Findings</a>
+          <a class="connect-pill" href="#f31">Closure</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f8">Outbound Webhooks</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Structuring Case STR in 15 Minutes</div>
+          <p>Two findings approved. Analyst navigates to the STR tab. Subject fields are pre-filled: Rajesh Kumar, PAN ABCDE1234F, HDFC0000123456, Mumbai. Transaction details auto-populate: 9 transactions, ₹85.5L total, NEFT, dates 2026-06-07 to 2026-06-09. Analyst fills 3 remaining fields: FIU reference = blank (new filing), Reporting Officer = Priya Sharma, Agency = HDFC Bank Ltd. Clicks <strong>Generate XML</strong>. Downloads <em>STR_C0089_20260610.xml</em>. goAML-compliant, ready for FIU-IND submission. <strong>12 minutes total</strong> vs 1.5 hours manually.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — AI-Assisted STR Decision</div>
+          <p>Analyst is uncertain: does this borderline case meet the PMLA threshold for an STR? Asks AI Copilot: <em>"Does this case meet the criteria for an STR under PMLA Section 12?"</em> AI responds: "PMLA Section 12 requires reporting transactions where there are reasonable grounds to believe proceeds of crime are involved. Factors present in this case that meet the threshold: (1) Structuring pattern matching §12(1)(b). (2) Counterparty with no verifiable legitimate business purpose. (3) Prior STR filed on same subject. Recommendation: file." Analyst documents the AI's response in a Note — the decision rationale is recorded permanently.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F30 -->
+    <div class="feature-card" id="f30">
+      <div class="fcard-header">
+        <div class="fcard-num">30</div>
+        <span class="fcard-icon">📃</span>
+        <div>
+          <div class="fcard-title">AI Narrative</div>
+          <span class="fcard-url">/cases/[id]/narrative</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Every closed investigation needs a written narrative — a structured summary of what was found, what was analysed, and what decision was made. Writing this from scratch takes an analyst 2–3 hours per case. Under high caseload, narrative quality degrades, important details are missed, and the document looks different every time. Inconsistent narratives are a common examination finding.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">AI drafts the complete investigation narrative from <strong>all case data</strong> — transactions, approved findings, entity details, timeline events, documents, notes. Draft produced in under 10 seconds. Analyst reviews and edits rather than writing from scratch. <strong>Manager approval workflow</strong>: every narrative is reviewed before the case can be closed. Consistent structure across all cases — every narrative follows the same format. Time per narrative: from 2–3 hours to under 15 minutes.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f28">Findings</a>
+          <a class="connect-pill" href="#f23">Transactions</a>
+          <a class="connect-pill" href="#f31">Closure</a>
+          <a class="connect-pill" href="#f27">AI Logs</a>
+          <a class="connect-pill" href="#f40">On-Premise AI</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Full Narrative From Complex Case</div>
+          <p>Case C-0089 has: 12 notes, 3 documents, 2 approved findings, 9 transactions, 1 communication entry. Analyst clicks <strong>Generate Narrative</strong>. In 8 seconds, AI produces a 750-word structured summary: subject background, transaction chronology, pattern identified (structuring), evidence reviewed, red flags, findings summary, STR decision rationale. Analyst reads, edits one sentence for clarity. Manager Priya approves. <strong>Total time: 14 minutes</strong> vs 3 hours manually. The document is identical in structure to every other narrative from the team.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — AI Surfaces Missing Evidence</div>
+          <p>Analyst clicks Generate Narrative for a KYC case. AI produces the draft but includes a flagged section: <em>"Note: No KYC documents for the corporate counterparty were found in case documents. The narrative references counterparty risk but cannot cite documentary evidence. Recommendation: upload counterparty KYC before finalising."</em> The AI has identified a gap the analyst missed. Analyst uploads the counterparty KYC document, regenerates the narrative — the gap is resolved and the draft now references the document. The AI acts as a quality check before manager review.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F31 -->
+    <div class="feature-card" id="f31">
+      <div class="fcard-header">
+        <div class="fcard-num">31</div>
+        <span class="fcard-icon">🔒</span>
+        <div>
+          <div class="fcard-title">Case Closure</div>
+          <span class="fcard-url">/cases/[id]/closure</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">"Closed — no action" without a disposition and rationale is one of the most common examination findings. Without enforcement, analysts close cases to clear their queue without proper documentation. Re-opening a closed case also needs to be possible — and audited — when new information emerges months later.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">A case <strong>cannot be closed</strong> without selecting a disposition and recording a rationale — enforced by the system, no workaround. Disposition options: STR Filed, No Further Action, Referred to Law Enforcement, Escalated to Senior Management, Ongoing Monitoring. Optional: attach regulatory report reference (FIU-IND STR ref, RBI notice ref). Closure is recorded on the Timeline — examiner sees when, by whom, and with what rationale. <strong>Re-open</strong> option available — re-open reason is recorded — subsequent investigation is traceable.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f30">AI Narrative</a>
+          <a class="connect-pill" href="#f29">STR</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f8">Outbound Webhooks</a>
+          <a class="connect-pill" href="#f34">Analytics</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — STR Filed Closure</div>
+          <p>STR filed, narrative approved. Analyst opens Closure tab. Selects disposition: <strong>STR Filed</strong>. Rationale (required): <em>"Structuring pattern confirmed — 9 NEFT transactions of ₹9.5L each over 3 days, just below ₹10L CTR threshold. Counterparty (Rahul Enterprises) has no verifiable business activity. STR filed with FIU-IND — reference: STR/2026/00234."</em> Attaches the STR reference. Clicks Close. Outbound webhook fires to the risk platform. Case status = Closed. Timeline records the closure event at 18:42.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — No Action Closure With Full Documentation</div>
+          <p>Case investigated — 9 transactions were legitimate business payments for a verified construction contract. Analyst selects disposition: <strong>No Further Action</strong>. Rationale: <em>"9 transactions verified as legitimate payments per signed construction agreement (uploaded). Counterparty KYC verified via trade register — 4-year-old company with active GST and income tax filings. No structuring intent identified."</em> Case closed. Examiner reviewing this case 2 years later sees that the investigation was thorough — and documented — <strong>even when no action was taken</strong>. This is as important as the STR cases.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m7 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 8 — REPORTING & MONITORING (F32)                -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m8">
+  <div class="module-header">
+    <div class="module-number" style="background:#0891b2;">8</div>
+    <div>
+      <div class="module-title">Reporting &amp; Monitoring</div>
+      <div class="module-desc">Features 32–37 — Dashboard, workload, analytics, global task/document views, and full-text search</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F32 -->
+    <div class="feature-card" id="f32">
+      <div class="fcard-header">
+        <div class="fcard-num">32</div>
+        <span class="fcard-icon">🖥️</span>
+        <div>
+          <div class="fcard-title">Dashboard</div>
+          <span class="fcard-url">/dashboard</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">A compliance manager starting their day needs to immediately answer: What is breaching SLA right now? What needs my attention? What happened yesterday? Without a dashboard, the answer requires filtering and sorting the cases list — 15 minutes before the manager can start working. Critical cases breach while the manager is still getting oriented.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">At-a-glance metrics: Open Cases, SLA Breached, Pending Review, Closed This Week. <strong>Attention Required panel</strong> surfaces the specific cases needing manager action right now — breached SLA, pending approval, escalated. <strong>Recent activity feed</strong> shows what the team worked on since last login — situational awareness in under 10 seconds. Stats refresh every 15 seconds — breaches appear without page reload.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f2">SLA Policies</a>
+          <a class="connect-pill" href="#f16">Cases List</a>
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f33">Workload</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Manager's 9 AM Start</div>
+          <p>Manager Priya logs in Monday 9 AM. Dashboard: <strong>Open Cases = 47</strong>, <strong>SLA Breached = 3</strong>, Pending Review = 8. Attention Required panel shows 3 breached cases: C-0087 (Sneha, 2h breach), C-0089 (Arjun, 45m breach), C-0091 (Priya, 15m breach). Manager clicks each one, reassigns two to available analysts, escalates one. Done in 4 minutes. Situational awareness and action — complete before the 9:15 AM team standup.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Real-Time SLA Breach Alert</div>
+          <p>Manager Priya is in a 2 PM meeting. At 2:17 PM, Case C-0112 (Critical sanctions) breaches its 4-hour SLA. The dashboard — open in her secondary screen — shows the Attention Required count increment from 1 to 2 without a page reload. At 2:30 PM when the meeting ends, she sees the new breach immediately. She opens the case, escalates to Senior Management, adds a note documenting the breach and response. Response time: 13 minutes from breach — within the <strong>self-correction window</strong> that regulators consider.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m8 partial -->
+
+<!-- F33–F37 appended to Module 8 grid -->
+<div style="padding:0 32px 0;">
+  <div class="features-grid" style="padding-top:0;">
+
+    <!-- F33 -->
+    <div class="feature-card" id="f33">
+      <div class="fcard-header">
+        <div class="fcard-num">33</div>
+        <span class="fcard-icon">📈</span>
+        <div>
+          <div class="fcard-title">Workload Dashboard</div>
+          <span class="fcard-url">/workload</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Without visibility into individual analyst workloads, managers distribute cases by intuition. Some analysts are overloaded while others have capacity. SLA breach rates per analyst vary significantly but no one knows why. When an examiner asks "why did these cases breach?" the data doesn't exist.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Per-analyst view: open case count, average resolution time (TAT), SLA breach rate, and case ageing distribution. Overload and underutilisation are immediately visible. Performance management becomes data-driven, not guesswork. Case ageing distribution shows how long cases have been sitting open — no case ages invisibly. This data directly informs Assignment Rules tuning.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f5">Assignment Rules</a>
+          <a class="connect-pill" href="#f1">Users &amp; Roles</a>
+          <a class="connect-pill" href="#f34">Analytics</a>
+          <a class="connect-pill" href="#f10">Scheduled Reports</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Proactive Redistribution Before Breach</div>
+          <p>Manager checks Workload on Wednesday: Sneha has <strong>18 open cases</strong>, average TAT 26h. Arjun has 4 open cases, average TAT 12h. Before Sneha's cases start breaching SLA, manager navigates to Cases List, filters Assigned to = Sneha, selects 7 cases, bulk-reassigns to Arjun. Workload now balanced: Sneha 11, Arjun 11. Done in 3 minutes. No breach. Proactive management instead of reactive firefighting.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Performance Pattern for Quarterly Review</div>
+          <p>Quarterly performance review. Workload data: Arjun's SLA breach rate = <strong>22%</strong> — highest on the team. Priya's = 3%. Drilling down: Arjun's breaching cases are <strong>all cyber type</strong> — he lacks the technical background to complete them quickly. Decision: update Assignment Rule 8 to route cyber cases to Priya instead. One rule change, data-backed decision. Next quarter: Arjun's breach rate falls to 4%.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F34 -->
+    <div class="feature-card" id="f34">
+      <div class="fcard-header">
+        <div class="fcard-num">34</div>
+        <span class="fcard-icon">📉</span>
+        <div>
+          <div class="fcard-title">Analytics</div>
+          <span class="fcard-url">/analytics</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Compliance heads need trend data to present to boards and regulators — case volumes, STR filing rates, risk distribution. Without analytics, these questions require manual data extraction, Excel analysis, and days of preparation before every board meeting.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Case volume trends over time. STR filing rate (% of cases resulting in reports). Risk level distribution of the investigation portfolio. Average resolution time by case type and priority. Export to CSV feeds directly into Power BI or Tableau for board-level reporting. Data is always current — no manual extraction, no stale reports.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f10">Scheduled Reports</a>
+          <a class="connect-pill" href="#f31">Closure</a>
+          <a class="connect-pill" href="#f29">STR</a>
+          <a class="connect-pill" href="#f33">Workload</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Annual Board Presentation</div>
+          <p>CCO prepares the annual compliance board pack. Opens Analytics: FY2025-26 totals — <strong>1,240 cases</strong>, STR filing rate = <strong>8.4%</strong> (104 STRs), average resolution time = 18.2 hours, risk distribution: 12% High / 45% Medium / 43% Low. Clicks <strong>Export CSV</strong>. Opens in Power BI — 15-minute dashboard build. <strong>30 minutes of data prep</strong> instead of 2 days. The board presentation data is audit-accurate because it comes directly from the case management system.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — RBI Examination Data Request</div>
+          <p>RBI examination asks: <em>"Provide month-by-month case volumes and STR filing rates for the last 12 months, along with average resolution times by priority."</em> Compliance head opens Analytics, sets date range to last 12 months, selects the relevant metrics. The data table and trend chart are immediately available. Export to CSV and print to PDF. <strong>Response in 5 minutes</strong> instead of the 3-day data extraction exercise it would require without the analytics module.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F35 -->
+    <div class="feature-card" id="f35">
+      <div class="fcard-header">
+        <div class="fcard-num">35</div>
+        <span class="fcard-icon">✔️</span>
+        <div>
+          <div class="fcard-title">Global Tasks</div>
+          <span class="fcard-url">/tasks</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Analysts work across multiple cases simultaneously. Without a cross-case task view, an analyst with 12 open cases has to visit each case individually to see their pending tasks. Overdue investigation steps — critical procedure items — are invisible until someone explicitly checks each case one by one.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">All tasks across all cases in one view — analyst sees their complete workload at a glance without navigating case by case. Filter by: assigned to, due date, status (overdue / due today / upcoming), case type. Managers see task completion rates across the entire team. Tasks due today are surfaced at the top — the analyst's daily priority list is built automatically from their case workload.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f19">Case Tasks</a>
+          <a class="connect-pill" href="#f4">Playbooks</a>
+          <a class="connect-pill" href="#f17">Case Overview</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Analyst's Cross-Case Daily View</div>
+          <p>Analyst Sneha has tasks across 8 different cases. Global Tasks: filter <strong>Assigned to = Sneha, Due = Today</strong>. 5 tasks surface: "KYC Review (C-0089) — due in 1h", "Transaction Analysis (C-0091) — due in 3h", "Call customer (C-0094) — due in 4h", "Counterparty check (C-0096) — due in 6h", "Upload statement (C-0098) — due tomorrow". Sneha works through them in priority order. Without this view, she would need to open each of 8 cases to find the same 5 tasks.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Manager Identifies Capacity Gap</div>
+          <p>Manager filters Global Tasks: <strong>Status = Overdue</strong>. 14 overdue tasks appear. Drilling down: <strong>11 of 14 are in sanctions-type cases</strong>. Pattern: the team doesn't have enough capacity for the current sanctions caseload. Manager uses this data to: (1) Reassign 4 sanctions cases to Divya (specialist), (2) Update Assignment Rule 1 to route more sanctions cases directly to Divya, (3) Flag to CCO that sanctions case volume has increased and additional specialist capacity is needed. Data-driven management from a task filter.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F36 -->
+    <div class="feature-card" id="f36">
+      <div class="fcard-header">
+        <div class="fcard-num">36</div>
+        <span class="fcard-icon">🗃️</span>
+        <div>
+          <div class="fcard-title">Global Documents</div>
+          <span class="fcard-url">/documents</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">The same document type often appears in multiple cases — same counterparty's KYC, same entity's bank statement. Without a global document view, finding all documents related to a specific entity requires opening each case individually. During examination, "show me all KYC documents for this customer" requires a manual search across cases.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every document across every case is searchable from one place. <strong>Full-text search</strong> (OCR-powered) finds documents by filename or any text content within the document. Documents are linked to their source case — one click opens the case context. Examiners can search for all documents related to a specific entity, account number, or term across the entire platform instantly.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f20">Case Documents</a>
+          <a class="connect-pill" href="#f37">Search</a>
+          <a class="connect-pill" href="#f11">Data Retention</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Examiner's Document Request</div>
+          <p>RBI examiner asks: <em>"Show me all KYC documents you reviewed for Rajesh Kumar across all investigations."</em> Global Documents: search <strong>"Rajesh Kumar KYC"</strong>. 3 documents surface: KYC from 2022 investigation (C-0034), updated KYC from 2024 investigation (C-0067), and latest KYC from 2026 investigation (C-0089). Each shows the case it came from and the upload date. Complete KYC history across all investigations — found in <strong>8 seconds</strong>, not an afternoon of case-by-case searching.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Detecting Reused Forged Document</div>
+          <p>Compliance team suspects the same forged bank statement is being submitted across multiple loan applications to evade detection. Global Documents: search <strong>"statement_rahulenterprises_2026"</strong> (filename). Finds the exact file in 4 different cases across different analysts. Same document, same filename, submitted in 4 separate loan application investigations by different entities. Pattern of document reuse identified — possible organised fraud network. This cross-case pattern would be <strong>impossible to detect</strong> without a global document view.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F37 -->
+    <div class="feature-card" id="f37">
+      <div class="fcard-header">
+        <div class="fcard-num">37</div>
+        <span class="fcard-icon">🔎</span>
+        <div>
+          <div class="fcard-title">Global Search</div>
+          <span class="fcard-url">/search</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Compliance operations generate large volumes of data — hundreds of cases, thousands of notes, thousands of documents. Finding a specific piece of information requires knowing which case it is in. Without global search, investigators waste time browsing. An examiner asking "show me everything related to this entity" cannot be answered quickly.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Single search bar covers <strong>cases, notes, documents, and subjects simultaneously</strong>. Results show case context — case number and title displayed with each result. Cross-entity search enables relationship discovery — all mentions of an entity across the platform surface instantly. Response time is under 2 seconds regardless of data volume. Debounced 300ms — search fires automatically as you type.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f16">Cases List</a>
+          <a class="connect-pill" href="#f18">Notes</a>
+          <a class="connect-pill" href="#f20">Documents</a>
+          <a class="connect-pill" href="#f24">Subjects</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Account Number Lookup</div>
+          <p>Examiner asks: <em>"Is there any investigation related to account HDFC0000123456?"</em> Analyst types the account number into Global Search. Results in 1.4 seconds: <strong>1 case</strong> (C-0089 — Suspicious NEFT Transfers), <strong>2 notes</strong> mentioning the account number (Sneha's analysis note, manager's approval note), <strong>1 document</strong> (bank statement containing the account). Three separate data types — found together, with case context, in under 2 seconds.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Pre-Investigation Research</div>
+          <p>New investigation is opened on entity "Rahul Enterprises." Analyst Arjun searches "Rahul Enterprises" before starting work. Results: <strong>2 prior cases</strong> where Rahul Enterprises appears as a counterparty, <strong>4 notes</strong> mentioning the entity across different cases, <strong>1 document</strong> (a KYC from a 2024 case), and <strong>1 subject profile</strong> in the Subject Directory. Arjun starts the investigation with full context — prior investigation history, existing documents, analyst observations from other cases. <strong>15 minutes of pre-work</strong> done in 30 seconds.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m8 extended grid -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 9 — AUDIT & COMPLIANCE                          -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m9">
+  <div class="module-header">
+    <div class="module-number" style="background:#7c3aed;">9</div>
+    <div>
+      <div class="module-title">Audit &amp; Compliance</div>
+      <div class="module-desc">Features 38–39 — SHA-256 hash-chained tamper-evident audit trail and complete inbound event log</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F38 -->
+    <div class="feature-card" id="f38">
+      <div class="fcard-header">
+        <div class="fcard-num">38</div>
+        <span class="fcard-icon">🔐</span>
+        <div>
+          <div class="fcard-title">Audit Logs</div>
+          <span class="fcard-url">/audit</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">In examination, the question is not just "what happened?" but "can you prove what happened and that no one tampered with the record?" Without tamper-evidence, any log can be altered after the fact. An examiner cannot trust a log that could have been modified. SHA-256 hash-chaining is the technical standard for tamper-evident audit trails — each entry contains the hash of the previous one, making any alteration mathematically detectable.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every action by every user across the entire platform is logged: login, case created, document uploaded, status changed, note added, user deactivated, API key used, AI query run. <strong>SHA-256 hash chain</strong> links every entry to the previous one — any tampering breaks the chain and is immediately detectable. Filter by user, action type, and date range. Export audit log for examination submission — provide the complete record without granting system access. Even failed login attempts are recorded.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f1">Users</a>
+          <a class="connect-pill" href="#f11">Data Retention</a>
+          <a class="connect-pill" href="#f27">AI Logs</a>
+          <a class="connect-pill" href="#f22">Timeline</a>
+          <a class="connect-pill" href="#f9">API Keys</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — RBI On-Site Examination</div>
+          <p>RBI examiner asks: <em>"Can you prove that Case C-0089 was assigned within SLA and that no one altered the investigation record after the fact?"</em> Admin opens Audit Logs, filters: Entity = C-0089. Full record: case created T+0 (14:02:14), assigned to Sneha Patel T+0.8s (14:02:15), KYC task completed T+2h (16:03:21), note added (16:04:10), document uploaded (18:12:33), STR filed (18:44:02), case closed (19:14:17). SHA-256 hash chain is intact — <strong>no entry has been tampered with</strong>. Examiner accepts the record as evidence.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Internal Security Investigation</div>
+          <p>CISO suspects a user accessed a sensitive case without authorisation. Opens Audit Logs: filter <strong>User = Arjun Mehta, Date = last 7 days</strong>. Full record: 3 logins, 8 cases opened (Arjun's own assigned cases), 2 documents downloaded. Critically: Case C-0089 (not assigned to Arjun) does <strong>not appear</strong> — Arjun never accessed it. Suspicion is cleared. The audit log provided a definitive answer in under 2 minutes. No case was opened, no analyst was accused incorrectly.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- F39 -->
+    <div class="feature-card" id="f39">
+      <div class="fcard-header">
+        <div class="fcard-num">39</div>
+        <span class="fcard-icon">📡</span>
+        <div>
+          <div class="fcard-title">Inbound Events Log</div>
+          <span class="fcard-url">/alerts (Events tab)</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">When an alert-to-case automation fails — a rule doesn't match, a webhook payload is malformed, a case isn't created — there needs to be a record that the alert arrived. Without this, alert failures are invisible. An examiner asking "did your system receive an alert for this transaction?" cannot be answered without a log. Silence is not the same as no alert — it could mean the alert was lost.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Every inbound event is stored regardless of outcome: auto_converted to case, queued for review, deduplicated, rule_no_match, or error. Full payload stored with timestamp, source, and processing status. <strong>Failed events surface immediately</strong> — compliance team can identify and fix gaps in real time without waiting for a case to go missing. Provides the evidence chain: <em>"alert arrived at T+0, case created at T+0.8s, assigned at T+1s."</em></p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f6">Alert Sources</a>
+          <a class="connect-pill" href="#f13">Alert Queue</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+          <a class="connect-pill" href="#f7">Inbound Webhook</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — Debugging a Missing Case</div>
+          <p>TMS team reports: "We sent 3 alerts but only 2 cases were created in OpsOwl." Compliance admin opens Inbound Events. The 3rd event shows status = <strong>rule_no_match</strong> — payload had risk_score=28 but the matching rule required min_score=30. Root cause: alert risk_score was just below the threshold. Options: (1) Lower the rule's min_score to 25 to catch these, or (2) Keep the threshold and have analysts manually review sub-30 alerts in the queue. Decision documented. Problem solved in <strong>4 minutes</strong> without a support ticket.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Quarterly Statistics for Regulator</div>
+          <p>RBI examination asks: <em>"How many alerts did your TMS send in Q3 FY2026, and what was the disposition of each?"</em> Inbound Events: filter Source = all, Date = Q3 FY2026. <strong>847 events total</strong>. Status breakdown: 623 auto_converted to cases (73.6%), 198 queued for analyst review (23.4%), 26 deduplicated (3.1%), 0 errors. Complete inbound alert statistics — the examiner can verify that every alert that was sent was received and processed. <strong>Response in 2 minutes</strong>, fully accurate, zero manual counting.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m9 -->
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- MODULE 10 — DEPLOYMENT                                 -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div id="m10">
+  <div class="module-header">
+    <div class="module-number" style="background:#0f172a; border:1px solid #334155;">10</div>
+    <div>
+      <div class="module-title">On-Premise &amp; Air-Gapped Deployment</div>
+      <div class="module-desc">Feature 40 — The only architecture that satisfies RBI data localisation requirements for Indian regulated entities</div>
+    </div>
+  </div>
+  <div class="features-grid">
+
+    <!-- F40 -->
+    <div class="feature-card" id="f40" style="border-color: var(--cyan-dim);">
+      <div class="fcard-header">
+        <div class="fcard-num" style="background:var(--cyan-dim); color:#fff;">40</div>
+        <span class="fcard-icon">🏗️</span>
+        <div>
+          <div class="fcard-title">On-Premise &amp; Air-Gapped AI</div>
+          <span class="fcard-url">bash install.sh</span>
+        </div>
+      </div>
+      <div>
+        <div class="section-label">Why it exists</div>
+        <p class="fcard-why">Banks and NBFCs cannot send investigation data to a cloud platform. Customer PII, transaction records, STR details — all regulated data cannot leave the institution's network under RBI data localisation requirements and PMLA obligations. SaaS compliance tools require sending data to external servers. On-premise deployment with local AI inference is the <strong>only architecture</strong> that satisfies data sovereignty requirements for Indian regulated entities.</p>
+      </div>
+      <div>
+        <div class="section-label">How it helps</div>
+        <p class="fcard-helps">Single Linux server in your own data centre. <strong>One-command installation</strong>: <code>bash install.sh</code>. <strong>Ollama runs llama3.1:8b locally</strong> — all AI inference (risk scoring, Copilot, narrative generation) runs on your hardware, not external APIs. Not a single byte of investigation data leaves your network. <strong>Air-gapped operation</strong>: works without internet after initial setup. You control upgrades, backups, and retention. No vendor lock-in on data — you own the database, you own the files. PostgreSQL on your server, accessible to your DBA team.</p>
+      </div>
+      <div>
+        <div class="section-label">Connects to</div>
+        <div class="connects">
+          <a class="connect-pill" href="#f25">AI Insights</a>
+          <a class="connect-pill" href="#f26">AI Copilot</a>
+          <a class="connect-pill" href="#f30">AI Narrative</a>
+          <a class="connect-pill" href="#f38">Audit Logs</a>
+          <a class="connect-pill" href="#f11">Data Retention</a>
+        </div>
+      </div>
+      <div class="examples">
+        <div class="example ex1">
+          <div class="example-badge">🔵 Example 1 — NBFC Data Governance Policy</div>
+          <p>A mid-sized NBFC has a board-approved data governance policy: <em>"No customer PII shall reside on or transit through any server outside the institution's owned or leased data centre."</em> Every SaaS compliance tool they evaluated fails this requirement — data goes to AWS or Azure. OpsOwl is installed on a Dell PowerEdge R750 in their Mumbai data centre. <code>bash install.sh</code> runs. All services start. AI uses Ollama — <strong>zero outbound data</strong>. RBI data localisation compliance is fully met. The CISO signs off. Procurement unblocked.</p>
+        </div>
+        <div class="example ex2">
+          <div class="example-badge">🟣 Example 2 — Air-Gapped Operation During Outage</div>
+          <p>A cooperative bank in a rural district operates with unreliable internet. After the initial OpsOwl setup, their internet line fails for <strong>4 days</strong> during monsoon season. OpsOwl continues operating: cases are created, AI analysis runs (Ollama is local), documents are uploaded, reports are generated, playbook tasks complete, audit logs accumulate. Not a single feature is degraded. When connectivity is restored on Day 5, no data was lost, no investigation was delayed, no backlog was created. The bank's compliance team didn't even notice the outage affected their infrastructure.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /m10 -->
+
+<!-- ═══════════════════ FULL CONNECTION MAP ═══════════════════ -->
+<div style="background:var(--surface); border-top:1px solid var(--border); border-bottom:1px solid var(--border); padding:32px;">
+  <h2 style="text-align:center; color:var(--cyan); font-size:20px; margin-bottom:8px;">Feature Connection Map</h2>
+  <p style="text-align:center; color:var(--muted); font-size:13px; margin-bottom:28px;">How the 40 features connect end-to-end through a complete investigation lifecycle</p>
+  <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:14px; max-width:1200px; margin:0 auto;">
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--cyan); font-weight:700; font-size:12px; margin-bottom:8px;">🏛️ SETUP LAYER (configure once)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F1 Users → F5 Assignment Rules<br>
+        F2 SLA Policies → F14 Case Creation → F16 Cases List<br>
+        F3 Templates → F14 Case Creation<br>
+        F4 Playbooks → F19 Tasks (auto-created)<br>
+        F5 Assignment Rules → F14 Case Creation (fires on create)<br>
+        F12 Workspace Settings → All pages (labels)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--violet); font-weight:700; font-size:12px; margin-bottom:8px;">📥 INGESTION LAYER (alerts → cases)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F6 Alert Sources → F7 Webhook Setup → F13 Alert Queue<br>
+        F6 Alert Rules → F14 Case Creation (auto mode)<br>
+        F13 Alert Queue → F14 Case Creation (queue mode)<br>
+        F15 Bulk Import → F16 Cases List<br>
+        F9 API Keys → F14 Case Creation (programmatic)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--green); font-weight:700; font-size:12px; margin-bottom:8px;">🔍 INVESTIGATION LAYER (work the case)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F14 Create Case → F17 Case Overview (hub)<br>
+        F17 Case Overview → F18 Notes, F19 Tasks, F20 Documents<br>
+        F17 Case Overview → F21 Comms, F22 Timeline, F23 Transactions<br>
+        F18 Notes → F22 Timeline (auto-logged)<br>
+        F19 Tasks → F22 Timeline (completions logged)<br>
+        F24 Subjects ↔ F17 Case Overview (linked)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--amber); font-weight:700; font-size:12px; margin-bottom:8px;">🤖 AI LAYER (intelligence)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F20 Documents + F23 Transactions → F25 AI Insights<br>
+        F20 Documents + F23 Transactions → F26 AI Copilot<br>
+        F25 AI Insights + F26 AI Copilot → F27 AI Logs (every call)<br>
+        F25 AI Insights → F32 Dashboard (risk score badge)<br>
+        F40 On-Premise → F25, F26, F30 (local inference)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--red); font-weight:700; font-size:12px; margin-bottom:8px;">📋 CONCLUSION LAYER (close the case)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F23 Transactions → F28 Findings (flag → evidence)<br>
+        F28 Findings → F29 STR (pre-fill basis for suspicion)<br>
+        F28 Findings + F23 Transactions → F30 AI Narrative<br>
+        F30 Narrative + F29 STR → F31 Closure<br>
+        F31 Closure → F8 Outbound Webhooks (notify downstream)<br>
+        F31 Closure → F22 Timeline (permanent record)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--cyan); font-weight:700; font-size:12px; margin-bottom:8px;">📊 VISIBILITY LAYER (monitor + report)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        F32 Dashboard → F16 Cases List (drill down)<br>
+        F33 Workload → F5 Assignment Rules (tune based on data)<br>
+        F34 Analytics → F10 Scheduled Reports (feeds reports)<br>
+        F35 Global Tasks → F19 Case Tasks (same data, global view)<br>
+        F36 Global Documents → F20 Case Docs (same data, global view)<br>
+        F37 Search → F16, F18, F20, F24 (cross-entity)
+      </div>
+    </div>
+
+    <div style="background:var(--surface2); border:1px solid var(--border); border-radius:10px; padding:14px;">
+      <div style="color:var(--faint); font-weight:700; font-size:12px; margin-bottom:8px;">🔒 AUDIT LAYER (prove everything)</div>
+      <div style="font-size:12px; color:var(--muted); line-height:2;">
+        Every user action → F38 Audit Logs (SHA-256 chained)<br>
+        F27 AI Logs → F38 Audit Logs (AI decisions auditable)<br>
+        F39 Inbound Events → F13 Alert Queue (same data stream)<br>
+        F11 Retention → F38 Audit Logs (enforces minimum period)<br>
+        F40 On-Premise → F38 Audit Logs (data never leaves server)
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<button class="back-top" onclick="window.scrollTo({top:0,behavior:'smooth'})">↑</button>
+
+<footer>
+  <p style="color:var(--cyan); font-weight:700; font-size:15px; margin-bottom:8px;">All 40 Features — Complete</p>
+  <p>OpsOwl AI · On-Premise AML &amp; Compliance Investigation Platform</p>
+  <p style="margin-top:6px; color:var(--faint);">Built for Indian NBFCs &amp; Banks · RBI / FIU-IND / PMLA compliant architecture</p>
+  <p style="margin-top:12px; color:var(--faint); font-size:11px;">Admin: admin@opsowl.dev / OpsOwl@2024 · API :8080 · Web :3001</p>
+</footer>
+
+</body>
+</html>
