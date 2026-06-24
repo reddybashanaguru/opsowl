@@ -58,6 +58,9 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/playbooks"
 	scheduled_reports "github.com/reddybashanaguru/opsowl/internal/scheduled_reports"
 	"github.com/reddybashanaguru/opsowl/internal/templates"
+	"github.com/reddybashanaguru/opsowl/internal/gdpr"
+	"github.com/reddybashanaguru/opsowl/internal/sanctions"
+	"github.com/reddybashanaguru/opsowl/internal/ubo"
 	"github.com/reddybashanaguru/opsowl/internal/users"
 	"github.com/reddybashanaguru/opsowl/internal/webhooks"
 )
@@ -244,7 +247,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		documents.RegisterRoutes(r, docsHandler, s.jwtMgr)
 
 		// AI Copilot + AI Logging module (Feature 4 + 12)
-		aiRepo := ai.NewRepository(s.queries)
+		aiRepo := ai.NewRepository(s.queries).WithDB(s.sqlDB)
 		aiSvc := ai.NewService(aiRepo, timelineEmitter, s.logger, s.aiServiceURL).
 			WithServiceSecret(s.aiServiceSecret)
 		aiHandler := ai.NewHandler(aiSvc)
@@ -339,6 +342,36 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		playbooksHandler := playbooks.NewHandler(playbooksSvc)
 		playbooks.RegisterRoutes(r, playbooksHandler, s.jwtMgr)
 		casesSvc.WithPlaybookApplier(playbooksSvc)
+
+		// UBO Verification — EU AMLR 2024 Art. 42 closure gate
+		uboThreshold := 25.0
+		deploymentCountry := strings.ToLower(os.Getenv("DEPLOYMENT_COUNTRY"))
+		uboSvc := ubo.NewService(s.sqlDB, uboThreshold, deploymentCountry)
+		uboHandler := ubo.NewHandler(uboSvc)
+		ubo.RegisterRoutes(r, uboHandler, s.jwtMgr)
+		casesSvc.WithUBO(uboSvc)
+
+		// EU Sanctions & PEP Screening
+		sanctionsThreshold := 0.75
+		if v := os.Getenv("SANCTIONS_SIMILARITY_THRESHOLD"); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 && f <= 1 {
+				sanctionsThreshold = f
+			}
+		}
+		sanctionsSvc := sanctions.NewService(s.sqlDB, sanctionsThreshold, s.logger)
+		sanctionsHandler := sanctions.NewHandler(sanctionsSvc)
+		sanctions.RegisterRoutes(r, sanctionsHandler, s.jwtMgr)
+
+		// GDPR DSAR — Art. 17 right to erasure with AML retention exemption
+		retentionYears := 5
+		if ry := os.Getenv("RETENTION_YEARS"); ry != "" {
+			if n, err := strconv.Atoi(ry); err == nil && n > 0 {
+				retentionYears = n
+			}
+		}
+		gdprSvc := gdpr.NewService(s.sqlDB, retentionYears)
+		gdprHandler := gdpr.NewHandler(gdprSvc)
+		gdpr.RegisterRoutes(r, gdprHandler, s.jwtMgr)
 
 		// Subject 360 — entity identity directory (P9-3)
 		subjectsRepo := subjects.NewRepository(s.sqlDB)

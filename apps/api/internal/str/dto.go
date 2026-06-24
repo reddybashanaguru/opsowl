@@ -10,14 +10,16 @@ import (
 // ── request DTOs ──────────────────────────────────────────────────────────────
 
 type CreateDraftRequest struct {
-	ReportType      string          `json:"report_type"`       // STR | SAR | CTR
-	SuspicionDate   *string         `json:"suspicion_date"`    // Art. 15 — "YYYY-MM-DD" date string
-	SuspicionBasis  string          `json:"suspicion_basis"`
-	Narrative       string          `json:"narrative"`
-	EvidenceSummary string          `json:"evidence_summary"`
-	FilingEntity    json.RawMessage `json:"filing_entity"`
-	Subject         json.RawMessage `json:"subject"`
-	Transactions    json.RawMessage `json:"transactions"`
+	ReportType        string          `json:"report_type"`         // STR | SAR | CTR
+	SuspicionDate     *string         `json:"suspicion_date"`      // Art. 15 — "YYYY-MM-DD" date string
+	SuspicionBasis    string          `json:"suspicion_basis"`
+	Narrative         string          `json:"narrative"`
+	EvidenceSummary   string          `json:"evidence_summary"`
+	FilingEntity      json.RawMessage `json:"filing_entity"`
+	Subject           json.RawMessage `json:"subject"`
+	Transactions      json.RawMessage `json:"transactions"`
+	EUFATFIndicators  []string        `json:"eu_fatf_indicators"`  // EU/goAML 4.0 typology codes
+	SubmissionCountry string          `json:"submission_country"`  // ISO 3166-1 alpha-2
 }
 
 type ApproveRequest struct {
@@ -55,8 +57,10 @@ type FilingResponse struct {
 	FilingEntity    json.RawMessage `json:"filing_entity"`
 	Subject         json.RawMessage `json:"subject"`
 	Transactions    json.RawMessage `json:"transactions"`
-	DeadlineDays    int             `json:"deadline_days"`    // days remaining until filing deadline
-	IsOverdue       bool            `json:"is_overdue"`       // true when past the regulatory deadline
-	CreatedAt       time.Time       `json:"created_at"`
-	UpdatedAt       time.Time       `json:"updated_at"`
+	EUFATFIndicators  []string        `json:"eu_fatf_indicators,omitempty"`
+	SubmissionCountry string          `json:"submission_country,omitempty"`
+	DeadlineDays      int             `json:"deadline_days"`
+	IsOverdue         bool            `json:"is_overdue"`
+	CreatedAt         time.Time       `json:"created_at"`
+	UpdatedAt         time.Time       `json:"updated_at"`
 }

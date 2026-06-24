@@ -44,6 +44,9 @@ func RegisterRoutes(r chi.Router, sqlDB *sql.DB, jwtMgr *auth.JWTManager, emitte
 			Get("/cases/{id}/str/{str_id}/validate/goaml", h.ValidateGoAML)
 		r.With(auth.RequireRole("admin", "super_admin")).
 			Get("/cases/{id}/str/{str_id}/export/goaml", h.ExportGoAML)
+		// EU FATF typology indicators (compliance officer saves confirmed codes)
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Patch("/cases/{id}/str/{str_id}/eu-indicators", h.SaveEUIndicators)
 
 		// Regulatory deadline tracking — compliance dashboard widget
 		r.With(auth.RequireRole("manager", "admin", "super_admin")).

@@ -82,8 +82,9 @@ type UBORecord struct {
 
 // Service manages UBO records and enforces the closure gate.
 type Service struct {
-	db              *sql.DB
-	thresholdPct    float64 // from config.ubo_threshold_pct (default 25 for EU)
+	db                *sql.DB
+	repo              *Repository
+	thresholdPct      float64
 	deploymentCountry string
 }
 
@@ -92,7 +93,12 @@ type Service struct {
 // (EU AMLR 2024 default: 25%). deploymentCountry determines which NationalRegistry
 // URL is pre-filled.
 func NewService(db *sql.DB, thresholdPct float64, deploymentCountry string) *Service {
-	return &Service{db: db, thresholdPct: thresholdPct, deploymentCountry: deploymentCountry}
+	return &Service{
+		db:                db,
+		repo:              NewRepository(db),
+		thresholdPct:      thresholdPct,
+		deploymentCountry: deploymentCountry,
+	}
 }
 
 // Create adds a new UBO record for a case and pre-fills the registry URL

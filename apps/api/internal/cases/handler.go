@@ -209,6 +209,10 @@ func (h *Handler) ChangeStatus(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusForbidden, "MAKER_CHECKER_VIOLATION", err.Error())
 			return
 		}
+		if errors.Is(err, ErrUBOGateBlocked) {
+			response.Err(w, http.StatusConflict, "UBO_VERIFICATION_REQUIRED", err.Error())
+			return
+		}
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update status")
 		return
 	}

@@ -13,12 +13,14 @@ package gdpr
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 // DSARStatus represents the lifecycle of a Data Subject Access Request.
@@ -53,20 +55,22 @@ type DSAR struct {
 	LegalBasis     string         `json:"legal_basis,omitempty"`
 	ProcessedBy    string         `json:"processed_by,omitempty"` // DPO user ID
 	ProcessedAt    *time.Time     `json:"processed_at,omitempty"`
-	CasesAffected  []string       `json:"cases_affected,omitempty"`  // case IDs containing matched PII
+	CasesAffected  []string       `json:"cases_affected,omitempty"`
 	Notes          string         `json:"notes,omitempty"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
 }
 
 // AnonymisationRecord tracks what was pseudonymised for audit purposes.
-// The pseudonym is stable per original value (same name → same pseudonym)
-// so cross-case references remain internally consistent.
+// The pseudonym is stable per (dsarID, subjectID) so the same subject
+// appearing in multiple cases gets a consistent pseudonym — audit cross-references remain intact.
 type AnonymisationRecord struct {
-	DSARID      string    `json:"dsar_id"`
-	CaseID      string    `json:"case_id"`
-	Field       string    `json:"field"`      // "subject_name", "subject_address", etc.
-	Pseudonym   string    `json:"pseudonym"`  // "[ANON-a3f9b1c2]"
+	DSARID       string    `json:"dsar_id"`
+	SubjectID    string    `json:"subject_id"`
+	FieldsMasked []string  `json:"fields_masked"`
+	Pseudonym    string    `json:"pseudonym"`
+	LegalBasis   string    `json:"legal_basis"`
 	AnonymisedAt time.Time `json:"anonymised_at"`
-	LegalBasis  string    `json:"legal_basis"`
 }
 
 // RetentionStatus indicates whether a case's AML retention period has expired.
@@ -142,16 +146,123 @@ func (s *Service) CheckRetention(ctx context.Context, caseID string) (*Retention
 	}, nil
 }
 
-// Pseudonymise replaces PII in a case with stable pseudonyms.
-// The pseudonym is derived from the DSAR ID + original value hash so the
-// same person appearing in multiple cases gets the same pseudonym — cross-case
-// references remain internally consistent for investigators.
+// ProcessDSAR finds subjects matching the requester's name and pseudonymises their PII.
+// Within the AML retention window: pseudonymise (GDPR Art. 17(3)(b) exemption).
+// After retention expires: full soft-delete of the subject record.
 //
-// If the retention period has NOT expired, this is the legally required response:
-// GDPR Art. 17(3)(b) exempts AML records from erasure during the retention window.
-func (s *Service) Pseudonymise(ctx context.Context, dsarID, caseID, processedByUserID string) error {
-	// Implementation: UPDATE subjects SET name = '[ANON-<hash>]', id_number = '[ANON-...]',
-	// address = '[ANON-...]' WHERE case_id = $1 AND name ILIKE $2
-	// Full implementation in follow-up PR once dsar_requests migration is in place.
-	return fmt.Errorf("gdpr: pseudonymise: not yet implemented — see docs/EU_MARKET_ROADMAP.md P-EU-1")
+// The pseudonym is stable per (dsarID, subjectID) pair so the same person appearing
+// in multiple cases gets the same pseudonym — audit trail cross-references remain intact.
+func (s *Service) ProcessDSAR(ctx context.Context, dsarID, processedByUserID string) error {
+	// Load DSAR to get subject name
+	var subjectName string
+	err := s.db.QueryRowContext(ctx,
+		`SELECT subject_name FROM dsar_requests WHERE id = $1`, dsarID,
+	).Scan(&subjectName)
+	if err == sql.ErrNoRows {
+		return errors.New("gdpr: DSAR not found")
+	}
+	if err != nil {
+		return fmt.Errorf("gdpr: load dsar: %w", err)
+	}
+
+	// Find all subjects with a matching name (org-wide)
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT id FROM subjects WHERE canonical_name ILIKE $1 AND deleted_at IS NULL`,
+		subjectName,
+	)
+	if err != nil {
+		return fmt.Errorf("gdpr: find subjects: %w", err)
+	}
+	defer rows.Close()
+
+	var subjectIDs []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		subjectIDs = append(subjectIDs, id)
+	}
+
+	for _, subjectID := range subjectIDs {
+		pseudonym := stablePseudonym(dsarID, subjectID)
+
+		// Check retention: if any linked case is still within the retention window,
+		// pseudonymise rather than delete (GDPR Art. 17(3)(b)).
+		var openCases int
+		_ = s.db.QueryRowContext(ctx,
+			`SELECT COUNT(*) FROM case_subjects WHERE subject_id = $1
+			 AND EXISTS (
+			   SELECT 1 FROM cases c WHERE c.id = case_subjects.case_id
+			   AND (c.closed_at IS NULL OR c.closed_at > $2)
+			 )`,
+			subjectID, time.Now().UTC().AddDate(-s.retentionYears, 0, 0),
+		).Scan(&openCases)
+
+		if openCases > 0 {
+			// Within retention — pseudonymise PII fields only
+			_, err = s.db.ExecContext(ctx, `
+				UPDATE subjects SET
+					canonical_name  = $2,
+					id_number       = $2,
+					secondary_ids   = '[]'::jsonb,
+					addresses       = '[]'::jsonb,
+					phones          = '{}',
+					emails          = '{}',
+					date_of_birth   = NULL,
+					notes           = '',
+					updated_at      = NOW()
+				WHERE id = $1`,
+				subjectID, pseudonym,
+			)
+			legalBasis := fmt.Sprintf("GDPR Art. 17(3)(b) — AML retention exemption; %d-year window active. Pseudonym: %s", s.retentionYears, pseudonym)
+			s.insertAnonymisationRecord(ctx, dsarID, subjectID, processedByUserID, pseudonym, legalBasis) //nolint:errcheck
+		} else {
+			// Retention expired — full soft-delete
+			_, err = s.db.ExecContext(ctx,
+				`UPDATE subjects SET deleted_at = NOW() WHERE id = $1`, subjectID)
+			legalBasis := fmt.Sprintf("GDPR Art. 17(1) — retention period of %d years expired; full erasure applied.", s.retentionYears)
+			s.insertAnonymisationRecord(ctx, dsarID, subjectID, processedByUserID, "[DELETED]", legalBasis) //nolint:errcheck
+		}
+		if err != nil {
+			return fmt.Errorf("gdpr: pseudonymise subject %s: %w", subjectID, err)
+		}
+	}
+
+	outcome := ErasureOutcome(OutcomePseudonymised)
+	if len(subjectIDs) == 0 {
+		outcome = OutcomeDenied
+	}
+	legalBasis := "GDPR Art. 17 processed"
+
+	_, err = s.db.ExecContext(ctx, `
+		UPDATE dsar_requests SET
+			status       = 'completed',
+			outcome      = $2,
+			legal_basis  = $3,
+			processed_by = $4::uuid,
+			processed_at = NOW(),
+			updated_at   = NOW()
+		WHERE id = $1`,
+		dsarID, string(outcome), legalBasis, processedByUserID,
+	)
+	return err
+}
+
+// stablePseudonym generates a stable 8-char hex pseudonym from dsarID + subjectID.
+func stablePseudonym(dsarID, subjectID string) string {
+	h := sha256.Sum256([]byte(dsarID + ":" + subjectID))
+	return fmt.Sprintf("[ANON-%x]", h[:4])
+}
+
+func (s *Service) insertAnonymisationRecord(ctx context.Context, dsarID, subjectID, byUserID, pseudonym, legalBasis string) error {
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO anonymisation_records
+			(dsar_id, subject_id, fields_masked, pseudonym, legal_basis, anonymised_by)
+		VALUES ($1, $2, $3, $4, $5, $6::uuid)`,
+		dsarID, subjectID,
+		pq.Array([]string{"canonical_name", "id_number", "secondary_ids", "addresses", "phones", "emails", "date_of_birth"}),
+		pseudonym, legalBasis, byUserID,
+	)
+	return err
 }

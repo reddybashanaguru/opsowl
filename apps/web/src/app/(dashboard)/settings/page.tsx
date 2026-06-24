@@ -191,9 +191,17 @@ function GDPRSection({ config }: { config: AppConfig }) {
   const amlLaw = config.str_law_reference || "applicable AML legislation";
   return (
     <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
-      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
-        GDPR Compliance
-      </h2>
+      <div className="flex items-start justify-between mb-1">
+        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+          GDPR Compliance
+        </h2>
+        <a
+          href="/settings/gdpr"
+          className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded transition-colors"
+        >
+          Manage DSAR Requests →
+        </a>
+      </div>
       <p className="text-slate-500 text-xs mb-5">
         GDPR right-to-erasure conflicts with AML record retention obligations.
         OpsOwl resolves this via anonymisation — personal data is replaced with pseudonyms
@@ -768,6 +776,48 @@ export default function SettingsPage() {
         {/* ── GDPR — EU only ── */}
         {config.gdpr_enabled && (
           <GDPRSection config={config} />
+        )}
+
+        {/* ── AI Act Compliance — EU only ── */}
+        {config.gdpr_enabled && (
+          <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+                AI Act Compliance
+              </h2>
+              <a
+                href="/settings/ai-act"
+                className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded transition-colors"
+              >
+                View AI Act Dashboard →
+              </a>
+            </div>
+            <p className="text-slate-500 text-xs mt-1">
+              EU Regulation 2024/1689 · Art. 13 transparency + Art. 14 human oversight for high-risk AI in financial crime detection.
+              Conformity checklist, pending review queue, and CSV export for regulator submission.
+            </p>
+          </section>
+        )}
+
+        {/* ── Sanctions — EU + UAE deployments ── */}
+        {(config.gdpr_enabled || config.goaml_enabled) && (
+          <section className="mb-8 p-6 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04]">
+            <div className="flex items-start justify-between mb-1">
+              <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+                Sanctions & PEP Screening
+              </h2>
+              <a
+                href="/settings/sanctions"
+                className="px-3 py-1 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded transition-colors"
+              >
+                Manage Sanctions Lists →
+              </a>
+            </div>
+            <p className="text-slate-500 text-xs mt-1">
+              EU Consolidated List · UN Security Council · OFAC SDN — fuzzy name matching via pg_trgm.
+              View list status, reload databases, and review open/confirmed hits across all subjects.
+            </p>
+          </section>
         )}
 
         <section className="mb-8">

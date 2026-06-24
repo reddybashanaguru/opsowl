@@ -272,6 +272,11 @@ func (s *Service) ListByCase(ctx context.Context, caseID uuid.UUID, f ListLogsRe
 	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
 
+// ListForExport returns all AI log rows in a date window for EU AI Act audit CSV.
+func (s *Service) ListForExport(ctx context.Context, from, to time.Time) ([]AIExportRow, error) {
+	return s.repo.ListForExport(ctx, from, to)
+}
+
 func (s *Service) ListPending(ctx context.Context, limit int32) ([]*AILogResponse, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50

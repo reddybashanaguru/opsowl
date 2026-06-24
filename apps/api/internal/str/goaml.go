@@ -386,8 +386,21 @@ func BuildGoAMLXML(f *FilingResponse) ([]byte, []GoAMLValidationError) {
 		subjIDType = "NATIONAL_ID"
 	}
 
-	// Indicators from suspicion basis
+	// Auto-detect indicators from suspicion basis text, then merge any manually
+	// selected EU FATF typology codes (officer may add/override).
 	indicators := mapGoAMLIndicators(f.SuspicionBasis)
+	if len(f.EUFATFIndicators) > 0 {
+		seen := map[string]bool{}
+		for _, c := range indicators {
+			seen[c] = true
+		}
+		for _, c := range f.EUFATFIndicators {
+			if !seen[c] {
+				indicators = append(indicators, c)
+				seen[c] = true
+			}
+		}
+	}
 
 	// Resolve local currency once; applies to all transactions unless overridden
 	entityCurrency := localCurrency(entity)

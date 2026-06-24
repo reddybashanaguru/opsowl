@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -17,9 +18,10 @@ import (
 )
 
 var (
-	ErrNotFound      = errors.New("case not found")
-	ErrForbidden     = errors.New("forbidden")
-	ErrTagLimit      = errors.New("maximum 20 tags per case")
+	ErrNotFound       = errors.New("case not found")
+	ErrForbidden      = errors.New("forbidden")
+	ErrTagLimit       = errors.New("maximum 20 tags per case")
+	ErrUBOGateBlocked = errors.New("ubo verification required before closure")
 )
 
 // DefaultOrgID is used in MVP while multi-tenancy is deferred.
@@ -43,13 +45,20 @@ type PlaybookApplier interface {
 	ApplyToCase(ctx context.Context, caseID uuid.UUID, createdBy uuid.UUID, caseType string, caseCreatedAt time.Time) error
 }
 
+// UBOGate is the narrow interface to check UBO verification before closure.
+// Avoids a direct import of the ubo package from cases.
+type UBOGate interface {
+	CaseMayClose(ctx context.Context, caseID string) error
+}
+
 type Service struct {
-	repo       *Repository
-	sqlDB      *sql.DB // needed for bulk-op transactions
-	emitter    timeline.Emitter
-	notifSvc   *notifications.Service
-	assignEng  AssignmentEngine
+	repo            *Repository
+	sqlDB           *sql.DB // needed for bulk-op transactions
+	emitter         timeline.Emitter
+	notifSvc        *notifications.Service
+	assignEng       AssignmentEngine
 	playbookApplier PlaybookApplier
+	uboGate         UBOGate
 }
 
 func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
@@ -69,6 +78,11 @@ func (s *Service) WithAssignmentEngine(e AssignmentEngine) *Service {
 
 func (s *Service) WithPlaybookApplier(pa PlaybookApplier) *Service {
 	s.playbookApplier = pa
+	return s
+}
+
+func (s *Service) WithUBO(gate UBOGate) *Service {
+	s.uboGate = gate
 	return s
 }
 
@@ -420,6 +434,15 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 	}
 
 	actorID := claims.UserID
+
+	// UBO closure gate: block pending_review / closed if UBO records are unverified.
+	if req.Status == db.CaseStatusPendingReview || req.Status == db.CaseStatusClosed {
+		if s.uboGate != nil {
+			if err := s.uboGate.CaseMayClose(ctx, id.String()); err != nil {
+				return nil, fmt.Errorf("%w: %s", ErrUBOGateBlocked, err.Error())
+			}
+		}
+	}
 
 	// Maker-checker: prevent the same person from submitting and approving.
 	if req.Status == db.CaseStatusClosed && existing.Status == db.CaseStatusPendingReview {

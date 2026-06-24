@@ -5,6 +5,9 @@
 *.pem
 keys/
 
+# ── Market deployment presets (internal ops — never ship to clients) ──────────
+deploy/presets/
+
 # ── Go ────────────────────────────────────────────────────────────────────────
 apps/api/bin/
 apps/api/coverage.out

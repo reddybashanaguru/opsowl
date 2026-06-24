@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/lib/pq"
 )
 
 var (
@@ -36,13 +37,15 @@ type filing struct {
 	EvidenceSummary string
 	FilingEntity    json.RawMessage
 	Subject         json.RawMessage
-	Transactions    json.RawMessage
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	SubmittedByName  sql.NullString
-	SubmittedByEmail sql.NullString
-	ApprovedByName   sql.NullString
-	ApprovedByEmail  sql.NullString
+	Transactions       json.RawMessage
+	EUFATFIndicators   pq.StringArray
+	SubmissionCountry  string
+	CreatedAt          time.Time
+	UpdatedAt          time.Time
+	SubmittedByName    sql.NullString
+	SubmittedByEmail   sql.NullString
+	ApprovedByName     sql.NullString
+	ApprovedByEmail    sql.NullString
 }
 
 type Repository struct {
@@ -101,7 +104,9 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (*filing,
 			f.submitted_by, f.approved_by, f.submitted_at, f.approved_at,
 			f.filed_at, f.fiu_reference, f.rejection_reason,
 			f.suspicion_date, f.suspicion_basis, f.narrative, f.evidence_summary,
-			f.filing_entity, f.subject, f.transactions, f.created_at, f.updated_at,
+			f.filing_entity, f.subject, f.transactions,
+			f.eu_fatf_indicators, f.submission_country,
+			f.created_at, f.updated_at,
 			s.full_name, s.email,
 			a.full_name, a.email
 		FROM str_filings f
@@ -114,7 +119,9 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (*filing,
 		&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 		&f.FiledAt, &f.FIUReference, &f.RejectionReason,
 		&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
-		&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
+		&f.FilingEntity, &f.Subject, &f.Transactions,
+		&f.EUFATFIndicators, &f.SubmissionCountry,
+		&f.CreatedAt, &f.UpdatedAt,
 		&f.SubmittedByName, &f.SubmittedByEmail,
 		&f.ApprovedByName, &f.ApprovedByEmail,
 	)
@@ -124,6 +131,18 @@ func (r *Repository) GetByID(ctx context.Context, id, orgID uuid.UUID) (*filing,
 	return &f, err
 }
 
+// SaveEUIndicators saves manually selected EU FATF typology codes on a filing.
+// Called when a compliance officer confirms/edits the auto-detected indicators.
+func (r *Repository) SaveEUIndicators(ctx context.Context, id, orgID uuid.UUID, indicators []string, country string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE str_filings
+		   SET eu_fatf_indicators = $3, submission_country = $4, updated_at = NOW()
+		 WHERE id = $1 AND org_id = $2`,
+		id, orgID, pq.Array(indicators), country,
+	)
+	return err
+}
+
 func (r *Repository) ListByCaseID(ctx context.Context, caseID, orgID uuid.UUID) ([]filing, error) {
 	rows, err := r.db.QueryContext(ctx, `
 		SELECT
@@ -131,7 +150,9 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID, orgID uuid.UUID) 
 			f.submitted_by, f.approved_by, f.submitted_at, f.approved_at,
 			f.filed_at, f.fiu_reference, f.rejection_reason,
 			f.suspicion_date, f.suspicion_basis, f.narrative, f.evidence_summary,
-			f.filing_entity, f.subject, f.transactions, f.created_at, f.updated_at,
+			f.filing_entity, f.subject, f.transactions,
+			f.eu_fatf_indicators, f.submission_country,
+			f.created_at, f.updated_at,
 			s.full_name, s.email,
 			a.full_name, a.email
 		FROM str_filings f
@@ -154,7 +175,9 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID, orgID uuid.UUID) 
 			&f.SubmittedBy, &f.ApprovedBy, &f.SubmittedAt, &f.ApprovedAt,
 			&f.FiledAt, &f.FIUReference, &f.RejectionReason,
 			&f.SuspicionDate, &f.SuspicionBasis, &f.Narrative, &f.EvidenceSummary,
-			&f.FilingEntity, &f.Subject, &f.Transactions, &f.CreatedAt, &f.UpdatedAt,
+			&f.FilingEntity, &f.Subject, &f.Transactions,
+			&f.EUFATFIndicators, &f.SubmissionCountry,
+			&f.CreatedAt, &f.UpdatedAt,
 			&f.SubmittedByName, &f.SubmittedByEmail,
 			&f.ApprovedByName, &f.ApprovedByEmail,
 		); err != nil {
@@ -406,5 +429,9 @@ func toResponse(f *filing, deadlineDays ...int) *FilingResponse {
 	if f.ApprovedByName.Valid {
 		r.ApprovedByName = f.ApprovedByName.String
 	}
+	if len(f.EUFATFIndicators) > 0 {
+		r.EUFATFIndicators = []string(f.EUFATFIndicators)
+	}
+	r.SubmissionCountry = f.SubmissionCountry
 	return r
 }

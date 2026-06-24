@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -240,6 +242,30 @@ func (h *Handler) ValidateGoAML(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// PATCH /api/v1/cases/{id}/str/{str_id}/eu-indicators
+// Saves manually selected EU FATF typology codes (compliance officer confirms/overrides).
+func (h *Handler) SaveEUIndicators(w http.ResponseWriter, r *http.Request) {
+	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid str filing id")
+		return
+	}
+	var body struct {
+		Indicators        []string `json:"indicators"`
+		SubmissionCountry string   `json:"submission_country"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_BODY", err.Error())
+		return
+	}
+	if err := h.repo.SaveEUIndicators(r.Context(), strID, cases.DefaultOrgID, body.Indicators, body.SubmissionCountry); err != nil {
+		response.Err(w, http.StatusInternalServerError, "SAVE_FAILED", err.Error())
+		return
+	}
+	f, _ := h.repo.GetByID(r.Context(), strID, cases.DefaultOrgID)
+	response.JSON(w, http.StatusOK, toResponse(f))
+}
+
 // GET /api/v1/cases/{id}/str/{str_id}/export/goaml
 func (h *Handler) ExportGoAML(w http.ResponseWriter, r *http.Request) {
 	strID, err := uuid.Parse(chi.URLParam(r, "str_id"))
@@ -256,6 +282,21 @@ func (h *Handler) ExportGoAML(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to fetch STR filing")
 		return
+	}
+
+	// EU validation: Hellenic FIU (and all EU FIUs) require the entity FIU registration number
+	if strings.ToLower(os.Getenv("DEPLOYMENT_JURISDICTION")) == "eu" {
+		var entity goAMLEntityJSON
+		_ = json.Unmarshal(f.FilingEntity, &entity)
+		if entity.RentityID == "" {
+			regulator := os.Getenv("STR_REGULATOR_LABEL")
+			if regulator == "" {
+				regulator = "FIU"
+			}
+			response.Err(w, http.StatusUnprocessableEntity, "EU_ENTITY_REQUIRED",
+				regulator+" registration number (filing_entity.rentity_id) is required for EU submission")
+			return
+		}
 	}
 
 	xmlData, validationErrs := BuildGoAMLXML(toResponse(f))

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -11,11 +12,88 @@ import (
 )
 
 type Repository struct {
-	q *db.Queries
+	q     *db.Queries
+	sqlDB *sql.DB
 }
 
 func NewRepository(q *db.Queries) *Repository {
 	return &Repository{q: q}
+}
+
+// WithDB attaches a raw *sql.DB for queries that need joins not in sqlc schema.
+func (r *Repository) WithDB(d *sql.DB) *Repository {
+	r.sqlDB = d
+	return r
+}
+
+// AIExportRow is a flat row for EU AI Act audit CSV export.
+type AIExportRow struct {
+	ID                uuid.UUID
+	CaseID            uuid.UUID
+	CaseNumber        string
+	ActionType        string
+	ModelUsed         string
+	Provider          string
+	ConfidenceScore   *float64
+	HumanReviewStatus string
+	ReviewedBy        *uuid.UUID
+	ReviewedAt        *time.Time
+	CreatedAt         time.Time
+}
+
+// ListForExport returns all AI log rows in a date window joined with case numbers.
+func (r *Repository) ListForExport(ctx context.Context, from, to time.Time) ([]AIExportRow, error) {
+	if r.sqlDB == nil {
+		return nil, errors.New("ai: raw DB not attached; call WithDB before ListForExport")
+	}
+	rows, err := r.sqlDB.QueryContext(ctx, `
+		SELECT l.id, l.case_id, c.case_number,
+		       l.action_type, l.model_used, l.provider,
+		       l.confidence_score,
+		       l.human_review_status,
+		       l.reviewed_by, l.reviewed_at,
+		       l.created_at
+		FROM ai_logs l
+		LEFT JOIN cases c ON c.id = l.case_id
+		WHERE l.created_at >= $1 AND l.created_at < $2
+		ORDER BY l.created_at DESC
+		LIMIT 10000`,
+		from, to,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var out []AIExportRow
+	for rows.Next() {
+		var row AIExportRow
+		var conf sql.NullFloat64
+		var reviewedBy uuid.NullUUID
+		var reviewedAt sql.NullTime
+		if err := rows.Scan(
+			&row.ID, &row.CaseID, &row.CaseNumber,
+			&row.ActionType, &row.ModelUsed, &row.Provider,
+			&conf, &row.HumanReviewStatus,
+			&reviewedBy, &reviewedAt,
+			&row.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		if conf.Valid {
+			row.ConfidenceScore = &conf.Float64
+		}
+		if reviewedBy.Valid {
+			id := reviewedBy.UUID
+			row.ReviewedBy = &id
+		}
+		if reviewedAt.Valid {
+			t := reviewedAt.Time
+			row.ReviewedAt = &t
+		}
+		out = append(out, row)
+	}
+	return out, rows.Err()
 }
 
 func (r *Repository) Create(ctx context.Context, arg db.CreateAILogParams) (db.GetAILogRow, error) {

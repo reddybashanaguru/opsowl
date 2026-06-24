@@ -17,9 +17,10 @@ import {
   Lock,
   ArrowLeftRight,
   PenLine,
+  Users,
 } from "lucide-react";
 
-type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str" | "findings" | "closure" | "transactions" | "narrative";
+type Tab = "case" | "notes" | "tasks" | "documents" | "comms" | "insights" | "timeline" | "ai-logs" | "str" | "findings" | "closure" | "transactions" | "narrative" | "ubo";
 
 interface Props {
   caseId: string;
@@ -55,6 +56,7 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
     { tab: "transactions",  label: "Transactions",  path: "/transactions",  Icon: ArrowLeftRight },
     { tab: "narrative",     label: "Narrative",     path: "/narrative",     Icon: PenLine },
     { tab: "closure",       label: "Closure",       path: "/closure",       Icon: Lock, minLevel: 2 },
+    ...(cfg.ubo_enabled ? [{ tab: "ubo" as Tab, label: "UBO", path: "/ubo", Icon: Users, minLevel: 3 }] : []),
   ];
 
   const TABS = ALL_TABS.filter((t) => userLevel >= (t.minLevel ?? 0));

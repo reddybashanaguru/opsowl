@@ -57,5 +57,9 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		// ── Pending review queue (managers only) ──────────────────────────
 		r.With(auth.RequireRole("manager", "admin", "super_admin")).
 			Get("/ai/logs/pending", h.ListPending)
+
+		// ── EU AI Act audit trail CSV export (manager+) ───────────────────
+		r.With(auth.RequireRole("manager", "admin", "super_admin")).
+			Get("/ai/logs/export", h.ExportCSV)
 	})
 }

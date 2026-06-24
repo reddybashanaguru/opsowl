@@ -1,10 +1,13 @@
 package ai
 
 import (
+	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -240,6 +243,77 @@ func (h *Handler) ListPending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.JSONWithMeta(w, http.StatusOK, logs, map[string]interface{}{"count": len(logs)})
+}
+
+// ExportCSV streams an AI Act audit trail CSV for the given date range.
+// EU AI Act Art. 13 (transparency) and Art. 14 (human oversight) require
+// documented audit trails for all high-risk AI system decisions.
+// GET /api/v1/ai/logs/export?from=2024-01-01&to=2024-12-31
+func (h *Handler) ExportCSV(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	fromStr := q.Get("from")
+	toStr := q.Get("to")
+
+	from := time.Now().AddDate(0, -1, 0) // default: last 30 days
+	to := time.Now()
+
+	if fromStr != "" {
+		if t, err := time.Parse("2006-01-02", fromStr); err == nil {
+			from = t
+		}
+	}
+	if toStr != "" {
+		if t, err := time.Parse("2006-01-02", toStr); err == nil {
+			to = t.Add(24 * time.Hour) // inclusive of end date
+		}
+	}
+
+	logs, err := h.svc.ListForExport(r.Context(), from, to)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+
+	filename := fmt.Sprintf("ai-act-audit-%s-to-%s.csv",
+		from.Format("2006-01-02"), to.Format("2006-01-02"))
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, filename))
+
+	enc := csv.NewWriter(w)
+	_ = enc.Write([]string{
+		"log_id", "case_id", "case_number", "action_type",
+		"model_used", "provider", "confidence_score",
+		"human_review_status", "reviewed_by", "reviewed_at",
+		"created_at",
+	})
+	for _, l := range logs {
+		reviewedBy := ""
+		if l.ReviewedBy != nil {
+			reviewedBy = l.ReviewedBy.String()
+		}
+		reviewedAt := ""
+		if l.ReviewedAt != nil {
+			reviewedAt = l.ReviewedAt.Format(time.RFC3339)
+		}
+		conf := ""
+		if l.ConfidenceScore != nil {
+			conf = fmt.Sprintf("%.4f", *l.ConfidenceScore)
+		}
+		_ = enc.Write([]string{
+			l.ID.String(),
+			l.CaseID.String(),
+			l.CaseNumber,
+			l.ActionType,
+			l.ModelUsed,
+			l.Provider,
+			conf,
+			l.HumanReviewStatus,
+			reviewedBy,
+			reviewedAt,
+			l.CreatedAt.Format(time.RFC3339),
+		})
+	}
+	enc.Flush()
 }
 
 func (h *Handler) handleError(w http.ResponseWriter, err error) {
