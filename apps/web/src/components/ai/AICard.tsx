@@ -6,12 +6,28 @@ import { ConfidenceBar } from "./ConfidenceBar";
 import { AIReviewBadge } from "./AIReviewBadge";
 
 const ACTION_LABELS: Record<string, string> = {
-  ask:             "Q&A",
-  summarize:       "Summary",
-  generate_note:   "Draft Note",
-  extract_actions: "Action Items",
-  pattern_detect:  "Pattern Detection",
+  ask:                "Q&A",
+  summarize:          "Summary",
+  generate_note:      "Draft Note",
+  extract_actions:    "Action Items",
+  pattern_detect:     "Pattern Detection",
+  generate_narrative: "Narrative Generation",
+  process_document:   "Document Processing",
 };
+
+function parseResponseText(actionType: string, raw: string): string {
+  if (actionType === "generate_narrative") {
+    try {
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof parsed.narrative === "string" && parsed.narrative.trim()) {
+        return parsed.narrative;
+      }
+    } catch {
+      // raw is plain text already
+    }
+  }
+  return raw;
+}
 
 export interface AILog {
   id: string;
@@ -45,11 +61,11 @@ interface AICardProps {
 export function AICard({ log, onApprove, onReject, onEdit, canReview }: AICardProps) {
   const [showCitations, setShowCitations] = useState(false);
   const [editing, setEditing] = useState(false);
-  const [editText, setEditText] = useState(log.human_edited_response ?? log.response_text);
+  const [editText, setEditText] = useState(log.human_edited_response ?? parseResponseText(log.action_type, log.response_text));
   const [rejectReason, setRejectReason] = useState("");
   const [showReject, setShowReject] = useState(false);
 
-  const displayText = log.human_edited_response ?? log.response_text;
+  const displayText = log.human_edited_response ?? parseResponseText(log.action_type, log.response_text);
   const latencyS = (log.latency_ms / 1000).toFixed(1);
   const pending = log.human_review_status === "pending";
 
@@ -137,7 +153,7 @@ export function AICard({ log, onApprove, onReject, onEdit, canReview }: AICardPr
             ✓ Approve
           </button>
           <button
-            onClick={() => { setEditing(true); setEditText(log.response_text); }}
+            onClick={() => { setEditing(true); setEditText(parseResponseText(log.action_type, log.response_text)); }}
             className="bg-slate-600 hover:bg-slate-500 text-slate-200 text-xs font-medium px-3 py-1.5 rounded-lg transition-colors"
             data-testid="edit-btn"
           >

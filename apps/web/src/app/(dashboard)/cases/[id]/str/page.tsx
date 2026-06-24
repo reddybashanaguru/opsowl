@@ -780,7 +780,11 @@ function FilingCard({
         // goAML export returns 422 with JSON validation errors
         if (res.status === 422) {
           const body = await res.json();
-          const msgs = (body?.errors ?? []).map((e: GoAMLValidationError) => e.message).join("; ");
+          // response.JSON wraps in {data: {...}} envelope
+          const errs: GoAMLValidationError[] = body?.data?.errors ?? body?.errors ?? [];
+          const msgs = errs.length > 0
+            ? errs.map((e) => e.message).join("; ")
+            : (body?.data?.message ?? body?.error?.message ?? "Filing is missing required goAML fields — open the Pre-Flight Checklist to see what needs to be filled in");
           setActionError(`goAML validation failed: ${msgs}`);
           return;
         }
@@ -914,13 +918,15 @@ function FilingCard({
               >
                 Export goAML XML
               </button>
-              <button
-                onClick={() => handleExport("finnet")}
-                className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
-                title="Export FINnet 2.0 XML (legacy format)"
-              >
-                Export FINnet XML
-              </button>
+              {cfg.jurisdiction !== "eu" && (
+                <button
+                  onClick={() => handleExport("finnet")}
+                  className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
+                  title={cfg.jurisdiction === "uae" ? "Export UAE FIU XML" : "Export FINnet 2.0 XML"}
+                >
+                  {cfg.jurisdiction === "uae" ? "Export UAE FIU XML" : "Export FINnet XML"}
+                </button>
+              )}
             </div>
           )}
         </div>
