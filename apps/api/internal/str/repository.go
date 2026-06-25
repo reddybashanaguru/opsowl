@@ -332,7 +332,7 @@ func (r *Repository) Deadlines(ctx context.Context, orgID uuid.UUID, deadlineDay
 			EXTRACT(DAY FROM (f.suspicion_date + ($1 * INTERVAL '1 day')) - NOW())::int AS days_remaining,
 			f.status, f.report_type
 		FROM str_filings f
-		JOIN cases c ON c.id = f.case_id
+		JOIN cases c ON c.id = f.case_id AND c.deleted_at IS NULL
 		WHERE f.org_id = $2
 		  AND f.suspicion_date IS NOT NULL
 		  AND f.status NOT IN ('filed')
