@@ -231,7 +231,7 @@ export default function WorkloadPage() {
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wide">
+                <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wider font-medium">
                   <th className="text-left px-4 py-3 font-medium">#</th>
                   <th className="text-left px-4 py-3 font-medium">Case</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>

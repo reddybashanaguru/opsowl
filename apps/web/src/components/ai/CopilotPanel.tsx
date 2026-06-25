@@ -272,7 +272,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
               {/* Final answer */}
               {agent.answer && (
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
-                  <p className="text-xs text-cyan-400 font-semibold uppercase tracking-wide mb-2">Investigation Report</p>
+                  <p className="text-xs text-cyan-400 font-semibold uppercase tracking-wider mb-2">Investigation Report</p>
                   <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{agent.answer}</div>
                   {agent.stats && (
                     <p className="text-xs text-slate-600 mt-3">
@@ -349,7 +349,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
           {/* Current result */}
           {result && (
             <div>
-              <p className="text-xs text-slate-500 mb-2 uppercase tracking-wide">AI Response</p>
+              <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider">AI Response</p>
               <AICard
                 log={result}
                 canReview={canReview}
@@ -363,7 +363,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
           {/* Recent logs */}
           {recentLogs.length > 0 && !result && (
             <div>
-              <p className="text-xs text-slate-500 mb-3 uppercase tracking-wide">Recent Activity</p>
+              <p className="text-xs text-slate-500 mb-3 uppercase tracking-wider">Recent Activity</p>
               <div className="space-y-3">
                 {recentLogs.map((log) => (
                   <AICard

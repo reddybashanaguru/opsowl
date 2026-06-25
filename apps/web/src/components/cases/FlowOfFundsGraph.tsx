@@ -164,7 +164,7 @@ const AccountNode = memo(function AccountNode({ data, selected }: NodeProps) {
           </span>
         )}
       </div>
-      <span className={`text-[8px] font-medium uppercase tracking-wide mb-1 ${roleColor}`}>{roleLabel}</span>
+      <span className={`text-[8px] font-medium uppercase tracking-wider mb-1 ${roleColor}`}>{roleLabel}</span>
       <div className="flex items-center justify-between text-[9px]">
         <span className="text-green-400">↑{formatCompact(d.total_in, d.currency)}</span>
         <span className="text-red-400">↓{formatCompact(d.total_out, d.currency)}</span>

@@ -1514,7 +1514,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div className="col-span-2">
-                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mt-2 mb-2">Reporting Officer</p>
+                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wider mt-2 mb-2">Reporting Officer</p>
                 </div>
 
                 <div>
@@ -1573,7 +1573,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
                 </div>
 
                 <div className="col-span-2">
-                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wide mt-2 mb-2">Entity Address</p>
+                  <p className="text-slate-500 text-xs font-medium uppercase tracking-wider mt-2 mb-2">Entity Address</p>
                 </div>
                 <div className="col-span-2">
                   <label className={labelCls}>Street Address</label>

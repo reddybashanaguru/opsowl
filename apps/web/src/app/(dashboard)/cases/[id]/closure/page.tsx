@@ -543,35 +543,35 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
               <div className="space-y-3 text-sm">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <span className="text-xs text-slate-500 uppercase tracking-wide">Disposition</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">Disposition</span>
                     <p className="text-slate-200 mt-0.5">
                       {DISPOSITION_OPTIONS.find((o) => o.value === closure.disposition)?.label ?? closure.disposition}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 uppercase tracking-wide">Risk at Close</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">Risk at Close</span>
                     <p className="text-slate-200 mt-0.5 capitalize">{closure.risk_rating_at_close ?? "—"}</p>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 uppercase tracking-wide">STR Filed</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">STR Filed</span>
                     <p className={`mt-0.5 ${closure.filed_str ? "text-emerald-400" : "text-slate-400"}`}>
                       {closure.filed_str ? "Yes" : "No"}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-slate-500 uppercase tracking-wide">Submitted By</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">Submitted By</span>
                     <p className="text-slate-200 mt-0.5">{closure.created_by.full_name}</p>
                   </div>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Summary</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Summary</span>
                   <p className="text-slate-300 mt-0.5 text-sm leading-relaxed whitespace-pre-wrap bg-slate-700/40 rounded-lg p-3">
                     {closure.summary}
                   </p>
                 </div>
                 {closure.sar_considered && closure.sar_rejection_reason && (
                   <div>
-                    <span className="text-xs text-slate-500 uppercase tracking-wide">SAR Rejection Reason</span>
+                    <span className="text-xs text-slate-500 uppercase tracking-wider">SAR Rejection Reason</span>
                     <p className="text-amber-300 mt-0.5 text-sm">{closure.sar_rejection_reason}</p>
                   </div>
                 )}
@@ -627,41 +627,41 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
               </h2>
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Disposition</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Disposition</span>
                   <p className="text-slate-200 mt-0.5">
                     {DISPOSITION_OPTIONS.find((o) => o.value === closure.disposition)?.label ?? closure.disposition}
                   </p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Risk at Close</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Risk at Close</span>
                   <p className="text-slate-200 mt-0.5 capitalize">{closure.risk_rating_at_close ?? "—"}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Prepared By</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Prepared By</span>
                   <p className="text-slate-200 mt-0.5">{closure.created_by.full_name}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Approved By</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Approved By</span>
                   <p className="text-slate-200 mt-0.5">{closure.approved_by?.full_name ?? "—"}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Submitted</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Submitted</span>
                   <p className="text-slate-200 mt-0.5">{fmt(closure.submitted_at)}</p>
                 </div>
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">Approved</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">Approved</span>
                   <p className="text-slate-200 mt-0.5">{fmt(closure.approved_at)}</p>
                 </div>
               </div>
               <div>
-                <span className="text-xs text-slate-500 uppercase tracking-wide">Summary</span>
+                <span className="text-xs text-slate-500 uppercase tracking-wider">Summary</span>
                 <p className="text-slate-300 mt-0.5 text-sm leading-relaxed whitespace-pre-wrap bg-slate-700/40 rounded-lg p-3">
                   {closure.summary}
                 </p>
               </div>
               {closure.sar_considered && closure.sar_rejection_reason && (
                 <div>
-                  <span className="text-xs text-slate-500 uppercase tracking-wide">SAR Rejection Reason</span>
+                  <span className="text-xs text-slate-500 uppercase tracking-wider">SAR Rejection Reason</span>
                   <p className="text-amber-300 mt-1 text-sm">{closure.sar_rejection_reason}</p>
                 </div>
               )}

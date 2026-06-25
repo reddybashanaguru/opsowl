@@ -379,7 +379,7 @@ function FindingCard({ finding, caseId, userRole }: {
           {/* Evidence list */}
           {(fullFinding?.evidence_links ?? []).length > 0 && (
             <div className="space-y-2">
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Evidence</h4>
+              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Evidence</h4>
               {(fullFinding?.evidence_links ?? []).map(link => (
                 <div key={link.id} className="flex gap-2 bg-slate-800/50 rounded-lg p-2.5">
                   <span className="text-xs text-cyan-400 font-medium shrink-0 capitalize">

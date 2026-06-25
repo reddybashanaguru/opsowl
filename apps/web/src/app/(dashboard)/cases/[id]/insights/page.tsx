@@ -67,7 +67,7 @@ const ALL_CATEGORIES = ["PLACEMENT", "LAYERING", "INTEGRATION", "STRUCTURING", "
 
 function categoryBadge(cat: string) {
   return (
-    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wide ${CATEGORY_COLORS[cat] ?? "bg-slate-700 text-slate-400 border-slate-600"}`}>
+    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border uppercase tracking-wider ${CATEGORY_COLORS[cat] ?? "bg-slate-700 text-slate-400 border-slate-600"}`}>
       {cat}
     </span>
   );
@@ -116,7 +116,7 @@ function Section({ title, children, action }: { title: string; children: React.R
   return (
     <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wide">{title}</h3>
+        <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wider">{title}</h3>
         {action}
       </div>
       {children}
@@ -315,7 +315,7 @@ function MatchedTypologies({
                     {categoryBadge(ct.category)}
                     <span className="text-white text-sm font-medium">{ct.name}</span>
                     {ct.is_ai_suggested && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-violet-500/15 text-violet-300 border-violet-500/30 uppercase tracking-wide">
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-violet-500/15 text-violet-300 border-violet-500/30 uppercase tracking-wider">
                         AI Suggested
                       </span>
                     )}
@@ -343,7 +343,7 @@ function MatchedTypologies({
         {/* AI Suggestions */}
         {suggestions.length > 0 && (
           <div className="mt-4 pt-4 border-t border-[#1e3050]">
-            <p className="text-slate-500 text-xs uppercase tracking-wide font-semibold mb-3 flex items-center gap-2">
+            <p className="text-slate-500 text-xs uppercase tracking-wider font-semibold mb-3 flex items-center gap-2">
               <svg className="w-3 h-3 text-violet-400" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464A1 1 0 106.464 5.05l-.707-.707a1 1 0 00-1.414 1.414l.707.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1h4v1a2 2 0 11-4 0zM12 14c.015-.298.03-.6.03-.9A8 8 0 103.97 13.1c0 .3.015.602.03.9H12z" />
               </svg>
@@ -521,7 +521,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
               <div className="grid grid-cols-3 gap-4">
                 {Object.entries(ins.entities).map(([type, items]) => (
                   <div key={type}>
-                    <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">{type}</div>
+                    <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">{type}</div>
                     {!items || (items as string[]).length === 0 ? (
                       <p className="text-slate-600 text-xs italic">None</p>
                     ) : (

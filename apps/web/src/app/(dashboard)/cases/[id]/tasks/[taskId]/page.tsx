@@ -384,7 +384,7 @@ export default function TaskDetailPage({
 
           {/* Comments */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-            <h2 className="text-slate-300 text-sm font-semibold mb-4 uppercase tracking-wide">
+            <h2 className="text-slate-300 text-sm font-semibold mb-4 uppercase tracking-wider">
               Comments ({task.comment_count})
             </h2>
 
@@ -446,7 +446,7 @@ export default function TaskDetailPage({
         <div className="space-y-4">
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 space-y-4">
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1.5">Assigned To</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1.5">Assigned To</div>
               {reassigning ? (
                 <div className="flex items-center gap-2">
                   <select
@@ -482,12 +482,12 @@ export default function TaskDetailPage({
               )}
             </div>
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created By</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Created By</div>
               <div className="text-slate-200 text-sm">{task.created_by?.full_name || task.created_by?.email || "—"}</div>
             </div>
             {task.due_date && (
               <div>
-                <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Due Date</div>
+                <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Due Date</div>
                 <div className={`text-sm ${task.is_overdue && !isDone ? "text-red-400 font-medium" : "text-slate-200"}`}>
                   {new Date(task.due_date).toLocaleDateString()}
                 </div>
@@ -495,16 +495,16 @@ export default function TaskDetailPage({
             )}
             {task.completed_at && (
               <div>
-                <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Completed</div>
+                <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Completed</div>
                 <div className="text-green-400 text-sm">{new Date(task.completed_at).toLocaleString()}</div>
               </div>
             )}
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Created</div>
               <div className="text-slate-400 text-sm">{new Date(task.created_at).toLocaleString()}</div>
             </div>
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Last Updated</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Last Updated</div>
               <div className="text-slate-400 text-sm">{relativeTime(task.updated_at)}</div>
             </div>
           </div>

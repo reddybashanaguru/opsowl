@@ -520,12 +520,12 @@ function AIConfigSection() {
         <div className="flex flex-col gap-4">
           <div className="flex items-center gap-3">
             {isAirGapped ? (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/40 text-green-400 text-xs font-semibold tracking-wide">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/15 border border-green-500/40 text-green-400 text-xs font-semibold tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
                 Air-Gapped (Local AI)
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-semibold tracking-wide">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-400 text-xs font-semibold tracking-wider">
                 <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
                 Cloud AI — {data.provider.charAt(0).toUpperCase() + data.provider.slice(1)}
               </span>

@@ -697,7 +697,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         <div className="col-span-2 space-y-5">
           {/* Description — inline editable */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 group/desc">
-            <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wide mb-3">Description</h2>
+            <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wider mb-3">Description</h2>
             {editing ? (
               <textarea
                 rows={6}
@@ -727,7 +727,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Quick Note Input */}
           <div className={`bg-[#131f30] border rounded-xl ring-1 ring-white/[0.04] p-4 transition-colors ${noteSuccess ? "border-emerald-500/50" : "border-[#1e3050]"}`}>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-slate-500 text-xs uppercase tracking-wide">Quick Note</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider">Quick Note</div>
               <button
                 onClick={() => router.push(`/cases/${id}/notes`)}
                 className="text-slate-600 hover:text-cyan-400 text-xs transition-colors"
@@ -777,7 +777,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Live Timeline Feed */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
             <div className="flex items-center justify-between mb-3">
-              <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wide">Live Feed</h2>
+              <h2 className="text-slate-300 text-sm font-semibold uppercase tracking-wider">Live Feed</h2>
               <button
                 onClick={() => router.push(`/cases/${id}/timeline`)}
                 className="text-cyan-400 hover:text-cyan-300 text-xs"
@@ -809,7 +809,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Details card with inline assignee */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 space-y-4">
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Assigned To</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Assigned To</div>
               {user?.role === "analyst" ? (
                 <div className="text-slate-200 text-sm">
                   {c.assigned_to?.full_name ?? <span className="text-slate-600 italic">Unassigned</span>}
@@ -855,15 +855,15 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
               )}
             </div>
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created By</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Created By</div>
               <div className="text-slate-200 text-sm">{c.created_by?.full_name || "—"}</div>
             </div>
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Created</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Created</div>
               <div className="text-slate-200 text-sm">{new Date(c.created_at).toLocaleString()}</div>
             </div>
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">Due Date</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">Due Date</div>
               {editing ? (
                 <>
                   <input
@@ -893,7 +893,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             </div>
             {c.sla_breach_at && (
               <div>
-                <div className="text-slate-500 text-xs uppercase tracking-wide mb-1">SLA Deadline</div>
+                <div className="text-slate-500 text-xs uppercase tracking-wider mb-1">SLA Deadline</div>
                 <div className="text-slate-200 text-sm">{new Date(c.sla_breach_at).toLocaleString()}</div>
               </div>
             )}
@@ -902,7 +902,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Open Tasks preview */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-slate-500 text-xs uppercase tracking-wide">Open Tasks</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider">Open Tasks</div>
               <button onClick={() => router.push(`/cases/${id}/tasks`)} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</button>
             </div>
             {!tasksPreview || tasksPreview.data.length === 0 ? (
@@ -926,7 +926,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Documents preview */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
             <div className="flex items-center justify-between mb-2">
-              <div className="text-slate-500 text-xs uppercase tracking-wide">Documents</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider">Documents</div>
               <button onClick={() => router.push(`/cases/${id}/documents`)} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</button>
             </div>
             {!docsPreview || docsPreview.data.length === 0 ? (
@@ -950,7 +950,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Tags */}
           {(c.tags?.length ?? 0) > 0 && (
             <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Tags</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">Tags</div>
               <div className="flex flex-wrap gap-1.5">
                 {(c.tags ?? []).map((t) => (
                   <span key={t} className="bg-slate-700 text-slate-300 text-xs px-2 py-1 rounded">
@@ -964,7 +964,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           {/* Watchers */}
           {(c.watchers?.length ?? 0) > 0 && (
             <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4">
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Watchers</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">Watchers</div>
               <div className="space-y-1">
                 {(c.watchers ?? []).map((w) => (
                   <div key={w.id} className="text-slate-300 text-xs">{w.full_name}</div>

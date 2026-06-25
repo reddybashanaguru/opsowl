@@ -29,7 +29,7 @@ export function StatusBadge({ status, size = "sm" }: Props) {
 
   if (size === "lg") {
     return (
-      <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold tracking-wide ${config.badge}`}>
+      <span className={`inline-flex items-center gap-2 rounded-lg border px-3 py-1.5 text-sm font-semibold tracking-wider ${config.badge}`}>
         <span className="relative flex items-center justify-center w-2.5 h-2.5">
           {config.pulse && (
             <span className={`absolute inline-flex w-full h-full rounded-full opacity-60 animate-ping ${config.dot}`} />

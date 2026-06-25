@@ -186,7 +186,7 @@ function TemplateForm({
               key={p}
               type="button"
               onClick={() => setPriority(p)}
-              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wide transition-all ${
+              className={`px-3 py-1.5 rounded-lg border text-xs font-semibold uppercase tracking-wider transition-all ${
                 priority === p ? priorityColor[p] : "border-slate-600 text-slate-500 hover:border-slate-400"
               }`}
             >

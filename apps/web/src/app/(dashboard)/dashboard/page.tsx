@@ -114,19 +114,23 @@ function StatCard({
   Icon?: React.ElementType;
 }) {
   return (
-    <Link href={href} className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-[#2a4060] hover:bg-[#1a2a40] transition-colors group">
-      <div className="flex items-start justify-between mb-2">
-        <div className="text-slate-400 text-sm">{label}</div>
-        {Icon && <Icon size={16} className="text-slate-600 group-hover:text-slate-500 transition-colors flex-shrink-0" />}
+    <Link href={href} className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-slate-600 hover:bg-[#1a2a40] transition-all group">
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-slate-500 text-xs uppercase tracking-wider font-semibold">{label}</div>
+        {Icon && (
+          <span className="p-1.5 rounded-lg bg-slate-800/60 group-hover:bg-slate-700/60 transition-colors">
+            <Icon size={13} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
+          </span>
+        )}
       </div>
-      <div className={`text-3xl font-bold tabular-nums ${color}`}>
+      <div className={`text-4xl font-bold tabular-nums tracking-tight ${color}`}>
         {value === undefined ? (
-          <span className="inline-block w-14 h-8 bg-slate-700 animate-pulse rounded" />
+          <span className="inline-block w-14 h-10 bg-slate-700 animate-pulse rounded" />
         ) : (
           value.toLocaleString()
         )}
       </div>
-      {sub && <div className="text-slate-500 text-xs mt-1.5 flex items-center gap-1">{sub}</div>}
+      {sub && <div className="text-slate-600 text-[11px] mt-2">{sub}</div>}
     </Link>
   );
 }
@@ -285,181 +289,187 @@ export default function DashboardPage() {
         <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="requires immediate action" Icon={Clock} />
       </div>
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        {/* Donut — case status */}
-        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Case Status Breakdown</div>
-          <div className="flex items-center gap-5">
-            <DonutChart slices={statusSlices} size={120} />
-            <div className="space-y-1.5 flex-1 min-w-0">
-              {statusSlices.map((s) => (
-                <div key={s.label} className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                  <span className="text-slate-400 text-xs truncate flex-1">{s.label}</span>
-                  <span className="text-slate-200 text-xs tabular-nums font-medium">{s.value}</span>
+      {/* Analytics + Attention row — 3/5 analytics | 2/5 action panel */}
+      <div className="grid grid-cols-5 gap-4 mb-4">
+
+        {/* Case Overview — status donut + priority bars (3/5) */}
+        <div className="col-span-3 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-5">Case Overview</p>
+          <div className="grid grid-cols-2 divide-x divide-slate-700/50 gap-0">
+            {/* Status donut */}
+            <div className="pr-6">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">By Status</p>
+              {stats ? (
+                <div className="flex items-center gap-5">
+                  <DonutChart slices={statusSlices} size={110} />
+                  <div className="space-y-2.5 flex-1 min-w-0">
+                    {statusSlices.map((s) => (
+                      <div key={s.label} className="flex items-center gap-2 min-w-0">
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="text-slate-400 text-xs truncate flex-1">{s.label}</span>
+                        <span className="text-slate-100 text-xs tabular-nums font-semibold w-6 text-right">{s.value}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ))}
+              ) : (
+                <div className="flex items-center gap-5">
+                  <div className="w-[110px] h-[110px] bg-slate-800 animate-pulse rounded-full flex-shrink-0" />
+                  <div className="space-y-2.5 flex-1">{[...Array(5)].map((_,i)=><div key={i} className="h-4 bg-slate-800 animate-pulse rounded"/>)}</div>
+                </div>
+              )}
+            </div>
+
+            {/* Priority bars */}
+            <div className="pl-6">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">By Priority</p>
+              {stats ? (
+                <HorizontalBars items={priorityBars} />
+              ) : (
+                <div className="space-y-3">{[...Array(4)].map((_,i)=><div key={i} className="h-7 bg-slate-800 animate-pulse rounded"/>)}</div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Horizontal bars — priority */}
-        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Active Cases by Priority</div>
-          {stats ? (
-            <HorizontalBars items={priorityBars} />
-          ) : (
-            <div className="space-y-3">
-              {[...Array(4)].map((_, i) => <div key={i} className="h-6 bg-slate-800 animate-pulse rounded" />)}
-            </div>
-          )}
-        </div>
-
-        {/* Alert panel */}
-        <div className={`bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500 ring-red-500/30 animate-pulse" : "border-[#1e3050]"}`}>
-          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold mb-4">Attention Required</div>
-          <div className="space-y-3">
+        {/* Attention Required (2/5) */}
+        <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all flex flex-col ${breachPulse ? "border-red-500/60 ring-red-500/20 animate-pulse" : "border-[#1e3050]"}`}>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-5">Attention Required</p>
+          <div className="flex flex-col gap-0.5 flex-1 justify-between">
             {stats ? (
               <>
-                <AlertRow
-                  Icon={AlertTriangle}
-                  label={`${cfg.sla_label} Breaches`}
-                  value={stats.sla_breached}
-                  href="/cases?sla_breached=true"
-                  critical={stats.sla_breached > 0}
-                />
-                <AlertRow
-                  Icon={TrendingUp}
-                  label={`Escalated ${cfg.cases_label}`}
-                  value={stats.status_escalated}
-                  href="/cases?status=escalated"
-                  critical={stats.status_escalated > 0}
-                />
-                <AlertRow
-                  Icon={Bot}
-                  label="Pending AI Reviews"
-                  value={stats.pending_ai_reviews}
-                  href="/cases"
-                  critical={false}
-                />
-                <AlertRow
-                  Icon={ClipboardList}
-                  label={`Pending Review ${cfg.cases_label}`}
-                  value={stats.status_pending_review}
-                  href="/cases?status=pending_review"
-                  critical={false}
-                />
+                <AlertRow Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}          value={stats.sla_breached}          href="/cases?sla_breached=true"        critical={stats.sla_breached > 0} />
+                <AlertRow Icon={TrendingUp}     label={`Escalated ${cfg.cases_label}`}       value={stats.status_escalated}      href="/cases?status=escalated"         critical={stats.status_escalated > 0} />
+                <AlertRow Icon={Bot}            label="Pending AI Reviews"                   value={stats.pending_ai_reviews}    href="/cases"                          critical={false} />
+                <AlertRow Icon={ClipboardList}  label={`Pending Review ${cfg.cases_label}`} value={stats.status_pending_review} href="/cases?status=pending_review"    critical={false} />
               </>
             ) : (
-              [...Array(4)].map((_, i) => <div key={i} className="h-8 bg-slate-800 animate-pulse rounded" />)
+              [...Array(4)].map((_,i) => <div key={i} className="h-12 bg-slate-800 animate-pulse rounded" />)
             )}
           </div>
         </div>
       </div>
 
-      {/* AI Risk Leaderboard */}
-      {riskCases && riskCases.length > 0 && (
-        <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">Top Cases by AI Risk Score</div>
-            <Link href="/cases" className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
-          </div>
-          <div className="space-y-2">
-            {riskCases.map((c) => {
-              const level = c.risk_level ?? "unknown";
-              const score = c.risk_score ? parseFloat(c.risk_score) : null;
-              const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
-              return (
-                <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-3 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
-                  <span className={`text-xs font-bold px-2 py-0.5 rounded min-w-[42px] text-center ${colorClass}`}>
-                    {score !== null ? Math.round(score) : "—"}
-                  </span>
-                  <span className="font-mono text-cyan-400 text-xs w-24 flex-shrink-0">{c.case_number}</span>
-                  <span className="text-slate-300 text-sm flex-1 truncate">{c.title}</span>
-                  <span className={`text-xs px-1.5 py-0.5 rounded capitalize ${colorClass}`}>{level}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {/* ── Intel + Deadlines + Queue ────────────────────────────────────────── */}
+      {(() => {
+        const scoredCases = (riskCases ?? []).filter(c => c.risk_score && parseFloat(c.risk_score) > 0);
+        const allRiskCases = riskCases ?? [];
+        const hasSTR = isComplianceOfficer && strDeadlines && strDeadlines.count > 0;
+        const hasRisk = allRiskCases.length > 0;
+        return (
+          <>
+            {(hasRisk || hasSTR) && (
+              <div className="grid grid-cols-5 gap-4 mb-4 items-start">
+                {/* High-Risk Cases — 2/5 width */}
+                {hasRisk && (
+                  <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 ${!hasSTR ? "col-span-5" : "col-span-2"}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
+                        {scoredCases.length > 0 && (
+                          <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/30 text-orange-300 border border-orange-700/40 rounded-full font-medium">{scoredCases.length} scored</span>
+                        )}
+                      </div>
+                      <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+                    </div>
+                    <div className="space-y-1">
+                      {allRiskCases.map((c) => {
+                        const level = c.risk_level ?? "unknown";
+                        const score = c.risk_score ? Math.round(parseFloat(c.risk_score)) : null;
+                        const colorClass = score ? (RISK_COLORS[level] ?? RISK_COLORS.unknown) : "bg-slate-800 text-slate-600";
+                        return (
+                          <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
+                            <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded min-w-[36px] text-center flex-shrink-0 ${colorClass}`}>
+                              {score ?? "—"}
+                            </span>
+                            <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                            <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                            {level !== "unknown" && score && (
+                              <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
+                            )}
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
-      {/* STR Regulatory Deadlines — compliance officers only */}
-      {isComplianceOfficer && strDeadlines && strDeadlines.count > 0 && (
-        <div className="bg-[#131f30] border border-red-800/30 rounded-xl ring-1 ring-red-500/10 p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <FileWarning size={14} className="text-red-400" />
-              <span className="text-slate-400 text-xs uppercase tracking-widest font-semibold">
-                {cfg.str_label} Filing Deadlines
-              </span>
-              <span className="text-[10px] px-1.5 py-0.5 bg-red-900/40 text-red-300 border border-red-500/30 rounded-full font-medium">
-                {strDeadlines.count} approaching
-              </span>
+                {/* STR Filing Deadlines — 3/5 width */}
+                {hasSTR && (
+                  <div className={`bg-[#131f30] border border-red-900/40 rounded-xl ring-1 ring-red-500/10 p-5 ${!hasRisk ? "col-span-5" : "col-span-3"}`}>
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center gap-2">
+                        <FileWarning size={13} className="text-red-400 flex-shrink-0" />
+                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-300 border border-red-700/40 rounded-full font-medium">{strDeadlines!.count}</span>
+                      </div>
+                      <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+                    </div>
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-52 overflow-y-auto pr-1">
+                      {strDeadlines!.items.map((item) => (
+                        <Link
+                          key={item.filing_id}
+                          href={`/cases/${item.case_id}/str`}
+                          className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
+                        >
+                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{item.case_number}</span>
+                          <span className="text-slate-500 text-[11px] flex-1 truncate min-w-0">
+                            {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                          </span>
+                          <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
+                        </Link>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* My Queue — full width */}
+            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
+                  {myQueue && myQueue.data.length > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-600/50 rounded-full font-medium">{myQueue.data.length}</span>
+                  )}
+                </div>
+                <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+              </div>
+              {!myQueue ? (
+                <div className="grid grid-cols-2 gap-3">
+                  {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-slate-800 animate-pulse rounded" />)}
+                </div>
+              ) : myQueue.data.length === 0 ? (
+                <div className="text-slate-500 text-sm py-6 text-center">All clear — no {cfg.cases_label.toLowerCase()} assigned to you.</div>
+              ) : (
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                  {myQueue.data.map((c) => {
+                    const sla = slaRemaining(c.sla_breach_at);
+                    const prioClass = PRIORITY_COLORS[c.priority] ?? PRIORITY_COLORS.low;
+                    return (
+                      <Link
+                        key={c.id}
+                        href={`/cases/${c.id}`}
+                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
+                      >
+                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
+                          {c.priority.slice(0, 3)}
+                        </span>
+                        <span className="font-mono text-cyan-400 text-xs flex-shrink-0">{c.case_number}</span>
+                        <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                        {sla.urgent && (
+                          <span className="text-red-400 text-[10px] font-semibold flex-shrink-0">{sla.label}</span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-            <Link href="/cases" className="text-cyan-400 text-xs hover:text-cyan-300">View all cases →</Link>
-          </div>
-          <div className="space-y-2">
-            {strDeadlines.items.map((item) => (
-              <Link
-                key={item.filing_id}
-                href={`/cases/${item.case_id}/str`}
-                className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
-              >
-                <span className="font-mono text-cyan-400 text-xs w-28 flex-shrink-0">{item.case_number}</span>
-                <span className="text-slate-400 text-xs flex-shrink-0">{item.report_type}</span>
-                <span className="text-slate-500 text-xs flex-1 truncate">
-                  Suspicion: {new Date(item.suspicion_date).toLocaleDateString()}
-                </span>
-                <STRDeadlineBadge
-                  daysRemaining={item.days_remaining}
-                  isOverdue={item.is_overdue}
-                  compact
-                />
-              </Link>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* My Queue */}
-      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div className="text-slate-400 text-xs uppercase tracking-widest font-semibold">My Queue</div>
-          <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-cyan-400 text-xs hover:text-cyan-300">View all →</Link>
-        </div>
-        {!myQueue ? (
-          <div className="space-y-2">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-10 bg-slate-800 animate-pulse rounded" />)}
-          </div>
-        ) : myQueue.data.length === 0 ? (
-          <div className="text-slate-500 text-sm py-4 text-center">All clear — no {cfg.cases_label.toLowerCase()} assigned to you.</div>
-        ) : (
-          <div className="space-y-1.5">
-            {myQueue.data.map((c) => {
-              const sla = slaRemaining(c.sla_breach_at);
-              const prioClass = PRIORITY_COLORS[c.priority] ?? PRIORITY_COLORS.low;
-              return (
-                <Link
-                  key={c.id}
-                  href={`/cases/${c.id}`}
-                  className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
-                >
-                  <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
-                    {c.priority}
-                  </span>
-                  <span className="font-mono text-cyan-400 text-xs w-28 flex-shrink-0">{c.case_number}</span>
-                  <span className="text-slate-300 text-sm flex-1 truncate group-hover:text-white">{c.title}</span>
-                  <span className={`text-xs tabular-nums flex-shrink-0 ${sla.urgent ? "text-red-400 font-semibold" : "text-slate-500"}`}>
-                    {sla.label}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
-      </div>
+          </>
+        );
+      })()}
     </div>
   );
 }

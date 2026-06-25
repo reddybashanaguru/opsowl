@@ -30,7 +30,7 @@ const ALL_CATEGORIES = Object.keys(CATEGORY_META);
 function CategoryBadge({ cat }: { cat: string }) {
   const meta = CATEGORY_META[cat] ?? { label: cat, color: "text-slate-400", bg: "bg-slate-700 border-slate-600" };
   return (
-    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border uppercase tracking-wide ${meta.bg} ${meta.color}`}>
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded border uppercase tracking-wider ${meta.bg} ${meta.color}`}>
       {meta.label}
     </span>
   );
@@ -65,7 +65,7 @@ function TypologyCard({ t }: { t: Typology }) {
         <div className="px-5 pb-5 pt-1 border-t border-[#1e3050] space-y-4">
           {/* Red Flags */}
           <div>
-            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-2">Red Flags</h4>
+            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Red Flags</h4>
             <ul className="space-y-1.5">
               {t.red_flags.map((f, i) => (
                 <li key={i} className="flex items-start gap-2 text-xs text-slate-300">
@@ -78,7 +78,7 @@ function TypologyCard({ t }: { t: Typology }) {
 
           {/* Risk Keywords */}
           <div>
-            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-2">Risk Keywords</h4>
+            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-2">Risk Keywords</h4>
             <div className="flex flex-wrap gap-1.5">
               {t.risk_keywords.map((kw, i) => (
                 <span key={i} className="bg-[#0d1824] border border-[#1e3050] text-slate-400 text-xs px-2 py-0.5 rounded-md font-mono">
@@ -90,7 +90,7 @@ function TypologyCard({ t }: { t: Typology }) {
 
           {/* FATF Reference */}
           <div>
-            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wide mb-1">FATF Reference</h4>
+            <h4 className="text-slate-500 text-xs font-semibold uppercase tracking-wider mb-1">FATF Reference</h4>
             <p className="text-slate-400 text-xs italic">{t.fatf_reference}</p>
           </div>
         </div>

@@ -264,7 +264,7 @@ export default function NewCasePage() {
                     key={p}
                     type="button"
                     onClick={() => form.setValue("priority", p)}
-                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-wide transition-all ${
+                    className={`rounded-lg border px-3 py-2 text-xs font-semibold uppercase tracking-wider transition-all ${
                       isSelected
                         ? colors[p]
                         : "border-slate-600 bg-transparent text-slate-500 hover:border-slate-400"

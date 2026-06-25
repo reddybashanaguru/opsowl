@@ -128,7 +128,7 @@ function CommCard({ log, onDelete, canDelete }: { log: CommLog; onDelete: (id: s
       {/* AI Extraction */}
       {log.ai_extraction && (log.ai_extraction.action_items?.length || Object.keys(log.ai_extraction.entities ?? {}).length > 0) && (
         <div className="mt-3 ml-9 pt-3 border-t border-slate-700/50">
-          <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">AI Extracted</div>
+          <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">AI Extracted</div>
           {log.ai_extraction.action_items && log.ai_extraction.action_items.length > 0 && (
             <div className="mb-2">
               <span className="text-violet-400 text-xs font-medium">Action Items: </span>

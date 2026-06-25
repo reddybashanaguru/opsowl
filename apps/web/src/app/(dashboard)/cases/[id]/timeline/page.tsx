@@ -238,7 +238,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
           <div className="px-6 py-4 space-y-4">
             {/* Source */}
             <div>
-              <div className="text-slate-500 text-xs uppercase tracking-wide mb-2">Source</div>
+              <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">Source</div>
               <div className="flex gap-2">
                 {SOURCE_OPTIONS.map((s) => {
                   const active = selectedSources.has(s);
@@ -267,7 +267,7 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
             {/* Event Type */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="text-slate-500 text-xs uppercase tracking-wide">Event Type</div>
+                <div className="text-slate-500 text-xs uppercase tracking-wider">Event Type</div>
                 {selectedTypes.size > 0 && (
                   <button
                     onClick={() => setSelectedTypes(new Set())}
