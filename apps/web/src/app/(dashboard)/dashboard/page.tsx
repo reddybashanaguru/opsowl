@@ -371,7 +371,7 @@ export default function DashboardPage() {
             <div className="grid grid-cols-2 gap-2">
               <AlertCell Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}      value={stats.sla_breached}          href="/cases?sla_breached=true"     critical />
               <AlertCell Icon={TrendingUp}     label="Escalated"                       value={stats.status_escalated}      href="/cases?status=escalated"      critical />
-              <AlertCell Icon={Bot}            label="AI Oversight Due"                value={stats.pending_ai_reviews}    href="/cases"                       critical={false} />
+              <AlertCell Icon={Bot}            label="AI Oversight Due"                value={stats.pending_ai_reviews}    href="/settings/ai-act"             critical={false} />
               <AlertCell Icon={ClipboardList}  label="Awaiting Case Review"            value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
             </div>
           ) : (
