@@ -162,6 +162,17 @@ func (r *Repository) DeleteDraftsByType(ctx context.Context, caseID uuid.UUID, n
 	return err
 }
 
+// MarkAILogReviewed marks the linked ai_logs entry as reviewed when a narrative is approved/rejected.
+// Only acts when the log is still pending — preserves any prior explicit review.
+func (r *Repository) MarkAILogReviewed(ctx context.Context, aiLogID, reviewedBy uuid.UUID, status string) error {
+	_, err := r.db.ExecContext(ctx, `
+		UPDATE ai_logs
+		SET human_review_status = $2, reviewed_by = $3, reviewed_at = NOW()
+		WHERE id = $1 AND human_review_status = 'pending'`,
+		aiLogID, status, reviewedBy)
+	return err
+}
+
 // ── Context gathering for AI ──────────────────────────────────────────────────
 
 type caseContext struct {

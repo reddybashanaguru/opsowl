@@ -270,6 +270,11 @@ func (s *Service) Approve(ctx context.Context, claims *auth.Claims, caseID, id u
 	if err := s.repo.UpdateStatus(ctx, id, claims.UserID, "approved", ""); err != nil {
 		return NarrativeResponse{}, err
 	}
+	// Narrative approval = human review complete for EU AI Act Art. 14 purposes.
+	// Auto-mark the linked AI log so reviewers don't see a redundant pending badge.
+	if row.AILogID.Valid {
+		_ = s.repo.MarkAILogReviewed(ctx, row.AILogID.UUID, claims.UserID, "approved")
+	}
 
 	actorID := claims.UserID
 	worker.TrySubmit(func() {
@@ -300,6 +305,9 @@ func (s *Service) Reject(ctx context.Context, claims *auth.Claims, caseID, id uu
 	}
 	if err := s.repo.UpdateStatus(ctx, id, claims.UserID, "rejected", reason); err != nil {
 		return NarrativeResponse{}, err
+	}
+	if row.AILogID.Valid {
+		_ = s.repo.MarkAILogReviewed(ctx, row.AILogID.UUID, claims.UserID, "rejected")
 	}
 
 	actorID := claims.UserID
