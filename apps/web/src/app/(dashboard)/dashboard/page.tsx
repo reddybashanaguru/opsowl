@@ -131,23 +131,23 @@ function StatCard({
       {accent && (
         <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accent} rounded-r-sm`} />
       )}
-      <div className="p-5 pl-6">
-        <div className="flex items-center justify-between mb-2.5">
-          <div className="text-slate-500 text-[11px] uppercase tracking-widest font-semibold">{label}</div>
+      <div className="p-4 pl-5">
+        <div className="flex items-center justify-between mb-2">
+          <div className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold">{label}</div>
           {Icon && (
-            <span className="p-1.5 rounded-lg bg-slate-800/50 group-hover:bg-slate-700/50 transition-colors">
-              <Icon size={12} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
+            <span className="p-1 rounded-lg bg-slate-800/50 group-hover:bg-slate-700/50 transition-colors">
+              <Icon size={11} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
             </span>
           )}
         </div>
-        <div className={`text-[2.625rem] font-bold tabular-nums leading-none tracking-tight ${color}`}>
+        <div className={`text-3xl font-bold tabular-nums leading-none tracking-tight ${color}`}>
           {value === undefined ? (
-            <span className="inline-block w-16 h-10 bg-slate-700/60 animate-pulse rounded-lg" />
+            <span className="inline-block w-12 h-8 bg-slate-700/60 animate-pulse rounded-lg" />
           ) : (
             value.toLocaleString()
           )}
         </div>
-        {sub && <div className="text-slate-600 text-[11px] mt-2.5 truncate">{sub}</div>}
+        {sub && <div className="text-slate-600 text-[10px] mt-2 truncate">{sub}</div>}
       </div>
     </Link>
   );
@@ -286,76 +286,84 @@ export default function DashboardPage() {
     { label: "Low",      value: stats?.prio_low      ?? 0, color: "text-slate-400",  bg: "bg-slate-800" },
   ];
 
+  const scoredCases = (riskCases ?? []).filter(c => c.risk_score && parseFloat(c.risk_score) > 0);
+  const hasSTR = isComplianceOfficer && strDeadlines && strDeadlines.count > 0;
+  const hasRisk = scoredCases.length > 0;
+
   return (
-    <div className="p-6">
-      {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">
-          {greeting},{" "}
-          <span className="text-cyan-400">{user?.full_name?.split(" ")[0]}</span>
-        </h1>
-        <p className="text-slate-400 mt-1 text-sm">
-          AI-Native Investigations & Operations Workspace — {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </p>
+    /* h-full fills the <main flex-1> container exactly — no page scroll */
+    <div className="h-full overflow-hidden flex flex-col gap-4 p-5">
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <div className="flex-shrink-0 flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-white leading-tight">
+            {greeting},{" "}
+            <span className="text-cyan-400">{user?.full_name?.split(" ")[0]}</span>
+          </h1>
+          <p className="text-slate-500 text-xs mt-0.5">
+            {new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
       </div>
 
-      {/* Top stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+      {/* ── Stat cards ──────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-4 gap-3 flex-shrink-0">
         <StatCard label="Active Cases"   value={stats?.open_cases}          color="text-cyan-400"    href="/cases?status=active"                                   sub="open · in progress · escalated" Icon={FolderOpen}  accent="bg-cyan-500" />
         <StatCard label="Pending Tasks"  value={stats?.pending_tasks}       color="text-violet-400"  href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"} sub="todo · in progress"             Icon={CheckSquare} accent="bg-violet-500" />
         <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"     href={`/cases?assigned_to=${user?.id}&status=active`}          sub="assigned to me"                 Icon={Users}       accent="bg-sky-500" />
-        <StatCard label="SLA Breached"   value={stats?.sla_breached}        color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub={(stats?.sla_breached ?? 0) > 0 ? "requires immediate action" : "all cases within SLA"} Icon={Clock} accent={(stats?.sla_breached ?? 0) > 0 ? "bg-red-500" : "bg-emerald-500"} />
+        <StatCard label="SLA Breached"   value={stats?.sla_breached}        color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub={(stats?.sla_breached ?? 0) > 0 ? "immediate action needed" : "all cases within SLA"} Icon={Clock} accent={(stats?.sla_breached ?? 0) > 0 ? "bg-red-500" : "bg-emerald-500"} />
       </div>
 
-      {/* Analytics + Attention row — 3/5 analytics | 2/5 action panel */}
-      <div className="grid grid-cols-5 gap-4 mb-4">
+      {/* ── Analytics + Attention ─── flex-shrink-0, fixed-height cards ─────── */}
+      <div className="grid grid-cols-5 gap-3 flex-shrink-0">
 
         {/* Case Overview — status donut + priority bars (3/5) */}
-        <div className="col-span-3 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <div className="col-span-3 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-5 pt-4 pb-4">
+          <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Case Overview</p>
             <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
           </div>
-          <div className="grid grid-cols-2 gap-0" style={{ gridTemplateColumns: "1fr 1fr" }}>
+          <div className="grid grid-cols-2 gap-0">
             {/* Status donut */}
-            <div className="pr-6 border-r border-slate-800">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">By Status</p>
+            <div className="pr-5 border-r border-slate-800">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Status</p>
               {stats ? (
-                <div className="flex items-center gap-4">
-                  <DonutChart slices={statusSlices} size={108} />
-                  <div className="space-y-2 flex-1 min-w-0">
+                <div className="flex items-center gap-3">
+                  <DonutChart slices={statusSlices} size={90} />
+                  <div className="space-y-1.5 flex-1 min-w-0">
                     {statusSlices.map((s) => (
-                      <div key={s.label} className="flex items-center gap-2 min-w-0">
+                      <div key={s.label} className="flex items-center gap-1.5 min-w-0">
                         <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
                         <span className="text-slate-400 text-[11px] truncate flex-1">{s.label}</span>
-                        <span className={`text-[11px] tabular-nums font-semibold min-w-[20px] text-right ${s.value > 0 ? "text-slate-100" : "text-slate-600"}`}>{s.value}</span>
+                        <span className={`text-[11px] tabular-nums font-semibold min-w-[18px] text-right ${s.value > 0 ? "text-slate-100" : "text-slate-600"}`}>{s.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-4">
-                  <div className="w-[108px] h-[108px] bg-slate-800/60 animate-pulse rounded-full flex-shrink-0" />
-                  <div className="space-y-2 flex-1">{[...Array(5)].map((_,i)=><div key={i} className="h-3.5 bg-slate-800 animate-pulse rounded"/>)}</div>
+                <div className="flex items-center gap-3">
+                  <div className="w-[90px] h-[90px] bg-slate-800/60 animate-pulse rounded-full flex-shrink-0" />
+                  <div className="space-y-1.5 flex-1">{[...Array(5)].map((_,i)=><div key={i} className="h-3 bg-slate-800 animate-pulse rounded"/>)}</div>
                 </div>
               )}
             </div>
 
             {/* Priority bars */}
-            <div className="pl-6">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">By Priority</p>
+            <div className="pl-5">
+              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Priority</p>
               {stats ? (
                 <HorizontalBars items={priorityBars} />
               ) : (
-                <div className="space-y-3">{[...Array(4)].map((_,i)=><div key={i} className="h-7 bg-slate-800 animate-pulse rounded"/>)}</div>
+                <div className="space-y-2.5">{[...Array(4)].map((_,i)=><div key={i} className="h-6 bg-slate-800 animate-pulse rounded"/>)}</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Attention Required (2/5) */}
-        <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500/40 ring-red-500/15" : "border-[#1e3050]"}`}>
-          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+        <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl px-5 pt-4 pb-4 transition-all ${breachPulse ? "border-red-500/40 ring-red-500/15" : "border-[#1e3050]"}`}>
+          <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Attention Required</p>
             {breachPulse && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
           </div>
@@ -364,25 +372,23 @@ export default function DashboardPage() {
               <AlertCell Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}           value={stats.sla_breached}          href="/cases?sla_breached=true"     critical />
               <AlertCell Icon={TrendingUp}     label={`Escalated ${cfg.cases_label}`}        value={stats.status_escalated}      href="/cases?status=escalated"      critical />
               <AlertCell Icon={Bot}            label="AI Reviews"                            value={stats.pending_ai_reviews}    href="/cases"                       critical={false} />
-              <AlertCell Icon={ClipboardList}  label={`Pending Review`}                     value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
+              <AlertCell Icon={ClipboardList}  label="Pending Review"                        value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              {[...Array(4)].map((_,i) => <div key={i} className="h-[72px] bg-slate-800 animate-pulse rounded-lg" />)}
+              {[...Array(4)].map((_,i) => <div key={i} className="h-[64px] bg-slate-800 animate-pulse rounded-lg" />)}
             </div>
           )}
         </div>
       </div>
 
-      {/* ── Bottom: Left (High-Risk + My Queue) | Right (STR) ──────────────── */}
+      {/* ── Bottom section: fills ALL remaining viewport height ─────────────── */}
+      {/* flex-1 min-h-0 = "take remaining space, don't overflow the flex parent" */}
       {(() => {
-        const scoredCases = (riskCases ?? []).filter(c => c.risk_score && parseFloat(c.risk_score) > 0);
-        const hasSTR = isComplianceOfficer && strDeadlines && strDeadlines.count > 0;
-        const hasRisk = scoredCases.length > 0;
 
         const MyQueueCard = ({ className = "" }: { className?: string }) => (
-          <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 flex flex-col ${className}`}>
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800 flex-shrink-0">
+          <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-4 pt-4 pb-3 flex flex-col ${className}`}>
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
                 {myQueue && myQueue.data.length > 0 && (
@@ -424,78 +430,55 @@ export default function DashboardPage() {
           </div>
         );
 
+        const HighRiskCard = () => (
+          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-4 pt-4 pb-3 flex-shrink-0">
+            <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
+                <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
+              </div>
+              <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+            </div>
+            <div className="space-y-0.5">
+              {scoredCases.map((c) => {
+                const level = c.risk_level ?? "unknown";
+                const score = Math.round(parseFloat(c.risk_score!));
+                const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
+                return (
+                  <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
+                    <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
+                    <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                    <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        );
+
         if (!hasSTR) {
-          /* No STR — High-Risk (if any) above My Queue, both full width */
+          /* No STR: High-Risk (shrink) + My Queue fills remaining height */
           return (
-            <div className="space-y-4">
-              {hasRisk && (
-                <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
-                    </div>
-                    <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
-                  </div>
-                  <div className="space-y-0.5">
-                    {scoredCases.map((c) => {
-                      const level = c.risk_level ?? "unknown";
-                      const score = Math.round(parseFloat(c.risk_score!));
-                      const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
-                      return (
-                        <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
-                          <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
-                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
-                          <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              <MyQueueCard />
+            <div className="flex-1 min-h-0 flex flex-col gap-3">
+              {hasRisk && <HighRiskCard />}
+              <MyQueueCard className="flex-1 min-h-0" />
             </div>
           );
         }
 
-        /* STR present — 2/5 left (High-Risk + My Queue) | 3/5 right (STR single-col) */
+        /* STR present: 2/5 left stacked | 3/5 right full-height */
         return (
-          <div className="grid grid-cols-5 gap-4">
-            {/* Left column: High-Risk (flex-none) + My Queue (flex-1) */}
-            <div className="col-span-2 flex flex-col gap-4">
-              {hasRisk && (
-                <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 flex-shrink-0">
-                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
-                      <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
-                    </div>
-                    <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
-                  </div>
-                  <div className="space-y-0.5">
-                    {scoredCases.map((c) => {
-                      const level = c.risk_level ?? "unknown";
-                      const score = Math.round(parseFloat(c.risk_score!));
-                      const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
-                      return (
-                        <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
-                          <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
-                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
-                          <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                          <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+          <div className="flex-1 min-h-0 grid grid-cols-5 gap-3">
+            {/* Left: High-Risk (shrink) above My Queue (fills remaining) */}
+            <div className="col-span-2 flex flex-col gap-3 min-h-0">
+              {hasRisk && <HighRiskCard />}
               <MyQueueCard className="flex-1 min-h-0" />
             </div>
 
-            {/* Right column: STR single-column, full height */}
-            <div className="col-span-3 bg-[#131f30] border border-red-900/30 rounded-xl ring-1 ring-red-500/[0.08] p-5 flex flex-col">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-red-900/30 flex-shrink-0">
+            {/* Right: STR full height — header fixed, list scrolls */}
+            <div className="col-span-3 min-h-0 bg-[#131f30] border border-red-900/30 rounded-xl ring-1 ring-red-500/[0.08] px-4 pt-4 pb-3 flex flex-col">
+              <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-red-900/30 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <FileWarning size={12} className="text-red-400 flex-shrink-0" />
                   <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
@@ -503,15 +486,16 @@ export default function DashboardPage() {
                 </div>
                 <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
               </div>
-              <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5 pr-1">
+              {/* Scrollable list fills remaining card height */}
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5">
                 {strDeadlines!.items.map((item) => (
                   <Link
                     key={item.filing_id}
                     href={`/cases/${item.case_id}/str`}
-                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
+                    className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-700/30 transition-colors group"
                   >
-                    <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0 group-hover:text-cyan-300 transition-colors w-[120px]">{item.case_number}</span>
-                    <span className="text-slate-500 text-[11px] flex-shrink-0 w-[52px]">
+                    <span className="font-mono text-cyan-400 text-[11px] group-hover:text-cyan-300 transition-colors flex-shrink-0 w-[118px]">{item.case_number}</span>
+                    <span className="text-slate-500 text-[11px] flex-shrink-0 w-[48px]">
                       {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                     </span>
                     <span className="text-slate-600 text-[11px] flex-1 truncate min-w-0 capitalize">{item.report_type ?? cfg.str_label}</span>
