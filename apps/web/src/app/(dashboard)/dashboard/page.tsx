@@ -309,7 +309,7 @@ export default function DashboardPage() {
 
       {/* ── Stat cards ──────────────────────────────────────────────────────── */}
       <div className="grid grid-cols-4 gap-3 flex-shrink-0">
-        <StatCard label="Active Cases"   value={stats?.open_cases}          color="text-cyan-400"    href="/cases?status=active"                                   sub="open · in progress · escalated" Icon={FolderOpen}  accent="bg-cyan-500" />
+        <StatCard label="Active Cases"   value={stats?.open_cases}          color="text-cyan-400"    href="/cases?status=active"                                   sub="excl. closed & draft" Icon={FolderOpen}  accent="bg-cyan-500" />
         <StatCard label="Pending Tasks"  value={stats?.pending_tasks}       color="text-violet-400"  href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"} sub="todo · in progress"             Icon={CheckSquare} accent="bg-violet-500" />
         <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"     href={`/cases?assigned_to=${user?.id}&status=active`}          sub="assigned to me"                 Icon={Users}       accent="bg-sky-500" />
         <StatCard label="SLA Breached"   value={stats?.sla_breached}        color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub={(stats?.sla_breached ?? 0) > 0 ? "immediate action needed" : "all cases within SLA"} Icon={Clock} accent={(stats?.sla_breached ?? 0) > 0 ? "bg-red-500" : "bg-emerald-500"} />
@@ -369,10 +369,10 @@ export default function DashboardPage() {
           </div>
           {stats ? (
             <div className="grid grid-cols-2 gap-2">
-              <AlertCell Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}           value={stats.sla_breached}          href="/cases?sla_breached=true"     critical />
-              <AlertCell Icon={TrendingUp}     label={`Escalated ${cfg.cases_label}`}        value={stats.status_escalated}      href="/cases?status=escalated"      critical />
-              <AlertCell Icon={Bot}            label="AI Reviews"                            value={stats.pending_ai_reviews}    href="/cases"                       critical={false} />
-              <AlertCell Icon={ClipboardList}  label="Pending Review"                        value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
+              <AlertCell Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}      value={stats.sla_breached}          href="/cases?sla_breached=true"     critical />
+              <AlertCell Icon={TrendingUp}     label="Escalated"                       value={stats.status_escalated}      href="/cases?status=escalated"      critical />
+              <AlertCell Icon={Bot}            label="AI Oversight Due"                value={stats.pending_ai_reviews}    href="/cases"                       critical={false} />
+              <AlertCell Icon={ClipboardList}  label="Awaiting Case Review"            value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
             </div>
           ) : (
             <div className="grid grid-cols-2 gap-2">
@@ -391,8 +391,8 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800 flex-shrink-0">
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
-                {myQueue && myQueue.data.length > 0 && (
-                  <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.data.length}</span>
+                {myQueue && (myQueue.meta?.total_count ?? myQueue.data.length) > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.meta?.total_count ?? myQueue.data.length}</span>
                 )}
               </div>
               <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-xs text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
@@ -449,7 +449,6 @@ export default function DashboardPage() {
                     <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
                     <span className="font-mono text-cyan-400 text-xs flex-shrink-0">{c.case_number}</span>
                     <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                    <span className={`text-[11px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
                   </Link>
                 );
               })}
@@ -495,10 +494,13 @@ export default function DashboardPage() {
                     className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-700/30 transition-colors group"
                   >
                     <span className="font-mono text-cyan-400 text-xs group-hover:text-cyan-300 transition-colors flex-shrink-0 w-[124px]">{item.case_number}</span>
-                    <span className="text-slate-400 text-[11px] flex-shrink-0 w-[52px]">
-                      {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    <span className="text-[11px] flex-shrink-0 flex items-center gap-1 w-[90px]">
+                      <span className="text-slate-600 text-[10px] uppercase tracking-wider font-medium">Due</span>
+                      <span className="text-slate-300 font-medium">
+                        {new Date(item.deadline_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" })}
+                      </span>
                     </span>
-                    <span className="text-slate-500 text-[11px] flex-1 truncate min-w-0 capitalize">{item.report_type ?? cfg.str_label}</span>
+                    <span className="flex-1 min-w-0" />
                     <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
                   </Link>
                 ))}
