@@ -35,25 +35,39 @@ interface DonutSlice {
 
 function DonutChart({ slices, size = 120 }: { slices: DonutSlice[]; size?: number }) {
   const total = slices.reduce((s, d) => s + d.value, 0);
-  if (total === 0) return <div className="w-[120px] h-[120px] rounded-full bg-slate-800 flex items-center justify-center text-slate-600 text-xs">No data</div>;
+  if (total === 0) return (
+    <div
+      className="rounded-full bg-slate-800/60 border border-slate-700/50 flex items-center justify-center text-slate-600 text-[10px] font-medium"
+      style={{ width: size, height: size, flexShrink: 0 }}
+    >
+      No data
+    </div>
+  );
 
-  const r = 40;
+  const r = 38;
   const cx = size / 2;
   const cy = size / 2;
   const circ = 2 * Math.PI * r;
-  const gap = 2; // gap between segments in pixels
+  const gap = 2.5;
 
   let cumulative = 0;
-  const segments = slices.map((s) => {
+  const segments = slices.filter(s => s.value > 0).map((s) => {
     const pct = s.value / total;
     const dash = Math.max(0, pct * circ - gap);
-    const offset = circ - cumulative * circ;
+    const offset = -(cumulative * circ);
     cumulative += pct;
-    return { ...s, dash, offset };
+    return { ...s, pct, dash, offset };
   });
 
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      style={{ flexShrink: 0, minWidth: size }}
+    >
+      {/* Track ring */}
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#1e293b" strokeWidth={14} />
       {segments.map((seg, i) => (
         <circle
           key={i}
@@ -62,16 +76,15 @@ function DonutChart({ slices, size = 120 }: { slices: DonutSlice[]; size?: numbe
           r={r}
           fill="none"
           stroke={seg.color}
-          strokeWidth={16}
+          strokeWidth={14}
           strokeDasharray={`${seg.dash} ${circ}`}
           strokeDashoffset={seg.offset}
           strokeLinecap="butt"
-          style={{ transform: `rotate(-90deg)`, transformOrigin: `${cx}px ${cy}px` }}
+          style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}
         />
       ))}
-      {/* Center text */}
-      <text x={cx} y={cy - 4} textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="monospace">Total</text>
-      <text x={cx} y={cy + 11} textAnchor="middle" fill="#f1f5f9" fontSize="16" fontWeight="bold" fontFamily="monospace">{total}</text>
+      <text x={cx} y={cy - 5} textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="system-ui, sans-serif" fontWeight="500" letterSpacing="0.05em">TOTAL</text>
+      <text x={cx} y={cy + 12} textAnchor="middle" fill="#f1f5f9" fontSize="18" fontWeight="700" fontFamily="system-ui, sans-serif">{total}</text>
     </svg>
   );
 }
@@ -108,29 +121,34 @@ function HorizontalBars({ items }: { items: BarItem[] }) {
 
 // ── Stat card ─────────────────────────────────────────────────────────────────
 function StatCard({
-  label, value, color, href, sub, Icon,
+  label, value, color, href, sub, Icon, accent,
 }: {
   label: string; value: number | undefined; color: string; href: string; sub?: string;
-  Icon?: React.ElementType;
+  Icon?: React.ElementType; accent?: string;
 }) {
   return (
-    <Link href={href} className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-slate-600 hover:bg-[#1a2a40] transition-all group">
-      <div className="flex items-center justify-between mb-3">
-        <div className="text-slate-500 text-xs uppercase tracking-wider font-semibold">{label}</div>
-        {Icon && (
-          <span className="p-1.5 rounded-lg bg-slate-800/60 group-hover:bg-slate-700/60 transition-colors">
-            <Icon size={13} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
-          </span>
-        )}
+    <Link href={href} className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden hover:border-slate-600 hover:bg-[#1a2a40] transition-all group relative">
+      {accent && (
+        <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accent} rounded-r-sm`} />
+      )}
+      <div className="p-5 pl-6">
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="text-slate-500 text-[11px] uppercase tracking-widest font-semibold">{label}</div>
+          {Icon && (
+            <span className="p-1.5 rounded-lg bg-slate-800/50 group-hover:bg-slate-700/50 transition-colors">
+              <Icon size={12} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
+            </span>
+          )}
+        </div>
+        <div className={`text-[2.625rem] font-bold tabular-nums leading-none tracking-tight ${color}`}>
+          {value === undefined ? (
+            <span className="inline-block w-16 h-10 bg-slate-700/60 animate-pulse rounded-lg" />
+          ) : (
+            value.toLocaleString()
+          )}
+        </div>
+        {sub && <div className="text-slate-600 text-[11px] mt-2.5 truncate">{sub}</div>}
       </div>
-      <div className={`text-4xl font-bold tabular-nums tracking-tight ${color}`}>
-        {value === undefined ? (
-          <span className="inline-block w-14 h-10 bg-slate-700 animate-pulse rounded" />
-        ) : (
-          value.toLocaleString()
-        )}
-      </div>
-      {sub && <div className="text-slate-600 text-[11px] mt-2">{sub}</div>}
     </Link>
   );
 }
@@ -282,11 +300,11 @@ export default function DashboardPage() {
       </div>
 
       {/* Top stat cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <StatCard label="Active Cases"    value={stats?.open_cases}         color="text-cyan-400"   href="/cases?status=active"                          sub="open · in progress · escalated" Icon={FolderOpen} />
-        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}      color="text-violet-400" href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"} sub="todo + in-progress" Icon={CheckSquare} />
-        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"   href={`/cases?assigned_to=${user?.id}&status=active`}        sub="assigned to me"    Icon={Users} />
-        <StatCard label="SLA Breached"   value={stats?.sla_breached}       color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub="requires immediate action" Icon={Clock} />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-5">
+        <StatCard label="Active Cases"   value={stats?.open_cases}          color="text-cyan-400"    href="/cases?status=active"                                   sub="open · in progress · escalated" Icon={FolderOpen}  accent="bg-cyan-500" />
+        <StatCard label="Pending Tasks"  value={stats?.pending_tasks}       color="text-violet-400"  href={user?.role === "analyst" ? "/tasks" : "/tasks?scope=all"} sub="todo · in progress"             Icon={CheckSquare} accent="bg-violet-500" />
+        <StatCard label="My Open Cases"  value={myQueue?.meta?.total_count} color="text-sky-400"     href={`/cases?assigned_to=${user?.id}&status=active`}          sub="assigned to me"                 Icon={Users}       accent="bg-sky-500" />
+        <StatCard label="SLA Breached"   value={stats?.sla_breached}        color={(stats?.sla_breached ?? 0) > 0 ? "text-red-400" : "text-emerald-400"} href="/cases?sla_breached=true" sub={(stats?.sla_breached ?? 0) > 0 ? "requires immediate action" : "all cases within SLA"} Icon={Clock} accent={(stats?.sla_breached ?? 0) > 0 ? "bg-red-500" : "bg-emerald-500"} />
       </div>
 
       {/* Analytics + Attention row — 3/5 analytics | 2/5 action panel */}
@@ -294,28 +312,31 @@ export default function DashboardPage() {
 
         {/* Case Overview — status donut + priority bars (3/5) */}
         <div className="col-span-3 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-5">Case Overview</p>
-          <div className="grid grid-cols-2 divide-x divide-slate-700/50 gap-0">
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Case Overview</p>
+            <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+          </div>
+          <div className="grid grid-cols-2 gap-0" style={{ gridTemplateColumns: "1fr 1fr" }}>
             {/* Status donut */}
-            <div className="pr-6">
+            <div className="pr-6 border-r border-slate-800">
               <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-4">By Status</p>
               {stats ? (
-                <div className="flex items-center gap-5">
-                  <DonutChart slices={statusSlices} size={110} />
-                  <div className="space-y-2.5 flex-1 min-w-0">
+                <div className="flex items-center gap-4">
+                  <DonutChart slices={statusSlices} size={108} />
+                  <div className="space-y-2 flex-1 min-w-0">
                     {statusSlices.map((s) => (
                       <div key={s.label} className="flex items-center gap-2 min-w-0">
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
-                        <span className="text-slate-400 text-xs truncate flex-1">{s.label}</span>
-                        <span className="text-slate-100 text-xs tabular-nums font-semibold w-6 text-right">{s.value}</span>
+                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color }} />
+                        <span className="text-slate-400 text-[11px] truncate flex-1">{s.label}</span>
+                        <span className={`text-[11px] tabular-nums font-semibold min-w-[20px] text-right ${s.value > 0 ? "text-slate-100" : "text-slate-600"}`}>{s.value}</span>
                       </div>
                     ))}
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center gap-5">
-                  <div className="w-[110px] h-[110px] bg-slate-800 animate-pulse rounded-full flex-shrink-0" />
-                  <div className="space-y-2.5 flex-1">{[...Array(5)].map((_,i)=><div key={i} className="h-4 bg-slate-800 animate-pulse rounded"/>)}</div>
+                <div className="flex items-center gap-4">
+                  <div className="w-[108px] h-[108px] bg-slate-800/60 animate-pulse rounded-full flex-shrink-0" />
+                  <div className="space-y-2 flex-1">{[...Array(5)].map((_,i)=><div key={i} className="h-3.5 bg-slate-800 animate-pulse rounded"/>)}</div>
                 </div>
               )}
             </div>
@@ -333,60 +354,58 @@ export default function DashboardPage() {
         </div>
 
         {/* Attention Required (2/5) */}
-        <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all flex flex-col ${breachPulse ? "border-red-500/60 ring-red-500/20 animate-pulse" : "border-[#1e3050]"}`}>
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest mb-5">Attention Required</p>
-          <div className="flex flex-col gap-0.5 flex-1 justify-between">
-            {stats ? (
-              <>
-                <AlertRow Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}          value={stats.sla_breached}          href="/cases?sla_breached=true"        critical={stats.sla_breached > 0} />
-                <AlertRow Icon={TrendingUp}     label={`Escalated ${cfg.cases_label}`}       value={stats.status_escalated}      href="/cases?status=escalated"         critical={stats.status_escalated > 0} />
-                <AlertRow Icon={Bot}            label="Pending AI Reviews"                   value={stats.pending_ai_reviews}    href="/cases"                          critical={false} />
-                <AlertRow Icon={ClipboardList}  label={`Pending Review ${cfg.cases_label}`} value={stats.status_pending_review} href="/cases?status=pending_review"    critical={false} />
-              </>
-            ) : (
-              [...Array(4)].map((_,i) => <div key={i} className="h-12 bg-slate-800 animate-pulse rounded" />)
-            )}
+        <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl p-5 transition-all ${breachPulse ? "border-red-500/40 ring-red-500/15" : "border-[#1e3050]"}`}>
+          <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Attention Required</p>
+            {breachPulse && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
           </div>
+          {stats ? (
+            <div className="grid grid-cols-2 gap-2">
+              <AlertCell Icon={AlertTriangle}  label={`${cfg.sla_label} Breaches`}           value={stats.sla_breached}          href="/cases?sla_breached=true"     critical />
+              <AlertCell Icon={TrendingUp}     label={`Escalated ${cfg.cases_label}`}        value={stats.status_escalated}      href="/cases?status=escalated"      critical />
+              <AlertCell Icon={Bot}            label="AI Reviews"                            value={stats.pending_ai_reviews}    href="/cases"                       critical={false} />
+              <AlertCell Icon={ClipboardList}  label={`Pending Review`}                     value={stats.status_pending_review} href="/cases?status=pending_review" critical={false} />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {[...Array(4)].map((_,i) => <div key={i} className="h-[72px] bg-slate-800 animate-pulse rounded-lg" />)}
+            </div>
+          )}
         </div>
       </div>
 
       {/* ── Intel + Deadlines + Queue ────────────────────────────────────────── */}
       {(() => {
         const scoredCases = (riskCases ?? []).filter(c => c.risk_score && parseFloat(c.risk_score) > 0);
-        const allRiskCases = riskCases ?? [];
         const hasSTR = isComplianceOfficer && strDeadlines && strDeadlines.count > 0;
-        const hasRisk = allRiskCases.length > 0;
+        const hasRisk = scoredCases.length > 0;
         return (
           <>
             {(hasRisk || hasSTR) && (
               <div className="grid grid-cols-5 gap-4 mb-4 items-start">
-                {/* High-Risk Cases — 2/5 width */}
+                {/* High-Risk Cases — 2/5 width, scored only */}
                 {hasRisk && (
                   <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 ${!hasSTR ? "col-span-5" : "col-span-2"}`}>
-                    <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
                       <div className="flex items-center gap-2">
                         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
-                        {scoredCases.length > 0 && (
-                          <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/30 text-orange-300 border border-orange-700/40 rounded-full font-medium">{scoredCases.length} scored</span>
-                        )}
+                        <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
                       </div>
                       <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
                     </div>
-                    <div className="space-y-1">
-                      {allRiskCases.map((c) => {
+                    <div className="space-y-0.5">
+                      {scoredCases.map((c) => {
                         const level = c.risk_level ?? "unknown";
-                        const score = c.risk_score ? Math.round(parseFloat(c.risk_score)) : null;
-                        const colorClass = score ? (RISK_COLORS[level] ?? RISK_COLORS.unknown) : "bg-slate-800 text-slate-600";
+                        const score = Math.round(parseFloat(c.risk_score!));
+                        const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
                         return (
                           <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
-                            <span className={`text-xs font-bold tabular-nums px-2 py-0.5 rounded min-w-[36px] text-center flex-shrink-0 ${colorClass}`}>
-                              {score ?? "—"}
+                            <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>
+                              {score}
                             </span>
                             <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
                             <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                            {level !== "unknown" && score && (
-                              <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
-                            )}
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
                           </Link>
                         );
                       })}
@@ -396,24 +415,24 @@ export default function DashboardPage() {
 
                 {/* STR Filing Deadlines — 3/5 width */}
                 {hasSTR && (
-                  <div className={`bg-[#131f30] border border-red-900/40 rounded-xl ring-1 ring-red-500/10 p-5 ${!hasRisk ? "col-span-5" : "col-span-3"}`}>
-                    <div className="flex items-center justify-between mb-4">
+                  <div className={`bg-[#131f30] border border-red-900/30 rounded-xl ring-1 ring-red-500/[0.08] p-5 ${!hasRisk ? "col-span-5" : "col-span-3"}`}>
+                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-red-900/30">
                       <div className="flex items-center gap-2">
-                        <FileWarning size={13} className="text-red-400 flex-shrink-0" />
+                        <FileWarning size={12} className="text-red-400 flex-shrink-0" />
                         <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-red-900/30 text-red-300 border border-red-700/40 rounded-full font-medium">{strDeadlines!.count}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 bg-red-900/25 text-red-300 border border-red-800/40 rounded-full font-medium tabular-nums">{strDeadlines!.count}</span>
                       </div>
                       <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
                     </div>
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 max-h-52 overflow-y-auto pr-1">
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 max-h-52 overflow-y-auto pr-1">
                       {strDeadlines!.items.map((item) => (
                         <Link
                           key={item.filing_id}
                           href={`/cases/${item.case_id}/str`}
                           className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
                         >
-                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{item.case_number}</span>
-                          <span className="text-slate-500 text-[11px] flex-1 truncate min-w-0">
+                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0 group-hover:text-cyan-300 transition-colors">{item.case_number}</span>
+                          <span className="text-slate-600 text-[11px] flex-1 truncate min-w-0">
                             {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                           </span>
                           <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
@@ -427,11 +446,11 @@ export default function DashboardPage() {
 
             {/* My Queue — full width */}
             <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
                 <div className="flex items-center gap-2">
                   <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
                   {myQueue && myQueue.data.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-600/50 rounded-full font-medium">{myQueue.data.length}</span>
+                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.data.length}</span>
                   )}
                 </div>
                 <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
@@ -474,21 +493,40 @@ export default function DashboardPage() {
   );
 }
 
-function AlertRow({
+function AlertCell({
   Icon, label, value, href, critical,
 }: {
   Icon: React.ElementType; label: string; value: number; href: string; critical: boolean;
 }) {
+  const isAlert = critical && value > 0;
+  const isInfo = !critical && value > 0;
   return (
     <Link
       href={href}
-      className="flex items-center gap-3 py-2 border-b border-slate-700/50 last:border-0 hover:bg-slate-700/20 -mx-1 px-1 rounded transition-colors group"
+      className={`flex flex-col gap-2 p-3 rounded-xl border transition-all group ${
+        isAlert
+          ? "bg-red-500/[0.07] border-red-500/20 hover:bg-red-500/10 hover:border-red-500/35"
+          : isInfo
+          ? "bg-amber-500/[0.06] border-amber-500/15 hover:bg-amber-500/10 hover:border-amber-500/25"
+          : "bg-slate-800/40 border-slate-700/30 hover:bg-slate-700/40 hover:border-slate-600/50"
+      }`}
     >
-      <Icon size={14} className={`flex-shrink-0 ${critical && value > 0 ? "text-red-400" : "text-slate-500"}`} />
-      <span className="text-slate-300 text-sm flex-1">{label}</span>
-      <span className={`text-sm font-bold tabular-nums px-2 py-0.5 rounded ${critical && value > 0 ? "text-red-400 bg-red-500/10" : "text-slate-400 bg-slate-700/40"}`}>
-        {value}
-      </span>
+      <div className="flex items-center justify-between">
+        <Icon
+          size={13}
+          className={`flex-shrink-0 ${isAlert ? "text-red-400" : isInfo ? "text-amber-400" : "text-emerald-500/60"}`}
+        />
+        <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${
+          isAlert ? "text-red-300" : isInfo ? "text-amber-300" : "text-emerald-500/80"
+        }`}>
+          {value}
+        </span>
+      </div>
+      <p className={`text-[10px] font-medium uppercase tracking-wider leading-tight ${
+        isAlert ? "text-red-400/80" : isInfo ? "text-amber-400/70" : "text-slate-500"
+      }`}>
+        {label}
+      </p>
     </Link>
   );
 }
