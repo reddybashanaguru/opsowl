@@ -168,6 +168,11 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	go func() {
 		defer wg.Done()
 		virusErr = s.av.ScanReader(pr)
+		// Drain any unread bytes before closing. When the scanner returns early
+		// (e.g. ClamAV unreachable), pr still has data. Closing without draining
+		// makes pw.Write() return io.ErrClosedPipe, which TeeReader propagates to
+		// the MinIO caller as "body length 0" — killing the upload.
+		_, _ = io.Copy(io.Discard, pr)
 		_ = pr.Close()
 	}()
 
