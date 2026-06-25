@@ -83,8 +83,8 @@ function DonutChart({ slices, size = 120 }: { slices: DonutSlice[]; size?: numbe
           style={{ transform: "rotate(-90deg)", transformOrigin: `${cx}px ${cy}px` }}
         />
       ))}
-      <text x={cx} y={cy - 5} textAnchor="middle" fill="#64748b" fontSize="9" fontFamily="system-ui, sans-serif" fontWeight="500" letterSpacing="0.05em">TOTAL</text>
-      <text x={cx} y={cy + 12} textAnchor="middle" fill="#f1f5f9" fontSize="18" fontWeight="700" fontFamily="system-ui, sans-serif">{total}</text>
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="#64748b" fontSize="10" fontFamily="system-ui, sans-serif" fontWeight="600" letterSpacing="0.08em">TOTAL</text>
+      <text x={cx} y={cy + 13} textAnchor="middle" fill="#f1f5f9" fontSize="20" fontWeight="700" fontFamily="system-ui, sans-serif">{total}</text>
     </svg>
   );
 }
@@ -104,10 +104,10 @@ function HorizontalBars({ items }: { items: BarItem[] }) {
       {items.map((item) => (
         <div key={item.label}>
           <div className="flex justify-between items-center mb-1">
-            <span className={`text-xs font-medium ${item.color}`}>{item.label}</span>
-            <span className="text-xs text-slate-400 tabular-nums">{item.value}</span>
+            <span className={`text-xs font-semibold ${item.color}`}>{item.label}</span>
+            <span className={`text-xs font-semibold tabular-nums ${item.value > 0 ? item.color : "text-slate-600"}`}>{item.value}</span>
           </div>
-          <div className={`h-2 rounded-full ${item.bg} overflow-hidden`}>
+          <div className={`h-1.5 rounded-full ${item.bg} overflow-hidden`}>
             <div
               className={`h-full rounded-full ${item.color.replace("text-", "bg-")}`}
               style={{ width: `${(item.value / max) * 100}%`, transition: "width 0.6s ease" }}
@@ -132,22 +132,22 @@ function StatCard({
         <div className={`absolute left-0 top-0 bottom-0 w-[3px] ${accent} rounded-r-sm`} />
       )}
       <div className="p-4 pl-5">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-slate-500 text-[10px] uppercase tracking-widest font-semibold">{label}</div>
+        <div className="flex items-center justify-between mb-2.5">
+          <div className="text-slate-500 text-[11px] uppercase tracking-widest font-semibold">{label}</div>
           {Icon && (
             <span className="p-1 rounded-lg bg-slate-800/50 group-hover:bg-slate-700/50 transition-colors">
-              <Icon size={11} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
+              <Icon size={12} className="text-slate-500 group-hover:text-slate-400 transition-colors" />
             </span>
           )}
         </div>
-        <div className={`text-3xl font-bold tabular-nums leading-none tracking-tight ${color}`}>
+        <div className={`text-[2rem] font-bold tabular-nums leading-none tracking-tight ${color}`}>
           {value === undefined ? (
             <span className="inline-block w-12 h-8 bg-slate-700/60 animate-pulse rounded-lg" />
           ) : (
             value.toLocaleString()
           )}
         </div>
-        {sub && <div className="text-slate-600 text-[10px] mt-2 truncate">{sub}</div>}
+        {sub && <div className="text-slate-500 text-[11px] mt-2 truncate">{sub}</div>}
       </div>
     </Link>
   );
@@ -321,13 +321,13 @@ export default function DashboardPage() {
         {/* Case Overview — status donut + priority bars (3/5) */}
         <div className="col-span-3 bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-5 pt-4 pb-4">
           <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Case Overview</p>
-            <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Case Overview</p>
+            <Link href="/cases" className="text-xs text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
           </div>
           <div className="grid grid-cols-2 gap-0">
             {/* Status donut */}
             <div className="pr-5 border-r border-slate-800">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Status</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Status</p>
               {stats ? (
                 <div className="flex items-center gap-3">
                   <DonutChart slices={statusSlices} size={90} />
@@ -351,7 +351,7 @@ export default function DashboardPage() {
 
             {/* Priority bars */}
             <div className="pl-5">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Priority</p>
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-widest mb-3">By Priority</p>
               {stats ? (
                 <HorizontalBars items={priorityBars} />
               ) : (
@@ -364,7 +364,7 @@ export default function DashboardPage() {
         {/* Attention Required (2/5) */}
         <div className={`col-span-2 bg-[#131f30] ring-1 ring-white/[0.04] border rounded-xl px-5 pt-4 pb-4 transition-all ${breachPulse ? "border-red-500/40 ring-red-500/15" : "border-[#1e3050]"}`}>
           <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">Attention Required</p>
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Attention Required</p>
             {breachPulse && <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse" />}
           </div>
           {stats ? (
@@ -390,12 +390,12 @@ export default function DashboardPage() {
           <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-4 pt-4 pb-3 flex flex-col ${className}`}>
             <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800 flex-shrink-0">
               <div className="flex items-center gap-2">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
                 {myQueue && myQueue.data.length > 0 && (
                   <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.data.length}</span>
                 )}
               </div>
-              <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+              <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-xs text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
             </div>
             {!myQueue ? (
               <div className="space-y-2 flex-1">
@@ -414,10 +414,10 @@ export default function DashboardPage() {
                       href={`/cases/${c.id}`}
                       className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
                     >
-                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0 min-w-[32px] text-center`}>
                         {c.priority.slice(0, 3)}
                       </span>
-                      <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                      <span className="font-mono text-cyan-400 text-xs flex-shrink-0">{c.case_number}</span>
                       <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
                       {sla.urgent && (
                         <span className="text-red-400 text-[10px] font-semibold flex-shrink-0">{sla.label}</span>
@@ -434,10 +434,10 @@ export default function DashboardPage() {
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] px-4 pt-4 pb-3 flex-shrink-0">
             <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-slate-800">
               <div className="flex items-center gap-2">
-                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
+                <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
                 <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
               </div>
-              <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+              <Link href="/cases" className="text-xs text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
             </div>
             <div className="space-y-0.5">
               {scoredCases.map((c) => {
@@ -447,9 +447,9 @@ export default function DashboardPage() {
                 return (
                   <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
                     <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
-                    <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                    <span className="font-mono text-cyan-400 text-xs flex-shrink-0">{c.case_number}</span>
                     <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
+                    <span className={`text-[11px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
                   </Link>
                 );
               })}
@@ -481,10 +481,10 @@ export default function DashboardPage() {
               <div className="flex items-center justify-between mb-3 pb-2.5 border-b border-red-900/30 flex-shrink-0">
                 <div className="flex items-center gap-2">
                   <FileWarning size={12} className="text-red-400 flex-shrink-0" />
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
                   <span className="text-[10px] px-1.5 py-0.5 bg-red-900/25 text-red-300 border border-red-800/40 rounded-full font-medium tabular-nums">{strDeadlines!.count}</span>
                 </div>
-                <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+                <Link href="/cases" className="text-xs text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
               </div>
               {/* Scrollable list fills remaining card height */}
               <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5">
@@ -494,11 +494,11 @@ export default function DashboardPage() {
                     href={`/cases/${item.case_id}/str`}
                     className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-slate-700/30 transition-colors group"
                   >
-                    <span className="font-mono text-cyan-400 text-[11px] group-hover:text-cyan-300 transition-colors flex-shrink-0 w-[118px]">{item.case_number}</span>
-                    <span className="text-slate-500 text-[11px] flex-shrink-0 w-[48px]">
+                    <span className="font-mono text-cyan-400 text-xs group-hover:text-cyan-300 transition-colors flex-shrink-0 w-[124px]">{item.case_number}</span>
+                    <span className="text-slate-400 text-[11px] flex-shrink-0 w-[52px]">
                       {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
                     </span>
-                    <span className="text-slate-600 text-[11px] flex-1 truncate min-w-0 capitalize">{item.report_type ?? cfg.str_label}</span>
+                    <span className="text-slate-500 text-[11px] flex-1 truncate min-w-0 capitalize">{item.report_type ?? cfg.str_label}</span>
                     <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
                   </Link>
                 ))}
@@ -521,7 +521,7 @@ function AlertCell({
   return (
     <Link
       href={href}
-      className={`flex flex-col gap-2 p-3 rounded-xl border transition-all group ${
+      className={`flex flex-col justify-between p-3 rounded-xl border transition-all group min-h-[72px] ${
         isAlert
           ? "bg-red-500/[0.07] border-red-500/20 hover:bg-red-500/10 hover:border-red-500/35"
           : isInfo
@@ -529,18 +529,18 @@ function AlertCell({
           : "bg-slate-800/40 border-slate-700/30 hover:bg-slate-700/40 hover:border-slate-600/50"
       }`}
     >
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between">
         <Icon
-          size={13}
-          className={`flex-shrink-0 ${isAlert ? "text-red-400" : isInfo ? "text-amber-400" : "text-emerald-500/60"}`}
+          size={14}
+          className={`mt-0.5 flex-shrink-0 ${isAlert ? "text-red-400" : isInfo ? "text-amber-400" : "text-emerald-500/70"}`}
         />
-        <span className={`text-2xl font-bold tabular-nums leading-none tracking-tight ${
-          isAlert ? "text-red-300" : isInfo ? "text-amber-300" : "text-emerald-500/80"
+        <span className={`text-[1.75rem] font-bold tabular-nums leading-none tracking-tight ${
+          isAlert ? "text-red-300" : isInfo ? "text-amber-300" : "text-emerald-400/80"
         }`}>
           {value}
         </span>
       </div>
-      <p className={`text-[10px] font-medium uppercase tracking-wider leading-tight ${
+      <p className={`text-[11px] font-semibold uppercase tracking-wider mt-1 ${
         isAlert ? "text-red-400/80" : isInfo ? "text-amber-400/70" : "text-slate-500"
       }`}>
         {label}
