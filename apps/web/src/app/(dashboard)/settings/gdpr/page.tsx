@@ -312,7 +312,7 @@ export default function GDPRPage() {
   }).length;
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="p-6">
       <div className="flex items-center justify-between mb-6">
         <div>
           <div className="flex items-center gap-2 mb-1">

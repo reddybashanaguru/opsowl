@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useConfig } from "@/lib/hooks/useConfig";
-import { CheckCircle2, AlertTriangle, Clock, Download, Loader2, ExternalLink } from "lucide-react";
+import { CheckCircle2, AlertTriangle, Download, Loader2, ExternalLink } from "lucide-react";
 
 interface AILog {
   id: string;
@@ -35,9 +35,9 @@ function ConformityChecklist({ reviewedPct }: { reviewedPct: number }) {
   const score = items.filter((i) => i.ok).length;
 
   return (
-    <section className="mb-6 p-5 bg-[#131f30] border border-[#1e3050] rounded-xl">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+    <section className="mb-6 p-5 bg-[#131f30] ring-1 ring-white/[0.04] border border-[#1e3050] rounded-xl">
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
           AI Act Conformity Checklist
         </h2>
         <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
@@ -48,9 +48,14 @@ function ConformityChecklist({ reviewedPct }: { reviewedPct: number }) {
           {score}/{items.length} controls active
         </span>
       </div>
-      <p className="text-slate-500 text-xs mb-4">
+      <p className="text-slate-500 text-xs mb-3">
         EU AI Act Art. 13 (transparency) + Art. 14 (human oversight) requirements for high-risk AI systems used in financial crime detection.
       </p>
+      <div className="mb-4 border-l-2 border-blue-500/50 pl-3 py-0.5">
+        <p className="text-xs text-slate-400">
+          <span className="text-blue-400 font-medium">Art. 14 obligation —</span> Human oversight of high-risk AI outputs is mandatory from August 2025. Narratives, risk scores, and summaries must be reviewed before acting on them.
+        </p>
+      </div>
       <div className="space-y-2">
         {items.map((item) => (
           <div key={item.id} className="flex items-start gap-3">
@@ -71,9 +76,9 @@ function ConformityChecklist({ reviewedPct }: { reviewedPct: number }) {
 
 function PendingReviewQueue({ logs }: { logs: AILog[] }) {
   return (
-    <section className="mb-6 p-5 bg-[#131f30] border border-[#1e3050] rounded-xl">
+    <section className="mb-6 p-5 bg-[#131f30] ring-1 ring-white/[0.04] border border-[#1e3050] rounded-xl">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest">
+        <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
           Pending Human Review
         </h2>
         <span className="text-xs text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded-full">
@@ -157,8 +162,8 @@ function ExportSection() {
   };
 
   return (
-    <section className="p-5 bg-[#131f30] border border-[#1e3050] rounded-xl">
-      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+    <section className="p-5 bg-[#131f30] ring-1 ring-white/[0.04] border border-[#1e3050] rounded-xl">
+      <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">
         Export Audit Trail
       </h2>
       <p className="text-slate-500 text-xs mb-4">
@@ -209,13 +214,13 @@ export default function AIActPage() {
   const reviewedPct = pendingLogs.length === 0 ? 100 : 0;
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-6">
+    <div className="p-6">
+      <div className="mb-5">
         <a href="/settings" className="text-slate-400 hover:text-slate-200 text-sm transition-colors mb-1 block">
           ← Settings
         </a>
-        <h1 className="text-xl font-semibold text-slate-100">AI Act Compliance</h1>
-        <p className="text-slate-500 text-xs mt-0.5">
+        <h1 className="text-2xl font-bold text-slate-100">AI Act Compliance</h1>
+        <p className="text-slate-400 text-sm mt-0.5">
           EU Regulation 2024/1689 · High-risk AI system transparency and human oversight requirements
         </p>
         {cfg && (
@@ -228,16 +233,6 @@ export default function AIActPage() {
             </span>
           </div>
         )}
-      </div>
-
-      <div className="mb-4 p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-        <div className="flex items-start gap-2">
-          <Clock size={14} className="text-blue-400 flex-shrink-0 mt-0.5" />
-          <p className="text-xs text-blue-300">
-            <strong>Article 14 obligation:</strong> Human oversight of high-risk AI outputs is mandatory from August 2025.
-            AI-generated narratives, risk assessments, and investigation summaries must be reviewed before acting on them.
-          </p>
-        </div>
       </div>
 
       <ConformityChecklist reviewedPct={reviewedPct} />

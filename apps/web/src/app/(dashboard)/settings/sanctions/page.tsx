@@ -151,7 +151,7 @@ export default function SanctionsSettingsPage() {
   );
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6">
       <div className="mb-6">
         <a href="/settings" className="text-slate-400 hover:text-slate-200 text-sm transition-colors mb-1 block">
           ← Settings
