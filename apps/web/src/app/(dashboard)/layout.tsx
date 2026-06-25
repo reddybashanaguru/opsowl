@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   FolderKanban,
@@ -33,6 +34,8 @@ import { RBACGate } from "@/components/auth/RBACGate";
 import { useAuth } from "@/lib/hooks/useAuth";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { useKeyboardShortcuts, useGoShortcuts } from "@/lib/hooks/useKeyboardShortcuts";
+import { KeyboardShortcutsHelp } from "@/components/ui/KeyboardShortcutsHelp";
 
 type NavItem = {
   label: string;
@@ -63,6 +66,20 @@ function NavLink({ item }: { item: NavItem }) {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const cfg = useConfig();
+  const router = useRouter();
+  const [showHelp, setShowHelp] = useState(false);
+
+  useKeyboardShortcuts({
+    "?": () => setShowHelp(v => !v),
+    "/": () => router.push("/search"),
+  });
+
+  useGoShortcuts({
+    d: () => router.push("/dashboard"),
+    c: () => router.push("/cases"),
+    a: () => router.push("/alerts"),
+    s: () => router.push("/search"),
+  });
 
   const nav: NavItem[] = [
     { label: "Dashboard",           href: "/dashboard",  icon: LayoutDashboard },
@@ -115,6 +132,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <ProtectedRoute>
+      {showHelp && <KeyboardShortcutsHelp onClose={() => setShowHelp(false)} />}
       <div className="h-screen bg-[#080e1a] flex overflow-hidden">
         {/* Sidebar */}
         <aside className="w-60 min-w-60 bg-[#0b1525] border-r border-[#1e3050] flex flex-col overflow-y-auto flex-shrink-0">

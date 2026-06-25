@@ -280,6 +280,91 @@ func (s *Service) DismissAlert(ctx context.Context, claims *auth.Claims, alertID
 	})
 }
 
+// ── Bulk operations ───────────────────────────────────────────────────────────
+
+const maxBulkAlerts = 100
+
+// BulkAction represents a single result item from a bulk operation.
+type BulkResultItem struct {
+	AlertID uuid.UUID `json:"alert_id"`
+	Error   string    `json:"error,omitempty"`
+}
+
+// BulkResult summarises the outcome of a bulk operation.
+type BulkResult struct {
+	Succeeded int              `json:"succeeded"`
+	Failed    int              `json:"failed"`
+	Errors    []BulkResultItem `json:"errors,omitempty"`
+}
+
+// BulkDismiss dismisses up to maxBulkAlerts alerts in a single call.
+// Each alert is processed independently — a failure on one does not block
+// the others.  Results include per-item errors for the caller to surface.
+func (s *Service) BulkDismiss(ctx context.Context, claims *auth.Claims, alertIDs []uuid.UUID, reason string) (*BulkResult, error) {
+	if len(alertIDs) == 0 {
+		return &BulkResult{}, nil
+	}
+	if len(alertIDs) > maxBulkAlerts {
+		return nil, fmt.Errorf("bulk dismiss limited to %d alerts per request", maxBulkAlerts)
+	}
+	if reason == "" {
+		reason = "bulk dismissed by analyst"
+	}
+
+	result := &BulkResult{}
+	for _, id := range alertIDs {
+		err := s.DismissAlert(ctx, claims, id, DismissAlertRequest{Reason: reason})
+		if err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, BulkResultItem{AlertID: id, Error: err.Error()})
+		} else {
+			result.Succeeded++
+		}
+	}
+	return result, nil
+}
+
+// BulkMarkDuplicate marks up to maxBulkAlerts alerts as duplicate in a single
+// call.  Same independent-processing semantics as BulkDismiss.
+func (s *Service) BulkMarkDuplicate(ctx context.Context, claims *auth.Claims, alertIDs []uuid.UUID, reason string) (*BulkResult, error) {
+	if len(alertIDs) == 0 {
+		return &BulkResult{}, nil
+	}
+	if len(alertIDs) > maxBulkAlerts {
+		return nil, fmt.Errorf("bulk mark-duplicate limited to %d alerts per request", maxBulkAlerts)
+	}
+	if reason == "" {
+		reason = "bulk marked duplicate by analyst"
+	}
+
+	result := &BulkResult{}
+	for _, id := range alertIDs {
+		alert, err := s.repo.GetByID(ctx, id, defaultOrgID)
+		if err != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, BulkResultItem{AlertID: id, Error: "alert not found"})
+			continue
+		}
+		if alert.Status == "converted" || alert.Status == "dismissed" || alert.Status == "duplicate" {
+			result.Failed++
+			result.Errors = append(result.Errors, BulkResultItem{AlertID: id, Error: "alert already actioned: " + alert.Status})
+			continue
+		}
+		setErr := s.repo.SetStatus(ctx, id, "duplicate", map[string]any{
+			"dismiss_reason": reason,
+			"dismissed_by":   claims.UserID,
+			"dismissed_at":   time.Now(),
+		})
+		if setErr != nil {
+			result.Failed++
+			result.Errors = append(result.Errors, BulkResultItem{AlertID: id, Error: setErr.Error()})
+		} else {
+			result.Succeeded++
+		}
+	}
+	return result, nil
+}
+
 // ── Source CRUD ───────────────────────────────────────────────────────────────
 
 func (s *Service) ListSources(ctx context.Context) ([]AlertSourceResponse, error) {

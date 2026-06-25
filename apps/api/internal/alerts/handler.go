@@ -167,6 +167,47 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, alert)
 }
 
+// BulkAction handles POST /api/v1/alerts/bulk.
+// Accepts a JSON body: {"action":"dismiss"|"mark_duplicate","alert_ids":[...],"reason":"..."}
+// Returns a summary of succeeded and failed operations.  HTTP 400 on bad
+// input; HTTP 200 even when some alerts fail (per-item errors in the body).
+func (h *Handler) BulkAction(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Action   string      `json:"action"`
+		AlertIDs []uuid.UUID `json:"alert_ids"`
+		Reason   string      `json:"reason"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_REQUEST", "invalid request body")
+		return
+	}
+	if len(req.AlertIDs) == 0 {
+		response.Err(w, http.StatusBadRequest, "MISSING_ALERT_IDS", "alert_ids must not be empty")
+		return
+	}
+
+	claims := auth.ClaimsFromCtx(r.Context())
+	var (
+		result *BulkResult
+		err    error
+	)
+	switch req.Action {
+	case "dismiss":
+		result, err = h.svc.BulkDismiss(r.Context(), claims, req.AlertIDs, req.Reason)
+	case "mark_duplicate":
+		result, err = h.svc.BulkMarkDuplicate(r.Context(), claims, req.AlertIDs, req.Reason)
+	default:
+		response.Err(w, http.StatusBadRequest, "INVALID_ACTION",
+			"action must be one of: dismiss, mark_duplicate")
+		return
+	}
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "BULK_ERROR", err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, result)
+}
+
 func (h *Handler) Convert(w http.ResponseWriter, r *http.Request) {
 	claims := auth.ClaimsFromCtx(r.Context())
 	id, err := uuid.Parse(chi.URLParam(r, "id"))

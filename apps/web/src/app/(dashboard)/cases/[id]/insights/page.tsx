@@ -387,10 +387,14 @@ function MatchedTypologies({
 
 // ── Page ───────────────────────────────────────────────────────────────────────
 
+const MAX_POLL_MS = 3 * 60 * 1000; // 3 minutes — covers cold model start-up
+
 export default function InsightsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
+  const pollStartRef = useRef<number | null>(null);
 
   const caseData = useCaseSummary(id);
 
@@ -405,12 +409,25 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   });
 
   useEffect(() => {
-    if (polling && ins?.ai_available) setPolling(false);
+    if (!polling) return;
+    if (ins?.ai_available) {
+      setPolling(false);
+      pollStartRef.current = null;
+      return;
+    }
+    // Stop polling if the AI service hasn't responded in MAX_POLL_MS
+    if (pollStartRef.current && Date.now() - pollStartRef.current > MAX_POLL_MS) {
+      setPolling(false);
+      setPollTimedOut(true);
+      pollStartRef.current = null;
+    }
   }, [polling, ins?.ai_available]);
 
   const analyseMutation = useMutation({
     mutationFn: () => api.post<InsightsData>(`/api/v1/cases/${id}/insights/analyse`, {}),
     onSuccess: () => {
+      pollStartRef.current = Date.now();
+      setPollTimedOut(false);
       setPolling(true);
       qc.invalidateQueries({ queryKey: ["insights", id] });
     },
@@ -453,7 +470,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
                 <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Analysing…
               </>
-            ) : "Run AI Analysis"}
+            ) : ins?.ai_available ? "Re-analyse" : "Run AI Analysis"}
           </button>
         }
       />
@@ -464,7 +481,18 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
           AI analysis in progress — results will appear automatically when complete…
         </div>
       )}
-      {!polling && !ins?.ai_available && !ins?.id && (
+      {pollTimedOut && (
+        <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 mb-6 text-sm flex items-center justify-between">
+          <span>Analysis is taking longer than expected. The AI model may be loading — please try again in a moment.</span>
+          <button
+            onClick={() => { setPollTimedOut(false); analyseMutation.mutate(); }}
+            className="ml-4 flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-200 transition-colors"
+          >
+            Retry
+          </button>
+        </div>
+      )}
+      {!polling && !pollTimedOut && !ins?.ai_available && !ins?.id && (
         <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-4 mb-6 text-sm">
           No analysis available yet. Click <strong>Run AI Analysis</strong> to analyse this case.
         </div>

@@ -18,6 +18,7 @@ import (
 
 	"github.com/reddybashanaguru/opsowl/internal/ai"
 	"github.com/reddybashanaguru/opsowl/internal/alerts"
+	"github.com/reddybashanaguru/opsowl/internal/license"
 	"github.com/reddybashanaguru/opsowl/internal/entity_graph"
 	"github.com/reddybashanaguru/opsowl/internal/closure"
 	"github.com/reddybashanaguru/opsowl/internal/findings"
@@ -150,6 +151,21 @@ func (s *Server) setupMiddleware() {
 	}
 	rl := middleware.NewRateLimiter(rateLimit, s.jwtMgr)
 
+	// License enforcement: load and verify if LICENSE_FILE is set.
+	lic := license.New()
+	if licFile := os.Getenv("LICENSE_FILE"); licFile != "" {
+		if err := lic.Load(licFile); err != nil {
+			s.logger.Fatal("license verification failed — server will not start",
+				zap.String("license_file", licFile),
+				zap.Error(err))
+		}
+		s.logger.Info("license loaded",
+			zap.String("org", lic.OrgName()),
+			zap.Time("expires_at", lic.ExpiresAt()))
+	} else {
+		s.logger.Warn("no LICENSE_FILE set — running in development/trial mode (all features unlocked)")
+	}
+
 	s.router.Use(middleware.RequireTLS) // HTTPS enforcement (RBI T2); no-op unless REQUIRE_TLS=true
 	s.router.Use(middleware.RequestID) // stamps X-Request-Id; must be first
 	s.router.Use(chimw.RealIP)
@@ -161,6 +177,7 @@ func (s *Server) setupMiddleware() {
 	s.router.Use(chimw.Compress(5))
 	s.router.Use(middleware.AccessLog(s.logger, s.jwtMgr))
 	s.router.Use(sseAwareTimeout(30 * time.Second))
+	s.router.Use(license.Middleware(lic)) // blocks all routes (except /health) on expired license
 	s.router.Use(apikeys.APIKeyMiddleware(s.sqlDB))
 	s.router.Use(rl.Middleware)
 	s.router.Use(middleware.Idempotency(s.sqlDB, s.logger))

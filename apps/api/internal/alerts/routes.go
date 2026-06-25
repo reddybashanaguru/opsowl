@@ -21,6 +21,10 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 			Get("/alerts", h.List)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Get("/alerts/{id}", h.Get)
+		// Bulk triage must be registered before {id} routes so chi doesn't
+		// interpret "bulk" as an alert ID.
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/alerts/bulk", h.BulkAction)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Post("/alerts/{id}/convert", h.Convert)
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).

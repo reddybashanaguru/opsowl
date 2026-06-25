@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
 # OpsOwl AI — On-Premise Installer
-# Version: 1.0
+# Version: 1.1
 #
-# Usage: bash install.sh
+# Usage:
+#   bash install.sh             # online mode  — pulls images from registry
+#   bash install.sh --offline   # air-gap mode — loads from opsowl-bundle-*.tar.gz
 #
 # What this script does:
 #   1. Preflight checks (Docker, Compose, disk, RAM)
 #   2. Interactively configures .env if not already present
 #   3. Generates TLS certificate (self-signed) or uses provided cert
-#   4. Pulls OpsOwl images + standard images
+#   4. Pulls/loads OpsOwl images + standard images
 #   5. Starts all services in dependency order
 #   6. Waits for health checks to pass
 #   7. Prints access URL and admin credentials
@@ -18,6 +20,15 @@ set -euo pipefail
 
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENV_FILE="$INSTALL_DIR/.env"
+
+# ── Parse flags ───────────────────────────────────────────────────────────────
+OFFLINE=false
+for arg in "$@"; do
+  case "$arg" in
+    --offline) OFFLINE=true ;;
+    *) ;;
+  esac
+done
 LOG_FILE="$INSTALL_DIR/install.log"
 
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; CYAN='\033[0;36m'; NC='\033[0m'
@@ -267,18 +278,54 @@ scrape_configs:
 PROMEOF
 fi
 
-# ── 5. Pull Images ────────────────────────────────────────────────────────────
+# ── 5. Pull / Load Images ─────────────────────────────────────────────────────
 echo ""
-info "Pulling Docker images (this may take 5–15 minutes on first install)..."
-info "AI models (llama3.1:8b + nomic-embed-text) will be downloaded after services start."
-echo ""
-
 cd "$INSTALL_DIR"
-docker compose pull --quiet postgres minio clamav nginx prometheus grafana 2>&1 | tee -a "$LOG_FILE" || true
 
-info "Pulling OpsOwl application images (version: ${OPSOWL_VERSION:-latest})..."
-docker compose pull --quiet api web ai-service 2>&1 | tee -a "$LOG_FILE" || \
-  warn "Could not pull OpsOwl images — they may not be published yet for this version"
+if [[ "$OFFLINE" == "true" ]]; then
+  # ── Air-gap mode: load images from bundle file ──────────────────────────────
+  info "Air-gap mode: loading images from local bundle..."
+
+  # Find the bundle — prefer version-matched file, fall back to any bundle
+  BUNDLE_FILE=""
+  if [[ -f "$INSTALL_DIR/opsowl-bundle-${OPSOWL_VERSION:-latest}.tar.gz" ]]; then
+    BUNDLE_FILE="$INSTALL_DIR/opsowl-bundle-${OPSOWL_VERSION:-latest}.tar.gz"
+  else
+    BUNDLE_FILE=$(ls "$INSTALL_DIR"/opsowl-bundle-*.tar.gz 2>/dev/null | head -1 || true)
+  fi
+
+  if [[ -z "$BUNDLE_FILE" || ! -f "$BUNDLE_FILE" ]]; then
+    error "No bundle file found in $INSTALL_DIR. Run bundle.sh on a connected machine first, then copy opsowl-bundle-*.tar.gz here."
+  fi
+
+  # Verify manifest checksum if present
+  MANIFEST="${BUNDLE_FILE%.tar.gz}.manifest"
+  if [[ -f "$MANIFEST" ]]; then
+    EXPECTED_SHA=$(grep "^sha256=" "$MANIFEST" | cut -d= -f2)
+    ACTUAL_SHA=$(shasum -a 256 "$BUNDLE_FILE" | cut -d' ' -f1)
+    if [[ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]]; then
+      error "Bundle checksum mismatch — file may be corrupt or tampered with.\n  Expected: $EXPECTED_SHA\n  Got:      $ACTUAL_SHA"
+    fi
+    success "Bundle checksum verified"
+  else
+    warn "No manifest found — skipping checksum verification"
+  fi
+
+  info "Loading bundle: $(basename "$BUNDLE_FILE")..."
+  docker load < <(gzip -dc "$BUNDLE_FILE") 2>&1 | tee -a "$LOG_FILE"
+  success "Images loaded from bundle"
+else
+  # ── Online mode: pull from registry ─────────────────────────────────────────
+  info "Pulling Docker images (this may take 5–15 minutes on first install)..."
+  info "AI models (llama3.1:8b + nomic-embed-text) will be downloaded after services start."
+  echo ""
+
+  docker compose pull --quiet postgres minio clamav nginx prometheus grafana 2>&1 | tee -a "$LOG_FILE" || true
+
+  info "Pulling OpsOwl application images (version: ${OPSOWL_VERSION:-latest})..."
+  docker compose pull --quiet api web ai-service 2>&1 | tee -a "$LOG_FILE" || \
+    warn "Could not pull OpsOwl images — they may not be published yet for this version"
+fi
 
 # ── 6. Start Services ─────────────────────────────────────────────────────────
 echo ""
