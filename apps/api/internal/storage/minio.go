@@ -3,17 +3,17 @@ package storage
 import (
 	"context"
 	"io"
-	"net/url"
 	"time"
 
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
+	"net/url"
 )
 
 type MinIOClient struct {
-	client         *minio.Client
-	bucket         string
-	publicEndpoint string // overrides the host in presigned URLs (browser-accessible)
+	client       *minio.Client  // internal endpoint — used for upload/delete/bucket ops
+	publicClient *minio.Client  // public endpoint — used for presigned URL generation only
+	bucket       string
 }
 
 func NewMinIO(endpoint, publicEndpoint, accessKey, secretKey, bucket string, useSSL bool) (*MinIOClient, error) {
@@ -24,7 +24,29 @@ func NewMinIO(endpoint, publicEndpoint, accessKey, secretKey, bucket string, use
 	if err != nil {
 		return nil, err
 	}
-	return &MinIOClient{client: client, bucket: bucket, publicEndpoint: publicEndpoint}, nil
+	m := &MinIOClient{client: client, bucket: bucket}
+
+	// When a browser-accessible public endpoint differs from the internal Docker endpoint,
+	// create a second client signed for that host. PresignedGetObject is pure HMAC math —
+	// no live network connection is needed — so this client works from inside Docker.
+	// Region must be set explicitly to prevent the SDK from making a bucket-location
+	// lookup to the public endpoint (which is unreachable from inside the container).
+	if publicEndpoint != "" && publicEndpoint != endpoint {
+		region, _ := client.GetBucketLocation(context.Background(), bucket)
+		if region == "" {
+			region = "us-east-1"
+		}
+		pub, err := minio.New(publicEndpoint, &minio.Options{
+			Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+			Secure: useSSL,
+			Region: region,
+		})
+		if err != nil {
+			return nil, err
+		}
+		m.publicClient = pub
+	}
+	return m, nil
 }
 
 func (m *MinIOClient) Upload(ctx context.Context, key string, reader io.Reader, size int64, contentType string) error {
@@ -35,13 +57,13 @@ func (m *MinIOClient) Upload(ctx context.Context, key string, reader io.Reader, 
 }
 
 func (m *MinIOClient) PresignedURL(ctx context.Context, key string, expiry time.Duration) (string, error) {
-	u, err := m.client.PresignedGetObject(ctx, m.bucket, key, expiry, url.Values{})
+	signingClient := m.client
+	if m.publicClient != nil {
+		signingClient = m.publicClient
+	}
+	u, err := signingClient.PresignedGetObject(ctx, m.bucket, key, expiry, url.Values{})
 	if err != nil {
 		return "", err
-	}
-	// Rewrite internal Docker hostname to public endpoint so browsers can resolve it.
-	if m.publicEndpoint != "" {
-		u.Host = m.publicEndpoint
 	}
 	return u.String(), nil
 }
