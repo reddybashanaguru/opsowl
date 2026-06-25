@@ -374,119 +374,153 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* ── Intel + Deadlines + Queue ────────────────────────────────────────── */}
+      {/* ── Bottom: Left (High-Risk + My Queue) | Right (STR) ──────────────── */}
       {(() => {
         const scoredCases = (riskCases ?? []).filter(c => c.risk_score && parseFloat(c.risk_score) > 0);
         const hasSTR = isComplianceOfficer && strDeadlines && strDeadlines.count > 0;
         const hasRisk = scoredCases.length > 0;
-        return (
-          <>
-            {(hasRisk || hasSTR) && (
-              <div className="grid grid-cols-5 gap-4 mb-4 items-start">
-                {/* High-Risk Cases — 2/5 width, scored only */}
-                {hasRisk && (
-                  <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 ${!hasSTR ? "col-span-5" : "col-span-2"}`}>
-                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                      <div className="flex items-center gap-2">
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
-                      </div>
-                      <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
-                    </div>
-                    <div className="space-y-0.5">
-                      {scoredCases.map((c) => {
-                        const level = c.risk_level ?? "unknown";
-                        const score = Math.round(parseFloat(c.risk_score!));
-                        const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
-                        return (
-                          <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
-                            <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>
-                              {score}
-                            </span>
-                            <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
-                            <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
-                          </Link>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
 
-                {/* STR Filing Deadlines — 3/5 width */}
-                {hasSTR && (
-                  <div className={`bg-[#131f30] border border-red-900/30 rounded-xl ring-1 ring-red-500/[0.08] p-5 ${!hasRisk ? "col-span-5" : "col-span-3"}`}>
-                    <div className="flex items-center justify-between mb-4 pb-3 border-b border-red-900/30">
-                      <div className="flex items-center gap-2">
-                        <FileWarning size={12} className="text-red-400 flex-shrink-0" />
-                        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
-                        <span className="text-[10px] px-1.5 py-0.5 bg-red-900/25 text-red-300 border border-red-800/40 rounded-full font-medium tabular-nums">{strDeadlines!.count}</span>
-                      </div>
-                      <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
-                    </div>
-                    <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 max-h-52 overflow-y-auto pr-1">
-                      {strDeadlines!.items.map((item) => (
-                        <Link
-                          key={item.filing_id}
-                          href={`/cases/${item.case_id}/str`}
-                          className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
-                        >
-                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0 group-hover:text-cyan-300 transition-colors">{item.case_number}</span>
-                          <span className="text-slate-600 text-[11px] flex-1 truncate min-w-0">
-                            {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
-                          </span>
-                          <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
+        const MyQueueCard = ({ className = "" }: { className?: string }) => (
+          <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 flex flex-col ${className}`}>
+            <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
+                {myQueue && myQueue.data.length > 0 && (
+                  <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.data.length}</span>
                 )}
+              </div>
+              <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+            </div>
+            {!myQueue ? (
+              <div className="space-y-2 flex-1">
+                {[...Array(4)].map((_, i) => <div key={i} className="h-9 bg-slate-800 animate-pulse rounded-lg" />)}
+              </div>
+            ) : myQueue.data.length === 0 ? (
+              <div className="flex-1 flex items-center justify-center text-slate-500 text-sm">All clear — no {cfg.cases_label.toLowerCase()} assigned to you.</div>
+            ) : (
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5">
+                {myQueue.data.map((c) => {
+                  const sla = slaRemaining(c.sla_breach_at);
+                  const prioClass = PRIORITY_COLORS[c.priority] ?? PRIORITY_COLORS.low;
+                  return (
+                    <Link
+                      key={c.id}
+                      href={`/cases/${c.id}`}
+                      className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
+                    >
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
+                        {c.priority.slice(0, 3)}
+                      </span>
+                      <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                      <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                      {sla.urgent && (
+                        <span className="text-red-400 text-[10px] font-semibold flex-shrink-0">{sla.label}</span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
             )}
+          </div>
+        );
 
-            {/* My Queue — full width */}
-            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-              <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
-                <div className="flex items-center gap-2">
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">My Queue</p>
-                  {myQueue && myQueue.data.length > 0 && (
-                    <span className="text-[10px] px-1.5 py-0.5 bg-slate-700/60 text-slate-300 border border-slate-700/50 rounded-full font-medium tabular-nums">{myQueue.data.length}</span>
-                  )}
-                </div>
-                <Link href={`/cases?assigned_to=${user?.id}&status=active`} className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
-              </div>
-              {!myQueue ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {[...Array(4)].map((_, i) => <div key={i} className="h-10 bg-slate-800 animate-pulse rounded" />)}
-                </div>
-              ) : myQueue.data.length === 0 ? (
-                <div className="text-slate-500 text-sm py-6 text-center">All clear — no {cfg.cases_label.toLowerCase()} assigned to you.</div>
-              ) : (
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                  {myQueue.data.map((c) => {
-                    const sla = slaRemaining(c.sla_breach_at);
-                    const prioClass = PRIORITY_COLORS[c.priority] ?? PRIORITY_COLORS.low;
-                    return (
-                      <Link
-                        key={c.id}
-                        href={`/cases/${c.id}`}
-                        className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group min-w-0"
-                      >
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${prioClass} uppercase flex-shrink-0`}>
-                          {c.priority.slice(0, 3)}
-                        </span>
-                        <span className="font-mono text-cyan-400 text-xs flex-shrink-0">{c.case_number}</span>
-                        <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
-                        {sla.urgent && (
-                          <span className="text-red-400 text-[10px] font-semibold flex-shrink-0">{sla.label}</span>
-                        )}
-                      </Link>
-                    );
-                  })}
+        if (!hasSTR) {
+          /* No STR — High-Risk (if any) above My Queue, both full width */
+          return (
+            <div className="space-y-4">
+              {hasRisk && (
+                <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
+                    </div>
+                    <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+                  </div>
+                  <div className="space-y-0.5">
+                    {scoredCases.map((c) => {
+                      const level = c.risk_level ?? "unknown";
+                      const score = Math.round(parseFloat(c.risk_score!));
+                      const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
+                      return (
+                        <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
+                          <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
+                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                          <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               )}
+              <MyQueueCard />
             </div>
-          </>
+          );
+        }
+
+        /* STR present — 2/5 left (High-Risk + My Queue) | 3/5 right (STR single-col) */
+        return (
+          <div className="grid grid-cols-5 gap-4">
+            {/* Left column: High-Risk (flex-none) + My Queue (flex-1) */}
+            <div className="col-span-2 flex flex-col gap-4">
+              {hasRisk && (
+                <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 flex-shrink-0">
+                  <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2">
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">High-Risk Cases</p>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-orange-900/25 text-orange-300 border border-orange-800/40 rounded-full font-medium tabular-nums">{scoredCases.length}</span>
+                    </div>
+                    <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+                  </div>
+                  <div className="space-y-0.5">
+                    {scoredCases.map((c) => {
+                      const level = c.risk_level ?? "unknown";
+                      const score = Math.round(parseFloat(c.risk_score!));
+                      const colorClass = RISK_COLORS[level] ?? RISK_COLORS.unknown;
+                      return (
+                        <Link key={c.id} href={`/cases/${c.id}/insights`} className="flex items-center gap-2.5 p-2 rounded-lg hover:bg-slate-700/30 transition-colors group">
+                          <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-md min-w-[34px] text-center flex-shrink-0 ${colorClass}`}>{score}</span>
+                          <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0">{c.case_number}</span>
+                          <span className="text-slate-300 text-xs flex-1 truncate group-hover:text-white min-w-0">{c.title}</span>
+                          <span className={`text-[10px] px-1.5 py-0.5 rounded capitalize flex-shrink-0 ${colorClass}`}>{level}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              <MyQueueCard className="flex-1 min-h-0" />
+            </div>
+
+            {/* Right column: STR single-column, full height */}
+            <div className="col-span-3 bg-[#131f30] border border-red-900/30 rounded-xl ring-1 ring-red-500/[0.08] p-5 flex flex-col">
+              <div className="flex items-center justify-between mb-4 pb-3 border-b border-red-900/30 flex-shrink-0">
+                <div className="flex items-center gap-2">
+                  <FileWarning size={12} className="text-red-400 flex-shrink-0" />
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">{cfg.str_label} Filing Deadlines</p>
+                  <span className="text-[10px] px-1.5 py-0.5 bg-red-900/25 text-red-300 border border-red-800/40 rounded-full font-medium tabular-nums">{strDeadlines!.count}</span>
+                </div>
+                <Link href="/cases" className="text-[11px] text-cyan-500 hover:text-cyan-400 font-medium">View all →</Link>
+              </div>
+              <div className="flex-1 overflow-y-auto min-h-0 space-y-0.5 pr-1">
+                {strDeadlines!.items.map((item) => (
+                  <Link
+                    key={item.filing_id}
+                    href={`/cases/${item.case_id}/str`}
+                    className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-700/30 transition-colors group"
+                  >
+                    <span className="font-mono text-cyan-400 text-[11px] flex-shrink-0 group-hover:text-cyan-300 transition-colors w-[120px]">{item.case_number}</span>
+                    <span className="text-slate-500 text-[11px] flex-shrink-0 w-[52px]">
+                      {new Date(item.suspicion_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    </span>
+                    <span className="text-slate-600 text-[11px] flex-1 truncate min-w-0 capitalize">{item.report_type ?? cfg.str_label}</span>
+                    <STRDeadlineBadge daysRemaining={item.days_remaining} isOverdue={item.is_overdue} compact />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </div>
         );
       })()}
     </div>
