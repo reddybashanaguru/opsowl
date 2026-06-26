@@ -247,6 +247,12 @@ func euDefaults(country string) AppConfig {
 	case "pl":
 		regulatorLabel = "GIIF"
 		idLabel = "PESEL / Dowód Osobisty"
+	case "lt":
+		regulatorLabel = "FNTT"
+		idLabel = "Asmens tapatybės kortelė / Pasas"
+	case "cy":
+		regulatorLabel = "MOKAS"
+		idLabel = "ID Card / Passport"
 	}
 
 	return AppConfig{
