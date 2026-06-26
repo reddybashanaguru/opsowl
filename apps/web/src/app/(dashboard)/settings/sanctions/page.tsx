@@ -53,6 +53,13 @@ const LIST_META: Record<string, { label: string; jurisdiction: string; desc: str
     color: "border-amber-500/30 bg-amber-500/5",
     flagColor: "text-amber-400",
   },
+  dfat_consolidated: {
+    label: "DFAT Autonomous Sanctions",
+    jurisdiction: "Australia (DFAT)",
+    desc: "Australian autonomous sanctions — Dept. of Foreign Affairs and Trade",
+    color: "border-green-500/30 bg-green-500/5",
+    flagColor: "text-green-400",
+  },
 };
 
 const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
@@ -139,7 +146,7 @@ export default function SanctionsSettingsPage() {
   const confirmedHits = allHits.filter((h) => h.status === "confirmed");
   const recentHits = [...confirmedHits, ...openHits].slice(0, 20);
 
-  const knownSources = ["eu_consolidated", "un_consolidated", "ofac_sdn"];
+  const knownSources = ["eu_consolidated", "un_consolidated", "ofac_sdn", "dfat_consolidated"];
   const displayLists = knownSources.map(
     (src) => lists.find((l) => l.source === src) ?? {
       id: src,
@@ -160,7 +167,7 @@ export default function SanctionsSettingsPage() {
           <div>
             <h1 className="text-xl font-semibold text-slate-100">Sanctions & PEP Lists</h1>
             <p className="text-slate-500 text-xs mt-0.5">
-              EU Consolidated · UN Security Council · OFAC SDN — fuzzy matching via pg_trgm
+              EU Consolidated · UN Security Council · OFAC SDN · DFAT (Australia) — fuzzy matching via pg_trgm
             </p>
           </div>
           <div className="flex items-center gap-3 text-sm">
@@ -188,7 +195,7 @@ export default function SanctionsSettingsPage() {
             <Loader2 size={14} className="animate-spin" /> Loading list status…
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
             {displayLists.map((list) => (
               <ListCard key={list.source} list={list} isAdmin={isAdmin} />
             ))}

@@ -6,9 +6,10 @@ import "time"
 type ListSource string
 
 const (
-	SourceEUConsolidated ListSource = "eu_consolidated"
-	SourceUNConsolidated ListSource = "un_consolidated"
-	SourceOFACSDN        ListSource = "ofac_sdn"
+	SourceEUConsolidated   ListSource = "eu_consolidated"
+	SourceUNConsolidated   ListSource = "un_consolidated"
+	SourceOFACSDN          ListSource = "ofac_sdn"
+	SourceDFATConsolidated ListSource = "dfat_consolidated"
 )
 
 // SanctionsList is the metadata record for a loaded list.

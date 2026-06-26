@@ -85,6 +85,8 @@ func deploymentDefaults() AppConfig {
 		return uaeDefaults()
 	case "eu":
 		return euDefaults(country)
+	case "au":
+		return auDefaults()
 	case "india", "":
 		return indiaDefaults()
 	default:
@@ -292,6 +294,59 @@ func euDefaults(country string) AppConfig {
 		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
 		GDPREnabled:     getEnvBool("GDPR_ENABLED", true),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
+		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
+	}
+}
+
+// auDefaults returns AUSTRAC-compliant defaults for Australian deployments.
+// Reporting: SMR (Suspicious Matter Report) filed via AUSTRAC Online (not goAML).
+// Thresholds: TTR at AUD 10,000 cash; IFTI for international EFTs ≥ AUD 10,000.
+// Retention: 7 years under AML/CTF Act 2006 s.105.
+// UBO: beneficial owner ≥25% under AML/CTF Rules Chapter 4.
+// Privacy: Australian Privacy Act 1988 (APPs) — GDPR_ENABLED=false.
+func auDefaults() AppConfig {
+	return AppConfig{
+		AppName:        "OpsOwl AI",
+		Industry:       envOr("INDUSTRY", "financial_services"),
+		CaseLabel:      envOr("CASE_LABEL", "Case"),
+		CasesLabel:     envOr("CASES_LABEL", "Cases"),
+		TaskLabel:      envOr("TASK_LABEL", "Task"),
+		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:       envOr("SLA_LABEL", "SLA"),
+		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:      envOr("NOTE_LABEL", "Note"),
+		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		StrLabel:          envOr("STR_LABEL", "SMR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "AUSTRAC Reference"),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "AUSTRAC"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", "AML/CTF Act 2006 (Cth) s.41"),
+		StrIDLabel:        envOr("STR_ID_LABEL", "Passport / Driver Licence"),
+		// AUSTRAC: SMR must be filed "as soon as practicable" after suspicion forms.
+		// Practical SLA: 3 business days; adjust to 1 for same-day enforcement.
+		StrDeadlineDays: getEnvInt("STR_DEADLINE_DAYS", 3),
+		LocalCurrency:  envOr("LOCAL_CURRENCY", "AUD"),
+		CurrencySymbol: envOr("CURRENCY_SYMBOL", "A$"),
+		// AML/CTF Act 2006 s.43: Threshold Transaction Report for cash ≥ AUD 10,000.
+		CTRThreshold: getEnvFloat("CTR_THRESHOLD", 10000),
+		// AML/CTF Act 2006 s.45: International Funds Transfer Instructions ≥ AUD 10,000.
+		WireThreshold: getEnvFloat("WIRE_THRESHOLD", 10000),
+		IDTypes: splitEnv("ID_TYPES", []string{
+			"PASSPORT", "AUSTRALIAN_DRIVERS_LICENCE", "MEDICARE_CARD",
+			"AUSTRALIAN_BIRTH_CERTIFICATE", "NATIONAL_ID", "OTHER",
+		}),
+		Jurisdiction: "au",
+		Country:      envOr("DEPLOYMENT_COUNTRY", "au"),
+		// AUSTRAC uses its own online portal — goAML XML is not accepted.
+		GoAMLEnabled:    getEnvBool("GOAML_ENABLED", false),
+		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
+		RetentionYears:  getEnvInt("RETENTION_YEARS", 7),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
 	}
 }
