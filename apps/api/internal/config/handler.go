@@ -83,6 +83,8 @@ func deploymentDefaults() AppConfig {
 	switch jurisdiction {
 	case "uae":
 		return uaeDefaults()
+	case "uk":
+		return ukDefaults()
 	case "eu":
 		return euDefaults(country)
 	case "india", "":
@@ -216,6 +218,53 @@ func uaeDefaults() AppConfig {
 		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 0),
+	}
+}
+
+func ukDefaults() AppConfig {
+	return AppConfig{
+		AppName:        "OpsOwl AI",
+		Industry:       envOr("INDUSTRY", "financial_services"),
+		CaseLabel:      envOr("CASE_LABEL", "Case"),
+		CasesLabel:     envOr("CASES_LABEL", "Cases"),
+		TaskLabel:      envOr("TASK_LABEL", "Task"),
+		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:       envOr("SLA_LABEL", "SLA"),
+		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:      envOr("NOTE_LABEL", "Note"),
+		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		// UK: SAR (Suspicious Activity Report) filed to NCA/UKFIU via SARs Online portal
+		StrLabel:          envOr("STR_LABEL", "SAR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "NCA Reference"),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "NCA / UKFIU"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", "Proceeds of Crime Act 2002 (POCA) s.330"),
+		StrIDLabel:        envOr("STR_ID_LABEL", "NI Number / Passport"),
+		// POCA s.330: 7 working days for DAML consent SARs; tipping-off offence applies
+		StrDeadlineDays: getEnvInt("STR_DEADLINE_DAYS", 7),
+		LocalCurrency:   envOr("LOCAL_CURRENCY", "GBP"),
+		CurrencySymbol:  envOr("CURRENCY_SYMBOL", "£"),
+		// FCA: cash transaction reporting threshold £10,000
+		CTRThreshold:  getEnvFloat("CTR_THRESHOLD", 10000),
+		WireThreshold: getEnvFloat("WIRE_THRESHOLD", 1000),
+		IDTypes: splitEnv("ID_TYPES", []string{
+			"PASSPORT", "UK_DRIVING_LICENCE", "NI_NUMBER",
+			"COMPANIES_HOUSE_NUMBER", "NATIONAL_ID", "OTHER",
+		}),
+		Jurisdiction: "uk",
+		Country:      envOr("DEPLOYMENT_COUNTRY", "gb"),
+		// UK SARs filed via NCA SARs Online portal — not goAML
+		GoAMLEnabled: getEnvBool("GOAML_ENABLED", false),
+		// UK GDPR (retained post-Brexit) and UBO (PSC register, Companies Act 2006)
+		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", true),
+		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
+		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
 	}
 }
 
