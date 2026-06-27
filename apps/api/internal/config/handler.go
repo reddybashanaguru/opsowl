@@ -83,6 +83,10 @@ func deploymentDefaults() AppConfig {
 	switch jurisdiction {
 	case "uae":
 		return uaeDefaults()
+	case "sa", "saudi":
+		return saDefaults()
+	case "uk":
+		return ukDefaults()
 	case "eu":
 		return euDefaults(country)
 	case "india", "":
@@ -216,6 +220,100 @@ func uaeDefaults() AppConfig {
 		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
 		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
 		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 0),
+	}
+}
+
+func saDefaults() AppConfig {
+	return AppConfig{
+		AppName:        "OpsOwl AI",
+		Industry:       envOr("INDUSTRY", "financial_services"),
+		CaseLabel:      envOr("CASE_LABEL", "Case"),
+		CasesLabel:     envOr("CASES_LABEL", "Cases"),
+		TaskLabel:      envOr("TASK_LABEL", "Task"),
+		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:       envOr("SLA_LABEL", "SLA"),
+		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:      envOr("NOTE_LABEL", "Note"),
+		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		// Saudi Arabia: SAR (Suspicious Activity Report) terminology per SAMA / SAFIU
+		StrLabel:          envOr("STR_LABEL", "SAR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "SAFIU Reference"),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "SAMA / SAFIU"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", "Anti-Money Laundering Law (RD M/20)"),
+		StrIDLabel:        envOr("STR_ID_LABEL", "National ID / Iqama"),
+		// SAMA: SAR must be filed within 3 business days of suspicion arising
+		StrDeadlineDays: getEnvInt("STR_DEADLINE_DAYS", 3),
+		LocalCurrency:   envOr("LOCAL_CURRENCY", "SAR"),
+		CurrencySymbol:  envOr("CURRENCY_SYMBOL", "﷼"),
+		// SAMA: Cash transactions ≥ SAR 60,000 require reporting
+		CTRThreshold:  getEnvFloat("CTR_THRESHOLD", 60000),
+		WireThreshold: getEnvFloat("WIRE_THRESHOLD", 0),
+		IDTypes: splitEnv("ID_TYPES", []string{
+			"PASSPORT", "SAUDI_NATIONAL_ID", "IQAMA",
+			"COMMERCIAL_REGISTRATION", "GCC_NATIONAL_ID", "OTHER",
+		}),
+		Jurisdiction: "sa",
+		Country:      envOr("DEPLOYMENT_COUNTRY", "sa"),
+		// SAFIU-Connect runs on UNODC goAML — same XML schema as UAE
+		GoAMLEnabled:    getEnvBool("GOAML_ENABLED", true),
+		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", false),
+		// SAMA AML Regulation Article 16: 10-year retention
+		RetentionYears:  getEnvInt("RETENTION_YEARS", 10),
+		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
+	}
+}
+
+func ukDefaults() AppConfig {
+	return AppConfig{
+		AppName:        "OpsOwl AI",
+		Industry:       envOr("INDUSTRY", "financial_services"),
+		CaseLabel:      envOr("CASE_LABEL", "Case"),
+		CasesLabel:     envOr("CASES_LABEL", "Cases"),
+		TaskLabel:      envOr("TASK_LABEL", "Task"),
+		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:       envOr("SLA_LABEL", "SLA"),
+		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:      envOr("NOTE_LABEL", "Note"),
+		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		// UK: SAR (Suspicious Activity Report) filed to NCA/UKFIU via SARs Online
+		StrLabel:          envOr("STR_LABEL", "SAR"),
+		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "NCA Reference"),
+		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "NCA / UKFIU"),
+		StrLawReference:   envOr("STR_LAW_REFERENCE", "Proceeds of Crime Act 2002 (POCA) s.330"),
+		StrIDLabel:        envOr("STR_ID_LABEL", "NI Number / Passport"),
+		// POCA s.330: tipping-off offence within 7 working days; DAML consent SARs: 7 days
+		StrDeadlineDays: getEnvInt("STR_DEADLINE_DAYS", 7),
+		LocalCurrency:   envOr("LOCAL_CURRENCY", "GBP"),
+		CurrencySymbol:  envOr("CURRENCY_SYMBOL", "£"),
+		// UK: cash transaction reporting threshold
+		CTRThreshold:  getEnvFloat("CTR_THRESHOLD", 10000),
+		WireThreshold: getEnvFloat("WIRE_THRESHOLD", 1000),
+		IDTypes: splitEnv("ID_TYPES", []string{
+			"PASSPORT", "UK_DRIVING_LICENCE", "NI_NUMBER",
+			"COMPANIES_HOUSE_NUMBER", "NATIONAL_ID", "OTHER",
+		}),
+		Jurisdiction: "uk",
+		Country:      envOr("DEPLOYMENT_COUNTRY", "gb"),
+		// UK SARs are filed via NCA SARs Online portal (not goAML)
+		GoAMLEnabled: getEnvBool("GOAML_ENABLED", false),
+		// UK GDPR (retained post-Brexit) and UBO (Companies Act 2006 PSC register)
+		UBOEnabled:      getEnvBool("UBO_ENABLED", true),
+		GDPREnabled:     getEnvBool("GDPR_ENABLED", true),
+		RetentionYears:  getEnvInt("RETENTION_YEARS", 5),
+		UBOThresholdPct: getEnvInt("UBO_THRESHOLD_PCT", 25),
 	}
 }
 
