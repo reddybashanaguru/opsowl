@@ -253,6 +253,12 @@ func euDefaults(country string) AppConfig {
 	case "cy":
 		regulatorLabel = "MOKAS"
 		idLabel = "ID Card / Passport"
+	case "se":
+		// Sweden: Finanspolisen (FIPO) — Financial Police Section of Swedish Police Authority
+		// AML supervisor: Finansinspektionen (FI)
+		// Note: Sweden is EU but NOT eurozone — currency is SEK, override via preset
+		regulatorLabel = "Finanspolisen (FIPO)"
+		idLabel = "Personnummer / National ID"
 	}
 
 	return AppConfig{
