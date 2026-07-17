@@ -425,3 +425,24 @@ func nullTimeFromPtr(t *time.Time) sql.NullTime {
 	}
 	return sql.NullTime{Time: *t, Valid: true}
 }
+
+// ListManagers returns all active users with manager, admin, or super_admin roles.
+// Used to fan-out pending_review notifications to supervisors.
+func (r *Repository) ListManagers(ctx context.Context) ([]db.ListUsersRow, error) {
+	var result []db.ListUsersRow
+	for _, role := range []db.UserRole{db.UserRoleManager, db.UserRoleAdmin, db.UserRoleSuperAdmin} {
+		rows, err := r.q.ListUsers(ctx, db.ListUsersParams{
+			Limit: 200,
+			Role:  db.NullUserRole{UserRole: role, Valid: true},
+		})
+		if err != nil {
+			return nil, err
+		}
+		for _, u := range rows {
+			if u.IsActive && u.DeletedAt.Time.IsZero() {
+				result = append(result, u)
+			}
+		}
+	}
+	return result, nil
+}

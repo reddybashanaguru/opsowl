@@ -502,6 +502,35 @@ func (s *Service) ChangeStatus(ctx context.Context, claims *auth.Claims, id uuid
 		})
 	}
 
+	// Notify all managers/admins when a case needs review — they have no other signal
+	if s.notifSvc != nil && req.Status == db.CaseStatusPendingReview {
+		caseIDCopy := id
+		caseNumber := existing.CaseNumber
+		actorEmail := claims.Email
+		notifSvc := s.notifSvc
+		repo := s.repo
+		worker.TrySubmit(func() {
+			managers, err := repo.ListManagers(context.Background())
+			if err != nil {
+				return
+			}
+			for _, mgr := range managers {
+				if mgr.ID == actorID {
+					continue // don't self-notify if a manager submitted it
+				}
+				notifSvc.NotifyAsync(context.Background(), notifications.NotifyInput{
+					RecipientID: mgr.ID,
+					Type:        db.NotificationTypeCaseStatusChanged,
+					Priority:    db.NotificationPriorityHigh,
+					Title:       "Case awaiting your review",
+					Message:     "Case " + caseNumber + " has been submitted for review by " + actorEmail,
+					LinkURL:     "/cases/" + caseIDCopy.String(),
+					CaseID:      &caseIDCopy,
+				})
+			}
+		})
+	}
+
 	return s.toCaseResponse(c, existing.CreatedByName, existing.CreatedByEmail, nil, nil, nil), nil
 }
 
@@ -905,4 +934,60 @@ func (s *Service) BulkDelete(ctx context.Context, claims *auth.Claims, ids []uui
 		return 0, ids
 	}
 	return deleted, nil
+}
+
+// CompletionSummary holds per-tab content counts for the case tab strip.
+// Each tab has a total count + a "pending action" count so the UI can show
+// green (done) vs amber (action needed) vs no dot (empty).
+type CompletionSummary struct {
+	Documents           int  `json:"documents"`
+	DocumentsProcessing int  `json:"documents_processing"` // still pending/processing
+	Tasks               int  `json:"tasks"`
+	TasksOpen           int  `json:"tasks_open"`           // todo or in_progress
+	Notes               int  `json:"notes"`
+	Comms               int  `json:"comms"`
+	InsightsAvailable   bool `json:"insights_available"`
+	Transactions        int  `json:"transactions"`
+	Findings            int  `json:"findings"`
+	FindingsApproved    int  `json:"findings_approved"`
+	FindingsPending     int  `json:"findings_pending"`     // draft or under_review
+	STRExists           bool `json:"str_exists"`
+	STRFiled            bool `json:"str_filed"`
+	NarrativeExists     bool `json:"narrative_exists"`
+	TimelineEvents      int  `json:"timeline_events"`
+}
+
+func (s *Service) GetCompletion(ctx context.Context, caseID uuid.UUID) (*CompletionSummary, error) {
+	const q = `
+SELECT
+  (SELECT COUNT(*) FROM documents WHERE case_id = $1)::int                                                            AS documents,
+  (SELECT COUNT(*) FROM documents WHERE case_id = $1 AND processing_status IN ('pending','processing'))::int          AS documents_processing,
+  (SELECT COUNT(*) FROM tasks     WHERE case_id = $1 AND deleted_at IS NULL)::int                                     AS tasks,
+  (SELECT COUNT(*) FROM tasks     WHERE case_id = $1 AND deleted_at IS NULL AND status IN ('todo','in_progress'))::int AS tasks_open,
+  (SELECT COUNT(*) FROM notes     WHERE case_id = $1)::int                                                            AS notes,
+  (SELECT COUNT(*) FROM communication_logs WHERE case_id = $1)::int                                                   AS comms,
+  EXISTS(SELECT 1 FROM case_ai_insights WHERE case_id = $1 AND risk_score IS NOT NULL)                             AS insights_available,
+  (SELECT COUNT(*) FROM case_transactions WHERE case_id = $1)::int                                                    AS transactions,
+  (SELECT COUNT(*) FROM case_findings WHERE case_id = $1)::int                                                        AS findings,
+  (SELECT COUNT(*) FROM case_findings WHERE case_id = $1 AND status = 'approved')::int                               AS findings_approved,
+  (SELECT COUNT(*) FROM case_findings WHERE case_id = $1 AND status IN ('draft','under_review'))::int                AS findings_pending,
+  EXISTS(SELECT 1 FROM str_filings WHERE case_id = $1)                                                               AS str_exists,
+  EXISTS(SELECT 1 FROM str_filings WHERE case_id = $1 AND status = 'filed')                                          AS str_filed,
+  EXISTS(SELECT 1 FROM case_narratives WHERE case_id = $1)                                                            AS narrative_exists,
+  (SELECT COUNT(*) FROM timeline_events WHERE case_id = $1)::int                                                      AS timeline_events
+`
+	var c CompletionSummary
+	row := s.sqlDB.QueryRowContext(ctx, q, caseID)
+	if err := row.Scan(
+		&c.Documents, &c.DocumentsProcessing,
+		&c.Tasks, &c.TasksOpen,
+		&c.Notes, &c.Comms,
+		&c.InsightsAvailable, &c.Transactions,
+		&c.Findings, &c.FindingsApproved, &c.FindingsPending,
+		&c.STRExists, &c.STRFiled,
+		&c.NarrativeExists, &c.TimelineEvents,
+	); err != nil {
+		return nil, err
+	}
+	return &c, nil
 }

@@ -9,8 +9,8 @@ import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CopilotPanel } from "@/components/ai/CopilotPanel";
 import { useTimelineSSE, TimelineEvent } from "@/lib/hooks/useTimelineSSE";
+import { useCopilotStore } from "@/lib/stores/copilot.store";
 import { PageError } from "@/components/ui/PageError";
 
 interface CaseDetail {
@@ -146,18 +146,13 @@ function InvestigationNudgePanel({
   caseId,
   c,
   hasOverdueTasks,
-  onRunAnalysis,
-  onOpenCopilot,
-  analysePending,
 }: {
   caseId: string;
   c: CaseDetail;
   hasOverdueTasks: boolean;
-  onRunAnalysis: () => void;
-  onOpenCopilot: () => void;
-  analysePending: boolean;
 }) {
   const router = useRouter();
+  const setCopilotOpen = useCopilotStore((s) => s.setOpen);
 
   const [dismissed, setDismissed] = useState<Set<string>>(() => {
     try {
@@ -217,7 +212,7 @@ function InvestigationNudgePanel({
         icon: "🤖",
         message: `${pendingCount} AI output${pendingCount !== 1 ? "s" : ""} awaiting human review.`,
         actionLabel: "Review",
-        onAction: onOpenCopilot,
+        onAction: () => setCopilotOpen(true),
       },
       hasOverdueTasks && {
         id: "overdue-tasks",
@@ -227,13 +222,13 @@ function InvestigationNudgePanel({
         actionLabel: "View Tasks →",
         onAction: () => router.push(`/cases/${caseId}/tasks`),
       },
-      !c.risk_level && !analysePending && (c.documents_count ?? 0) > 0 && {
+      !c.risk_level && (c.documents_count ?? 0) > 0 && {
         id: "no-analysis",
         severity: "info" as const,
         icon: "⚡",
         message: "AI hasn't scored this case — run analysis to surface risk insights.",
         actionLabel: "Run Analysis",
-        onAction: onRunAnalysis,
+        onAction: () => router.push(`/cases/${caseId}/insights`),
       },
       daysSinceUpdate > 14 && {
         id: "inactive",
@@ -254,7 +249,7 @@ function InvestigationNudgePanel({
     ].filter((n): n is Nudge => Boolean(n) && !dismissed.has((n as Nudge).id));
 
     return list;
-  }, [c, strData, pendingAI, hasOverdueTasks, analysePending, dismissed, caseId, router, onRunAnalysis, onOpenCopilot]);
+  }, [c, strData, pendingAI, hasOverdueTasks, dismissed, caseId, router, setCopilotOpen]);
 
   const dismiss = (id: string) => {
     setDismissed(prev => {
@@ -343,20 +338,16 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [targetStatus, setTargetStatus] = useState("");
   const [reason, setReason] = useState("");
   const [statusError, setStatusError] = useState("");
-  const [copilotOpen, setCopilotOpen] = useState(false);
   const [exportingPDF, setExportingPDF] = useState(false);
   const [noteText, setNoteText] = useState("");
   const [noteSuccess, setNoteSuccess] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
-  const [isAnalysing, setIsAnalysing] = useState(false);
-
   // Inline edit state
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
   const [editPriority, setEditPriority] = useState("");
   const [editDueDate, setEditDueDate] = useState("");
-  const analysingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const assigneeRef = useRef<HTMLDivElement>(null);
 
   // Live timeline feed
@@ -377,8 +368,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       if (err instanceof APIError && err.status === 404) return false;
       return failureCount < 2;
     },
-    // Poll at 3s while AI analysis is in-flight to pick up risk score quickly.
-    refetchInterval: isAnalysing ? 3_000 : 30_000,
+    refetchInterval: 30_000,
   });
 
   const { data: activityData } = useQuery<{ data: Activity[] }>({
@@ -478,17 +468,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     },
   });
 
-  const analyseMutation = useMutation({
-    mutationFn: () => api.post(`/api/v1/cases/${id}/insights/analyse`, {}),
-    onSuccess: () => {
-      // Analysis is async (202). Poll the case query at 3s intervals for up to
-      // 30 seconds to pick up the updated risk badge once the worker finishes.
-      setIsAnalysing(true);
-      if (analysingTimer.current) clearTimeout(analysingTimer.current);
-      analysingTimer.current = setTimeout(() => setIsAnalysing(false), 30_000);
-    },
-  });
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -515,24 +494,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         activeTab="case"
         action={
           <>
-            <button
-              onClick={() => analyseMutation.mutate()}
-              disabled={analyseMutation.isPending || isAnalysing}
-              className="bg-amber-600/15 hover:bg-amber-600/25 text-amber-300 border border-amber-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
-              title={isAnalysing ? "AI analysis in progress…" : "Re-run AI Analysis"}
-            >
-              {(analyseMutation.isPending || isAnalysing) ? (
-                <span className="w-3 h-3 border border-amber-300 border-t-transparent rounded-full animate-spin" />
-              ) : "⚡"}
-              {isAnalysing ? "Analysing…" : "Analyse"}
-            </button>
-            <button
-              onClick={() => setCopilotOpen(true)}
-              className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 hover:text-violet-200 border border-violet-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors"
-              title="AI Copilot (⌘⇧A)"
-            >
-              🤖 AI Copilot
-            </button>
             <button
               onClick={async () => {
                 setExportingPDF(true);
@@ -641,45 +602,67 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Status actions */}
-        {!editing && nextStatuses.length > 0 && (
-          <div className="flex gap-2 flex-wrap">
-            {nextStatuses.map((s) => {
-              const isRoutine = ROUTINE_TRANSITIONS.has(s);
-              const isEscalate = s === "escalated";
-              return (
-                <button
-                  key={s}
-                  disabled={statusMutation.isPending}
-                  onClick={() => {
-                    if (isRoutine) {
-                      statusMutation.mutate({ status: s, reason: "" });
-                    } else {
-                      setTargetStatus(s);
-                      setShowStatusModal(true);
-                    }
-                  }}
-                  className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
-                    isEscalate
-                      ? "bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30"
-                      : isRoutine
-                      ? "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"
-                      : "bg-slate-700 hover:bg-slate-600 text-slate-200"
-                  }`}
-                >
-                  {statusMutation.isPending && isRoutine ? (
-                    <span className="flex items-center gap-1">
-                      <span className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
-                      {STATUS_LABELS[s] ?? s}
-                    </span>
-                  ) : (
-                    `→ ${STATUS_LABELS[s] ?? s}`
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
+        {/* Status actions — primary flow left, escalate separated right */}
+        {!editing && nextStatuses.length > 0 && (() => {
+          const primaryStatuses = nextStatuses.filter((s) => s !== "escalated");
+          const canEscalate = nextStatuses.includes("escalated");
+          return (
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Primary workflow progression */}
+              <div className="flex gap-2 flex-wrap">
+                {primaryStatuses.map((s) => {
+                  const isRoutine = ROUTINE_TRANSITIONS.has(s);
+                  return (
+                    <button
+                      key={s}
+                      disabled={statusMutation.isPending}
+                      onClick={() => {
+                        if (isRoutine) {
+                          statusMutation.mutate({ status: s, reason: "" });
+                        } else {
+                          setTargetStatus(s);
+                          setShowStatusModal(true);
+                        }
+                      }}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 ${
+                        isRoutine
+                          ? "bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"
+                          : "bg-slate-700 hover:bg-slate-600 text-slate-200 border border-slate-600/50"
+                      }`}
+                    >
+                      {statusMutation.isPending && isRoutine ? (
+                        <span className="flex items-center gap-1">
+                          <span className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
+                          {STATUS_LABELS[s] ?? s}
+                        </span>
+                      ) : (
+                        `→ ${STATUS_LABELS[s] ?? s}`
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Escalate — emergency action, separated */}
+              {canEscalate && (
+                <>
+                  <span className="text-slate-700 select-none">|</span>
+                  <button
+                    disabled={statusMutation.isPending}
+                    onClick={() => { setTargetStatus("escalated"); setShowStatusModal(true); }}
+                    title="Escalate to senior management — requires a reason"
+                    className="text-xs font-medium px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50 bg-red-900/20 hover:bg-red-800/30 text-red-400 border border-red-700/40 flex items-center gap-1.5"
+                  >
+                    <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+                    </svg>
+                    Escalate
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Feature 6: AI Partner nudge panel */}
@@ -687,9 +670,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         caseId={id}
         c={c}
         hasOverdueTasks={(tasksPreview?.data ?? []).some(t => t.is_overdue)}
-        onRunAnalysis={() => analyseMutation.mutate()}
-        onOpenCopilot={() => setCopilotOpen(true)}
-        analysePending={analyseMutation.isPending || isAnalysing}
       />
 
       <div className="grid grid-cols-3 gap-6">
@@ -1015,13 +995,6 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
       )}
-
-      {/* AI Copilot drawer */}
-      <CopilotPanel
-        caseId={id}
-        open={copilotOpen}
-        onClose={() => setCopilotOpen(false)}
-      />
 
       {/* Floating save bar — visible only when editing */}
       {editing && (

@@ -25,6 +25,7 @@ import (
 	"github.com/reddybashanaguru/opsowl/internal/auth"
 	"github.com/reddybashanaguru/opsowl/internal/cases"
 	dbgen "github.com/reddybashanaguru/opsowl/internal/db/generated"
+	"github.com/reddybashanaguru/opsowl/internal/notifications"
 	"github.com/reddybashanaguru/opsowl/internal/timeline"
 )
 
@@ -1379,3 +1380,228 @@ func TestHandlerListCases_MultiStatusFilter(t *testing.T) {
 
 // compile check
 var _ = fmt.Sprintf
+
+// ── Manager notification tests ───────────────────────────────────────────────
+
+// newTestServiceWithNotifs builds a service wired with a real notifications.Service
+// backed by the same DB, so notification rows can be inspected after transitions.
+func newTestServiceWithNotifs(t *testing.T, sqlDB *sql.DB) (*cases.Service, *notifications.Service) {
+	t.Helper()
+	q := dbgen.New(sqlDB)
+	repo := cases.NewRepository(q)
+	notifSvc := notifications.NewService(q, notifications.NewBroker())
+	svc := cases.NewService(repo, sqlDB, noopEmitter{}).WithNotifications(notifSvc)
+	return svc, notifSvc
+}
+
+// unreadCountFor returns the number of unread notifications for a given user.
+func unreadCountFor(t *testing.T, sqlDB *sql.DB, userID uuid.UUID) int64 {
+	t.Helper()
+	count, err := dbgen.New(sqlDB).CountUnreadNotifications(context.Background(), userID)
+	if err != nil {
+		t.Fatalf("count notifications for %s: %v", userID, err)
+	}
+	return count
+}
+
+func TestListManagers(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+
+	mgr1ID := seedUser(t, db, "lm-mgr1@notif.com", dbgen.UserRoleManager)
+	mgr2ID := seedUser(t, db, "lm-mgr2@notif.com", dbgen.UserRoleManager)
+	adminID := seedUser(t, db, "lm-admin@notif.com", dbgen.UserRoleAdmin)
+	analystID := seedUser(t, db, "lm-analyst@notif.com", dbgen.UserRoleAnalyst)
+
+	repo := cases.NewRepository(dbgen.New(db))
+	managers, err := repo.ListManagers(context.Background())
+	if err != nil {
+		t.Fatalf("ListManagers: %v", err)
+	}
+
+	ids := make(map[uuid.UUID]struct{}, len(managers))
+	for _, m := range managers {
+		ids[m.ID] = struct{}{}
+	}
+
+	t.Run("includes managers", func(t *testing.T) {
+		if _, ok := ids[mgr1ID]; !ok {
+			t.Error("mgr1 missing from ListManagers")
+		}
+		if _, ok := ids[mgr2ID]; !ok {
+			t.Error("mgr2 missing from ListManagers")
+		}
+	})
+
+	t.Run("includes admins", func(t *testing.T) {
+		if _, ok := ids[adminID]; !ok {
+			t.Error("admin missing from ListManagers")
+		}
+	})
+
+	t.Run("excludes analysts", func(t *testing.T) {
+		if _, ok := ids[analystID]; ok {
+			t.Error("analyst should not appear in ListManagers")
+		}
+	})
+}
+
+func TestPendingReviewNotifiesManagers(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, _ := newTestServiceWithNotifs(t, db)
+
+	analystID := seedUser(t, db, "pr-analyst@notif.com", dbgen.UserRoleAnalyst)
+	mgr1ID := seedUser(t, db, "pr-mgr1@notif.com", dbgen.UserRoleManager)
+	mgr2ID := seedUser(t, db, "pr-mgr2@notif.com", dbgen.UserRoleManager)
+	analystClaims := claimsFor(analystID, "pr-analyst@notif.com", dbgen.UserRoleAnalyst)
+
+	c, _ := svc.Create(context.Background(), analystClaims, cases.CreateCaseRequest{
+		Title:    "Notification fan-out test case",
+		Priority: dbgen.CasePriorityHigh,
+	})
+	svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+	_, err := svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
+	if err != nil {
+		t.Fatalf("transition to pending_review: %v", err)
+	}
+
+	time.Sleep(300 * time.Millisecond) // allow goroutine to flush
+
+	t.Run("manager1 receives notification", func(t *testing.T) {
+		if unreadCountFor(t, db, mgr1ID) == 0 {
+			t.Error("manager1 should have an unread pending_review notification")
+		}
+	})
+
+	t.Run("manager2 receives notification", func(t *testing.T) {
+		if unreadCountFor(t, db, mgr2ID) == 0 {
+			t.Error("manager2 should have an unread pending_review notification")
+		}
+	})
+
+	t.Run("submitting analyst is not notified via manager channel", func(t *testing.T) {
+		// Analyst is not in ListManagers, so the fan-out loop never targets them.
+		// They may have zero or one notification depending on assignee logic,
+		// but should not get a duplicate from the manager fan-out.
+		count := unreadCountFor(t, db, analystID)
+		// Assert <= 1: at most the assignee notification (if they were assigned)
+		if count > 1 {
+			t.Errorf("analyst received %d notifications — manager fan-out should not target them", count)
+		}
+	})
+}
+
+func TestPendingReview_ManagerSelfNoNotify(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, _ := newTestServiceWithNotifs(t, db)
+
+	// A manager who themselves submits the pending_review should not self-notify.
+	mgrID := seedUser(t, db, "self-mgr@notif.com", dbgen.UserRoleManager)
+	otherMgrID := seedUser(t, db, "other-mgr@notif.com", dbgen.UserRoleManager)
+	mgrClaims := claimsFor(mgrID, "self-mgr@notif.com", dbgen.UserRoleManager)
+
+	c, _ := svc.Create(context.Background(), mgrClaims, cases.CreateCaseRequest{
+		Title:    "Manager self-submit case",
+		Priority: dbgen.CasePriorityMedium,
+	})
+	svc.ChangeStatus(context.Background(), mgrClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+	svc.ChangeStatus(context.Background(), mgrClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
+
+	time.Sleep(300 * time.Millisecond)
+
+	t.Run("submitter manager does not self-notify", func(t *testing.T) {
+		if unreadCountFor(t, db, mgrID) > 0 {
+			t.Error("manager should not receive their own pending_review notification")
+		}
+	})
+
+	t.Run("other manager is still notified", func(t *testing.T) {
+		if unreadCountFor(t, db, otherMgrID) == 0 {
+			t.Error("other manager should receive the notification")
+		}
+	})
+}
+
+func TestNonPendingReview_DoesNotNotifyManagers(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, _ := newTestServiceWithNotifs(t, db)
+
+	analystID := seedUser(t, db, "nonotif-analyst@notif.com", dbgen.UserRoleAnalyst)
+	mgrID := seedUser(t, db, "nonotif-mgr@notif.com", dbgen.UserRoleManager)
+	analystClaims := claimsFor(analystID, "nonotif-analyst@notif.com", dbgen.UserRoleAnalyst)
+
+	c, _ := svc.Create(context.Background(), analystClaims, cases.CreateCaseRequest{
+		Title:    "No manager notif on in_progress test",
+		Priority: dbgen.CasePriorityLow,
+	})
+	svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+
+	time.Sleep(300 * time.Millisecond)
+
+	t.Run("in_progress transition does not notify managers", func(t *testing.T) {
+		if unreadCountFor(t, db, mgrID) > 0 {
+			t.Errorf("manager should not be notified for in_progress transition, got %d", unreadCountFor(t, db, mgrID))
+		}
+	})
+}
+
+func TestPendingReview_NotificationContent(t *testing.T) {
+	db, cleanup := testDB(t)
+	defer cleanup()
+	svc, notifSvc := newTestServiceWithNotifs(t, db)
+
+	analystID := seedUser(t, db, "content-analyst@notif.com", dbgen.UserRoleAnalyst)
+	mgrID := seedUser(t, db, "content-mgr@notif.com", dbgen.UserRoleManager)
+	analystClaims := claimsFor(analystID, "content-analyst@notif.com", dbgen.UserRoleAnalyst)
+
+	c, _ := svc.Create(context.Background(), analystClaims, cases.CreateCaseRequest{
+		Title:    "Content check case",
+		Priority: dbgen.CasePriorityHigh,
+	})
+	svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusInProgress})
+	svc.ChangeStatus(context.Background(), analystClaims, c.ID, cases.StatusRequest{Status: dbgen.CaseStatusPendingReview})
+
+	time.Sleep(300 * time.Millisecond)
+
+	notifs, _, err := notifSvc.List(context.Background(), mgrID, uuid.Nil, 10)
+	if err != nil {
+		t.Fatalf("list notifications: %v", err)
+	}
+	if len(notifs) == 0 {
+		t.Fatal("expected at least 1 notification for manager")
+	}
+	n := notifs[0]
+
+	t.Run("priority is high", func(t *testing.T) {
+		if n.Priority != string(dbgen.NotificationPriorityHigh) {
+			t.Errorf("expected priority=high, got %s", n.Priority)
+		}
+	})
+
+	t.Run("title mentions review", func(t *testing.T) {
+		if !strings.Contains(strings.ToLower(n.Title), "review") {
+			t.Errorf("expected 'review' in title, got: %s", n.Title)
+		}
+	})
+
+	t.Run("message contains case number", func(t *testing.T) {
+		if !strings.Contains(n.Message, c.CaseNumber) {
+			t.Errorf("expected case number %s in message, got: %s", c.CaseNumber, n.Message)
+		}
+	})
+
+	t.Run("message contains actor email", func(t *testing.T) {
+		if !strings.Contains(n.Message, "content-analyst@notif.com") {
+			t.Errorf("expected actor email in message, got: %s", n.Message)
+		}
+	})
+
+	t.Run("link points to case", func(t *testing.T) {
+		if n.LinkURL == nil || !strings.Contains(*n.LinkURL, c.ID.String()) {
+			t.Errorf("expected case ID in link_url, got: %v", n.LinkURL)
+		}
+	})
+}
