@@ -194,10 +194,16 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
           );
         })}
       </div>
-      {/* Legend */}
-      <p className="text-[10px] text-slate-600 mt-1 px-1">
-        <span className="text-red-400 font-bold">*</span> Hard stop — API blocks case closure until resolved
-      </p>
+      {/* Hard-stop legend */}
+      <div className="flex items-center gap-2 mt-1.5 px-2.5 py-1.5 rounded-md bg-red-500/10 border border-red-500/25">
+        <svg className="w-3.5 h-3.5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 3v5m0 2.5v.5" />
+          <circle cx="8" cy="8" r="7" />
+        </svg>
+        <p className="text-xs text-red-300 font-medium">
+          <span className="text-red-400 font-bold">*</span> Hard stop — API blocks case closure until resolved
+        </p>
+      </div>
     </div>
   );
 }

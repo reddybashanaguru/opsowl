@@ -215,20 +215,20 @@ export default function TaskDetailPage({
     <div className="p-6">
       <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
 
+      {/* Back navigation — above grid so both columns align */}
+      <button
+        onClick={() => router.push(`/cases/${caseId}/tasks`)}
+        className="flex items-center gap-1.5 text-slate-500 hover:text-cyan-400 text-xs font-medium transition-colors group mb-4"
+      >
+        <svg className="w-3.5 h-3.5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
+        </svg>
+        All tasks
+      </button>
+
       <div className="grid grid-cols-3 gap-6">
         {/* Main */}
         <div className="col-span-2 space-y-4">
-          {/* Back navigation */}
-          <button
-            onClick={() => router.push(`/cases/${caseId}/tasks`)}
-            className="flex items-center gap-1.5 text-slate-500 hover:text-cyan-400 text-xs font-medium transition-colors group"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
-            </svg>
-            All tasks
-          </button>
-
           {/* Task header */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6">
             {isEditing ? (
