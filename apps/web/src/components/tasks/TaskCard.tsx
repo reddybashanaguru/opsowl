@@ -158,6 +158,16 @@ export function TaskCard({
                 Step {task.playbook_step_order}
               </span>
             )}
+            {task.depends_on_step > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-slate-600/50 bg-slate-700/30 px-2 py-0.5 text-xs font-medium text-slate-400">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.8}>
+                  <circle cx="4" cy="8" r="2.5" />
+                  <circle cx="12" cy="8" r="2.5" />
+                  <path strokeLinecap="round" d="M6.5 8h3" />
+                </svg>
+                After Step {task.depends_on_step}
+              </span>
+            )}
             {task.is_ai_suggested && (
               <span className="inline-flex items-center rounded-full border border-cyan-500/40 bg-cyan-500/10 px-2 py-0.5 text-xs font-medium text-cyan-400">
                 AI

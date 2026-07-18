@@ -205,7 +205,7 @@ func (q *Queries) FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, 
 
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step,
     u_creator.full_name AS created_by_name,
     u_creator.email     AS created_by_email,
     u_assign.full_name  AS assigned_to_name,
@@ -235,12 +235,14 @@ type GetTaskByIDRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
-	SearchVector    interface{}    `json:"search_vector"`
-	CreatedByName   string         `json:"created_by_name"`
-	CreatedByEmail  string         `json:"created_by_email"`
-	AssignedToName  sql.NullString `json:"assigned_to_name"`
-	AssignedToEmail sql.NullString `json:"assigned_to_email"`
-	AssignedToRole  NullUserRole   `json:"assigned_to_role"`
+	SearchVector      interface{}    `json:"search_vector"`
+	PlaybookStepOrder int32          `json:"playbook_step_order"`
+	DependsOnStep     int32          `json:"depends_on_step"`
+	CreatedByName     string         `json:"created_by_name"`
+	CreatedByEmail    string         `json:"created_by_email"`
+	AssignedToName    sql.NullString `json:"assigned_to_name"`
+	AssignedToEmail   sql.NullString `json:"assigned_to_email"`
+	AssignedToRole    NullUserRole   `json:"assigned_to_role"`
 }
 
 func (q *Queries) GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow, error) {
@@ -265,6 +267,8 @@ func (q *Queries) GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.PlaybookStepOrder,
+		&i.DependsOnStep,
 		&i.CreatedByName,
 		&i.CreatedByEmail,
 		&i.AssignedToName,
@@ -448,7 +452,7 @@ func (q *Queries) ListTaskComments(ctx context.Context, arg ListTaskCommentsPara
 
 const listTasksByCase = `-- name: ListTasksByCase :many
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step,
     u_creator.full_name AS created_by_name,
     u_assign.full_name  AS assigned_to_name,
     u_assign.email      AS assigned_to_email
@@ -497,10 +501,12 @@ type ListTasksByCaseRow struct {
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
-	SearchVector    interface{}    `json:"search_vector"`
-	CreatedByName   string         `json:"created_by_name"`
-	AssignedToName  sql.NullString `json:"assigned_to_name"`
-	AssignedToEmail sql.NullString `json:"assigned_to_email"`
+	SearchVector      interface{}    `json:"search_vector"`
+	PlaybookStepOrder int32          `json:"playbook_step_order"`
+	DependsOnStep     int32          `json:"depends_on_step"`
+	CreatedByName     string         `json:"created_by_name"`
+	AssignedToName    sql.NullString `json:"assigned_to_name"`
+	AssignedToEmail   sql.NullString `json:"assigned_to_email"`
 }
 
 func (q *Queries) ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams) ([]ListTasksByCaseRow, error) {
@@ -541,6 +547,8 @@ func (q *Queries) ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.PlaybookStepOrder,
+			&i.DependsOnStep,
 			&i.CreatedByName,
 			&i.AssignedToName,
 			&i.AssignedToEmail,
