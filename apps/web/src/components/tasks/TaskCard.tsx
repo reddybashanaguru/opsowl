@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { TaskStatusBadge } from "./TaskStatusBadge";
 import { TaskPriorityBadge } from "./TaskPriorityBadge";
 
@@ -28,13 +28,23 @@ export interface Task {
   updated_at: string;
 }
 
+interface AssigneeUser {
+  id: string;
+  full_name: string;
+}
+
 interface Props {
   task: Task;
   onClick?: () => void;
   onComplete?: () => void;
   onDelete?: () => void;
+  /** Legacy quick self-claim (My Tasks page). If onAssign+users are provided, those take precedence. */
   onAssignToMe?: () => void;
   onUnassign?: () => void;
+  /** Full inline assignee picker — pass alongside users + currentUserId */
+  onAssign?: (userId: string) => void;
+  users?: AssigneeUser[];
+  currentUserId?: string;
   showCase?: boolean;
 }
 
@@ -48,10 +58,36 @@ function relativeTime(dateStr: string): string {
   return `${Math.floor(hrs / 24)}d ago`;
 }
 
-export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, onUnassign, showCase }: Props) {
+export function TaskCard({
+  task,
+  onClick,
+  onComplete,
+  onDelete,
+  onAssignToMe,
+  onUnassign,
+  onAssign,
+  users,
+  currentUserId,
+  showCase,
+}: Props) {
   const isDone = task.status === "done";
   const isCancelled = task.status === "cancelled";
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showPicker]);
+
+  const usesPickerMode = !!(onAssign && users);
 
   return (
     <div
@@ -131,7 +167,97 @@ export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, on
 
           {/* Footer */}
           <div className="flex items-center gap-3 mt-2 text-xs">
-            {task.assigned_to ? (
+            {/* Assignee section — picker mode when onAssign+users provided */}
+            {usesPickerMode ? (
+              <div className="relative flex items-center gap-1" ref={pickerRef}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (!isDone && !isCancelled) setShowPicker((s) => !s);
+                  }}
+                  disabled={isDone || isCancelled}
+                  title={isDone || isCancelled ? undefined : "Change assignee"}
+                  className={`flex items-center gap-1 transition-colors ${
+                    task.assigned_to
+                      ? "text-slate-400 hover:text-slate-200"
+                      : "text-slate-600 italic hover:text-cyan-500"
+                  }`}
+                >
+                  <svg
+                    className="w-3 h-3 flex-shrink-0"
+                    fill={task.assigned_to ? "currentColor" : "none"}
+                    viewBox="0 0 20 20"
+                    stroke={task.assigned_to ? "none" : "currentColor"}
+                    strokeWidth={1.5}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
+                  </svg>
+                  <span>{task.assigned_to ? task.assigned_to.full_name : "Assign…"}</span>
+                  {!isDone && !isCancelled && (
+                    <svg
+                      className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-50 transition-opacity"
+                      fill="none"
+                      viewBox="0 0 16 16"
+                      stroke="currentColor"
+                      strokeWidth={2}
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 6l4 4 4-4" />
+                    </svg>
+                  )}
+                </button>
+
+                {/* Unassign × */}
+                {onUnassign && task.assigned_to && !isDone && !isCancelled && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onUnassign(); }}
+                    className="opacity-0 group-hover:opacity-100 text-slate-600 hover:text-red-400 transition-all leading-none"
+                    title="Unassign"
+                  >
+                    ×
+                  </button>
+                )}
+
+                {/* Assignee picker dropdown */}
+                {showPicker && (
+                  <div className="absolute bottom-full left-0 mb-1.5 z-50 bg-[#0d1f35] border border-slate-600/80 rounded-lg shadow-2xl min-w-[180px] py-1 max-h-52 overflow-y-auto">
+                    {currentUserId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAssign!(currentUserId);
+                          setShowPicker(false);
+                        }}
+                        className={`w-full text-left px-3 py-1.5 text-xs font-semibold hover:bg-slate-700/60 transition-colors ${
+                          task.assigned_to?.id === currentUserId ? "text-cyan-300" : "text-cyan-400"
+                        }`}
+                      >
+                        Assign to me{task.assigned_to?.id === currentUserId && " ✓"}
+                      </button>
+                    )}
+                    {users!.filter((u) => u.id !== currentUserId).length > 0 && (
+                      <div className="my-1 border-t border-slate-700/50" />
+                    )}
+                    {users!
+                      .filter((u) => u.id !== currentUserId)
+                      .map((u) => (
+                        <button
+                          key={u.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAssign!(u.id);
+                            setShowPicker(false);
+                          }}
+                          className={`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-700/60 transition-colors ${
+                            task.assigned_to?.id === u.id ? "text-cyan-300" : "text-slate-300"
+                          }`}
+                        >
+                          {u.full_name}{task.assigned_to?.id === u.id && " ✓"}
+                        </button>
+                      ))}
+                  </div>
+                )}
+              </div>
+            ) : task.assigned_to ? (
               <span className="flex items-center gap-1 text-slate-400">
                 <svg className="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                   <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
@@ -164,6 +290,7 @@ export function TaskCard({ task, onClick, onComplete, onDelete, onAssignToMe, on
                 )}
               </span>
             )}
+
             {task.due_date && (
               <span className={task.is_overdue && !isDone ? "text-red-400" : "text-slate-600"}>
                 Due {new Date(task.due_date).toLocaleDateString()}

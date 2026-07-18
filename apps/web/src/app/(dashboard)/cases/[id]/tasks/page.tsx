@@ -37,6 +37,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   const [taskTab, setTaskTab] = useState<"active" | "done">("active");
   const [filterPriority, setFilterPriority] = useState<string>("");
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<"order" | "priority">("order");
 
   // Create form state
   const [newTitle, setNewTitle] = useState("");
@@ -84,10 +85,15 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       },
     });
 
+  const PRIORITY_RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+
   const allFetched = data?.pages.flatMap((p) => p.data) ?? [];
-  const tasks = taskTab === "active"
+  const filtered = taskTab === "active"
     ? allFetched.filter((t) => t.status !== "done" && t.status !== "cancelled")
     : allFetched;
+  const tasks = sortBy === "priority"
+    ? [...filtered].sort((a, b) => (PRIORITY_RANK[a.priority] ?? 4) - (PRIORITY_RANK[b.priority] ?? 4))
+    : filtered;
   const totalCount = tasks.length;
 
   const createMutation = useMutation({
@@ -159,33 +165,6 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     onSuccess: () => refetch(),
   });
 
-  const assignToMeMutation = useMutation({
-    mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { assigned_to: user?.id }),
-    onMutate: async (taskId) => {
-      await qc.cancelQueries({ queryKey: ["case-tasks", caseId] });
-      const queryKey = ["case-tasks", caseId, taskTab, filterPriority, overdueOnly];
-      const prev = qc.getQueryData(queryKey);
-      qc.setQueryData(queryKey, (old: { pages: { data: Task[]; meta: ListMeta }[]; pageParams: unknown[] } | undefined) =>
-        old ? {
-          ...old,
-          pages: old.pages.map((page) => ({
-            ...page,
-            data: page.data.map((t) =>
-              t.id === taskId
-                ? { ...t, assigned_to: { id: user?.id ?? "", full_name: user?.full_name ?? "", email: user?.email ?? "" } }
-                : t
-            ),
-          })),
-        } : old
-      );
-      return { prev, queryKey };
-    },
-    onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
-      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
-    },
-    onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
-  });
-
   const unassignMutation = useMutation({
     mutationFn: (taskId: string) => api.put<Task>(`/api/v1/tasks/${taskId}`, { clear_assigned_to: true }),
     onMutate: async (taskId) => {
@@ -204,6 +183,35 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
       return { prev, queryKey };
     },
     onError: (_err: unknown, _taskId: string, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
+      if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
+  });
+
+  const assignMutation = useMutation({
+    mutationFn: ({ taskId, userId }: { taskId: string; userId: string }) =>
+      api.put<Task>(`/api/v1/tasks/${taskId}`, { assigned_to: userId }),
+    onMutate: async ({ taskId, userId }) => {
+      await qc.cancelQueries({ queryKey: ["case-tasks", caseId] });
+      const queryKey = ["case-tasks", caseId, taskTab, filterPriority, overdueOnly];
+      const prev = qc.getQueryData(queryKey);
+      const assignee = users.find((u) => u.id === userId);
+      qc.setQueryData(queryKey, (old: { pages: { data: Task[]; meta: ListMeta }[]; pageParams: unknown[] } | undefined) =>
+        old ? {
+          ...old,
+          pages: old.pages.map((page) => ({
+            ...page,
+            data: page.data.map((t) =>
+              t.id === taskId
+                ? { ...t, assigned_to: assignee ? { id: assignee.id, full_name: assignee.full_name, email: "" } : t.assigned_to }
+                : t
+            ),
+          })),
+        } : old
+      );
+      return { prev, queryKey };
+    },
+    onError: (_err: unknown, _vars: unknown, ctx: { prev: unknown; queryKey: unknown[] } | undefined) => {
       if (ctx?.prev) qc.setQueryData(ctx.queryKey, ctx.prev);
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
@@ -298,6 +306,17 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 />
                 Overdue only
               </label>
+              <button
+                onClick={() => setSortBy((s) => s === "priority" ? "order" : "priority")}
+                className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${
+                  sortBy === "priority"
+                    ? "border-cyan-500/50 bg-cyan-500/10 text-cyan-400"
+                    : "border-slate-700 text-slate-400 hover:text-slate-300 hover:border-slate-600"
+                }`}
+                title="Sort by priority"
+              >
+                {sortBy === "priority" ? "↑ Priority" : "Sort: Order"}
+              </button>
             </>
           )}
           <span className="text-slate-600 text-xs">{totalCount} task{totalCount !== 1 ? "s" : ""}</span>
@@ -368,8 +387,10 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 onClick={() => router.push(`/cases/${caseId}/tasks/${task.id}`)}
                 onComplete={!justCompleted.has(task.id) && canCompleteTask(task) ? () => completeMutation.mutate(task.id) : undefined}
                 onDelete={() => deleteMutation.mutate(task.id)}
-                onAssignToMe={!task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => assignToMeMutation.mutate(task.id) : undefined}
+                onAssign={!justCompleted.has(task.id) && taskTab === "active" ? (userId) => assignMutation.mutate({ taskId: task.id, userId }) : undefined}
                 onUnassign={task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => unassignMutation.mutate(task.id) : undefined}
+                users={users}
+                currentUserId={user?.id}
               />
             );
           })}
