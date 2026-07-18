@@ -168,9 +168,10 @@ interface RoleSelectorProps {
   userId: string;
   currentRole: string;
   onSuccess: () => void;
+  isSuperAdmin: boolean;
 }
 
-function RoleSelector({ userId, currentRole, onSuccess }: RoleSelectorProps) {
+function RoleSelector({ userId, currentRole, onSuccess, isSuperAdmin }: RoleSelectorProps) {
   const [editing, setEditing] = useState(false);
   const [selected, setSelected] = useState(currentRole);
   const [error, setError] = useState("");
@@ -216,7 +217,7 @@ function RoleSelector({ userId, currentRole, onSuccess }: RoleSelectorProps) {
         autoFocus
         className="bg-slate-900 border border-cyan-500 text-slate-100 text-xs rounded px-2 py-1 focus:outline-none"
       >
-        {ASSIGNABLE_ROLES.map((r) => (
+        {ASSIGNABLE_ROLES.filter((r) => isSuperAdmin || r !== "super_admin").map((r) => (
           <option key={r} value={r}>{ROLE_LABELS[r]}</option>
         ))}
       </select>
@@ -394,10 +395,11 @@ export default function UsersPage() {
                         </div>
                       </td>
                       <td className="px-5 py-3.5">
-                        {u.id !== currentUser?.id && canManage ? (
+                        {u.id !== currentUser?.id && canManage && (currentUser?.role === "super_admin" || u.role !== "super_admin") ? (
                           <RoleSelector
                             userId={u.id}
                             currentRole={u.role}
+                            isSuperAdmin={currentUser?.role === "super_admin"}
                             onSuccess={() => queryClient.invalidateQueries({ queryKey: ["users"] })}
                           />
                         ) : (
@@ -417,7 +419,7 @@ export default function UsersPage() {
                         {new Date(u.created_at).toLocaleDateString(undefined, { day: "2-digit", month: "short", year: "numeric" })}
                       </td>
                       <td className="px-5 py-3.5 text-right">
-                        {u.id !== currentUser?.id && (
+                        {u.id !== currentUser?.id && (currentUser?.role === "super_admin" || u.role !== "super_admin") && (
                           deleteConfirm === u.id ? (
                             <div className="flex items-center gap-2 justify-end">
                               <span className="text-xs text-slate-400">Deactivate?</span>

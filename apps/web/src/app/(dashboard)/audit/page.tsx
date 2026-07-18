@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -76,30 +77,52 @@ function TableSkeleton() {
 
 function MetaCell({ meta }: { meta: Record<string, unknown> }) {
   const [open, setOpen] = useState(false);
+  const [rect, setRect] = useState<DOMRect | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
   const entries = Object.entries(meta).filter(([, v]) => v !== null && v !== undefined);
   if (entries.length === 0) return <span className="text-slate-700 text-xs">—</span>;
+
+  function toggle() {
+    if (!open && btnRef.current) setRect(btnRef.current.getBoundingClientRect());
+    setOpen((o) => !o);
+  }
+
+  const popoverWidth = 288; // w-72
+
   return (
-    <div className="relative inline-block">
+    <>
       <button
-        onClick={() => setOpen(!open)}
+        ref={btnRef}
+        onClick={toggle}
         className="text-xs text-slate-500 hover:text-cyan-400 transition-colors underline decoration-dotted"
       >
         {entries.length} field{entries.length !== 1 ? "s" : ""}
       </button>
-      {open && (
-        <div className="absolute z-50 right-0 bottom-6 w-72 bg-slate-900 border border-slate-600 rounded-lg p-3 shadow-2xl text-left">
-          <pre className="text-[10px] text-slate-300 font-mono overflow-auto max-h-40 whitespace-pre-wrap">
-            {JSON.stringify(meta, null, 2)}
-          </pre>
-          <button
-            onClick={() => setOpen(false)}
-            className="mt-2 text-[10px] text-slate-600 hover:text-slate-400"
+      {open && rect && createPortal(
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div
+            className="fixed z-50 w-72 bg-[#0d1929] border border-slate-600 rounded-lg p-3 shadow-2xl text-left"
+            style={{
+              top: rect.top - 8,
+              left: Math.max(8, rect.right - popoverWidth),
+              transform: "translateY(-100%)",
+            }}
           >
-            close
-          </button>
-        </div>
+            <pre className="text-[10px] text-slate-300 font-mono overflow-auto max-h-52 whitespace-pre-wrap">
+              {JSON.stringify(meta, null, 2)}
+            </pre>
+            <button
+              onClick={() => setOpen(false)}
+              className="mt-2 text-[10px] text-slate-600 hover:text-slate-400"
+            >
+              close
+            </button>
+          </div>
+        </>,
+        document.body,
       )}
-    </div>
+    </>
   );
 }
 

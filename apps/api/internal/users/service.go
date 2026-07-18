@@ -128,6 +128,16 @@ func (s *Service) Update(ctx context.Context, actor *auth.Claims, targetID uuid.
 	if req.Role != nil && actor.Role != db.UserRoleAdmin && actor.Role != db.UserRoleSuperAdmin {
 		return UserResponse{}, ErrForbidden
 	}
+	// Admin cannot touch super_admin users at all, and cannot assign the super_admin role
+	if actor.Role == db.UserRoleAdmin && actor.UserID != targetID {
+		target, err := s.repo.GetByID(ctx, targetID)
+		if err == nil && target.Role == db.UserRoleSuperAdmin {
+			return UserResponse{}, ErrForbidden
+		}
+	}
+	if req.Role != nil && actor.Role == db.UserRoleAdmin && db.UserRole(*req.Role) == db.UserRoleSuperAdmin {
+		return UserResponse{}, ErrForbidden
+	}
 
 	row, err := s.repo.Update(ctx, targetID, req.FullName, req.Role, req.IsActive)
 	if err != nil {

@@ -15,11 +15,11 @@ interface SLAPolicy {
   updated_at: string;
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  critical: "text-red-400 bg-red-500/10 border-red-500/30",
-  high:     "text-orange-400 bg-orange-500/10 border-orange-500/30",
-  medium:   "text-amber-400 bg-amber-500/10 border-amber-500/30",
-  low:      "text-emerald-400 bg-emerald-500/10 border-emerald-500/30",
+const PRIORITY_COLORS: Record<string, { badge: string; accent: string; ring: string }> = {
+  critical: { badge: "text-red-400 bg-red-500/10 border-red-500/30", accent: "border-red-500/40", ring: "ring-red-500/10" },
+  high:     { badge: "text-orange-400 bg-orange-500/10 border-orange-500/30", accent: "border-orange-500/30", ring: "ring-orange-500/10" },
+  medium:   { badge: "text-amber-400 bg-amber-500/10 border-amber-500/30", accent: "border-amber-500/30", ring: "ring-amber-500/10" },
+  low:      { badge: "text-emerald-400 bg-emerald-500/10 border-emerald-500/30", accent: "border-emerald-500/20", ring: "ring-emerald-500/10" },
 };
 
 const PRIORITY_ORDER = ["critical", "high", "medium", "low"];
@@ -33,22 +33,42 @@ function hoursToLabel(h: number): string {
 
 function SLAProgressBar({ warnPct }: { warnPct: number }) {
   return (
-    <div className="relative h-2 bg-slate-700 rounded-full overflow-hidden mt-1">
+    <div className="relative h-6 bg-slate-800 rounded-lg overflow-hidden">
+      {/* On-track zone */}
       <div
-        className="absolute left-0 top-0 h-full bg-amber-400 rounded-full transition-all"
+        className="absolute left-0 top-0 h-full bg-cyan-500/20"
         style={{ width: `${warnPct}%` }}
-      />
+      >
+        {warnPct > 18 && (
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] text-cyan-400/70 font-semibold tracking-widest uppercase">
+            On Track
+          </span>
+        )}
+      </div>
+      {/* Warning zone */}
       <div
-        className="absolute h-full w-0.5 bg-red-400"
-        style={{ left: "100%" }}
+        className="absolute top-0 h-full bg-amber-400/20"
+        style={{ left: `${warnPct}%`, right: "4px" }}
+      >
+        {(100 - warnPct) > 12 && (
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] text-amber-400/70 font-semibold tracking-widest uppercase">
+            Warning
+          </span>
+        )}
+      </div>
+      {/* Zone divider */}
+      <div
+        className="absolute top-0 h-full w-px bg-slate-600/80"
+        style={{ left: `${warnPct}%` }}
       />
+      {/* Breach strip at right edge */}
+      <div className="absolute right-0 top-0 h-full w-1 bg-red-500" />
     </div>
   );
 }
 
 export default function SLAPage() {
   const qc = useQueryClient();
-  const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
   const canEdit = hasRole("admin");
 
@@ -73,7 +93,7 @@ export default function SLAPage() {
   });
 
   const sortedPolicies = [...(policies ?? [])].sort(
-    (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority)
+    (a, b) => PRIORITY_ORDER.indexOf(a.priority) - PRIORITY_ORDER.indexOf(b.priority),
   );
 
   const startEdit = (p: SLAPolicy) => {
@@ -94,7 +114,7 @@ export default function SLAPage() {
       {/* Info banner */}
       <div className="bg-blue-500/10 border border-blue-500/30 text-blue-300 rounded-xl p-4 mb-6 text-sm">
         <strong>How SLA works:</strong> When a case is created, the breach deadline is set based on its priority.
-        Cases exceeding the warning threshold appear in amber; breached cases are flagged in red across the dashboard.
+        Cases enter the warning zone at the amber threshold and are flagged as breached in red across the dashboard.
       </div>
 
       {isLoading ? (
@@ -109,20 +129,31 @@ export default function SLAPage() {
       ) : (
         <div className="space-y-4">
           {sortedPolicies.map((policy) => {
-            const colorClass = PRIORITY_COLORS[policy.priority] ?? "text-slate-400 bg-slate-700 border-slate-600";
+            const colors = PRIORITY_COLORS[policy.priority] ?? PRIORITY_COLORS.low;
             const isEditing = editingPriority === policy.priority;
+            const warnTime = Math.round(policy.breach_hours * policy.warn_pct / 100);
+            const dangerPct = 100 - policy.warn_pct;
 
             return (
-              <div key={policy.id} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
-                <div className="flex items-center justify-between mb-4">
+              <div
+                key={policy.id}
+                className={`bg-[#131f30] border ${colors.accent} rounded-xl ring-1 ${colors.ring} p-5`}
+              >
+                {/* Card header */}
+                <div className="flex items-start justify-between mb-5">
                   <div className="flex items-center gap-3">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border capitalize ${colorClass}`}>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border capitalize ${colors.badge}`}>
                       {policy.priority}
                     </span>
-                    <span className="text-slate-300 text-sm">
-                      Breach at <strong className="text-white">{hoursToLabel(policy.breach_hours)}</strong>
-                      {" · "}Warn at <strong className="text-amber-400">{hoursToLabel(policy.warning_hours)}</strong>
-                    </span>
+                    <div>
+                      <div className="text-white text-sm font-medium">
+                        Total SLA window:{" "}
+                        <span className="text-white font-bold">{hoursToLabel(policy.breach_hours)}</span>
+                      </div>
+                      <div className="text-slate-500 text-xs mt-0.5">
+                        Warning triggers at {policy.warn_pct}% · {dangerPct}% danger window before breach
+                      </div>
+                    </div>
                   </div>
                   {canEdit && !isEditing && (
                     <button
@@ -134,14 +165,45 @@ export default function SLAPage() {
                   )}
                 </div>
 
-                {/* Warning progress bar */}
-                <div className="mb-1">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Warning at {policy.warn_pct}% of breach time</span>
-                    <span>{hoursToLabel(Math.round(policy.breach_hours * policy.warn_pct / 100))} → {hoursToLabel(policy.breach_hours)}</span>
+                {/* Three zone chips */}
+                <div className="grid grid-cols-3 gap-3 mb-4">
+                  <div className="bg-cyan-500/8 border border-cyan-500/20 rounded-lg px-3 py-2.5">
+                    <div className="text-cyan-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5">
+                      ✓ On Track
+                    </div>
+                    <div className="text-white text-sm font-mono font-medium">
+                      0 → {hoursToLabel(warnTime)}
+                    </div>
+                    <div className="text-slate-500 text-[10px] mt-0.5">
+                      {policy.warn_pct}% of SLA window
+                    </div>
                   </div>
-                  <SLAProgressBar warnPct={policy.warn_pct} />
+                  <div className="bg-amber-500/8 border border-amber-500/20 rounded-lg px-3 py-2.5">
+                    <div className="text-amber-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5">
+                      ⚠ Warning
+                    </div>
+                    <div className="text-white text-sm font-mono font-medium">
+                      {hoursToLabel(warnTime)} → {hoursToLabel(policy.breach_hours)}
+                    </div>
+                    <div className="text-slate-500 text-[10px] mt-0.5">
+                      {dangerPct}% of SLA window
+                    </div>
+                  </div>
+                  <div className="bg-red-500/8 border border-red-500/20 rounded-lg px-3 py-2.5">
+                    <div className="text-red-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5">
+                      🔴 Breach
+                    </div>
+                    <div className="text-white text-sm font-mono font-medium">
+                      After {hoursToLabel(policy.breach_hours)}
+                    </div>
+                    <div className="text-slate-500 text-[10px] mt-0.5">
+                      Regulatory deadline
+                    </div>
+                  </div>
                 </div>
+
+                {/* Visual zone bar */}
+                <SLAProgressBar warnPct={policy.warn_pct} />
 
                 {/* Edit form */}
                 {isEditing && (
@@ -156,6 +218,11 @@ export default function SLAPage() {
                           min={1}
                           className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
+                        {editForm.warning_hours > 0 && (
+                          <p className="text-amber-400/70 text-[10px] mt-1 font-mono">
+                            = {hoursToLabel(editForm.warning_hours)}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-slate-400 text-xs mb-1 block">Breach Hours</label>
@@ -166,6 +233,11 @@ export default function SLAPage() {
                           min={1}
                           className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
+                        {editForm.breach_hours > 0 && (
+                          <p className="text-red-400/70 text-[10px] mt-1 font-mono">
+                            = {hoursToLabel(editForm.breach_hours)}
+                          </p>
+                        )}
                       </div>
                       <div>
                         <label className="text-slate-400 text-xs mb-1 block">Warning % of Breach</label>
@@ -177,6 +249,11 @@ export default function SLAPage() {
                           max={95}
                           className="w-full bg-[#080e1a] border border-slate-600 text-white text-sm rounded-lg px-3 py-2 focus:outline-none focus:border-cyan-500"
                         />
+                        {editForm.breach_hours > 0 && editForm.warn_pct > 0 && (
+                          <p className="text-slate-500 text-[10px] mt-1 font-mono">
+                            warn at {hoursToLabel(Math.round(editForm.breach_hours * editForm.warn_pct / 100))}
+                          </p>
+                        )}
                       </div>
                     </div>
                     {saveError && <p className="text-red-400 text-xs mb-3">{saveError}</p>}
