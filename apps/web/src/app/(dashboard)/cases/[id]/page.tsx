@@ -786,7 +786,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         </div>
 
         {/* Right column — Context Panel (35%) */}
-        <div className="space-y-4">
+        <div className="space-y-4 pb-16">
           {/* Details card with inline assignee */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 space-y-4">
             <div>
