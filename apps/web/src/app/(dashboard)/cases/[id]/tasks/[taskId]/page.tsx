@@ -511,9 +511,12 @@ export default function TaskDetailPage({
 
           <button
             onClick={() => router.push(`/cases/${caseId}/tasks`)}
-            className="w-full text-slate-500 hover:text-slate-300 text-xs py-2 text-left transition-colors flex items-center gap-1"
+            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-700 bg-[#131f30] hover:bg-slate-700/30 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-xs font-medium transition-all"
           >
-            ← All tasks
+            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
+            </svg>
+            All tasks
           </button>
         </div>
       </div>

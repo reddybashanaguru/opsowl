@@ -176,11 +176,10 @@ export function TaskCard({
                     if (!isDone && !isCancelled) setShowPicker((s) => !s);
                   }}
                   disabled={isDone || isCancelled}
-                  title={isDone || isCancelled ? undefined : "Change assignee"}
-                  className={`flex items-center gap-1 transition-colors ${
+                  className={`flex items-center gap-1.5 rounded-full px-2 py-0.5 border transition-all ${
                     task.assigned_to
-                      ? "text-slate-400 hover:text-slate-200"
-                      : "text-slate-600 italic hover:text-cyan-500"
+                      ? "border-slate-600/60 bg-slate-700/30 text-slate-300 hover:border-cyan-500/40 hover:bg-cyan-500/5 hover:text-slate-200"
+                      : "border-dashed border-slate-600 bg-slate-800/50 text-slate-500 hover:border-cyan-500/60 hover:bg-cyan-500/5 hover:text-cyan-400"
                   }`}
                 >
                   <svg
@@ -195,7 +194,7 @@ export function TaskCard({
                   <span>{task.assigned_to ? task.assigned_to.full_name : "Assign…"}</span>
                   {!isDone && !isCancelled && (
                     <svg
-                      className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-50 transition-opacity"
+                      className="w-2.5 h-2.5 flex-shrink-0 opacity-0 group-hover:opacity-70 transition-opacity"
                       fill="none"
                       viewBox="0 0 16 16"
                       stroke="currentColor"
