@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from "react";
 
-const ACCEPTED_TYPES = ".pdf,.docx,.doc,.xlsx,.xls,.txt,.png,.jpg,.jpeg";
+const ACCEPTED_TYPES = ".pdf,.docx,.doc,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg";
 const MAX_SIZE_MB = 50;
 
 interface Props {
@@ -84,7 +84,7 @@ export function DocumentUploadZone({ onUpload, uploading = false }: Props) {
             {uploading ? "Uploading…" : "Drop a file here or click to browse"}
           </p>
           <p className="text-xs text-slate-500 mt-0.5">
-            PDF, DOCX, XLSX, TXT, PNG, JPG — up to {MAX_SIZE_MB} MB
+            PDF, DOCX, XLSX, CSV, TXT, PNG, JPG — up to {MAX_SIZE_MB} MB
           </p>
         </div>
       </div>
