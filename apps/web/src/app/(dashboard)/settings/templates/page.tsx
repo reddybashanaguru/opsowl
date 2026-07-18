@@ -286,6 +286,13 @@ function TemplateForm({
   );
 }
 
+const taskPriorityDot: Record<string, string> = {
+  critical: "bg-red-400",
+  high:     "bg-amber-400",
+  medium:   "bg-blue-400",
+  low:      "bg-green-400",
+};
+
 function TemplateCard({
   template,
   onEdit,
@@ -296,29 +303,30 @@ function TemplateCard({
   onDelete: (id: string) => void;
 }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-4 space-y-3">
+      {/* Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-white font-medium truncate">{template.name}</span>
-            <span
-              className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${
-                template.is_active
-                  ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
-                  : "text-slate-500 bg-slate-500/10 border-slate-500/30"
-              }`}
-            >
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
+            <span className="text-white font-medium">{template.name}</span>
+            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${
+              template.is_active
+                ? "text-emerald-400 bg-emerald-400/10 border-emerald-400/30"
+                : "text-slate-500 bg-slate-500/10 border-slate-500/30"
+            }`}>
               {template.is_active ? "active" : "inactive"}
             </span>
-            <span
-              className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${priorityColor[template.priority] ?? priorityColor.medium}`}
-            >
+            <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.5 rounded border uppercase ${priorityColor[template.priority] ?? priorityColor.medium}`}>
               {template.priority}
             </span>
           </div>
           {template.description_skeleton && (
-            <p className="text-slate-400 text-xs line-clamp-2">{template.description_skeleton}</p>
+            <p className={`text-slate-400 text-xs ${expanded ? "" : "line-clamp-2"}`}>
+              {template.description_skeleton}
+            </p>
           )}
         </div>
         <div className="flex gap-2 shrink-0 items-center">
@@ -334,16 +342,14 @@ function TemplateCard({
               <button onClick={() => setConfirmDelete(false)} className="text-[10px] text-slate-400 hover:text-slate-200 px-1.5 py-0.5 rounded border border-slate-700 transition-colors">✕</button>
             </>
           ) : (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              className="text-slate-400 hover:text-red-400 text-xs transition-colors"
-            >
+            <button onClick={() => setConfirmDelete(true)} className="text-slate-400 hover:text-red-400 text-xs transition-colors">
               Delete
             </button>
           )}
         </div>
       </div>
 
+      {/* Tags */}
       {template.tags?.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {template.tags.map((tag) => (
@@ -354,23 +360,56 @@ function TemplateCard({
         </div>
       )}
 
+      {/* Task count + expand toggle */}
       <div className="flex items-center justify-between text-xs text-slate-500">
         <span>{template.tasks?.length ?? 0} task{template.tasks?.length !== 1 ? "s" : ""} in checklist</span>
-        <span>Updated {new Date(template.updated_at).toLocaleDateString()}</span>
+        <div className="flex items-center gap-3">
+          <span>Updated {new Date(template.updated_at).toLocaleDateString()}</span>
+          {template.tasks?.length > 0 && (
+            <button
+              onClick={() => setExpanded((v) => !v)}
+              className="text-cyan-400/70 hover:text-cyan-400 transition-colors font-medium"
+            >
+              {expanded ? "▲ Collapse" : "▼ View all tasks"}
+            </button>
+          )}
+        </div>
       </div>
 
+      {/* Task list */}
       {template.tasks?.length > 0 && (
-        <div className="border-t border-slate-700/60 pt-2 space-y-1">
-          {template.tasks.slice(0, 3).map((t, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs text-slate-400">
-              <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />
-              <span className="truncate">{t.title}</span>
+        <div className="border-t border-slate-700/60 pt-3 space-y-1">
+          {(expanded ? template.tasks : template.tasks.slice(0, 3)).map((t, i) => (
+            <div key={i} className={`flex gap-3 text-xs ${expanded ? "py-2 border-b border-slate-700/40 last:border-0" : "py-0.5"}`}>
+              <div className="flex items-start gap-2 shrink-0 pt-0.5">
+                <span className="text-slate-600 w-4 text-right">{i + 1}.</span>
+                {expanded && (
+                  <span className={`w-1.5 h-1.5 rounded-full mt-1 shrink-0 ${taskPriorityDot[t.priority] ?? taskPriorityDot.medium}`} />
+                )}
+                {!expanded && <span className="w-4 h-4 rounded-full border border-slate-600 shrink-0" />}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className={`${expanded ? "text-slate-200 font-medium" : "text-slate-400 truncate"}`}>
+                  {t.title}
+                </div>
+                {expanded && t.description && (
+                  <p className="text-slate-500 text-[11px] mt-1 leading-relaxed">{t.description}</p>
+                )}
+              </div>
+              {expanded && (
+                <span className={`shrink-0 text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded self-start ${priorityColor[t.priority] ?? priorityColor.medium}`}>
+                  {t.priority}
+                </span>
+              )}
             </div>
           ))}
-          {template.tasks.length > 3 && (
-            <div className="text-xs text-slate-500 pl-6">
-              +{template.tasks.length - 3} more…
-            </div>
+          {!expanded && template.tasks.length > 3 && (
+            <button
+              onClick={() => setExpanded(true)}
+              className="text-xs text-cyan-400/60 hover:text-cyan-400 pl-6 transition-colors"
+            >
+              +{template.tasks.length - 3} more — click to expand
+            </button>
           )}
         </div>
       )}
