@@ -158,7 +158,10 @@ func (h *Handler) GetCases(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to get cases")
 		return
 	}
-	response.JSON(w, http.StatusOK, cases)
+	if cases == nil {
+		cases = []SubjectCaseRef{}
+	}
+	response.JSON(w, http.StatusOK, map[string]any{"cases": cases})
 }
 
 func (h *Handler) GetFilings(w http.ResponseWriter, r *http.Request) {

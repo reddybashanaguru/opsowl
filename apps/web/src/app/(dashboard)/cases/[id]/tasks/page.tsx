@@ -34,6 +34,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   const hasRole = useAuthStore((s) => s.hasRole);
 
   const [showCreate, setShowCreate] = useState(false);
+  const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [taskTab, setTaskTab] = useState<"active" | "done">("active");
   const [filterPriority, setFilterPriority] = useState<string>("");
   const [overdueOnly, setOverdueOnly] = useState(false);
@@ -118,6 +119,23 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     },
     onError: (err) => {
       setCreateError(err instanceof APIError ? err.message : "Failed to create task");
+    },
+  });
+
+  const { data: templatesData } = useQuery<{ templates: { id: string; name: string; tasks: { title: string }[] }[] }>({
+    queryKey: ["templates-active"],
+    queryFn: () => api.get("/api/v1/templates?active=true"),
+    staleTime: 60_000,
+    enabled: showTemplatePicker,
+  });
+  const templates = templatesData?.templates ?? [];
+
+  const applyTemplateMutation = useMutation({
+    mutationFn: (templateId: string) =>
+      api.post(`/api/v1/templates/${templateId}/apply`, { case_id: caseId }),
+    onSuccess: () => {
+      setShowTemplatePicker(false);
+      refetch();
     },
   });
 
@@ -259,12 +277,24 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
             )}
           </div>
           {canCreate && (
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5"
-            >
-              <span className="text-lg leading-none">+</span> New Task
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowTemplatePicker(true)}
+                className="border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white font-medium px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="2" y="2" width="12" height="12" rx="2" />
+                  <path strokeLinecap="round" d="M5 6h6M5 9h4" />
+                </svg>
+                Apply Template
+              </button>
+              <button
+                onClick={() => setShowCreate(true)}
+                className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+              >
+                <span className="text-lg leading-none">+</span> New Task
+              </button>
+            </div>
           )}
         </div>
 
@@ -538,6 +568,62 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
               <button
                 onClick={() => { setShowCreate(false); setCreateError(""); setNewTitleTouched(false); }}
                 className="text-slate-400 hover:text-slate-200 px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Apply Template modal ─────────────────────────────────────── */}
+      {showTemplatePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="bg-[#0d1f35] border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="flex items-center justify-between p-5 border-b border-slate-700/60">
+              <div>
+                <h2 className="text-white font-semibold text-base">Apply Case Template</h2>
+                <p className="text-slate-400 text-xs mt-0.5">Tasks from the template will be added to this case</p>
+              </div>
+              <button
+                onClick={() => setShowTemplatePicker(false)}
+                className="text-slate-500 hover:text-slate-300 transition-colors p-1"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 space-y-2 max-h-96 overflow-y-auto">
+              {templates.length === 0 ? (
+                <p className="text-slate-500 text-sm text-center py-8">No active templates found. Create one in Admin → Templates.</p>
+              ) : (
+                templates.map((tmpl) => (
+                  <div
+                    key={tmpl.id}
+                    className="flex items-center justify-between bg-[#131f30] hover:bg-slate-700/30 border border-slate-700/60 hover:border-slate-600 rounded-xl p-4 transition-colors group"
+                  >
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-medium">{tmpl.name}</p>
+                      <p className="text-slate-500 text-xs mt-0.5">{tmpl.tasks.length} task{tmpl.tasks.length !== 1 ? "s" : ""}</p>
+                    </div>
+                    <button
+                      onClick={() => applyTemplateMutation.mutate(tmpl.id)}
+                      disabled={applyTemplateMutation.isPending}
+                      className="ml-4 flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      {applyTemplateMutation.isPending ? "Applying…" : "Apply"}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-4 pt-2 border-t border-slate-700/60">
+              <button
+                onClick={() => setShowTemplatePicker(false)}
+                className="w-full text-slate-400 hover:text-slate-200 text-sm py-2 transition-colors"
               >
                 Cancel
               </button>

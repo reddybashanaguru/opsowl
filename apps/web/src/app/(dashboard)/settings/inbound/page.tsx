@@ -77,7 +77,7 @@ function SourceForm({ onClose, onSuccess }: { onClose: () => void; onSuccess: (s
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6 w-full max-w-md">
-        <h2 className="text-slate-100 font-semibold mb-4">New Inbound Source</h2>
+        <h2 className="text-slate-100 font-semibold mb-4">New Webhook Source</h2>
         {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
         <div className="space-y-3">
           <div>
@@ -572,10 +572,9 @@ export default function InboundPage() {
     }>
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-100 mb-1">Inbound Integrations</h1>
+        <h1 className="text-2xl font-bold text-slate-100 mb-1">Inbound Webhooks</h1>
         <p className="text-slate-400 text-sm">
-          Register external systems that can push events into OpsOwl and automatically create cases.
-          Each source gets a unique signing secret for request authentication.
+          Register external systems that push alerts into OpsOwl via webhook. Each source gets a unique endpoint URL and signing secret for secure authentication.
         </p>
       </div>
 

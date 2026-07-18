@@ -92,6 +92,7 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		Priority:        priority,
 		DueDate:         nullTime(req.DueDate),
 		IsAiSuggested:   req.IsAISuggested,
+		TemplateID:      nullUUID(req.TemplateID),
 	})
 	if err != nil {
 		return nil, err
@@ -657,7 +658,7 @@ func (s *Service) toResponseFromRow(row db.GetTaskByIDRow, commentCount int64) *
 		}
 		assignee = ref
 	}
-	return &TaskResponse{
+	r := &TaskResponse{
 		ID:                row.ID,
 		CaseID:            row.CaseID,
 		Title:             row.Title,
@@ -677,6 +678,11 @@ func (s *Service) toResponseFromRow(row db.GetTaskByIDRow, commentCount int64) *
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
 	}
+	if row.TemplateID.Valid {
+		id := row.TemplateID.UUID
+		r.TemplateID = &id
+	}
+	return r
 }
 
 func (s *Service) toResponseFromListRow(row db.ListTasksByCaseRow) TaskResponse {
@@ -697,6 +703,10 @@ func (s *Service) toResponseFromListRow(row db.ListTasksByCaseRow) TaskResponse 
 		CreatedBy:         UserRef{ID: row.CreatedBy, FullName: row.CreatedByName},
 		CreatedAt:         row.CreatedAt,
 		UpdatedAt:         row.UpdatedAt,
+	}
+	if row.TemplateID.Valid {
+		id := row.TemplateID.UUID
+		r.TemplateID = &id
 	}
 	if row.AssignedTo.Valid {
 		ref := &UserRef{ID: row.AssignedTo.UUID}

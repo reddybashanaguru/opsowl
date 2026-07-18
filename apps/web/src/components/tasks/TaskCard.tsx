@@ -18,6 +18,7 @@ export interface Task {
   is_blocked: boolean;
   playbook_step_order: number;
   depends_on_step: number;
+  template_id?: string | null;
   due_date: string | null;
   completed_at: string | null;
   sort_order: number;
@@ -162,8 +163,11 @@ export function TaskCard({
               </span>
             )}
             {task.playbook_step_order > 0 && (
-              <span className="inline-flex items-center rounded-full border border-violet-500/30 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400">
-                Step {task.playbook_step_order}
+              <span className="inline-flex items-center gap-1 rounded-full border border-violet-500/40 bg-violet-500/10 px-2 py-0.5 text-xs font-medium text-violet-400">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.8}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h10M3 8h7M3 12h5" />
+                </svg>
+                Playbook · Step {task.playbook_step_order}
               </span>
             )}
             {task.depends_on_step > 0 && (
@@ -174,6 +178,15 @@ export function TaskCard({
                   <path strokeLinecap="round" d="M6.5 8h3" />
                 </svg>
                 After Step {task.depends_on_step}
+              </span>
+            )}
+            {task.template_id && task.playbook_step_order === 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={1.8}>
+                  <rect x="2" y="2" width="12" height="12" rx="2" />
+                  <path strokeLinecap="round" d="M5 6h6M5 9h4" />
+                </svg>
+                Template
               </span>
             )}
             {task.is_ai_suggested && (

@@ -425,9 +425,9 @@ function AssignmentRulesContent() {
     <div className="p-8">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-100 mb-1">Assignment Rules</h1>
+          <h1 className="text-2xl font-bold text-slate-100 mb-1">Case Routing Rules</h1>
           <p className="text-slate-400 text-sm">
-            Automatically route new cases to users or teams. Rules are evaluated in priority order — first match wins.
+            Automatically assign new cases to the right investigator or team. Rules are evaluated in priority order — first match wins.
           </p>
         </div>
         <button

@@ -78,10 +78,10 @@ func (q *Queries) CountTasksByCase(ctx context.Context, arg CountTasksByCasePara
 }
 
 const createTask = `-- name: CreateTask :one
-INSERT INTO tasks (case_id, created_by, assigned_to, timeline_event_id, title, description, priority, due_date, is_ai_suggested, sort_order)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9,
+INSERT INTO tasks (case_id, created_by, assigned_to, timeline_event_id, title, description, priority, due_date, is_ai_suggested, template_id, sort_order)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
     COALESCE((SELECT MAX(sort_order) + 1 FROM tasks WHERE case_id = $1 AND deleted_at IS NULL), 0))
-RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at, search_vector
+RETURNING id, case_id, created_by, assigned_to, timeline_event_id, title, description, status, priority, due_date, completed_at, is_overdue, is_ai_suggested, sort_order, created_at, updated_at, deleted_at, search_vector, template_id
 `
 
 type CreateTaskParams struct {
@@ -94,6 +94,7 @@ type CreateTaskParams struct {
 	Priority        TaskPriority   `json:"priority"`
 	DueDate         sql.NullTime   `json:"due_date"`
 	IsAiSuggested   bool           `json:"is_ai_suggested"`
+	TemplateID      uuid.NullUUID  `json:"template_id"`
 }
 
 func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, error) {
@@ -107,6 +108,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		arg.Priority,
 		arg.DueDate,
 		arg.IsAiSuggested,
+		arg.TemplateID,
 	)
 	var i Task
 	err := row.Scan(
@@ -128,6 +130,7 @@ func (q *Queries) CreateTask(ctx context.Context, arg CreateTaskParams) (Task, e
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.TemplateID,
 	)
 	return i, err
 }
@@ -205,7 +208,7 @@ func (q *Queries) FlagOverdueTasks(ctx context.Context) ([]FlagOverdueTasksRow, 
 
 const getTaskByID = `-- name: GetTaskByID :one
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step, t.template_id,
     u_creator.full_name AS created_by_name,
     u_creator.email     AS created_by_email,
     u_assign.full_name  AS assigned_to_name,
@@ -238,6 +241,7 @@ type GetTaskByIDRow struct {
 	SearchVector      interface{}    `json:"search_vector"`
 	PlaybookStepOrder int32          `json:"playbook_step_order"`
 	DependsOnStep     int32          `json:"depends_on_step"`
+	TemplateID        uuid.NullUUID  `json:"template_id"`
 	CreatedByName     string         `json:"created_by_name"`
 	CreatedByEmail    string         `json:"created_by_email"`
 	AssignedToName    sql.NullString `json:"assigned_to_name"`
@@ -269,6 +273,7 @@ func (q *Queries) GetTaskByID(ctx context.Context, id uuid.UUID) (GetTaskByIDRow
 		&i.SearchVector,
 		&i.PlaybookStepOrder,
 		&i.DependsOnStep,
+		&i.TemplateID,
 		&i.CreatedByName,
 		&i.CreatedByEmail,
 		&i.AssignedToName,
@@ -452,7 +457,7 @@ func (q *Queries) ListTaskComments(ctx context.Context, arg ListTaskCommentsPara
 
 const listTasksByCase = `-- name: ListTasksByCase :many
 SELECT
-    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step,
+    t.id, t.case_id, t.created_by, t.assigned_to, t.timeline_event_id, t.title, t.description, t.status, t.priority, t.due_date, t.completed_at, t.is_overdue, t.is_ai_suggested, t.sort_order, t.created_at, t.updated_at, t.deleted_at, t.search_vector, t.playbook_step_order, t.depends_on_step, t.template_id,
     u_creator.full_name AS created_by_name,
     u_assign.full_name  AS assigned_to_name,
     u_assign.email      AS assigned_to_email
@@ -504,6 +509,7 @@ type ListTasksByCaseRow struct {
 	SearchVector      interface{}    `json:"search_vector"`
 	PlaybookStepOrder int32          `json:"playbook_step_order"`
 	DependsOnStep     int32          `json:"depends_on_step"`
+	TemplateID        uuid.NullUUID  `json:"template_id"`
 	CreatedByName     string         `json:"created_by_name"`
 	AssignedToName    sql.NullString `json:"assigned_to_name"`
 	AssignedToEmail   sql.NullString `json:"assigned_to_email"`
@@ -549,6 +555,7 @@ func (q *Queries) ListTasksByCase(ctx context.Context, arg ListTasksByCaseParams
 			&i.SearchVector,
 			&i.PlaybookStepOrder,
 			&i.DependsOnStep,
+			&i.TemplateID,
 			&i.CreatedByName,
 			&i.AssignedToName,
 			&i.AssignedToEmail,

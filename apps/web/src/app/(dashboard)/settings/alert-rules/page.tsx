@@ -104,7 +104,7 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-lg p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-        <h2 className="text-slate-100 font-semibold text-lg mb-4">New Routing Rule</h2>
+        <h2 className="text-slate-100 font-semibold text-lg mb-4">New Triage Rule</h2>
         {serverError && <div className="mb-3 text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">{serverError}</div>}
         <div className="space-y-3">
 
@@ -264,9 +264,9 @@ export default function AlertRulesPage() {
         <div>
           <div className="flex items-center gap-2.5">
             <Filter className="w-5 h-5 text-cyan-400" />
-            <h1 className="text-xl font-bold text-slate-100">Alert Routing Rules</h1>
+            <h1 className="text-xl font-bold text-slate-100">Alert Triage Rules</h1>
           </div>
-          <p className="text-slate-400 text-sm mt-1">Define how incoming alerts are triaged and routed. Rules are evaluated in sort_order ascending — first match wins.</p>
+          <p className="text-slate-400 text-sm mt-1">Define how incoming alerts are scored, prioritised and routed to the right case type. Rules are evaluated in priority order — first match wins.</p>
         </div>
         <button onClick={() => setCreating(true)}
           className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors">

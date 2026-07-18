@@ -30,6 +30,10 @@ import {
   Library,
   ShieldCheck,
   ChevronRight,
+  Scale,
+  Zap,
+  Sliders,
+  Send,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -46,7 +50,55 @@ type NavItem = {
   exact?: boolean;
 };
 
-function NavLink({ item }: { item: NavItem }) {
+type AdminGroup = {
+  heading: string;
+  icon: React.ElementType;
+  colorClass: "violet" | "amber" | "cyan" | "blue" | "emerald";
+  items: NavItem[];
+};
+
+const GROUP_COLORS: Record<
+  AdminGroup["colorClass"],
+  { icon: string; activeIcon: string; bg: string; activeBg: string; headingActive: string }
+> = {
+  violet: {
+    icon: "text-violet-400/60",
+    activeIcon: "text-violet-300",
+    bg: "bg-violet-500/10",
+    activeBg: "bg-violet-500/20",
+    headingActive: "text-violet-300",
+  },
+  amber: {
+    icon: "text-amber-400/60",
+    activeIcon: "text-amber-300",
+    bg: "bg-amber-500/10",
+    activeBg: "bg-amber-500/20",
+    headingActive: "text-amber-300",
+  },
+  cyan: {
+    icon: "text-cyan-400/60",
+    activeIcon: "text-cyan-300",
+    bg: "bg-cyan-500/10",
+    activeBg: "bg-cyan-500/20",
+    headingActive: "text-cyan-300",
+  },
+  blue: {
+    icon: "text-blue-400/60",
+    activeIcon: "text-blue-300",
+    bg: "bg-blue-500/10",
+    activeBg: "bg-blue-500/20",
+    headingActive: "text-blue-300",
+  },
+  emerald: {
+    icon: "text-emerald-400/60",
+    activeIcon: "text-emerald-300",
+    bg: "bg-emerald-500/10",
+    activeBg: "bg-emerald-500/20",
+    headingActive: "text-emerald-300",
+  },
+};
+
+function NavLink({ item, compact }: { item: NavItem; compact?: boolean }) {
   const pathname = usePathname();
   const isActive = item.exact ? pathname === item.href : pathname.startsWith(item.href);
   const Icon = item.icon;
@@ -56,11 +108,11 @@ function NavLink({ item }: { item: NavItem }) {
       className={`flex items-center gap-3 px-4 py-2 text-sm transition-colors border-l-2 ${
         isActive
           ? "text-cyan-400 bg-cyan-400/8 border-cyan-400"
-          : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-[#1a2a40]"
+          : "text-slate-400 border-transparent hover:text-slate-200 hover:bg-white/[0.035]"
       }`}
     >
-      <Icon size={16} className="flex-shrink-0" />
-      {item.label}
+      <Icon size={15} className="flex-shrink-0" />
+      <span className="truncate">{item.label}</span>
     </Link>
   );
 }
@@ -86,74 +138,79 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   });
 
   const nav: NavItem[] = [
-    { label: "Dashboard",           href: "/dashboard",  icon: LayoutDashboard },
-    { label: cfg.cases_label,        href: "/cases",      icon: FolderKanban },
-    { label: cfg.tasks_label,        href: "/tasks",      icon: CheckSquare },
-    { label: cfg.documents_label,    href: "/documents",  icon: FileText },
-    { label: "Alert Queue",          href: "/alerts",     icon: BellRing },
-    { label: "Subjects",             href: "/subjects",   icon: UserSearch },
-    { label: "Search",               href: "/search",     icon: Search },
+    { label: "Dashboard",        href: "/dashboard", icon: LayoutDashboard },
+    { label: cfg.cases_label,    href: "/cases",     icon: FolderKanban },
+    { label: cfg.tasks_label,    href: "/tasks",     icon: CheckSquare },
+    { label: cfg.documents_label,href: "/documents", icon: FileText },
+    { label: "Alert Queue",      href: "/alerts",    icon: BellRing },
+    { label: "Subjects",         href: "/subjects",  icon: UserSearch },
+    { label: "Search",           href: "/search",    icon: Search },
   ];
 
   const insightsNav: NavItem[] = [
-    { label: "Workload",             href: "/workload",   icon: BarChart2 },
-    { label: "MLRO Dashboard",       href: "/analytics",  icon: BarChart },
+    { label: "Workload",       href: "/workload",  icon: BarChart2 },
+    { label: "MLRO Dashboard", href: "/analytics", icon: BarChart },
   ];
 
-  const adminGroups: { heading: string; icon: React.ElementType; items: NavItem[] }[] = [
+  const adminGroups: AdminGroup[] = [
     {
-      heading: "Access & Governance",
+      heading: "Users & Access",
       icon: ShieldCheck,
+      colorClass: "violet",
       items: [
-        { label: "Users",           href: "/users",               icon: Users },
-        { label: "API Keys",        href: "/settings/api-keys",   icon: KeyRound },
-        { label: "Audit Logs",      href: "/audit",               icon: ScrollText },
+        { label: "Team Members", href: "/users",             icon: Users },
+        { label: "API Keys",     href: "/settings/api-keys", icon: KeyRound },
       ],
     },
     {
-      heading: "Compliance",
-      icon: CheckSquare,
+      heading: "Compliance & Audit",
+      icon: Scale,
+      colorClass: "amber",
       items: [
-        { label: cfg.sla_label + " Policies", href: "/sla",               icon: Timer },
-        { label: "Data Retention",            href: "/settings/retention", icon: Archive },
-        { label: "AI Governance",             href: "/settings/ai-act",    icon: ShieldCheck },
+        { label: "Response SLAs",  href: "/sla",               icon: Timer },
+        { label: "Data Retention", href: "/settings/retention", icon: Archive },
+        { label: "AI Oversight",   href: "/settings/ai-act",    icon: ShieldCheck },
+        { label: "Audit Trail",    href: "/audit",              icon: ScrollText },
       ],
     },
     {
       heading: "Alert Pipeline",
-      icon: BellRing,
+      icon: Zap,
+      colorClass: "cyan",
       items: [
-        { label: "Alert Sources",       href: "/settings/alert-sources",    icon: Plug },
-        { label: "Alert Rules",         href: "/settings/alert-rules",      icon: Filter },
-        { label: "Inbound Integrations",href: "/settings/inbound",          icon: Inbox },
-        { label: "Auto-Assignment",     href: "/settings/assignment-rules", icon: Shuffle },
+        { label: "Alert Sources",    href: "/settings/alert-sources", icon: Plug },
+        { label: "Inbound Webhooks", href: "/settings/inbound",       icon: Inbox },
+        { label: "Triage Rules",     href: "/settings/alert-rules",   icon: Filter },
       ],
     },
     {
-      heading: "Investigation Config",
-      icon: Library,
+      heading: "Investigation Workflows",
+      icon: Sliders,
+      colorClass: "blue",
       items: [
-        { label: "Templates",       href: "/settings/templates",   icon: LayoutTemplate },
-        { label: "Playbooks",       href: "/settings/playbooks",   icon: BookOpen },
-        { label: "FATF Typologies", href: "/settings/typologies",  icon: Library },
+        { label: "Case Routing",    href: "/settings/assignment-rules", icon: Shuffle },
+        { label: "Case Templates",  href: "/settings/templates",        icon: LayoutTemplate },
+        { label: "Playbooks",       href: "/settings/playbooks",        icon: BookOpen },
+        { label: "Risk Typologies", href: "/settings/typologies",       icon: Library },
       ],
     },
     {
-      heading: "Reports & Webhooks",
-      icon: BarChart3,
+      heading: "Reports & Notifications",
+      icon: Send,
+      colorClass: "emerald",
       items: [
-        { label: "Scheduled Reports", href: "/settings/reports",   icon: BarChart3 },
-        { label: "Webhooks",          href: "/settings/webhooks",  icon: Webhook },
+        { label: "Automated Reports",  href: "/settings/reports",  icon: BarChart3 },
+        { label: "Outbound Webhooks",  href: "/settings/webhooks", icon: Webhook },
       ],
     },
   ];
 
   const roleColor: Record<string, string> = {
-    super_admin: "text-red-400",
-    admin:       "text-amber-400",
-    manager:     "text-violet-400",
-    analyst:     "text-cyan-400",
-    viewer:      "text-slate-400",
+    super_admin: "text-red-400 bg-red-500/10",
+    admin:       "text-amber-400 bg-amber-500/10",
+    manager:     "text-violet-400 bg-violet-500/10",
+    analyst:     "text-cyan-400 bg-cyan-500/10",
+    viewer:      "text-slate-400 bg-slate-500/10",
   };
 
   const roleLabel: Record<string, string> = {
@@ -164,12 +221,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     viewer:      "Viewer",
   };
 
+  const initials = user?.full_name
+    ?.split(" ")
+    .slice(0, 2)
+    .map(n => n[0])
+    .join("")
+    .toUpperCase() ?? "?";
+
   return (
     <ProtectedRoute>
       {showHelp && <KeyboardShortcutsHelp onClose={() => setShowHelp(false)} />}
       <div className="h-screen bg-[#080e1a] flex overflow-hidden">
         {/* Sidebar */}
-        <aside className="w-60 min-w-60 bg-[#0b1525] border-r border-[#1e3050] flex flex-col overflow-y-auto flex-shrink-0">
+        <aside className="w-64 min-w-64 bg-[#0b1525] border-r border-[#1e3050] flex flex-col overflow-y-auto flex-shrink-0">
           {/* Brand */}
           <div className="px-5 py-5 border-b border-[#1e3050]">
             <div className="flex items-center gap-2.5">
@@ -179,7 +243,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div>
                 <div className="text-cyan-400 font-bold text-base tracking-tight leading-none">OpsOwl AI</div>
                 <div className="text-slate-500 text-[10px] uppercase tracking-widest mt-0.5">
-                  Fincrime Investigations & Operations
+                  Fincrime Investigations
                 </div>
               </div>
             </div>
@@ -187,79 +251,89 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* Nav */}
           <nav className="flex-1 py-4 overflow-y-auto">
-            <div className="px-4 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-              Workspace
+            {/* Workspace */}
+            <div className="px-4 mb-2 flex items-center gap-2">
+              <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Workspace</span>
+              <div className="flex-1 h-px bg-[#1e3050]/60" />
             </div>
             {nav.map((item) => <NavLink key={item.href} item={item} />)}
 
+            {/* Intelligence */}
             <RBACGate allowedRoles={["manager", "admin", "super_admin"]}>
-              <div className="px-4 mt-5 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Intelligence
+              <div className="px-4 mt-5 mb-2 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Intelligence</span>
+                <div className="flex-1 h-px bg-[#1e3050]/60" />
               </div>
               {insightsNav.map((item) => <NavLink key={item.href} item={item} />)}
             </RBACGate>
 
+            {/* Administration */}
             <RBACGate allowedRoles={["admin", "super_admin"]}>
-              <div className="px-4 mt-5 mb-2 text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                Administration
+              <div className="px-4 mt-5 mb-2 flex items-center gap-2">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Administration</span>
+                <div className="flex-1 h-px bg-[#1e3050]/60" />
               </div>
-              {adminGroups.map((group, gi) => {
-                const hasActive = group.items.some(item =>
-                  item.exact ? pathname === item.href : pathname.startsWith(item.href)
-                );
-                const isOpen = hasActive || openGroups.has(group.heading);
-                const GroupIcon = group.icon;
-                return (
-                  <div key={group.heading} className={gi > 0 ? "border-t border-[#1e3050]/50 mt-0.5" : "mt-0.5"}>
-                    <button
-                      onClick={() => {
-                        if (hasActive) return;
-                        setOpenGroups(prev => {
-                          const next = new Set(prev);
-                          next.has(group.heading) ? next.delete(group.heading) : next.add(group.heading);
-                          return next;
-                        });
-                      }}
-                      className={`w-full flex items-center gap-2 px-3 py-2 text-left group/grp transition-colors rounded-sm ${
-                        hasActive
-                          ? "bg-cyan-500/10"
-                          : "hover:bg-slate-700/25"
-                      }`}
-                    >
-                      <GroupIcon
-                        size={13}
-                        className={`flex-shrink-0 transition-colors ${
-                          hasActive ? "text-cyan-400" : "text-slate-600 group-hover/grp:text-slate-400"
+
+              <div className="space-y-0.5">
+                {adminGroups.map((group) => {
+                  const hasActive = group.items.some(item =>
+                    item.exact ? pathname === item.href : pathname.startsWith(item.href)
+                  );
+                  const isOpen = hasActive || openGroups.has(group.heading);
+                  const GroupIcon = group.icon;
+                  const colors = GROUP_COLORS[group.colorClass];
+
+                  return (
+                    <div key={group.heading}>
+                      <button
+                        onClick={() => {
+                          if (hasActive) return;
+                          setOpenGroups(prev => {
+                            const next = new Set(prev);
+                            next.has(group.heading) ? next.delete(group.heading) : next.add(group.heading);
+                            return next;
+                          });
+                        }}
+                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left group/grp transition-colors rounded-sm ${
+                          hasActive ? "bg-white/[0.04]" : "hover:bg-white/[0.03]"
                         }`}
-                      />
-                      <span className={`flex-1 truncate text-[11px] font-semibold uppercase tracking-wide transition-colors ${
-                        hasActive ? "text-cyan-400" : "text-slate-500 group-hover/grp:text-slate-300"
-                      }`}>
-                        {group.heading}
-                      </span>
-                      <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full transition-colors ${
-                        hasActive
-                          ? "text-cyan-400/60 bg-cyan-500/10"
-                          : "text-slate-700 bg-slate-800/60 group-hover/grp:text-slate-500"
-                      }`}>
-                        {group.items.length}
-                      </span>
-                      <ChevronRight
-                        size={11}
-                        className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""} ${
-                          hasActive ? "text-cyan-400/60" : "text-slate-700 group-hover/grp:text-slate-500"
-                        }`}
-                      />
-                    </button>
-                    {isOpen && (
-                      <div className="ml-3 border-l border-[#1e3050]/70 mb-1">
-                        {group.items.map((item) => <NavLink key={item.href} item={item} />)}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-              <div className="border-t border-[#1e3050]/50 mt-0.5 pt-0.5">
+                      >
+                        {/* Colored icon pill */}
+                        <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
+                          hasActive ? colors.activeBg : `${colors.bg} opacity-70 group-hover/grp:opacity-100`
+                        }`}>
+                          <GroupIcon
+                            size={11}
+                            className={`transition-colors ${hasActive ? colors.activeIcon : colors.icon}`}
+                          />
+                        </div>
+
+                        <span className={`flex-1 truncate text-[10.5px] font-semibold uppercase tracking-widest transition-colors ${
+                          hasActive ? colors.headingActive : "text-slate-500 group-hover/grp:text-slate-300"
+                        }`}>
+                          {group.heading}
+                        </span>
+
+                        <ChevronRight
+                          size={10}
+                          className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""} ${
+                            hasActive ? "text-slate-400" : "text-slate-700 group-hover/grp:text-slate-500"
+                          }`}
+                        />
+                      </button>
+
+                      {isOpen && (
+                        <div className="ml-3 border-l border-[#1e3050]/70 mb-0.5 mt-0.5">
+                          {group.items.map((item) => <NavLink key={item.href} item={item} />)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Settings — standalone at bottom of admin */}
+              <div className="mt-2 pt-2 border-t border-[#1e3050]/50">
                 <NavLink item={{ label: "Settings", href: "/settings", icon: Settings, exact: true }} />
               </div>
             </RBACGate>
@@ -267,16 +341,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {/* User footer */}
           <div className="px-4 py-4 border-t border-[#1e3050]">
-            <div className="flex items-center justify-between mb-1">
-              <div className="text-slate-200 text-sm font-medium truncate flex-1 min-w-0">{user?.full_name}</div>
+            <div className="flex items-center gap-3 mb-2">
+              {/* Avatar */}
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-slate-700 to-slate-800 border border-slate-600/60 flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-slate-300">{initials}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-slate-200 text-sm font-medium truncate leading-tight">{user?.full_name}</div>
+                <span className={`inline-block mt-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                  roleColor[user?.role ?? "viewer"] ?? "text-slate-400 bg-slate-500/10"
+                }`}>
+                  {roleLabel[user?.role ?? "viewer"] ?? user?.role}
+                </span>
+              </div>
               <NotificationBell />
-            </div>
-            <div className={`text-xs mt-0.5 ${roleColor[user?.role ?? "viewer"] ?? "text-slate-400"}`}>
-              {roleLabel[user?.role ?? "viewer"] ?? user?.role}
             </div>
             <button
               onClick={() => logout()}
-              className="mt-3 flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-300 transition-colors"
+              className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-400 transition-colors"
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

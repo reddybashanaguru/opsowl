@@ -446,8 +446,8 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		apikeys.RegisterRoutes(r, apiKeysHandler, s.jwtMgr)
 
 		// Data retention admin
-		r.With(auth.JWTValidate(s.jwtMgr), auth.RequireRole("admin", "super_admin")).
-			Get("/retention/policies", func(w http.ResponseWriter, req *http.Request) {
+		r.With(auth.JWTValidate(s.jwtMgr), auth.RequireRole("admin", "super_admin")).Route("/retention", func(r chi.Router) {
+			r.Get("/policies", func(w http.ResponseWriter, req *http.Request) {
 				policies, err := retention.ListPolicies(req.Context(), s.sqlDB)
 				if err != nil {
 					response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not load retention policies")
@@ -455,6 +455,74 @@ func (s *Server) setupRoutes(ctx context.Context) {
 				}
 				response.JSON(w, http.StatusOK, map[string]any{"policies": policies})
 			})
+			r.Post("/policies", func(w http.ResponseWriter, req *http.Request) {
+				var body struct {
+					ResourceType  string `json:"resource_type"`
+					RetentionDays int    `json:"retention_days"`
+					PurgeEnabled  bool   `json:"purge_enabled"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil || body.ResourceType == "" || body.RetentionDays <= 0 {
+					response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "resource_type and retention_days are required")
+					return
+				}
+				_, err := s.sqlDB.ExecContext(req.Context(),
+					`INSERT INTO data_retention_policies (resource_type, retention_days, purge_enabled)
+					 VALUES ($1, $2, $3)
+					 ON CONFLICT (resource_type) DO UPDATE
+					 SET retention_days=$2, purge_enabled=$3, updated_at=NOW()`,
+					body.ResourceType, body.RetentionDays, body.PurgeEnabled,
+				)
+				if err != nil {
+					msg := err.Error()
+					if strings.Contains(msg, "PMLA_RETENTION_FLOOR") {
+						response.Err(w, http.StatusUnprocessableEntity, "PMLA_FLOOR", "retention_days must be ≥ 3650 days (10 years) for this resource type under PMLA Section 12")
+						return
+					}
+					response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not save policy")
+					return
+				}
+				policies, _ := retention.ListPolicies(req.Context(), s.sqlDB)
+				response.JSON(w, http.StatusOK, map[string]any{"policies": policies})
+			})
+			r.Put("/policies/{resource_type}", func(w http.ResponseWriter, req *http.Request) {
+				rt := chi.URLParam(req, "resource_type")
+				var body struct {
+					RetentionDays *int  `json:"retention_days"`
+					PurgeEnabled  *bool `json:"purge_enabled"`
+				}
+				if err := json.NewDecoder(req.Body).Decode(&body); err != nil {
+					response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+					return
+				}
+				if body.RetentionDays == nil && body.PurgeEnabled == nil {
+					response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "nothing to update")
+					return
+				}
+				if body.RetentionDays != nil && *body.RetentionDays <= 0 {
+					response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "retention_days must be positive")
+					return
+				}
+				_, err := s.sqlDB.ExecContext(req.Context(),
+					`UPDATE data_retention_policies
+					 SET retention_days = COALESCE($2, retention_days),
+					     purge_enabled  = COALESCE($3, purge_enabled),
+					     updated_at     = NOW()
+					 WHERE resource_type = $1`,
+					rt, body.RetentionDays, body.PurgeEnabled,
+				)
+				if err != nil {
+					msg := err.Error()
+					if strings.Contains(msg, "PMLA_RETENTION_FLOOR") {
+						response.Err(w, http.StatusUnprocessableEntity, "PMLA_FLOOR", "retention_days must be ≥ 3650 days (10 years) for this resource type under PMLA Section 12")
+						return
+					}
+					response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "could not update policy")
+					return
+				}
+				policies, _ := retention.ListPolicies(req.Context(), s.sqlDB)
+				response.JSON(w, http.StatusOK, map[string]any{"policies": policies})
+			})
+		})
 	})
 }
 

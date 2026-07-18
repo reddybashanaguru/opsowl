@@ -28,6 +28,7 @@ type CreateTaskRequest struct {
 	AssignedTo      *uuid.UUID       `json:"assigned_to"`
 	TimelineEventID *uuid.UUID       `json:"timeline_event_id"`
 	IsAISuggested   bool             `json:"is_ai_suggested"`
+	TemplateID      *uuid.UUID       `json:"template_id"`
 }
 
 type UpdateTaskRequest struct {
@@ -82,6 +83,7 @@ type TaskResponse struct {
 	IsBlocked         bool             `json:"is_blocked"`
 	PlaybookStepOrder int32            `json:"playbook_step_order,omitempty"`
 	DependsOnStep     int32            `json:"depends_on_step,omitempty"`
+	TemplateID        *uuid.UUID       `json:"template_id,omitempty"`
 	SortOrder         int32            `json:"sort_order"`
 	DueDate           *time.Time       `json:"due_date"`
 	CompletedAt       *time.Time       `json:"completed_at"`

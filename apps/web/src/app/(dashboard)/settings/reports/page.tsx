@@ -354,9 +354,9 @@ export default function ReportSchedulesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-semibold text-slate-100">Scheduled Email Reports</h1>
+          <h1 className="text-lg font-semibold text-slate-100">Automated Reports</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            Send automated case summary emails to managers and compliance teams on a schedule.
+            Schedule recurring case summary emails to managers and compliance teams — daily, weekly or monthly.
           </p>
         </div>
         <button onClick={() => setShowForm(true)}

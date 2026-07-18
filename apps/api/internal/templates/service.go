@@ -155,6 +155,7 @@ func (s *Service) Apply(ctx context.Context, templateID, caseID uuid.UUID, claim
 			Title:       t.Title,
 			Description: t.Description,
 			Priority:    prio,
+			TemplateID:  &templateID,
 		})
 	}
 	return nil

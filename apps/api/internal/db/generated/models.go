@@ -909,6 +909,7 @@ type Task struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 	DeletedAt       sql.NullTime   `json:"deleted_at"`
 	SearchVector    interface{}    `json:"search_vector"`
+	TemplateID      uuid.NullUUID  `json:"template_id"`
 }
 
 type TaskComment struct {
