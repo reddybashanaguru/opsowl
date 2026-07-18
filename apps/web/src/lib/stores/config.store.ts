@@ -2,9 +2,17 @@
 
 import { create } from "zustand";
 
+export type CaseNumberFormat =
+  | "prefix_year_seq"        // DCN-2026-00014
+  | "prefix_seq"             // DCN-00014
+  | "prefix_yearmonth_seq"   // DCN-202607-00014
+  | "prefix_year_seq_slash"; // DCN/2026/00014
+
 export interface AppConfig {
   app_name: string;
   industry: string;
+  case_prefix: string;
+  case_number_format: CaseNumberFormat;
   case_label: string;
   cases_label: string;
   task_label: string;
@@ -57,6 +65,8 @@ const UAE_IDS = [
 export const DEFAULT_CONFIG: AppConfig = {
   app_name: "OpsOwl AI",
   industry: "financial_services",
+  case_prefix: "OWL",
+  case_number_format: "prefix_year_seq",
   case_label: "Case",
   cases_label: "Cases",
   task_label: "Task",

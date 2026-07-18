@@ -60,17 +60,25 @@ type Service struct {
 	assignEng       AssignmentEngine
 	playbookApplier PlaybookApplier
 	uboGate         UBOGate
-	casePrefix      string // configurable prefix for case numbers, e.g. "OWL", "DCN"
+	casePrefix         string // configurable prefix for case numbers, e.g. "OWL", "DCN"
+	caseNumberFormat   string // "prefix_year_seq" | "prefix_seq" | "prefix_yearmonth_seq" | "prefix_year_seq_slash"
 }
 
 func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
 	repo.WithDB(sqlDB)
-	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter, casePrefix: "OWL"}
+	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter, casePrefix: "OWL", caseNumberFormat: "prefix_year_seq"}
 }
 
 func (s *Service) WithCasePrefix(prefix string) *Service {
 	if prefix != "" {
 		s.casePrefix = prefix
+	}
+	return s
+}
+
+func (s *Service) WithCaseNumberFormat(format string) *Service {
+	if format != "" {
+		s.caseNumberFormat = format
 	}
 	return s
 }
@@ -81,7 +89,18 @@ func (s *Service) nextCaseNumber(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("case number sequence: %w", err)
 	}
-	return fmt.Sprintf("%s-%d-%05d", s.casePrefix, time.Now().Year(), seq), nil
+	now := time.Now()
+	p := s.casePrefix
+	switch s.caseNumberFormat {
+	case "prefix_seq":
+		return fmt.Sprintf("%s-%05d", p, seq), nil
+	case "prefix_yearmonth_seq":
+		return fmt.Sprintf("%s-%d%02d-%05d", p, now.Year(), int(now.Month()), seq), nil
+	case "prefix_year_seq_slash":
+		return fmt.Sprintf("%s/%d/%05d", p, now.Year(), seq), nil
+	default: // "prefix_year_seq"
+		return fmt.Sprintf("%s-%d-%05d", p, now.Year(), seq), nil
+	}
 }
 
 func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {

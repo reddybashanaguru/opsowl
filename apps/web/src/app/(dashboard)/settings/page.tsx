@@ -820,6 +820,83 @@ export default function SettingsPage() {
           </section>
         )}
 
+        {/* ── Case Number Format ── */}
+        <section className="mb-8">
+          <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-1">
+            Case Number
+          </h2>
+          <p className="text-slate-500 text-xs mb-5">
+            Configure the prefix and format for auto-generated case reference numbers. Changes apply to new cases only.
+          </p>
+
+          <div className="grid grid-cols-2 gap-6 mb-5">
+            <div>
+              <label className="block text-xs text-slate-400 mb-1">Case prefix</label>
+              <input
+                type="text"
+                value={form.case_prefix ?? "OWL"}
+                onChange={(e) => handleField("case_prefix", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 8))}
+                placeholder="e.g. DCN, OWL, INV"
+                maxLength={8}
+                className="w-full bg-slate-800 border border-slate-600 rounded px-3 py-1.5 text-sm text-slate-100 placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors font-mono"
+              />
+              <p className="text-slate-600 text-[10px] mt-0.5">2–8 uppercase letters / numbers. e.g. DCN, HDFC, FIN</p>
+            </div>
+            <div>
+              <label className="block text-xs text-slate-400 mb-1.5">Preview</label>
+              <div className="flex items-center h-[34px] px-3 rounded bg-slate-900 border border-slate-700 font-mono text-sm text-cyan-400 select-all">
+                {(() => {
+                  const p = form.case_prefix || "OWL";
+                  const y = new Date().getFullYear();
+                  const m = String(new Date().getMonth() + 1).padStart(2, "0");
+                  const n = "00042";
+                  switch (form.case_number_format) {
+                    case "prefix_seq": return `${p}-${n}`;
+                    case "prefix_yearmonth_seq": return `${p}-${y}${m}-${n}`;
+                    case "prefix_year_seq_slash": return `${p}/${y}/${n}`;
+                    default: return `${p}-${y}-${n}`;
+                  }
+                })()}
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs text-slate-400 mb-2">Format</label>
+            <div className="grid grid-cols-2 gap-3">
+              {(
+                [
+                  { value: "prefix_year_seq",       label: "PREFIX-YYYY-NNNNN",  example: "DCN-2026-00042",     desc: "Year + sequence — recommended" },
+                  { value: "prefix_seq",             label: "PREFIX-NNNNN",       example: "DCN-00042",          desc: "Sequence only — compact" },
+                  { value: "prefix_yearmonth_seq",   label: "PREFIX-YYYYMM-NNNNN",example: "DCN-202607-00042",   desc: "Month-level granularity" },
+                  { value: "prefix_year_seq_slash",  label: "PREFIX/YYYY/NNNNN",  example: "DCN/2026/00042",     desc: "Slash-separated — some FIU formats" },
+                ] as const
+              ).map(({ value, label, example, desc }) => {
+                const active = (form.case_number_format ?? "prefix_year_seq") === value;
+                return (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => handleField("case_number_format", value)}
+                    className={`text-left px-4 py-3 rounded-lg border transition-all ${
+                      active
+                        ? "border-cyan-500/60 bg-cyan-500/[0.07] ring-1 ring-cyan-500/30"
+                        : "border-slate-700 bg-slate-800/50 hover:border-slate-600"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className={`w-3 h-3 rounded-full border-2 flex-shrink-0 ${active ? "border-cyan-400 bg-cyan-400" : "border-slate-600"}`} />
+                      <span className={`text-xs font-mono font-semibold ${active ? "text-cyan-300" : "text-slate-300"}`}>{label}</span>
+                    </div>
+                    <span className="block text-[10px] font-mono text-slate-500 mb-0.5 pl-5">{example.replace("DCN", form.case_prefix || "OWL")}</span>
+                    <span className="block text-[10px] text-slate-600 pl-5">{desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </section>
+
         <section className="mb-8">
           <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-widest mb-4">
             Workspace Terminology

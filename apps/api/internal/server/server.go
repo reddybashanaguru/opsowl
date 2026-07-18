@@ -244,6 +244,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		casesRepo := cases.NewRepository(s.queries).WithDB(s.sqlDB)
 		casesSvc := cases.NewService(casesRepo, s.sqlDB, timelineEmitter).
 			WithCasePrefix(func() string { if v := os.Getenv("CASE_PREFIX"); v != "" { return v }; return "OWL" }()).
+			WithCaseNumberFormat(func() string { if v := os.Getenv("CASE_NUMBER_FORMAT"); v != "" { return v }; return "prefix_year_seq" }()).
 			WithAssignmentEngine(assignEngineAdapter{assignEng})
 		casesHandler := cases.NewHandler(casesSvc)
 		cases.RegisterRoutes(r, casesHandler, s.jwtMgr)

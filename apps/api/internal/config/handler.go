@@ -16,10 +16,11 @@ import (
 // DEPLOYMENT_COUNTRY env vars and injected by the GET handler. They are never
 // persisted to the DB so a client cannot override them.
 type AppConfig struct {
-	AppName        string `json:"app_name"`
-	Industry       string `json:"industry"`
-	CasePrefix     string `json:"case_prefix"`  // prefix for auto-generated case numbers, e.g. "OWL", "DCN", "HDFC"
-	CaseLabel      string `json:"case_label"`
+	AppName            string `json:"app_name"`
+	Industry           string `json:"industry"`
+	CasePrefix         string `json:"case_prefix"`          // prefix for auto-generated case numbers, e.g. "OWL", "DCN"
+	CaseNumberFormat   string `json:"case_number_format"`   // "prefix_year_seq" | "prefix_seq" | "prefix_yearmonth_seq" | "prefix_year_seq_slash"
+	CaseLabel          string `json:"case_label"`
 	CasesLabel     string `json:"cases_label"`
 	TaskLabel      string `json:"task_label"`
 	TasksLabel     string `json:"tasks_label"`
@@ -101,6 +102,7 @@ func genericDefaults(jurisdiction, country string) AppConfig {
 		AppName:           "OpsOwl AI",
 		Industry:          envOr("INDUSTRY", "financial_services"),
 		CasePrefix:        envOr("CASE_PREFIX", "OWL"),
+		CaseNumberFormat:  envOr("CASE_NUMBER_FORMAT", "prefix_year_seq"),
 		CaseLabel:         envOr("CASE_LABEL", "Case"),
 		CasesLabel:        envOr("CASES_LABEL", "Cases"),
 		TaskLabel:         envOr("TASK_LABEL", "Task"),
@@ -138,23 +140,24 @@ func genericDefaults(jurisdiction, country string) AppConfig {
 
 func indiaDefaults() AppConfig {
 	return AppConfig{
-		AppName:        "OpsOwl AI",
-		Industry:       envOr("INDUSTRY", "financial_services"),
-		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
-		CaseLabel:      envOr("CASE_LABEL", "Case"),
-		CasesLabel:     envOr("CASES_LABEL", "Cases"),
-		TaskLabel:      envOr("TASK_LABEL", "Task"),
-		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
-		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
-		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
-		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
-		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
-		SLALabel:       envOr("SLA_LABEL", "SLA"),
-		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
-		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
-		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
-		NoteLabel:      envOr("NOTE_LABEL", "Note"),
-		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		AppName:          "OpsOwl AI",
+		Industry:         envOr("INDUSTRY", "financial_services"),
+		CasePrefix:       envOr("CASE_PREFIX", "OWL"),
+		CaseNumberFormat: envOr("CASE_NUMBER_FORMAT", "prefix_year_seq"),
+		CaseLabel:        envOr("CASE_LABEL", "Case"),
+		CasesLabel:       envOr("CASES_LABEL", "Cases"),
+		TaskLabel:        envOr("TASK_LABEL", "Task"),
+		TasksLabel:       envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:    envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel:   envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel:   envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel:   envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:         envOr("SLA_LABEL", "SLA"),
+		CommsLabel:       envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:     envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:    envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:        envOr("NOTE_LABEL", "Note"),
+		NotesLabel:       envOr("NOTES_LABEL", "Notes"),
 		StrLabel:          envOr("STR_LABEL", "STR"),
 		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "FIU Reference"),
 		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "FIU-IND"),
@@ -181,23 +184,24 @@ func indiaDefaults() AppConfig {
 
 func uaeDefaults() AppConfig {
 	return AppConfig{
-		AppName:        "OpsOwl AI",
-		Industry:       envOr("INDUSTRY", "financial_services"),
-		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
-		CaseLabel:      envOr("CASE_LABEL", "Case"),
-		CasesLabel:     envOr("CASES_LABEL", "Cases"),
-		TaskLabel:      envOr("TASK_LABEL", "Task"),
-		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
-		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
-		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
-		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
-		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
-		SLALabel:       envOr("SLA_LABEL", "SLA"),
-		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
-		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
-		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
-		NoteLabel:      envOr("NOTE_LABEL", "Note"),
-		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		AppName:          "OpsOwl AI",
+		Industry:         envOr("INDUSTRY", "financial_services"),
+		CasePrefix:       envOr("CASE_PREFIX", "OWL"),
+		CaseNumberFormat: envOr("CASE_NUMBER_FORMAT", "prefix_year_seq"),
+		CaseLabel:        envOr("CASE_LABEL", "Case"),
+		CasesLabel:       envOr("CASES_LABEL", "Cases"),
+		TaskLabel:        envOr("TASK_LABEL", "Task"),
+		TasksLabel:       envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:    envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel:   envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel:   envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel:   envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:         envOr("SLA_LABEL", "SLA"),
+		CommsLabel:       envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:     envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:    envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:        envOr("NOTE_LABEL", "Note"),
+		NotesLabel:       envOr("NOTES_LABEL", "Notes"),
 		StrLabel:          envOr("STR_LABEL", "STR"),
 		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "UAE FIU Reference"),
 		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", "UAE FIU"),
@@ -260,23 +264,24 @@ func euDefaults(country string) AppConfig {
 	}
 
 	return AppConfig{
-		AppName:        "OpsOwl AI",
-		Industry:       envOr("INDUSTRY", "financial_services"),
-		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
-		CaseLabel:      envOr("CASE_LABEL", "Case"),
-		CasesLabel:     envOr("CASES_LABEL", "Cases"),
-		TaskLabel:      envOr("TASK_LABEL", "Task"),
-		TasksLabel:     envOr("TASKS_LABEL", "Tasks"),
-		DocumentLabel:  envOr("DOCUMENT_LABEL", "Document"),
-		DocumentsLabel: envOr("DOCUMENTS_LABEL", "Documents"),
-		RiskScoreLabel: envOr("RISK_SCORE_LABEL", "Risk Score"),
-		RiskLevelLabel: envOr("RISK_LEVEL_LABEL", "Risk Level"),
-		SLALabel:       envOr("SLA_LABEL", "SLA"),
-		CommsLabel:     envOr("COMMS_LABEL", "Communications"),
-		AnalystLabel:   envOr("ANALYST_LABEL", "Analyst"),
-		TimelineLabel:  envOr("TIMELINE_LABEL", "Timeline"),
-		NoteLabel:      envOr("NOTE_LABEL", "Note"),
-		NotesLabel:     envOr("NOTES_LABEL", "Notes"),
+		AppName:          "OpsOwl AI",
+		Industry:         envOr("INDUSTRY", "financial_services"),
+		CasePrefix:       envOr("CASE_PREFIX", "OWL"),
+		CaseNumberFormat: envOr("CASE_NUMBER_FORMAT", "prefix_year_seq"),
+		CaseLabel:        envOr("CASE_LABEL", "Case"),
+		CasesLabel:       envOr("CASES_LABEL", "Cases"),
+		TaskLabel:        envOr("TASK_LABEL", "Task"),
+		TasksLabel:       envOr("TASKS_LABEL", "Tasks"),
+		DocumentLabel:    envOr("DOCUMENT_LABEL", "Document"),
+		DocumentsLabel:   envOr("DOCUMENTS_LABEL", "Documents"),
+		RiskScoreLabel:   envOr("RISK_SCORE_LABEL", "Risk Score"),
+		RiskLevelLabel:   envOr("RISK_LEVEL_LABEL", "Risk Level"),
+		SLALabel:         envOr("SLA_LABEL", "SLA"),
+		CommsLabel:       envOr("COMMS_LABEL", "Communications"),
+		AnalystLabel:     envOr("ANALYST_LABEL", "Analyst"),
+		TimelineLabel:    envOr("TIMELINE_LABEL", "Timeline"),
+		NoteLabel:        envOr("NOTE_LABEL", "Note"),
+		NotesLabel:       envOr("NOTES_LABEL", "Notes"),
 		StrLabel:          envOr("STR_LABEL", "STR"),
 		StrReferenceLabel: envOr("STR_REFERENCE_LABEL", "AMLA Reference"),
 		StrRegulatorLabel: envOr("STR_REGULATOR_LABEL", regulatorLabel),
@@ -371,6 +376,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	defaults := deploymentDefaults()
 	if cfg.CasePrefix == "" {
 		cfg.CasePrefix = defaults.CasePrefix
+	}
+	if cfg.CaseNumberFormat == "" {
+		cfg.CaseNumberFormat = defaults.CaseNumberFormat
 	}
 	if cfg.LocalCurrency == "" {
 		cfg.LocalCurrency = defaults.LocalCurrency
