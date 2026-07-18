@@ -200,7 +200,7 @@ export function CaseSubNav({ caseId, activeTab, action, caseNumber }: Props) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v4m0 3h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
         </svg>
         <p className="text-xs text-amber-200/80 font-medium">
-          <span className="text-amber-400 font-bold">*</span> Unresolved items will block case closure
+          <span className="text-amber-400 font-bold">*</span> Open findings or incomplete tasks will block case closure
         </p>
       </div>
     </div>
