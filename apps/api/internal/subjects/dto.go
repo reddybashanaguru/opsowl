@@ -14,6 +14,7 @@ var (
 	ErrNameRequired    = errors.New("canonical name is required")
 	ErrAlreadyLinked   = errors.New("subject already linked to this case")
 	ErrNotLinked       = errors.New("subject is not linked to this case")
+	ErrCaseClosed      = errors.New("case is closed — subjects cannot be linked to a closed case")
 )
 
 // --- Request types ---

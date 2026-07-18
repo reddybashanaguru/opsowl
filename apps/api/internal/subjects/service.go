@@ -81,6 +81,9 @@ func (s *Service) ResolveOrCreate(ctx context.Context, claims *auth.Claims, req 
 }
 
 func (s *Service) LinkToCase(ctx context.Context, claims *auth.Claims, caseID, subjectID uuid.UUID, role string) error {
+	if s.repo.IsCaseClosed(ctx, caseID) {
+		return ErrCaseClosed
+	}
 	// Ensure subject exists
 	if _, err := s.repo.GetByID(ctx, subjectID, defaultOrgID); err != nil {
 		return err

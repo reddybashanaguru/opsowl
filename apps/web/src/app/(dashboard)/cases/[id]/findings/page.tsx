@@ -217,6 +217,8 @@ function CreateFindingForm({ caseId, onSuccess, onCancel }: {
 
 // ── Link Evidence Form ────────────────────────────────────────────────────────
 
+interface DocOption { id: string; original_filename: string; processing_status: string; }
+
 function LinkEvidenceForm({ caseId, findingId, onSuccess, onCancel }: {
   caseId: string;
   findingId: string;
@@ -228,11 +230,19 @@ function LinkEvidenceForm({ caseId, findingId, onSuccess, onCancel }: {
   });
   const qc = useQueryClient();
 
+  const { data: docsData } = useQuery<{ data: DocOption[] }>({
+    queryKey: ["documents", caseId],
+    queryFn: () => api.getList<DocOption>(`/api/v1/cases/${caseId}/documents?limit=100`),
+    enabled: form.evidence_type === "document",
+  });
+  const docs = docsData?.data ?? [];
+
   const mutation = useMutation({
     mutationFn: () => api.post(`/api/v1/cases/${caseId}/findings/${findingId}/evidence`, form),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["finding", caseId, findingId] });
       qc.invalidateQueries({ queryKey: ["findings", caseId] });
+      qc.invalidateQueries({ queryKey: ["case-completion", caseId] });
       onSuccess();
     },
   });
@@ -245,7 +255,7 @@ function LinkEvidenceForm({ caseId, findingId, onSuccess, onCancel }: {
           <label className="text-xs text-slate-400">Type</label>
           <select
             value={form.evidence_type}
-            onChange={e => setForm(f => ({ ...f, evidence_type: e.target.value }))}
+            onChange={e => setForm(f => ({ ...f, evidence_type: e.target.value, evidence_id: "" }))}
             className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none"
           >
             {["document","note","ai_log","subject","alert"].map(t => (
@@ -254,17 +264,35 @@ function LinkEvidenceForm({ caseId, findingId, onSuccess, onCancel }: {
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-slate-400">ID (UUID)</label>
-          <input
-            value={form.evidence_id}
-            onChange={e => setForm(f => ({ ...f, evidence_id: e.target.value }))}
-            placeholder="Paste evidence UUID"
-            className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none"
-          />
+          <label className="text-xs text-slate-400">
+            {form.evidence_type === "document" ? "Document" : "ID (UUID)"}
+          </label>
+          {form.evidence_type === "document" ? (
+            <select
+              value={form.evidence_id}
+              onChange={e => setForm(f => ({ ...f, evidence_id: e.target.value }))}
+              className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 focus:outline-none"
+            >
+              <option value="">— select document —</option>
+              {docs.map(d => (
+                <option key={d.id} value={d.id}>
+                  {d.original_filename}
+                  {d.processing_status !== "completed" ? ` (${d.processing_status})` : ""}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <input
+              value={form.evidence_id}
+              onChange={e => setForm(f => ({ ...f, evidence_id: e.target.value }))}
+              placeholder="Paste evidence UUID"
+              className="w-full bg-slate-700 border border-slate-600 rounded px-2 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none"
+            />
+          )}
         </div>
       </div>
       <div className="space-y-1">
-        <label className="text-xs text-slate-400">Citation (e.g. "Page 3, row 7 — wire transfer ₹45L")</label>
+        <label className="text-xs text-slate-400">Citation (e.g. &ldquo;Page 3, row 7 — wire transfer ₹45L&rdquo;)</label>
         <input
           value={form.citation}
           onChange={e => setForm(f => ({ ...f, citation: e.target.value }))}
@@ -295,10 +323,11 @@ function LinkEvidenceForm({ caseId, findingId, onSuccess, onCancel }: {
 
 // ── Finding Card ──────────────────────────────────────────────────────────────
 
-function FindingCard({ finding, caseId, userRole }: {
+function FindingCard({ finding, caseId, userRole, userId }: {
   finding: Finding;
   caseId: string;
   userRole: string;
+  userId: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [showLinkForm, setShowLinkForm] = useState(false);
@@ -307,6 +336,7 @@ function FindingCard({ finding, caseId, userRole }: {
   const sev = severityConfig[finding.severity] ?? severityConfig.low;
   const stat = statusConfig[finding.status] ?? statusConfig.draft;
   const isPrivileged = ["manager","admin","super_admin"].includes(userRole);
+  const isCreator = finding.created_by.id === userId;
 
   const transition = useMutation({
     mutationFn: (action: string) =>
@@ -314,8 +344,11 @@ function FindingCard({ finding, caseId, userRole }: {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["findings", caseId] });
       qc.invalidateQueries({ queryKey: ["findings-summary", caseId] });
+      qc.invalidateQueries({ queryKey: ["case-completion", caseId] });
     },
   });
+
+  const needsEvidence = ["high", "critical"].includes(finding.severity) && finding.evidence_count === 0;
 
   // Fetch full finding with evidence when expanded
   const { data: fullFinding } = useQuery<Finding>({
@@ -417,18 +450,35 @@ function FindingCard({ finding, caseId, userRole }: {
             ) : null
           )}
 
+          {/* Evidence gate warning */}
+          {finding.status === "draft" && needsEvidence && (
+            <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-lg px-3 py-2">
+              <AlertTriangle size={13} className="text-amber-400 shrink-0" />
+              <p className="text-xs text-amber-300">
+                <span className="font-semibold">{finding.severity.toUpperCase()} findings require at least 1 evidence item</span>
+                {" "}before they can be submitted for review. Use <em>Attach Evidence</em> above.
+              </p>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
+            {transition.error && (
+              <p className="w-full text-xs text-red-400 mb-1">
+                {(transition.error as Error).message}
+              </p>
+            )}
             {finding.status === "draft" && (
               <button
                 onClick={(e) => { e.stopPropagation(); transition.mutate("submit"); }}
-                disabled={transition.isPending}
-                className="px-3 py-1.5 bg-blue-700/60 hover:bg-blue-600/60 text-blue-300 text-xs rounded-lg transition-colors"
+                disabled={transition.isPending || needsEvidence}
+                title={needsEvidence ? `Attach evidence first — ${finding.severity} findings require it` : undefined}
+                className="px-3 py-1.5 bg-blue-700/60 hover:bg-blue-600/60 disabled:opacity-40 disabled:cursor-not-allowed text-blue-300 text-xs rounded-lg transition-colors"
               >
                 Submit for Review
               </button>
             )}
-            {finding.status === "under_review" && isPrivileged && (
+            {finding.status === "under_review" && isPrivileged && !isCreator && (
               <>
                 <button
                   onClick={(e) => { e.stopPropagation(); transition.mutate("approve"); }}
@@ -445,6 +495,11 @@ function FindingCard({ finding, caseId, userRole }: {
                   Reject
                 </button>
               </>
+            )}
+            {finding.status === "under_review" && isPrivileged && isCreator && (
+              <span className="text-xs text-amber-400/80 flex items-center gap-1">
+                <AlertTriangle size={11} /> Awaiting a different approver (4-eye rule)
+              </span>
             )}
             {finding.status === "rejected" && finding.created_by.id && (
               <button
@@ -472,6 +527,7 @@ function FindingCard({ finding, caseId, userRole }: {
 export default function CaseFindingsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const user = useAuthStore((s) => s.user);
+  const hasRole = useAuthStore((s) => s.hasRole);
   const [showCreate, setShowCreate] = useState(false);
   const [severityFilter, setSeverityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
@@ -498,6 +554,8 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
   });
 
   const findings = data ?? [];
+  const isCaseClosed = caseData?.status === "closed";
+  const canCreate = hasRole("analyst") && !isCaseClosed;
 
   if (isError) return (
     <PageError title="Failed to load findings" />
@@ -506,127 +564,134 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
   const summary = summaryData;
 
   return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={id}
-        activeTab="findings"
-        caseNumber={caseData?.case_number}
-        action={
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-          >
-            <Plus size={13} /> New Finding
-          </button>
-        }
-      />
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Fixed header */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-3">
+        <CaseSubNav
+          caseId={id}
+          activeTab="findings"
+          caseNumber={caseData?.case_number}
+          action={
+            canCreate ? (
+              <button
+                onClick={() => setShowCreate(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+              >
+                <Plus size={13} /> New Finding
+              </button>
+            ) : undefined
+          }
+        />
 
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-white">Findings</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Documented investigation findings — approved findings carry evidential weight for STR and case closure.</p>
+        <div className="mt-4 mb-3">
+          <h1 className="text-xl font-bold text-white">Findings</h1>
+          <p className="text-slate-400 text-sm mt-0.5">Documented investigation findings — approved findings carry evidential weight for STR and case closure.</p>
+        </div>
+
+        {/* Summary stats */}
+        {summary && (
+          <div className="grid grid-cols-4 gap-3 mb-3">
+            {[
+              { label: "Total", value: summary.total, color: "text-slate-300" },
+              { label: "Approved", value: summary.approved, color: "text-emerald-400" },
+              { label: "Critical", value: summary.critical, color: "text-red-400" },
+              { label: "High", value: summary.high, color: "text-orange-400" },
+            ].map(stat => (
+              <div key={stat.label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-3 text-center">
+                <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Filters */}
+        <div className="flex items-center gap-3">
+          <select
+            value={severityFilter}
+            onChange={e => setSeverityFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
+          >
+            <option value="">All Severities</option>
+            {["critical","high","medium","low"].map(s => (
+              <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
+            ))}
+          </select>
+          <select
+            value={statusFilter}
+            onChange={e => setStatusFilter(e.target.value)}
+            className="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
+          >
+            <option value="">All Statuses</option>
+            {["draft","under_review","approved","rejected","contested"].map(s => (
+              <option key={s} value={s}>{statusConfig[s]?.label ?? s}</option>
+            ))}
+          </select>
+          {(severityFilter || statusFilter) && (
+            <button
+              onClick={() => { setSeverityFilter(""); setStatusFilter(""); }}
+              className="text-xs text-slate-400 hover:text-slate-200"
+            >
+              Clear
+            </button>
+          )}
+          <span className="ml-auto text-xs text-slate-500">{findings.length} finding{findings.length !== 1 ? "s" : ""}</span>
+        </div>
       </div>
 
-      {/* Summary stats */}
-      {summary && (
-        <div className="grid grid-cols-4 gap-3 mb-5">
-          {[
-            { label: "Total", value: summary.total, color: "text-slate-300" },
-            { label: "Approved", value: summary.approved, color: "text-emerald-400" },
-            { label: "Critical", value: summary.critical, color: "text-red-400" },
-            { label: "High", value: summary.high, color: "text-orange-400" },
-          ].map(stat => (
-            <div key={stat.label} className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-3 text-center">
-              <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Create form */}
-      {showCreate && (
-        <div className="mb-5">
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-3 pt-3">
+        {/* Create form */}
+        {showCreate && (
           <CreateFindingForm
             caseId={id}
             onSuccess={() => setShowCreate(false)}
             onCancel={() => setShowCreate(false)}
           />
-        </div>
-      )}
-
-      {/* Filters */}
-      <div className="flex items-center gap-3 mb-4">
-        <select
-          value={severityFilter}
-          onChange={e => setSeverityFilter(e.target.value)}
-          className="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
-        >
-          <option value="">All Severities</option>
-          {["critical","high","medium","low"].map(s => (
-            <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
-          ))}
-        </select>
-        <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
-          className="bg-slate-800 border border-slate-600 rounded-lg px-2.5 py-1.5 text-xs text-slate-300 focus:outline-none"
-        >
-          <option value="">All Statuses</option>
-          {["draft","under_review","approved","rejected","contested"].map(s => (
-            <option key={s} value={s}>{statusConfig[s]?.label ?? s}</option>
-          ))}
-        </select>
-        {(severityFilter || statusFilter) && (
-          <button
-            onClick={() => { setSeverityFilter(""); setStatusFilter(""); }}
-            className="text-xs text-slate-400 hover:text-slate-200"
-          >
-            Clear
-          </button>
         )}
-        <span className="ml-auto text-xs text-slate-500">{findings.length} finding{findings.length !== 1 ? "s" : ""}</span>
+
+        {/* Loading state */}
+        {isLoading && (
+          <>
+            {[1,2,3].map(i => <SkeletonFinding key={i} />)}
+          </>
+        )}
+
+        {/* Empty state */}
+        {!isLoading && findings.length === 0 && !showCreate && (
+          <div className="text-center py-16 space-y-3">
+            <Shield size={40} className="mx-auto text-slate-600" />
+            <p className="text-slate-400 font-medium">No formal findings yet</p>
+            <p className="text-slate-500 text-sm max-w-sm mx-auto">
+              Create a finding to document what suspicious activity you&apos;ve identified
+              and link evidence that supports your conclusion.
+            </p>
+            <button
+              onClick={() => setShowCreate(true)}
+              className="mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition-colors"
+            >
+              Create First Finding
+            </button>
+          </div>
+        )}
+
+        {/* Findings list — sorted by severity then created_at */}
+        {!isLoading && findings.length > 0 && (
+          <>
+            {[...findings]
+              .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 4) - (SEVERITY_ORDER[b.severity] ?? 4))
+              .map(finding => (
+                <FindingCard
+                  key={finding.id}
+                  finding={finding}
+                  caseId={id}
+                  userRole={user?.role ?? "viewer"}
+                  userId={user?.id ?? ""}
+                />
+              ))}
+          </>
+        )}
       </div>
-
-      {/* Loading state */}
-      {isLoading && (
-        <div className="space-y-3">
-          {[1,2,3].map(i => <SkeletonFinding key={i} />)}
-        </div>
-      )}
-
-      {/* Empty state */}
-      {!isLoading && findings.length === 0 && (
-        <div className="text-center py-16 space-y-3">
-          <Shield size={40} className="mx-auto text-slate-600" />
-          <p className="text-slate-400 font-medium">No formal findings yet</p>
-          <p className="text-slate-500 text-sm max-w-sm mx-auto">
-            Create a finding to document what suspicious activity you&apos;ve identified
-            and link evidence that supports your conclusion.
-          </p>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="mt-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white text-sm rounded-lg transition-colors"
-          >
-            Create First Finding
-          </button>
-        </div>
-      )}
-
-      {/* Findings list — sorted by severity then created_at */}
-      {!isLoading && findings.length > 0 && (
-        <div className="space-y-3">
-          {[...findings]
-            .sort((a, b) => (SEVERITY_ORDER[a.severity] ?? 4) - (SEVERITY_ORDER[b.severity] ?? 4))
-            .map(finding => (
-              <FindingCard
-                key={finding.id}
-                finding={finding}
-                caseId={id}
-                userRole={user?.role ?? "viewer"}
-              />
-            ))}
-        </div>
-      )}
     </div>
   );
 }

@@ -16,6 +16,7 @@ var (
 	ErrNotFound   = errors.New("not found")
 	ErrForbidden  = errors.New("forbidden")
 	ErrBadRequest = errors.New("bad request")
+	ErrCaseClosed = errors.New("case is closed — no new notes may be added")
 )
 
 type Service struct {
@@ -75,6 +76,9 @@ type ListMeta struct {
 func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CreateNoteRequest) (NoteResponse, error) {
 	if strings.TrimSpace(req.Content) == "" {
 		return NoteResponse{}, ErrBadRequest
+	}
+	if c, err := s.q.GetCaseByID(ctx, caseID); err == nil && c.Status == db.CaseStatusClosed {
+		return NoteResponse{}, ErrCaseClosed
 	}
 	nt := db.NoteTypeEnumInternal
 	if req.NoteType == "formal" {

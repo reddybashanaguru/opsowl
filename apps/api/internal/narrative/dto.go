@@ -77,25 +77,42 @@ type NarrativeResponse struct {
 // ── AI service wire types ─────────────────────────────────────────────────────
 
 type aiNarrativeFinding struct {
-	Title          string `json:"title"`
-	Category       string `json:"category"`
-	Severity       string `json:"severity"`
-	Description    string `json:"description"`
+	Title           string `json:"title"`
+	Category        string `json:"category"`
+	Severity        string `json:"severity"`
+	Description     string `json:"description"`
 	NarrativeWeight string `json:"narrative_weight"`
 }
 
 type aiNarrativeTransaction struct {
-	TxnRef    string  `json:"txn_ref"`
-	TxnDate   string  `json:"txn_date"`
-	Amount    float64 `json:"amount"`
-	Currency  string  `json:"currency"`
-	TxnType   string  `json:"txn_type"`
-	Channel   string  `json:"channel"`
-	FromName  string  `json:"from_name"`
-	ToName    string  `json:"to_name"`
-	Narration string  `json:"narration"`
-	IsFlagged bool    `json:"is_flagged"`
-	FlagReason string `json:"flag_reason"`
+	TxnRef     string  `json:"txn_ref"`
+	TxnDate    string  `json:"txn_date"`
+	Amount     float64 `json:"amount"`
+	Currency   string  `json:"currency"`
+	TxnType    string  `json:"txn_type"`
+	Channel    string  `json:"channel"`
+	FromName   string  `json:"from_name"`
+	ToName     string  `json:"to_name"`
+	Narration  string  `json:"narration"`
+	IsFlagged  bool    `json:"is_flagged"`
+	FlagReason string  `json:"flag_reason"`
+}
+
+type aiSubjectProfile struct {
+	Name      string `json:"name"`
+	IDType    string `json:"id_type,omitempty"`
+	IDNumber  string `json:"id_number,omitempty"`
+	KYCTier   string `json:"kyc_tier,omitempty"`
+	RiskLevel string `json:"risk_level,omitempty"`
+	IsPEP     bool   `json:"is_pep"`
+	Notes     string `json:"notes,omitempty"`
+}
+
+type aiInsightContext struct {
+	RiskScore          float64  `json:"risk_score"`
+	RiskFactors        []string `json:"risk_factors"`
+	Anomalies          []string `json:"anomalies"`
+	RecommendedActions []string `json:"recommended_actions"`
 }
 
 type aiNarrativeRequest struct {
@@ -108,6 +125,8 @@ type aiNarrativeRequest struct {
 	Findings          []aiNarrativeFinding     `json:"findings"`
 	Transactions      []aiNarrativeTransaction `json:"transactions"`
 	SubjectNames      []string                 `json:"subject_names"`
+	SubjectProfiles   []aiSubjectProfile       `json:"subject_profiles,omitempty"`
+	AIInsights        *aiInsightContext         `json:"ai_insights,omitempty"`
 	InvestigatorNotes string                   `json:"investigator_notes"`
 }
 

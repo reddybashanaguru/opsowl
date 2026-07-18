@@ -163,7 +163,8 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
 
   const caseData = useCaseSummary(id);
 
-  const canWrite = hasRole("analyst");
+  const isCaseClosed = caseData?.status === "closed";
+  const canWrite = hasRole("analyst") && !isCaseClosed;
 
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({

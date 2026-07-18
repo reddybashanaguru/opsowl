@@ -60,6 +60,8 @@ func (h *Handler) Upload(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusUnprocessableEntity, "FILE_TYPE_BLOCKED", err.Error())
 		case errors.Is(err, ErrVirusFound):
 			response.Err(w, http.StatusUnprocessableEntity, "VIRUS_DETECTED", "file rejected: antivirus scan detected a threat")
+		case errors.Is(err, ErrCaseClosed):
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
 		default:
 			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}

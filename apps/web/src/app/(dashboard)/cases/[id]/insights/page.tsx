@@ -112,9 +112,9 @@ function RiskGauge({ score }: { score: number | null }) {
   );
 }
 
-function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Section({ title, children, action, className }: { title: string; children: React.ReactNode; action?: React.ReactNode; className?: string }) {
   return (
-    <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5">
+    <div className={`bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 ${className ?? ""}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-slate-300 text-sm font-semibold uppercase tracking-wider">{title}</h3>
         {action}
@@ -148,10 +148,22 @@ function TagTypologyModal({
     staleTime: 5 * 60 * 1000,
   });
 
+  const [taggingId, setTaggingId] = useState<string | null>(null);
+  const [localTagged, setLocalTagged] = useState<Set<string>>(new Set());
   const tagMutation = useMutation({
     mutationFn: (typologyId: string) =>
       api.post(`/api/v1/cases/${caseId}/typologies`, { typology_id: typologyId, notes: "", is_ai_suggested: false }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
+    onMutate: (typologyId) => {
+      setTaggingId(typologyId);
+      setLocalTagged(prev => new Set([...prev, typologyId]));
+    },
+    onSettled: () => {
+      setTaggingId(null);
+      qc.invalidateQueries({ queryKey: ["case-typologies", caseId] });
+    },
+    onError: (_, typologyId) => {
+      setLocalTagged(prev => { const next = new Set(prev); next.delete(typologyId); return next; });
+    },
   });
 
   const filtered = useMemo(() => {
@@ -200,7 +212,8 @@ function TagTypologyModal({
             <p className="text-slate-500 text-sm text-center py-8">No typologies match your search.</p>
           )}
           {filtered.map(t => {
-            const isTagged = taggedIds.has(t.id);
+            const isTagged = taggedIds.has(t.id) || localTagged.has(t.id);
+            const isPending = taggingId === t.id;
             return (
               <div key={t.id} className="flex items-center gap-3 bg-[#131f30] border border-[#1e3050] rounded-xl px-4 py-3 hover:border-cyan-500/20 transition-colors">
                 <div className="flex-1 min-w-0">
@@ -211,14 +224,15 @@ function TagTypologyModal({
                   <p className="text-slate-500 text-xs line-clamp-1">{t.description}</p>
                 </div>
                 <button
-                  disabled={isTagged || tagMutation.isPending}
+                  disabled={isTagged || isPending}
                   onClick={() => tagMutation.mutate(t.id)}
-                  className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1.5 ${
                     isTagged
                       ? "bg-emerald-500/15 text-emerald-400 cursor-default"
-                      : "bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-50"
+                      : "bg-cyan-600 hover:bg-cyan-500 text-white disabled:opacity-60"
                   }`}
                 >
+                  {isPending && <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />}
                   {isTagged ? "Tagged ✓" : "Tag"}
                 </button>
               </div>
@@ -259,6 +273,7 @@ function MatchedTypologies({
     onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
   });
 
+  const [taggingId, setTaggingId] = useState<string | null>(null);
   const tagMutation = useMutation({
     mutationFn: ({ typologyId, isAI }: { typologyId: string; isAI: boolean }) =>
       api.post(`/api/v1/cases/${caseId}/typologies`, {
@@ -266,7 +281,11 @@ function MatchedTypologies({
         notes: isAI ? "Auto-suggested based on risk factor keyword match" : "",
         is_ai_suggested: isAI,
       }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["case-typologies", caseId] }),
+    onMutate: ({ typologyId }) => setTaggingId(typologyId),
+    onSettled: () => {
+      setTaggingId(null);
+      qc.invalidateQueries({ queryKey: ["case-typologies", caseId] });
+    },
   });
 
   const taggedIds = useMemo(() => new Set(caseTypologies.map(t => t.id)), [caseTypologies]);
@@ -362,9 +381,12 @@ function MatchedTypologies({
                   </div>
                   <button
                     onClick={() => tagMutation.mutate({ typologyId: s.id, isAI: true })}
-                    disabled={tagMutation.isPending}
-                    className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-50"
+                    disabled={taggingId === s.id}
+                    className="flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 text-white transition-colors disabled:opacity-60 flex items-center gap-1.5"
                   >
+                    {taggingId === s.id && (
+                      <div className="w-3 h-3 border border-white/30 border-t-white rounded-full animate-spin" />
+                    )}
                     Tag
                   </button>
                 </div>
@@ -395,6 +417,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   const [polling, setPolling] = useState(false);
   const [pollTimedOut, setPollTimedOut] = useState(false);
   const pollStartRef = useRef<number | null>(null);
+  const prevAnalysedAtRef = useRef<string | null>(null);
 
   const caseData = useCaseSummary(id);
 
@@ -410,7 +433,8 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
 
   useEffect(() => {
     if (!polling) return;
-    if (ins?.ai_available) {
+    // Stop only when a NEW analysis arrives (analysed_at changed from what it was before polling)
+    if (ins?.ai_available && ins?.analysed_at && ins.analysed_at !== prevAnalysedAtRef.current) {
       setPolling(false);
       pollStartRef.current = null;
       return;
@@ -426,6 +450,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   const analyseMutation = useMutation({
     mutationFn: () => api.post<InsightsData>(`/api/v1/cases/${id}/insights/analyse`, {}),
     onSuccess: () => {
+      prevAnalysedAtRef.current = ins?.analysed_at ?? null;
       pollStartRef.current = Date.now();
       setPollTimedOut(false);
       setPolling(true);
@@ -454,150 +479,159 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   }
 
   return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={id}
-        activeTab="insights"
-        caseNumber={caseData?.case_number}
-        action={
-          <button
-            onClick={() => analyseMutation.mutate()}
-            disabled={analysing}
-            className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
-          >
-            {analysing ? (
-              <>
-                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                Analysing…
-              </>
-            ) : ins?.ai_available ? "Re-analyse" : "Run AI Analysis"}
-          </button>
-        }
-      />
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Fixed header — tabs + banners */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-3">
+        <CaseSubNav
+          caseId={id}
+          activeTab="insights"
+          caseNumber={caseData?.case_number}
+          action={
+            <button
+              onClick={() => analyseMutation.mutate()}
+              disabled={analysing}
+              className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+            >
+              {analysing ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Analysing…
+                </>
+              ) : ins?.ai_available ? "Re-analyse" : "Run AI Analysis"}
+            </button>
+          }
+        />
 
-      {polling && (
-        <div className="bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-xl p-4 mb-6 text-sm flex items-center gap-3">
-          <div className="w-4 h-4 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin flex-shrink-0" />
-          AI analysis in progress — results will appear automatically when complete…
-        </div>
-      )}
-      {pollTimedOut && (
-        <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 mb-6 text-sm flex items-center justify-between">
-          <span>Analysis is taking longer than expected. The AI model may be loading — please try again in a moment.</span>
-          <button
-            onClick={() => { setPollTimedOut(false); analyseMutation.mutate(); }}
-            className="ml-4 flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-200 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      )}
-      {!polling && !pollTimedOut && !ins?.ai_available && !ins?.id && (
-        <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-4 mb-6 text-sm">
-          No analysis available yet. Click <strong>Run AI Analysis</strong> to analyse this case.
-        </div>
-      )}
-
-      <div className="grid grid-cols-3 gap-6">
-        {/* Left — gauge + level */}
-        <div className="space-y-4">
-          <Section title="Risk Score">
-            <RiskGauge score={ins?.risk_score ?? null} />
-            <div className={`border rounded-lg text-center py-2 text-sm font-semibold capitalize ${riskColorClass}`}>
-              {ins?.risk_level ?? "Unknown"} Risk
-            </div>
-            {ins?.confidence !== null && ins?.confidence !== undefined && (
-              <p className="text-slate-500 text-xs text-center mt-2">
-                Confidence: {Math.round((ins.confidence) * 100)}%
-              </p>
-            )}
-            {ins?.model_used && (
-              <p className="text-slate-600 text-xs text-center">Model: {ins.model_used}</p>
-            )}
-            {ins?.analysed_at && (
-              <p className="text-slate-600 text-xs text-center">
-                Analysed {new Date(ins.analysed_at).toLocaleString()}
-              </p>
-            )}
-          </Section>
-        </div>
-
-        {/* Right — details */}
-        <div className="col-span-2 space-y-4">
-          <Section title="Risk Factors">
-            {!ins?.risk_factors?.length ? (
-              <p className="text-slate-600 text-sm italic">No risk factors identified.</p>
-            ) : (
-              <ul className="space-y-2">
-                {ins.risk_factors.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-red-400 mt-0.5 flex-shrink-0">▸</span>
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          {/* FATF Typology Intelligence */}
-          <MatchedTypologies caseId={id} riskFactors={ins?.risk_factors ?? []} />
-
-          <Section title="Entities Identified">
-            {!ins?.entities || Object.keys(ins.entities).length === 0 ? (
-              <p className="text-slate-600 text-sm italic">No entities extracted.</p>
-            ) : (
-              <div className="grid grid-cols-3 gap-4">
-                {Object.entries(ins.entities).map(([type, items]) => (
-                  <div key={type}>
-                    <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">{type}</div>
-                    {!items || (items as string[]).length === 0 ? (
-                      <p className="text-slate-600 text-xs italic">None</p>
-                    ) : (
-                      <div className="flex flex-wrap gap-1">
-                        {(items as string[]).map((item, i) => (
-                          <span key={i} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded">
-                            {item}
-                          </span>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </Section>
-
-          <Section title="Anomalies Detected">
-            {!ins?.anomalies?.length ? (
-              <p className="text-slate-600 text-sm italic">No anomalies detected.</p>
-            ) : (
-              <ul className="space-y-2">
-                {ins.anomalies.map((a, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-amber-400 mt-0.5 flex-shrink-0">⚠</span>
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-
-          <Section title="Recommended Actions">
-            {!ins?.recommended_actions?.length ? (
-              <p className="text-slate-600 text-sm italic">No recommendations yet.</p>
-            ) : (
-              <ul className="space-y-2">
-                {ins.recommended_actions.map((a, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-cyan-400 mt-0.5 flex-shrink-0 font-bold">{i + 1}.</span>
-                    {a}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
-        </div>
+        {polling && (
+          <div className="bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-xl p-4 mt-4 text-sm flex items-center gap-3">
+            <div className="w-4 h-4 border-2 border-violet-400/40 border-t-violet-400 rounded-full animate-spin flex-shrink-0" />
+            AI analysis in progress — results will appear automatically when complete…
+          </div>
+        )}
+        {pollTimedOut && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-300 rounded-xl p-4 mt-4 text-sm flex items-center justify-between">
+            <span>Analysis is taking longer than expected. The AI model may be loading — please try again in a moment.</span>
+            <button
+              onClick={() => { setPollTimedOut(false); analyseMutation.mutate(); }}
+              className="ml-4 flex-shrink-0 text-xs font-semibold px-3 py-1.5 rounded-lg bg-red-600/30 hover:bg-red-600/50 text-red-200 transition-colors"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+        {!polling && !pollTimedOut && !ins?.ai_available && !ins?.id && (
+          <div className="bg-amber-500/10 border border-amber-500/30 text-amber-300 rounded-xl p-4 mt-4 text-sm">
+            No analysis available yet. Click <strong>Run AI Analysis</strong> to analyse this case.
+          </div>
+        )}
       </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-6">
+
+      {/* Row 1 — Risk Score + Risk Factors equal height */}
+      <div className="grid grid-cols-3 gap-6 items-stretch">
+        <Section title="Risk Score" className="h-full">
+          <RiskGauge score={ins?.risk_score ?? null} />
+          <div className={`border rounded-lg text-center py-2 text-sm font-semibold capitalize ${riskColorClass}`}>
+            {ins?.risk_level ?? "Unknown"} Risk
+          </div>
+          {ins?.confidence !== null && ins?.confidence !== undefined && (
+            <p className="text-slate-500 text-xs text-center mt-2">
+              Confidence: {Math.round((ins.confidence) * 100)}%
+            </p>
+          )}
+          {ins?.model_used && (
+            <p className="text-slate-600 text-xs text-center">Model: {ins.model_used}</p>
+          )}
+          {ins?.analysed_at && (
+            <p className="text-slate-600 text-xs text-center">
+              Analysed {new Date(ins.analysed_at).toLocaleString()}
+            </p>
+          )}
+        </Section>
+
+        <Section title="Risk Factors" className="col-span-2 h-full">
+          {!ins?.risk_factors?.length ? (
+            <p className="text-slate-600 text-sm italic">No risk factors identified.</p>
+          ) : (
+            <ul className="space-y-2">
+              {ins.risk_factors.map((f, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="text-red-400 mt-0.5 flex-shrink-0">▸</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      </div>
+
+      {/* Row 2 — Anomalies + Recommended Actions side by side */}
+      <div className="grid grid-cols-2 gap-6 items-stretch">
+        <Section title="Anomalies Detected">
+          {!ins?.anomalies?.length ? (
+            <p className="text-slate-600 text-sm italic">No anomalies detected.</p>
+          ) : (
+            <ul className="space-y-2">
+              {ins.anomalies.map((a, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="text-amber-400 mt-0.5 flex-shrink-0">⚠</span>
+                  {a}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+
+        <Section title="Recommended Actions">
+          {!ins?.recommended_actions?.length ? (
+            <p className="text-slate-600 text-sm italic">No recommendations yet.</p>
+          ) : (
+            <ul className="space-y-2">
+              {ins.recommended_actions.map((a, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
+                  <span className="text-cyan-400 mt-0.5 flex-shrink-0 font-bold">{i + 1}.</span>
+                  {a}
+                </li>
+              ))}
+            </ul>
+          )}
+        </Section>
+      </div>
+
+      {/* Row 3 — FATF Typologies full width */}
+      <div>
+        <MatchedTypologies caseId={id} riskFactors={ins?.risk_factors ?? []} />
+      </div>
+
+      {/* Row 4 — Entities full width */}
+      <Section title="Entities Identified">
+        {!ins?.entities || Object.keys(ins.entities).length === 0 ? (
+          <p className="text-slate-600 text-sm italic">No entities extracted.</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            {Object.entries(ins.entities).map(([type, items]) => (
+              <div key={type}>
+                <div className="text-slate-500 text-xs uppercase tracking-wider mb-2">{type}</div>
+                {!items || (items as string[]).length === 0 ? (
+                  <p className="text-slate-600 text-xs italic">None</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1">
+                    {(items as string[]).map((item, i) => (
+                      <span key={i} className="bg-slate-700 text-slate-300 text-xs px-2 py-0.5 rounded">
+                        {item}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
+
+      </div>{/* end scrollable content */}
     </div>
   );
 }

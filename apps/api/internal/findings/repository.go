@@ -416,3 +416,10 @@ func (r *Repository) ApprovedFindings(ctx context.Context, caseID uuid.UUID) ([]
 	return r.List(ctx, caseID, "approved", "", 100, uuid.Nil)
 }
 
+// IsCaseClosed returns true when the case status is 'closed'.
+func (r *Repository) IsCaseClosed(ctx context.Context, caseID uuid.UUID) bool {
+	var status string
+	err := r.db.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&status)
+	return err == nil && status == "closed"
+}
+

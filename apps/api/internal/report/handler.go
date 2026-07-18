@@ -218,7 +218,7 @@ func addCoverPage(pdf *fpdf.Fpdf, c db.GetCaseByIDRow) {
 	pdf.SetTextColor(148, 163, 184) // slate-400
 	pdf.SetFont("Helvetica", "", 9)
 	pdf.SetXY(marginL, 26)
-	pdf.CellFormat(contentW, 6, "OPERATIONS INTELLIGENCE WORKSPACE", "", 0, "L", false, 0, "")
+	pdf.CellFormat(contentW, 6, "AI-NATIVE FINCRIME INVESTIGATIONS WORKSPACE", "", 0, "L", false, 0, "")
 
 	pdf.SetTextColor(241, 245, 249) // slate-100
 	pdf.SetFont("Helvetica", "B", 10)
@@ -575,7 +575,7 @@ func addFooter(pdf *fpdf.Fpdf, c db.GetCaseByIDRow) {
 		{"Case Number", c.CaseNumber},
 		{"Classification", "CONFIDENTIAL — INTERNAL USE ONLY"},
 		{"Report Generated", time.Now().UTC().Format("02 January 2006, 15:04:05 UTC")},
-		{"System", "OpsOwl AI — Operations Intelligence Workspace"},
+		{"System", "OpsOwl AI — AI-Native Fincrime Investigations Workspace"},
 		{"Legal Notice", "This report contains privileged and confidential information. Unauthorised"},
 		{"", "disclosure or reproduction is strictly prohibited."},
 	}

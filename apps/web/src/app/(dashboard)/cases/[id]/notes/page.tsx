@@ -145,7 +145,8 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   }, [createMutation]);
 
   const hasRole = useAuthStore((s) => s.hasRole);
-  const canWrite = hasRole("analyst");
+  const isCaseClosed = caseData?.status === "closed";
+  const canWrite = hasRole("analyst") && !isCaseClosed;
 
   return (
     <div className="p-6">

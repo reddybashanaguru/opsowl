@@ -253,7 +253,7 @@ function detectTxSignals(transactions: unknown[], ctrThreshold: number): TxSigna
     signals.push({
       severity: "low",
       label: "Missing counterparty on wire/transfer",
-      detail: `${wireNoCounterparty.length} transfer transaction(s) lack a destination account number — required for goAML export.`,
+      detail: `${wireNoCounterparty.length} transfer transaction(s) lack a destination account number — required for FINnet/goAML XML export.`,
     });
   }
 
@@ -436,20 +436,20 @@ function PreFlightChecklistPanel({
       {open && (
         <div className="divide-y divide-slate-700/40 bg-slate-900/30">
 
-          {/* ── Section 1: goAML Structural ── */}
+          {/* ── Section 1: Filing Structural Completeness ── */}
           <div>
-            <SectionHeader id="goaml" icon={<span className="text-slate-500">goAML 4.0</span>} label="Structural Completeness" ok={goaml ? goamlOk : null} loadingState={goamlLoading} />
+            <SectionHeader id="goaml" icon={<span className="text-slate-500">FINnet 2.0</span>} label="Structural Completeness" ok={goaml ? goamlOk : null} loadingState={goamlLoading} />
             {activeSection === "goaml" && (
               <div className="px-4 py-3 space-y-1.5 bg-slate-900/40">
                 {goamlLoading && <p className="text-slate-500 text-xs flex items-center gap-1.5"><Loader2 size={11} className="animate-spin" /> Validating fields…</p>}
                 {goaml?.ready && (
                   <p className="text-emerald-400 text-xs flex items-center gap-1.5">
-                    <CheckCircle size={12} /> All required goAML fields present — ready to export XML
+                    <CheckCircle size={12} /> All required fields present — ready to export XML
                   </p>
                 )}
                 {goaml && !goaml.ready && (
                   <div className="space-y-1.5">
-                    <p className="text-amber-400 text-xs font-medium">{goaml.errors.length} field{goaml.errors.length !== 1 ? "s" : ""} missing for goAML export:</p>
+                    <p className="text-amber-400 text-xs font-medium">{goaml.errors.length} field{goaml.errors.length !== 1 ? "s" : ""} missing for XML export:</p>
                     {goaml.errors.map((e) => (
                       <div key={e.field} className="flex items-start gap-1.5 text-xs">
                         <XCircle size={11} className="text-red-400 flex-shrink-0 mt-0.5" />
@@ -593,7 +593,7 @@ function TransactionRows({
       <div className="flex items-center justify-between">
         <label className="text-slate-400 text-xs font-medium">
           Transactions <span className="text-red-400">*</span>
-          <span className="text-slate-600 ml-1">(goAML requires ≥ 1)</span>
+          <span className="text-slate-600 ml-1">(at least 1 required for XML export)</span>
         </label>
         <button
           type="button"
@@ -743,6 +743,8 @@ function FilingCard({
 }) {
   const qc = useQueryClient();
   const cfg = useConfig();
+  // Draft/submitted need attention — start expanded; approved/filed/rejected start collapsed
+  const [expanded, setExpanded] = useState(filing.status === "draft" || filing.status === "submitted");
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [actionError, setActionError] = useState("");
@@ -764,7 +766,13 @@ function FilingCard({
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["str-filings", caseId] }); onAction(); setShowRejectModal(false); setRejectReason(""); setActionError(""); },
     onError: (err: unknown) => setActionError(err instanceof APIError ? err.message : "Reject failed"),
   });
-  const filedMut = useMutation({ mutationFn: () => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/file`, {}), ...mutOpts });
+  const [showFileForm, setShowFileForm] = useState(false);
+  const [fiuRef, setFiuRef] = useState("");
+  const filedMut = useMutation({
+    mutationFn: (ref: string) => api.post(`/api/v1/cases/${caseId}/str/${filing.id}/file`, { fiu_reference: ref }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["str-filings", caseId] }); onAction(); setActionError(""); setShowFileForm(false); setFiuRef(""); },
+    onError: (err: unknown) => setActionError(err instanceof APIError ? err.message : "Action failed"),
+  });
 
   const handleExport = async (format: "finnet" | "goaml") => {
     const path = format === "goaml"
@@ -784,8 +792,8 @@ function FilingCard({
           const errs: GoAMLValidationError[] = body?.data?.errors ?? body?.errors ?? [];
           const msgs = errs.length > 0
             ? errs.map((e) => e.message).join("; ")
-            : (body?.data?.message ?? body?.error?.message ?? "Filing is missing required goAML fields — open the Pre-Flight Checklist to see what needs to be filled in");
-          setActionError(`goAML validation failed: ${msgs}`);
+            : (body?.data?.message ?? body?.error?.message ?? "Filing is missing required fields — open the Pre-Flight Checklist to see what needs to be filled in");
+          setActionError(`Export validation failed: ${msgs}`);
           return;
         }
         throw new Error("Export failed");
@@ -807,11 +815,14 @@ function FilingCard({
   const isSelf = filing.submitted_by === userId;
 
   return (
-    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl p-5 flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
+    <div className="bg-slate-800/60 border border-slate-700/50 rounded-xl overflow-hidden">
+      {/* Header — always visible, click to expand/collapse */}
+      <button
+        className="w-full flex items-start justify-between gap-4 px-5 py-4 text-left hover:bg-white/[0.02] transition-colors"
+        onClick={() => setExpanded((v) => !v)}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1 flex-wrap">
             <span className="font-mono text-xs text-slate-500">{filing.id.slice(0, 8).toUpperCase()}</span>
             <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[filing.status]}`}>
               {filing.status.toUpperCase()}
@@ -820,112 +831,147 @@ function FilingCard({
               {REPORT_TYPE_LABELS[filing.report_type] ?? filing.report_type}
             </span>
           </div>
-          <p className="text-white text-sm font-medium">{filing.suspicion_basis}</p>
+          <p className="text-white text-sm font-medium line-clamp-2">{filing.suspicion_basis}</p>
         </div>
-        <div className="text-xs text-slate-500 whitespace-nowrap">
-          {new Date(filing.created_at).toLocaleDateString()}
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs text-slate-500 whitespace-nowrap">
+            {new Date(filing.created_at).toLocaleDateString()}
+          </span>
+          {expanded
+            ? <ChevronUp size={14} className="text-slate-500" />
+            : <ChevronDown size={14} className="text-slate-500" />
+          }
         </div>
-      </div>
+      </button>
 
-      {/* Narrative */}
-      {filing.narrative && (
-        <p className="text-slate-300 text-sm leading-relaxed">{filing.narrative}</p>
-      )}
-
-      {/* Maker-checker trail */}
-      <div className="flex flex-wrap gap-4 text-xs text-slate-500">
-        {filing.submitted_by_name && (
-          <span>Submitted by <span className="text-slate-300">{filing.submitted_by_name}</span>
-            {filing.submitted_at && <> · {new Date(filing.submitted_at).toLocaleString()}</>}
-          </span>
-        )}
-        {filing.approved_by_name && (
-          <span>Approved by <span className="text-slate-300">{filing.approved_by_name}</span>
-            {filing.approved_at && <> · {new Date(filing.approved_at).toLocaleString()}</>}
-          </span>
-        )}
-        {filing.fiu_reference && (
-          <span>{cfg.str_reference_label}: <span className="text-cyan-300 font-mono">{filing.fiu_reference}</span></span>
-        )}
-        {filing.rejection_reason && (
-          <span className="text-red-400">Rejected: {filing.rejection_reason}</span>
-        )}
-      </div>
-
-      {/* Unified Pre-Flight Checklist — goAML + narrative + tx risk + FATF */}
-      {(filing.status === "draft" || filing.status === "submitted") && (
-        <PreFlightChecklistPanel filing={filing} caseId={caseId} ctrThreshold={cfg.ctr_threshold ?? 0} />
-      )}
-
-      {/* Error */}
-      {actionError && (
-        <p className="text-red-400 text-xs bg-red-900/20 border border-red-800/30 px-3 py-2 rounded-lg">{actionError}</p>
-      )}
-
-      {/* Actions */}
-      {isManagerOrAbove && (
-        <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-700/50">
-          {filing.status === "draft" && (
-            <button
-              onClick={() => submitMut.mutate()}
-              disabled={submitMut.isPending}
-              className="text-xs px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-lg transition-colors disabled:opacity-60"
-            >
-              {submitMut.isPending ? "Submitting…" : "Submit for Approval"}
-            </button>
+      {/* Expanded body */}
+      {expanded && (
+        <div className="px-5 pb-5 flex flex-col gap-4 border-t border-slate-700/50 pt-4">
+          {/* Narrative */}
+          {filing.narrative && (
+            <p className="text-slate-300 text-sm leading-relaxed">{filing.narrative}</p>
           )}
 
-          {filing.status === "submitted" && !isSelf && (
-            <>
-              <button
-                onClick={() => approveMut.mutate()}
-                disabled={approveMut.isPending}
-                className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-60"
-              >
-                {approveMut.isPending ? "Approving…" : "Approve"}
-              </button>
-              <button
-                onClick={() => setShowRejectModal(true)}
-                className="text-xs px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 rounded-lg transition-colors"
-              >
-                Reject
-              </button>
-            </>
+          {/* Maker-checker trail */}
+          <div className="flex flex-wrap gap-4 text-xs text-slate-500">
+            {filing.submitted_by_name && (
+              <span>Submitted by <span className="text-slate-300">{filing.submitted_by_name}</span>
+                {filing.submitted_at && <> · {new Date(filing.submitted_at).toLocaleString()}</>}
+              </span>
+            )}
+            {filing.approved_by_name && (
+              <span>Approved by <span className="text-slate-300">{filing.approved_by_name}</span>
+                {filing.approved_at && <> · {new Date(filing.approved_at).toLocaleString()}</>}
+              </span>
+            )}
+            {filing.fiu_reference && (
+              <span>{cfg.str_reference_label}: <span className="text-cyan-300 font-mono">{filing.fiu_reference}</span></span>
+            )}
+            {filing.rejection_reason && (
+              <span className="text-red-400">Rejected: {filing.rejection_reason}</span>
+            )}
+          </div>
+
+          {/* Unified Pre-Flight Checklist — goAML + narrative + tx risk + FATF */}
+          {(filing.status === "draft" || filing.status === "submitted") && (
+            <PreFlightChecklistPanel filing={filing} caseId={caseId} ctrThreshold={cfg.ctr_threshold ?? 0} />
           )}
 
-          {filing.status === "submitted" && isSelf && (
-            <span className="text-xs text-amber-400/70 italic py-1.5">
-              {cfg.str_law_reference ? `${cfg.str_law_reference}: ` : ""}You submitted this filing — a different officer must approve
-            </span>
+          {/* Error */}
+          {actionError && (
+            <p className="text-red-400 text-xs bg-red-900/20 border border-red-800/30 px-3 py-2 rounded-lg">{actionError}</p>
           )}
 
-          {isAdminOrAbove && filing.status === "approved" && (
-            <button
-              onClick={() => filedMut.mutate()}
-              disabled={filedMut.isPending}
-              className="text-xs px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg transition-colors disabled:opacity-60"
-            >
-              {filedMut.isPending ? "Filing…" : `Mark as Filed with ${cfg.str_regulator_label}`}
-            </button>
-          )}
-
-          {canExport && (
-            <div className="flex gap-2 ml-auto">
-              <button
-                onClick={() => handleExport("goaml")}
-                className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors font-medium"
-                title="Export goAML 4.0 XML for FIU portal submission"
-              >
-                Export goAML XML
-              </button>
-              {cfg.jurisdiction !== "eu" && (
+          {/* Actions */}
+          {isManagerOrAbove && (
+            <div className="flex flex-wrap gap-2 pt-1 border-t border-slate-700/50">
+              {filing.status === "draft" && (
                 <button
-                  onClick={() => handleExport("finnet")}
-                  className="text-xs px-3 py-1.5 bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/30 rounded-lg transition-colors"
-                  title={cfg.jurisdiction === "uae" ? "Export UAE FIU XML" : "Export FINnet 2.0 XML"}
+                  onClick={() => submitMut.mutate()}
+                  disabled={submitMut.isPending}
+                  className="text-xs px-3 py-1.5 bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 border border-amber-500/30 rounded-lg transition-colors disabled:opacity-60"
                 >
-                  {cfg.jurisdiction === "uae" ? "Export UAE FIU XML" : "Export FINnet XML"}
+                  {submitMut.isPending ? "Submitting…" : "Submit for Approval"}
                 </button>
+              )}
+
+              {filing.status === "submitted" && !isSelf && (
+                <>
+                  <button
+                    onClick={() => approveMut.mutate()}
+                    disabled={approveMut.isPending}
+                    className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors disabled:opacity-60"
+                  >
+                    {approveMut.isPending ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    onClick={() => setShowRejectModal(true)}
+                    className="text-xs px-3 py-1.5 bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 rounded-lg transition-colors"
+                  >
+                    Reject
+                  </button>
+                </>
+              )}
+
+              {filing.status === "submitted" && isSelf && (
+                <span className="text-xs text-amber-400/70 italic py-1.5">
+                  {cfg.str_law_reference ? `${cfg.str_law_reference}: ` : ""}You submitted this filing — a different officer must approve
+                </span>
+              )}
+
+              {isAdminOrAbove && filing.status === "approved" && !showFileForm && (
+                <button
+                  onClick={() => setShowFileForm(true)}
+                  className="text-xs px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg transition-colors"
+                >
+                  Mark as Filed with {cfg.str_regulator_label}
+                </button>
+              )}
+              {isAdminOrAbove && filing.status === "approved" && showFileForm && (
+                <div className="flex items-center gap-2 flex-1 flex-wrap">
+                  <input
+                    type="text"
+                    value={fiuRef}
+                    onChange={(e) => setFiuRef(e.target.value)}
+                    placeholder={`${cfg.str_reference_label ?? "FIU Reference"} (e.g. FIU-IND/STR/2024-25/MH/087341)`}
+                    className="flex-1 min-w-48 bg-slate-800 border border-slate-600 rounded-lg px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                  />
+                  <button
+                    onClick={() => filedMut.mutate(fiuRef)}
+                    disabled={filedMut.isPending}
+                    className="text-xs px-3 py-1.5 bg-cyan-600/20 hover:bg-cyan-600/30 text-cyan-300 border border-cyan-500/30 rounded-lg transition-colors disabled:opacity-60 whitespace-nowrap"
+                  >
+                    {filedMut.isPending ? "Filing…" : "Confirm Filing"}
+                  </button>
+                  <button
+                    onClick={() => { setShowFileForm(false); setFiuRef(""); }}
+                    className="text-xs text-slate-500 hover:text-slate-300 transition-colors px-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {canExport && (
+                <div className="flex gap-2 ml-auto">
+                  {cfg.jurisdiction === "india" ? (
+                    <button
+                      onClick={() => handleExport("finnet")}
+                      className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors font-medium"
+                      title="Export FINnet 2.0 XML for FIU-IND portal submission"
+                    >
+                      Export FINnet XML
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleExport("goaml")}
+                      className="text-xs px-3 py-1.5 bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 rounded-lg transition-colors font-medium"
+                      title="Export goAML 4.0 XML for FIU portal submission"
+                    >
+                      Export goAML XML
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -1234,7 +1280,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Regulatory Filings</h1>
         <p className="text-slate-400 text-sm mt-0.5">
-          {[cfg.str_law_reference, "Dual-authorization maker-checker", "goAML 4.0 (UNODC)"].filter(Boolean).join(" · ")}
+          {[cfg.str_law_reference, "Dual-authorization maker-checker", cfg.jurisdiction === "india" ? "FINnet 2.0 (FIU-IND)" : "goAML 4.0 (UNODC)"].filter(Boolean).join(" · ")}
         </p>
       </div>
 
@@ -1243,7 +1289,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
         {cfg.str_law_reference && <><strong className="text-amber-300">{cfg.str_law_reference}</strong> — </>}
         Records must be retained for 10 years.
         Maker-checker: submitted by one officer, approved by a different officer.
-        Export <strong className="text-amber-300">goAML XML</strong> for direct upload to your FIU portal.
+        Export <strong className="text-amber-300">{cfg.jurisdiction === "india" ? "FINnet XML" : "goAML XML"}</strong> for direct upload to your FIU portal.
         Analysts are excluded from this workflow (tipping-off restriction).
       </div>
 
@@ -1289,8 +1335,6 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
               <label className={labelCls}>Report Type</label>
               <select value={reportType} onChange={(e) => setReportType(e.target.value)} className={inputCls}>
                 <option value="STR">STR — Suspicious Transaction Report</option>
-                <option value="SAR">SAR — Suspicious Activity Report</option>
-                <option value="CTR">CTR — Cash Transaction Report</option>
               </select>
             </div>
 
@@ -1637,7 +1681,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
           <p className="text-sm mt-1">Create a new draft to start the {cfg.str_label} workflow.</p>
         </div>
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 pb-24">
           {filings.map((f) => (
             <FilingCard
               key={f.id}

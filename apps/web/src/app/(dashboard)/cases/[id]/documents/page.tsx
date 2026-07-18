@@ -36,7 +36,8 @@ export default function CaseDocumentsPage({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
 
-  const canUpload = hasRole("analyst");
+  const isCaseClosed = caseData?.status === "closed";
+  const canUpload = hasRole("analyst") && !isCaseClosed;
 
   // ── List documents ─────────────────────────────────────────────────────────
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, error, refetch } =

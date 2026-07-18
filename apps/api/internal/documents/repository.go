@@ -108,3 +108,10 @@ func (r *Repository) SoftDelete(ctx context.Context, id uuid.UUID) error {
 	}
 	return nil
 }
+
+// IsCaseClosed returns true when the case status is 'closed'.
+func (r *Repository) IsCaseClosed(ctx context.Context, caseID uuid.UUID) bool {
+	var status string
+	err := r.sqlDB.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&status)
+	return err == nil && status == "closed"
+}

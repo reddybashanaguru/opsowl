@@ -20,7 +20,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
-  const canReview = hasRole("analyst");
+  const canReviewLog = (log: AILog) => hasRole("analyst") && log.triggered_by?.id !== user?.id;
 
   const caseData = useCaseSummary(id);
 
@@ -144,7 +144,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
             <AICard
               key={log.id}
               log={log}
-              canReview={canReview}
+              canReview={canReviewLog(log)}
               onApprove={(logId) => approveMutation.mutate(logId)}
               onReject={(logId) => { setRejectingLogId(logId); setRejectReason(""); }}
               onEdit={(logId, text) => editMutation.mutate({ logId, edited_response: text })}

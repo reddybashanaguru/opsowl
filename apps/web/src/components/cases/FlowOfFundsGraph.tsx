@@ -11,6 +11,8 @@ import {
   useReactFlow,
   ReactFlowProvider,
   MarkerType,
+  Handle,
+  Position,
   type Node,
   type Edge,
   type NodeProps,
@@ -97,9 +99,72 @@ const CHANNEL_LABELS: Record<string, string> = {
 const NODE_W = 160;
 const NODE_H = 64;
 
+// Fan-out: 1 source → N destinations (smurfing / UPI velocity breach)
+// Destinations arranged in a 2–3 column grid on the right.
+function fanOutLayout(nodes: Node[], sourceId: string, destIds: string[]): Node[] {
+  const COLS         = destIds.length > 16 ? 3 : 2;
+  const COL_W        = NODE_W + 80;
+  const ROW_H        = NODE_H + 18;
+  const DEST_X_START = 320;
+
+  const rows   = Math.ceil(destIds.length / COLS);
+  const totalH = rows * ROW_H;
+
+  return nodes.map(n => {
+    if (n.id === sourceId) {
+      return { ...n, position: { x: 0, y: totalH / 2 - NODE_H / 2 } };
+    }
+    const idx = destIds.indexOf(n.id);
+    if (idx === -1) return { ...n, position: { x: DEST_X_START, y: 0 } };
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    return { ...n, position: { x: DEST_X_START + col * COL_W, y: row * ROW_H } };
+  });
+}
+
+// Fan-in: N sources → 1 destination (cash aggregation / mule accounts)
+// Sources arranged in a 2–3 column grid on the left.
+function fanInLayout(nodes: Node[], destId: string, sourceIds: string[]): Node[] {
+  const COLS      = sourceIds.length > 16 ? 3 : 2;
+  const COL_W     = NODE_W + 80;
+  const ROW_H     = NODE_H + 18;
+  const SRC_X     = 0;
+  const DEST_X    = SRC_X + COLS * COL_W + 80;
+
+  const rows   = Math.ceil(sourceIds.length / COLS);
+  const totalH = rows * ROW_H;
+
+  return nodes.map(n => {
+    if (n.id === destId) {
+      return { ...n, position: { x: DEST_X, y: totalH / 2 - NODE_H / 2 } };
+    }
+    const idx = sourceIds.indexOf(n.id);
+    if (idx === -1) return { ...n, position: { x: SRC_X, y: 0 } };
+    const col = idx % COLS;
+    const row = Math.floor(idx / COLS);
+    return { ...n, position: { x: SRC_X + col * COL_W, y: row * ROW_H } };
+  });
+}
+
 function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
+  const sourceSet   = new Set(edges.map(e => e.source));
+  const targetSet   = new Set(edges.map(e => e.target));
+  const pureSources = [...sourceSet].filter(id => !targetSet.has(id));
+  const pureDests   = [...targetSet].filter(id => !sourceSet.has(id));
+
+  // Fan-out: 1 pure source, 8+ pure destinations
+  if (pureSources.length === 1 && pureDests.length >= 8) {
+    return fanOutLayout(nodes, pureSources[0], pureDests);
+  }
+
+  // Fan-in: 8+ pure sources, 1 pure destination
+  if (pureDests.length === 1 && pureSources.length >= 8) {
+    return fanInLayout(nodes, pureDests[0], pureSources);
+  }
+
+  // Linear chain, diamond, cycle, complex web — dagre LR handles all of these
   const g = new dagre.graphlib.Graph();
-  g.setGraph({ rankdir: "LR", nodesep: 50, ranksep: 100, edgesep: 25 });
+  g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 140, edgesep: 20 });
   g.setDefaultEdgeLabel(() => ({}));
   nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
   edges.forEach(e => g.setEdge(e.source, e.target, { weight: 1 }));
@@ -152,6 +217,8 @@ const AccountNode = memo(function AccountNode({ data, selected }: NodeProps) {
         borderClass, bgClass, ringClass, subjectRing,
       ].filter(Boolean).join(" ")}
     >
+      <Handle type="target" position={Position.Left} style={{ background: "#334155", border: "1px solid #475569", width: 8, height: 8 }} />
+      <Handle type="source" position={Position.Right} style={{ background: "#334155", border: "1px solid #475569", width: 8, height: 8 }} />
       <div className="flex items-center gap-1 mb-0.5">
         {d.role === "unresolved"
           ? <Banknote size={10} className="text-slate-500 flex-shrink-0" />
@@ -429,7 +496,7 @@ function GraphInner({
   // fitView after layout positions settle
   useEffect(() => {
     if (layoutedNodes.length === 0) return;
-    const t = setTimeout(() => fitView({ padding: 0.15, duration: 400 }), 50);
+    const t = setTimeout(() => fitView({ padding: 0.08, duration: 400 }), 50);
     return () => clearTimeout(t);
   }, [layoutedNodes, fitView]);
 
@@ -458,7 +525,7 @@ function GraphInner({
   if (graph.nodes.length === 0) return <EmptyFlow />;
 
   return (
-    <div className="flex" style={{ height: 460 }}>
+    <div className="flex" style={{ height: 660 }}>
       <div className="flex-1 min-w-0">
         <ReactFlow
           nodes={nodes}
@@ -469,7 +536,7 @@ function GraphInner({
           onNodeClick={handleNodeClick}
           onPaneClick={handlePaneClick}
           fitView
-          fitViewOptions={{ padding: 0.15 }}
+          fitViewOptions={{ padding: 0.08 }}
           proOptions={{ hideAttribution: true }}
           minZoom={0.15}
           maxZoom={2.5}

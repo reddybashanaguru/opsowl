@@ -26,11 +26,12 @@ const (
 )
 
 var (
-	ErrNotFound       = errors.New("finding not found")
-	ErrForbidden      = errors.New("forbidden")
-	ErrBadRequest     = errors.New("bad request")
-	ErrInvalidStatus  = errors.New("invalid status transition")
+	ErrNotFound         = errors.New("finding not found")
+	ErrForbidden        = errors.New("forbidden")
+	ErrBadRequest       = errors.New("bad request")
+	ErrInvalidStatus    = errors.New("invalid status transition")
 	ErrEvidenceRequired = errors.New("high/critical findings require at least one evidence link before submission")
+	ErrCaseClosed       = errors.New("case is closed — no new findings may be added")
 )
 
 // validCategories is the allowed set for finding category.
@@ -66,6 +67,9 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	}
 	if req.Severity != "" && !validSeverities[req.Severity] {
 		return FindingResponse{}, ErrBadRequest
+	}
+	if s.repo.IsCaseClosed(ctx, caseID) {
+		return FindingResponse{}, ErrCaseClosed
 	}
 
 	row, err := s.repo.Create(ctx, caseID, claims.UserID, req)
@@ -212,8 +216,7 @@ func (s *Service) Submit(ctx context.Context, claims *auth.Claims, caseID, findi
 	if err != nil {
 		return FindingResponse{}, ErrNotFound
 	}
-	if row.CreatedBy != claims.UserID && claims.Role != db.UserRoleManager &&
-		claims.Role != db.UserRoleAdmin && claims.Role != db.UserRoleSuperAdmin {
+	if claims.Role == db.UserRoleViewer {
 		return FindingResponse{}, ErrForbidden
 	}
 	if row.Status != "draft" && row.Status != "contested" {
@@ -250,6 +253,9 @@ func (s *Service) Approve(ctx context.Context, claims *auth.Claims, caseID, find
 	}
 	if row.Status != "under_review" {
 		return FindingResponse{}, ErrInvalidStatus
+	}
+	if row.CreatedBy == claims.UserID {
+		return FindingResponse{}, fmt.Errorf("%w: approver must be different from the finding creator (4-eye principle)", ErrForbidden)
 	}
 
 	now := time.Now()

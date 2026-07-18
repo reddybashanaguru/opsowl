@@ -271,6 +271,8 @@ func (h *Handler) writeErr(w http.ResponseWriter, err error) {
 		response.Err(w, http.StatusNotFound, "NOT_LINKED", err.Error())
 	case errors.Is(err, ErrDuplicateRef):
 		response.Err(w, http.StatusConflict, "DUPLICATE_REF", err.Error())
+	case errors.Is(err, ErrCaseClosed):
+		response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
 	default:
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 	}

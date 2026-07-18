@@ -11,11 +11,14 @@ package ubo
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
 )
+
+var ErrCaseClosed = errors.New("case is closed — no new UBO records may be added")
 
 // VerificationStatus reflects the outcome of the UBO identification process.
 type VerificationStatus string
@@ -104,6 +107,11 @@ func NewService(db *sql.DB, thresholdPct float64, deploymentCountry string) *Ser
 // Create adds a new UBO record for a case and pre-fills the registry URL
 // for the deployment's member state.
 func (s *Service) Create(ctx context.Context, rec *UBORecord) (*UBORecord, error) {
+	var caseStatus string
+	if err := s.db.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, rec.CaseID).Scan(&caseStatus); err == nil && caseStatus == "closed" {
+		return nil, ErrCaseClosed
+	}
+
 	rec.ID = uuid.NewString()
 	rec.Status = StatusPending
 	rec.CreatedAt = time.Now().UTC()

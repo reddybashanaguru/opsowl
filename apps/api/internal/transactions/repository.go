@@ -18,6 +18,13 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// IsCaseClosed returns true when the case status is 'closed'.
+func (r *Repository) IsCaseClosed(ctx context.Context, caseID uuid.UUID) bool {
+	var status string
+	err := r.db.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&status)
+	return err == nil && status == "closed"
+}
+
 // ── Internal row types ────────────────────────────────────────────────────────
 
 type accountRow struct {
@@ -296,6 +303,7 @@ func (r *Repository) UnlinkFromCase(ctx context.Context, caseID, txnID uuid.UUID
 	}
 	return nil
 }
+
 
 func (r *Repository) IsLinkedToCase(ctx context.Context, caseID, txnID uuid.UUID) (bool, error) {
 	var exists bool

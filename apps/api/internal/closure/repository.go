@@ -114,13 +114,16 @@ func (r *Repository) UpdateStatus(ctx context.Context, id, actorID uuid.UUID, ne
 	now := time.Now()
 	_, err := r.db.ExecContext(ctx, `
 		UPDATE case_closures SET
-			status       = $2::closure_status,
-			reviewed_by  = CASE WHEN $2 IN ('submitted','rejected') THEN $3 ELSE reviewed_by END,
-			approved_by  = CASE WHEN $2 = 'approved' THEN $3 ELSE approved_by END,
-			submitted_at = CASE WHEN $2 = 'submitted' THEN $4 ELSE submitted_at END,
-			approved_at  = CASE WHEN $2 = 'approved'  THEN $4 ELSE approved_at  END
+			status            = $2::closure_status,
+			reviewed_by       = CASE WHEN $2 IN ('submitted','rejected') THEN $3 ELSE reviewed_by END,
+			approved_by       = CASE WHEN $2 = 'approved'  THEN $3 ELSE approved_by  END,
+			rejected_by       = CASE WHEN $2 = 'rejected'  THEN $3 ELSE rejected_by  END,
+			rejection_reason  = CASE WHEN $2 = 'rejected'  THEN $5 ELSE rejection_reason END,
+			rejected_at       = CASE WHEN $2 = 'rejected'  THEN $4 ELSE rejected_at   END,
+			submitted_at      = CASE WHEN $2 = 'submitted' THEN $4 ELSE submitted_at  END,
+			approved_at       = CASE WHEN $2 = 'approved'  THEN $4 ELSE approved_at   END
 		WHERE id = $1`,
-		id, newStatus, actorID, now,
+		id, newStatus, actorID, now, rejectionReason,
 	)
 	return err
 }

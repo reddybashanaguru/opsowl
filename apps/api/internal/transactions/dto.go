@@ -14,6 +14,7 @@ var (
 	ErrAlreadyLinked  = errors.New("transaction already linked to this case")
 	ErrNotLinked      = errors.New("transaction is not linked to this case")
 	ErrDuplicateRef   = errors.New("a transaction with this reference already exists")
+	ErrCaseClosed     = errors.New("case is closed — no new transactions may be added")
 )
 
 // ── Account types ─────────────────────────────────────────────────────────────

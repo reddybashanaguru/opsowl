@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useAgentStream, AgentEvent } from "@/lib/hooks/useAgentStream";
-import { AICard, AILog } from "./AICard";
+import { AICard, AILog, renderMarkdown } from "./AICard";
 
 interface CopilotPanelProps {
   caseId: string;
@@ -15,6 +15,21 @@ interface CopilotPanelProps {
 
 type Tab = "ask" | "summarize" | "note" | "actions" | "agent";
 
+const TAB_ENDPOINT: Partial<Record<Tab, string>> = {
+  ask: "ask",
+  summarize: "summarize",
+  note: "generate-note",
+  actions: "extract-actions",
+};
+
+// Maps each tab to the action_type stored in the DB log
+const TAB_ACTION_TYPE: Partial<Record<Tab, string>> = {
+  ask: "ask",
+  summarize: "summarize",
+  note: "generate_note",
+  actions: "extract_actions",
+  agent: "agent_run",
+};
 
 export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
   const [tab, setTab] = useState<Tab>("ask");
@@ -22,14 +37,13 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
   const [agentGoal, setAgentGoal] = useState("");
   const [result, setResult] = useState<AILog | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingEndpoint, setLoadingEndpoint] = useState<string | null>(null);
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState("");
   const feedEndRef = useRef<HTMLDivElement>(null);
   const qc = useQueryClient();
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
-  const canReview = hasRole("analyst");
   const agent = useAgentStream(caseId);
 
   // Cmd+Shift+A shortcut to toggle
@@ -75,10 +89,34 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
     onSuccess: () => { qc.invalidateQueries({ queryKey: ["ai-logs", caseId] }); setResult(null); },
   });
 
+  // Auto-save agent result to ai_logs when the agent finishes so it persists
+  // in the AI Activity Log and survives copilot panel close/reopen.
+  const saveAgentMutation = useMutation({
+    mutationFn: (payload: { answer: string; goal: string; tokens_in: number; tokens_out: number; elapsed_ms: number; model_used: string; provider: string }) =>
+      api.post(`/api/v1/cases/${caseId}/ai/agent-result`, payload),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ["ai-logs", caseId] }); },
+  });
+  const savedAgentAnswerRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (agent.answer && agent.stats && agent.answer !== savedAgentAnswerRef.current) {
+      savedAgentAnswerRef.current = agent.answer;
+      saveAgentMutation.mutate({
+        answer: agent.answer,
+        goal: agentGoal,
+        tokens_in: agent.stats.tokens_in,
+        tokens_out: agent.stats.tokens_out,
+        elapsed_ms: agent.stats.elapsed_ms,
+        model_used: "llama3.2:3b",
+        provider: "ollama",
+      });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agent.answer, agent.stats]);
+
   const runAction = async (endpoint: string, body?: object) => {
     setError(null);
     setResult(null);
-    setLoading(true);
+    setLoadingEndpoint(endpoint);
     try {
       const res = await api.post<AILog>(`/api/v1/cases/${caseId}/ai/${endpoint}`, body ?? {});
       setResult(res);
@@ -86,7 +124,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "AI service error");
     } finally {
-      setLoading(false);
+      setLoadingEndpoint(null);
     }
   };
 
@@ -122,7 +160,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
             return (
               <button
                 key={t}
-                onClick={() => { setTab(t); setResult(null); setError(null); }}
+                onClick={() => { setTab(t); setResult(null); setError(null); /* result falls back to recentLogs per tab */ }}
                 className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                   tab === t
                     ? t === "agent"
@@ -156,7 +194,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
                 />
                 <button
                   onClick={() => question.trim() && runAction("ask", { question })}
-                  disabled={loading || !question.trim()}
+                  disabled={loadingEndpoint === "ask" || !question.trim()}
                   className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
                   data-testid="ask-submit"
                 >
@@ -172,11 +210,11 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
               <p className="text-sm text-slate-400">Generate a structured summary of all documents uploaded to this case.</p>
               <button
                 onClick={() => runAction("summarize")}
-                disabled={loading}
+                disabled={loadingEndpoint === "summarize"}
                 className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
                 data-testid="summarize-btn"
               >
-                Generate Summary
+                {loadingEndpoint === "summarize" ? "Generating…" : "Generate Summary"}
               </button>
             </div>
           )}
@@ -186,11 +224,11 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
               <p className="text-sm text-slate-400">AI drafts an investigation note from case context. You must review and approve before it's saved.</p>
               <button
                 onClick={() => runAction("generate-note")}
-                disabled={loading}
+                disabled={loadingEndpoint === "generate-note"}
                 className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
                 data-testid="note-btn"
               >
-                Draft Note
+                {loadingEndpoint === "generate-note" ? "Drafting…" : "Draft Note"}
               </button>
             </div>
           )}
@@ -200,11 +238,11 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
               <p className="text-sm text-slate-400">Extract suggested investigation tasks from the uploaded documents.</p>
               <button
                 onClick={() => runAction("extract-actions", { source_type: "documents" })}
-                disabled={loading}
+                disabled={loadingEndpoint === "extract-actions"}
                 className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-medium px-5 py-2 rounded-lg transition-colors disabled:opacity-50"
                 data-testid="actions-btn"
               >
-                Extract Actions
+                {loadingEndpoint === "extract-actions" ? "Extracting…" : "Extract Actions"}
               </button>
             </div>
           )}
@@ -273,7 +311,7 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
               {agent.answer && (
                 <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 p-4">
                   <p className="text-xs text-cyan-400 font-semibold uppercase tracking-wider mb-2">Investigation Report</p>
-                  <div className="text-sm text-slate-200 whitespace-pre-wrap leading-relaxed">{agent.answer}</div>
+                  <div className="text-sm leading-relaxed">{renderMarkdown(agent.answer)}</div>
                   {agent.stats && (
                     <p className="text-xs text-slate-600 mt-3">
                       {agent.stats.iterations} iterations · {agent.stats.tokens_in + agent.stats.tokens_out} tokens ·{" "}
@@ -299,8 +337,8 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
             </div>
           )}
 
-          {/* Loading */}
-          {loading && (
+          {/* Loading — only shown when THIS tab's request is in-flight */}
+          {loadingEndpoint !== null && loadingEndpoint === TAB_ENDPOINT[tab] && (
             <div className="flex items-center gap-3 text-slate-400 text-sm" data-testid="loading-indicator">
               <div className="w-4 h-4 border-2 border-violet-400 border-t-transparent rounded-full animate-spin" />
               AI is thinking…
@@ -346,38 +384,59 @@ export function CopilotPanel({ caseId, open, onClose }: CopilotPanelProps) {
             </div>
           )}
 
-          {/* Current result */}
-          {result && (
-            <div>
-              <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider">AI Response</p>
-              <AICard
-                log={result}
-                canReview={canReview}
-                onApprove={(id) => approveMutation.mutate(id)}
-                onReject={(id) => { setRejectingLogId(id); setRejectReason(""); }}
-                onEdit={(id, text) => editMutation.mutate({ logId: id, edited_response: text })}
-              />
-            </div>
-          )}
+          {/* Current result — falls back to most recent DB log for this tab so switching
+              tabs and returning does not lose the output */}
+          {(() => {
+            const tabActionType = TAB_ACTION_TYPE[tab];
+            const displayResult = result ?? (
+              tabActionType
+                ? recentLogs.find((l) => l.action_type === tabActionType) ?? null
+                : null
+            );
+            const canReviewLog = (log: AILog) =>
+              hasRole("analyst") && log.triggered_by?.id !== user?.id;
 
-          {/* Recent logs */}
-          {recentLogs.length > 0 && !result && (
-            <div>
-              <p className="text-xs text-slate-500 mb-3 uppercase tracking-wider">Recent Activity</p>
-              <div className="space-y-3">
-                {recentLogs.map((log) => (
+            if (displayResult) {
+              return (
+                <div>
+                  <p className="text-xs text-slate-500 mb-2 uppercase tracking-wider">AI Response</p>
                   <AICard
-                    key={log.id}
-                    log={log}
-                    canReview={canReview}
+                    log={displayResult}
+                    canReview={canReviewLog(displayResult)}
+                    defaultExpanded
                     onApprove={(id) => approveMutation.mutate(id)}
                     onReject={(id) => { setRejectingLogId(id); setRejectReason(""); }}
                     onEdit={(id, text) => editMutation.mutate({ logId: id, edited_response: text })}
                   />
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              );
+            }
+
+            // No result for this tab yet — show recent activity from other actions
+            const otherLogs = recentLogs.filter((l) => l.action_type !== tabActionType);
+            if (otherLogs.length > 0 && !tabActionType) {
+              return (
+                <div>
+                  <p className="text-xs text-slate-500 mb-3 uppercase tracking-wider">Recent Activity</p>
+                  <div className="space-y-3">
+                    {otherLogs.map((log) => (
+                      <AICard
+                        key={log.id}
+                        log={log}
+                        canReview={canReviewLog(log)}
+                        defaultExpanded
+                        onApprove={(id) => approveMutation.mutate(id)}
+                        onReject={(id) => { setRejectingLogId(id); setRejectReason(""); }}
+                        onEdit={(id, text) => editMutation.mutate({ logId: id, edited_response: text })}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+
+            return null;
+          })()}
         </div>
       </div>
     </>

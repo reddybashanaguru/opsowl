@@ -151,6 +151,21 @@ func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
 	response.JSON(w, http.StatusOK, cl)
 }
 
+// POST /api/v1/cases/:id/closure/:closureId/revise
+func (h *Handler) Revise(w http.ResponseWriter, r *http.Request) {
+	caseID, closureID, ok := h.parseIDs(w, r)
+	if !ok {
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+	cl, err := h.svc.Revise(r.Context(), claims, caseID, closureID)
+	if err != nil {
+		h.writeError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusOK, cl)
+}
+
 // POST /api/v1/cases/:id/reopen
 func (h *Handler) Reopen(w http.ResponseWriter, r *http.Request) {
 	caseID, err := uuid.Parse(chi.URLParam(r, "id"))

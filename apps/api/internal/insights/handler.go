@@ -26,6 +26,9 @@ type aiAnalyseResult struct {
 	startedAt time.Time
 }
 
+// defaultModel is the model name logged when the AI call fails before we receive a response.
+const defaultModel = "llama3.2:3b"
+
 type Handler struct {
 	queries      *db.Queries
 	aiServiceURL string
@@ -120,7 +123,7 @@ func (h *Handler) Analyse(w http.ResponseWriter, r *http.Request) {
 			// Log the failed attempt to ai_logs so the audit trail shows "analysis attempted but failed"
 			promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case"}`, caseID.String())
 			_ = h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
-				promptJSON, fmt.Sprintf("error: %v", aiErr), "unknown", result.latencyMs, 0)
+				promptJSON, fmt.Sprintf("error: %v", aiErr), defaultModel, result.latencyMs, 0)
 			return
 		}
 		if err := h.storeInsights(context.Background(), caseID, result.response); err != nil {
@@ -171,7 +174,7 @@ func (h *Handler) TriggerAnalysis(caseID, triggeredBy uuid.UUID) {
 		if aiErr != nil {
 			promptJSON := fmt.Sprintf(`{"case_id":"%s","action":"analyse_case","trigger":"auto"}`, caseID.String())
 			_ = h.logToAILogs(context.Background(), caseID, triggeredBy, "analyse_case",
-				promptJSON, fmt.Sprintf("error: %v", aiErr), "unknown", result.latencyMs, 0)
+				promptJSON, fmt.Sprintf("error: %v", aiErr), defaultModel, result.latencyMs, 0)
 			return
 		}
 		if err := h.storeInsights(context.Background(), caseID, result.response); err != nil {

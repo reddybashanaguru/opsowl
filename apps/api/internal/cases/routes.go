@@ -19,6 +19,9 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin"),
 			auth.RequireScope("cases:read")).
 			Get("/cases/{id}/activity", h.ListActivity)
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin"),
+			auth.RequireScope("cases:read")).
+			Get("/cases/{id}/completion", h.GetCompletion)
 
 		// analyst+ — create, update, tags; API key callers need cases:write scope
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin"),

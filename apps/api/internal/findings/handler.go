@@ -65,6 +65,8 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		switch err {
 		case ErrBadRequest:
 			response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+		case ErrCaseClosed:
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
 		default:
 			response.Err(w, http.StatusInternalServerError, "CREATE_ERROR", err.Error())
 		}

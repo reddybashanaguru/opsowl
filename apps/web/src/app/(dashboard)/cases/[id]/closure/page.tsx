@@ -51,6 +51,9 @@ interface ClosureResponse {
   status: "not_started" | "draft" | "submitted" | "approved" | "rejected" | "voided";
   sar_considered: boolean;
   sar_rejection_reason?: string;
+  rejection_reason?: string;
+  rejected_by?: UserRef;
+  rejected_at?: string;
   risk_rating_at_close?: string;
   created_by: UserRef;
   reviewed_by?: UserRef;
@@ -66,8 +69,8 @@ interface ClosureResponse {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 const DISPOSITION_OPTIONS = [
-  { value: "sar_filed",                label: "SAR Filed",                     desc: "Suspicious Activity Report submitted to FIU-IND" },
-  { value: "no_sar_warranted",         label: "No SAR Warranted",              desc: "Reviewed — activity is not suspicious" },
+  { value: "sar_filed",                label: "STR Filed",                     desc: "Suspicious Transaction Report submitted to FIU-IND" },
+  { value: "no_sar_warranted",         label: "No STR Warranted",              desc: "Reviewed — activity is not suspicious enough to file" },
   { value: "false_positive",           label: "False Positive",                desc: "Alert was a false positive, no suspicious activity" },
   { value: "closed_monitoring",        label: "Closed — Continued Monitoring", desc: "Case closed but subject remains under monitoring" },
   { value: "escalated_law_enforcement",label: "Escalated to Law Enforcement",  desc: "Referred to police / ED / CBI" },
@@ -79,7 +82,7 @@ const REASON_CODE_OPTIONS = [
   { value: "customer_clarification", label: "Customer Provided Clarification" },
   { value: "known_business_purpose", label: "Known Business Purpose" },
   { value: "periodic_review_cleared", label: "Cleared on Periodic Review" },
-  { value: "sar_filed_fiu", label: "SAR Filed with FIU-IND" },
+  { value: "sar_filed_fiu", label: "STR Filed with FIU-IND" },
   { value: "law_enforcement_referral", label: "Law Enforcement Referral" },
   { value: "other", label: "Other" },
 ];
@@ -156,7 +159,15 @@ function ChecklistPanel({ caseId }: { caseId: string }) {
   );
 }
 
-function ClosureStatusBanner({ closure }: { closure: ClosureResponse }) {
+function ClosureStatusBanner({
+  closure,
+  onRevise,
+  isRevising,
+}: {
+  closure: ClosureResponse;
+  onRevise?: () => void;
+  isRevising?: boolean;
+}) {
   const banners: Record<string, React.ReactNode> = {
     submitted: (
       <div className="flex items-center gap-2 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg text-amber-300 text-sm">
@@ -171,9 +182,26 @@ function ClosureStatusBanner({ closure }: { closure: ClosureResponse }) {
       </div>
     ),
     rejected: (
-      <div className="flex items-center gap-2 p-3 bg-red-900/20 border border-red-500/30 rounded-lg text-red-300 text-sm">
-        <XCircle size={15} />
-        Rejected by {closure.reviewed_by?.full_name ?? "—"} — returned to draft for revision.
+      <div className="p-4 bg-red-900/20 border border-red-500/30 rounded-lg space-y-2">
+        <div className="flex items-center gap-2 text-red-300 text-sm font-medium">
+          <XCircle size={15} />
+          Closure rejected by {closure.rejected_by?.full_name ?? closure.reviewed_by?.full_name ?? "—"}
+          {closure.rejected_at ? ` on ${fmt(closure.rejected_at)}` : ""}
+        </div>
+        {closure.rejection_reason && (
+          <p className="text-red-200 text-sm pl-5">
+            <span className="font-medium">Reason: </span>{closure.rejection_reason}
+          </p>
+        )}
+        <div className="pl-5 pt-1">
+          <button
+            onClick={onRevise}
+            disabled={isRevising}
+            className="px-3 py-1.5 text-xs font-semibold bg-red-500/20 hover:bg-red-500/30 border border-red-500/40 text-red-300 rounded-lg transition-colors disabled:opacity-50"
+          >
+            {isRevising ? "Opening…" : "Revise Closure"}
+          </button>
+        </div>
       </div>
     ),
     voided: (
@@ -281,6 +309,11 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
     onSuccess: () => { setShowRejectForm(false); setRejectReason(""); invalidate(); },
   });
 
+  const reviseMutation = useMutation({
+    mutationFn: () => api.post(`/api/v1/cases/${caseId}/closure/${closure?.id}/revise`, {}),
+    onSuccess: invalidate,
+  });
+
   const reopenMutation = useMutation({
     mutationFn: () => api.post(`/api/v1/cases/${caseId}/reopen`, { reason: reopenReason }),
     onSuccess: () => { setShowReopenForm(false); setReopenReason(""); invalidate(); },
@@ -308,7 +341,7 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
     initFromClosure(closure);
   }
 
-  const isDraft = !closure || closure.status === "draft" || closure.status === "rejected";
+  const isDraft = !closure || closure.status === "draft";
   const canEdit = isDraft;
   const canSubmit = isDraft && closure && effectiveSummary.length >= 100 && effectiveDisposition;
 
@@ -331,7 +364,15 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
       </div>
 
         {/* Status banner */}
-        {closure && <div className="mb-6"><ClosureStatusBanner closure={closure} /></div>}
+        {closure && (
+          <div className="mb-6">
+            <ClosureStatusBanner
+              closure={closure}
+              onRevise={() => reviseMutation.mutate()}
+              isRevising={reviseMutation.isPending}
+            />
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* ── Step 1: Pre-closure Checklist ── */}
@@ -390,7 +431,7 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                 <div className="flex items-start gap-2">
                   <AlertCircle size={14} className="text-amber-400 mt-0.5 shrink-0" />
                   <p className="text-xs text-amber-300">
-                    This is a <strong>high-risk case</strong>. You must confirm SAR was considered before closing without filing.
+                    This is a <strong>high-risk case</strong>. You must confirm STR was considered before closing without filing.
                   </p>
                 </div>
                 <label className="flex items-center gap-2 cursor-pointer">
@@ -401,19 +442,19 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                     disabled={!canEdit}
                     className="w-4 h-4 rounded accent-amber-500"
                   />
-                  <span className="text-xs text-slate-300">I confirm SAR was considered and is not warranted</span>
+                  <span className="text-xs text-slate-300">I confirm STR was considered and is not warranted</span>
                 </label>
                 {sarConsidered && (
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Reason SAR was not filed <span className="text-red-400">*</span>
+                      Reason STR was not filed <span className="text-red-400">*</span>
                     </label>
                     <textarea
                       value={sarRejectionReason}
                       onChange={(e) => setSarRejectionReason(e.target.value)}
                       disabled={!canEdit}
                       rows={2}
-                      placeholder="Explain why SAR is not warranted for this high-risk case…"
+                      placeholder="Explain why STR is not warranted for this high-risk case…"
                       className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none"
                     />
                   </div>
@@ -452,7 +493,11 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">Reason Code</label>
                 <select
                   value={reasonCode}
-                  onChange={(e) => setReasonCode(e.target.value)}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    setReasonCode(v);
+                    if (v === "sar_filed_fiu") setFiledSTR(true);
+                  }}
                   disabled={!canEdit}
                   className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 disabled:opacity-60 focus:outline-none focus:ring-1 focus:ring-cyan-500"
                 >
@@ -463,15 +508,21 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                 </select>
               </div>
               <div className="flex items-end">
-                <label className="flex items-center gap-2 cursor-pointer pb-2">
+                {/* Auto-checked when reason code = STR Filed; manual override allowed for other dispositions */}
+                <label className={`flex items-center gap-2 pb-2 ${reasonCode === "sar_filed_fiu" ? "cursor-default" : "cursor-pointer"}`}>
                   <input
                     type="checkbox"
                     checked={filedSTR}
-                    onChange={(e) => setFiledSTR(e.target.checked)}
-                    disabled={!canEdit}
-                    className="w-4 h-4 rounded accent-cyan-500"
+                    onChange={(e) => { if (reasonCode !== "sar_filed_fiu") setFiledSTR(e.target.checked); }}
+                    disabled={!canEdit || reasonCode === "sar_filed_fiu"}
+                    className="w-4 h-4 rounded accent-cyan-500 disabled:opacity-80"
                   />
-                  <span className="text-xs text-slate-300">STR/SAR filed with FIU-IND</span>
+                  <span className="text-xs text-slate-300">
+                    STR filed with FIU-IND
+                    {reasonCode === "sar_filed_fiu" && (
+                      <span className="ml-1 text-slate-500">(auto)</span>
+                    )}
+                  </span>
                 </label>
               </div>
             </div>
@@ -538,6 +589,15 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                 <AlertCircle size={14} />
                 Manager Review
               </h2>
+              {/* Maker-checker: submitter cannot self-approve */}
+              {closure.created_by.id === user?.id && (
+                <div className="flex items-start gap-2 p-3 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                  <Info size={14} className="text-amber-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-amber-300">
+                    You submitted this draft. <strong>Maker-checker rule</strong> requires a different manager or admin to approve — you cannot approve your own submission.
+                  </p>
+                </div>
+              )}
 
               {/* Closure read-only summary */}
               <div className="space-y-3 text-sm">
@@ -577,26 +637,28 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
                 )}
               </div>
 
-              {/* Approve */}
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  onClick={() => approveMutation.mutate()}
-                  disabled={approveMutation.isPending}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
-                >
-                  <ThumbsUp size={14} />
-                  {approveMutation.isPending ? "Approving…" : "Approve & Close Case"}
-                </button>
-                <button
-                  onClick={() => setShowRejectForm((v) => !v)}
-                  className="flex items-center gap-1.5 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-500/40 text-red-300 text-sm rounded-lg font-medium transition-colors"
-                >
-                  <ThumbsDown size={14} />
-                  Reject
-                </button>
-              </div>
+              {/* Approve — hidden for the submitter (maker-checker) */}
+              {closure.created_by.id !== user?.id && (
+                <div className="flex items-center gap-3 pt-1">
+                  <button
+                    onClick={() => approveMutation.mutate()}
+                    disabled={approveMutation.isPending}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-emerald-700 hover:bg-emerald-600 disabled:opacity-50 text-white text-sm rounded-lg font-medium transition-colors"
+                  >
+                    <ThumbsUp size={14} />
+                    {approveMutation.isPending ? "Approving…" : "Approve & Close Case"}
+                  </button>
+                  <button
+                    onClick={() => setShowRejectForm((v) => !v)}
+                    className="flex items-center gap-1.5 px-4 py-2 bg-red-900/50 hover:bg-red-800/60 border border-red-500/40 text-red-300 text-sm rounded-lg font-medium transition-colors"
+                  >
+                    <ThumbsDown size={14} />
+                    Reject
+                  </button>
+                </div>
+              )}
 
-              {showRejectForm && (
+              {showRejectForm && closure.created_by.id !== user?.id && (
                 <div className="space-y-2">
                   <label className="text-xs text-slate-300 font-medium">Rejection reason <span className="text-slate-500">(shown to analyst)</span></label>
                   <textarea

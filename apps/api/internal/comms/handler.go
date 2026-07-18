@@ -2,6 +2,7 @@ package comms
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -95,6 +96,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		OccurredAt:    occurredAt,
 	})
 	if err != nil {
+		if errors.Is(err, ErrCaseClosed) {
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
+			return
+		}
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}

@@ -15,6 +15,7 @@ var (
 	ErrFileTooLarge    = errors.New("file too large")
 	ErrFileTypeBlocked = errors.New("file type not allowed")
 	ErrVirusFound      = errors.New("file rejected by antivirus scan — threat detected")
+	ErrCaseClosed      = errors.New("case is closed — no new documents may be uploaded")
 )
 
 // DuplicateDocError is returned when an uploaded file's SHA-256 hash matches

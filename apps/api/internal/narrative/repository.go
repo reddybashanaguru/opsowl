@@ -3,6 +3,7 @@ package narrative
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -281,7 +282,7 @@ func (r *Repository) GetSubjectNames(ctx context.Context, caseID uuid.UUID) ([]s
 		SELECT s.canonical_name
 		FROM case_subjects cs
 		JOIN subjects s ON s.id = cs.subject_id
-		WHERE cs.case_id = $1 AND cs.deleted_at IS NULL
+		WHERE cs.case_id = $1 AND s.deleted_at IS NULL
 		LIMIT 10`, caseID)
 	if err != nil {
 		return nil, err
@@ -297,4 +298,66 @@ func (r *Repository) GetSubjectNames(ctx context.Context, caseID uuid.UUID) ([]s
 		names = append(names, n)
 	}
 	return names, rows.Err()
+}
+
+type subjectProfileRow struct {
+	Name      string
+	IDType    string
+	IDNumber  string
+	KYCTier   string
+	RiskLevel string
+	IsPEP     bool
+	Notes     string
+}
+
+func (r *Repository) GetSubjectProfiles(ctx context.Context, caseID uuid.UUID) ([]subjectProfileRow, error) {
+	rows, err := r.db.QueryContext(ctx, `
+		SELECT s.canonical_name, s.id_type, s.id_number,
+		       COALESCE(s.kyc_tier, ''), s.risk_level, s.is_pep, COALESCE(s.notes, '')
+		FROM case_subjects cs
+		JOIN subjects s ON s.id = cs.subject_id
+		WHERE cs.case_id = $1 AND s.deleted_at IS NULL
+		LIMIT 10`, caseID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var result []subjectProfileRow
+	for rows.Next() {
+		var p subjectProfileRow
+		if err := rows.Scan(&p.Name, &p.IDType, &p.IDNumber, &p.KYCTier, &p.RiskLevel, &p.IsPEP, &p.Notes); err != nil {
+			return nil, err
+		}
+		result = append(result, p)
+	}
+	return result, rows.Err()
+}
+
+type insightContextRow struct {
+	RiskScore          float64
+	RiskFactors        []string
+	Anomalies          []string
+	RecommendedActions []string
+}
+
+func (r *Repository) GetAIInsights(ctx context.Context, caseID uuid.UUID) (*insightContextRow, error) {
+	var row insightContextRow
+	var rfJSON, anomJSON, actJSON []byte
+	err := r.db.QueryRowContext(ctx, `
+		SELECT COALESCE(risk_score, 0), risk_factors, anomalies, recommended_actions
+		FROM case_ai_insights
+		WHERE case_id = $1 AND risk_score IS NOT NULL
+		ORDER BY analysed_at DESC
+		LIMIT 1`, caseID).Scan(&row.RiskScore, &rfJSON, &anomJSON, &actJSON)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	_ = json.Unmarshal(rfJSON, &row.RiskFactors)
+	_ = json.Unmarshal(anomJSON, &row.Anomalies)
+	_ = json.Unmarshal(actJSON, &row.RecommendedActions)
+	return &row, nil
 }

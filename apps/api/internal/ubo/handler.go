@@ -3,6 +3,7 @@ package ubo
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -54,6 +55,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	req.CaseID = caseID
 	rec, err := h.svc.Create(r.Context(), &req)
 	if err != nil {
+		if errors.Is(err, ErrCaseClosed) {
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
+			return
+		}
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}

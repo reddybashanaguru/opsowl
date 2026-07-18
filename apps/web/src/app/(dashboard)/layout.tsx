@@ -28,6 +28,7 @@ import {
   Plug,
   Filter,
   Library,
+  ShieldCheck,
 } from "lucide-react";
 import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import { RBACGate } from "@/components/auth/RBACGate";
@@ -111,6 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     { label: "Alert Rules",          href: "/settings/alert-rules",       icon: Filter },
     { label: "Auto-Assignment",      href: "/settings/assignment-rules",  icon: Shuffle },
     { label: "Data Retention",       href: "/settings/retention",         icon: Archive },
+    { label: "AI Governance",         href: "/settings/ai-act",            icon: ShieldCheck },
     { label: "Settings",             href: "/settings",                   icon: Settings, exact: true },
   ];
 
@@ -145,7 +147,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div>
                 <div className="text-cyan-400 font-bold text-base tracking-tight leading-none">OpsOwl AI</div>
                 <div className="text-slate-500 text-[10px] uppercase tracking-widest mt-0.5">
-                  Investigations & Operations
+                  Fincrime Investigations & Operations
                 </div>
               </div>
             </div>

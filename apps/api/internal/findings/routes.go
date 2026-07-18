@@ -6,28 +6,42 @@ import (
 )
 
 // RegisterRoutes mounts all findings endpoints on the provided router.
-// All routes require a valid JWT and are nested under the case resource.
 func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 	r.Group(func(r chi.Router) {
 		r.Use(auth.JWTValidate(jwtMgr))
 
-		// Finding CRUD
-		r.Get("/cases/{id}/findings", h.List)
-		r.Post("/cases/{id}/findings", h.Create)
-		r.Get("/cases/{id}/findings/summary", h.Summary)
-		r.Get("/cases/{id}/findings/{findingId}", h.Get)
-		r.Patch("/cases/{id}/findings/{findingId}", h.Update)
-		r.Delete("/cases/{id}/findings/{findingId}", h.Delete)
+		// Read — viewers and above
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
+			Get("/cases/{id}/findings", h.List)
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
+			Get("/cases/{id}/findings/summary", h.Summary)
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
+			Get("/cases/{id}/findings/{findingId}", h.Get)
+		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
+			Get("/cases/{id}/findings/{findingId}/evidence", h.ListEvidence)
 
-		// Status transitions
-		r.Post("/cases/{id}/findings/{findingId}/submit", h.Submit)
-		r.Post("/cases/{id}/findings/{findingId}/approve", h.Approve)
-		r.Post("/cases/{id}/findings/{findingId}/reject", h.Reject)
-		r.Post("/cases/{id}/findings/{findingId}/contest", h.Contest)
+		// Write — analyst and above
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings", h.Create)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Patch("/cases/{id}/findings/{findingId}", h.Update)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Delete("/cases/{id}/findings/{findingId}", h.Delete)
 
-		// Evidence management
-		r.Get("/cases/{id}/findings/{findingId}/evidence", h.ListEvidence)
-		r.Post("/cases/{id}/findings/{findingId}/evidence", h.LinkEvidence)
-		r.Delete("/cases/{id}/findings/{findingId}/evidence/{linkId}", h.RemoveEvidence)
+		// Status transitions — analyst+ (service enforces maker-checker for approve/reject)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings/{findingId}/submit", h.Submit)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings/{findingId}/approve", h.Approve)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings/{findingId}/reject", h.Reject)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings/{findingId}/contest", h.Contest)
+
+		// Evidence management — analyst and above
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{id}/findings/{findingId}/evidence", h.LinkEvidence)
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Delete("/cases/{id}/findings/{findingId}/evidence/{linkId}", h.RemoveEvidence)
 	})
 }

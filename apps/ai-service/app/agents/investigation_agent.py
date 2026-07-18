@@ -29,7 +29,7 @@ from typing import AsyncIterator
 
 import httpx
 
-from app.agents.tools import TOOL_SPECS, execute_tool, to_ollama_tools
+from app.agents.tools import TOOL_SPECS, execute_tool, to_ollama_tools  # TOOL_SPECS/to_ollama_tools used by Anthropic path
 from app.config import settings
 from app.services.llm_router import Provider
 
@@ -191,101 +191,122 @@ async def _run_anthropic(case_id: str, goal: str) -> AsyncIterator[str]:
 
 # ── Ollama path (on-premise, zero egress) ────────────────────────────────────
 
+# Ordered list of tools to gather before synthesis. Each entry is
+# (tool_name, input_overrides). case_id is always injected automatically.
+_GATHER_STEPS = [
+    ("get_case_context", {}),
+    ("get_case_notes", {"limit": 10}),
+    ("get_case_tasks", {}),
+    ("get_case_findings", {}),
+    ("get_case_transactions", {"limit": 30}),
+    ("get_case_timeline", {"limit": 15}),
+]
+
+_ANALYSIS_SYSTEM = (
+    "You are OpsOwl Investigator, an AI financial crime analyst.\n"
+    "You are given pre-gathered case data. Analyse it and produce a structured investigation report.\n"
+    "Base every claim strictly on the data provided — never fabricate.\n"
+    "Be concise and professional. Write in the style of a financial crime analyst."
+)
+
+
 async def _run_ollama(case_id: str, goal: str) -> AsyncIterator[str]:
     """
-    Ollama tool_use path for fully air-gapped on-premise deployments.
-    Requires a model with function-calling support (qwen2.5:7b, mistral-nemo, etc.).
-    Uses Ollama's OpenAI-compatible /api/chat endpoint with tools parameter.
+    Gather-then-analyse approach for on-premise Ollama models.
+
+    Avoids multi-turn tool-calling (unreliable on 3B models). Instead:
+      1. Pre-fetch all key case data via direct DB tool calls (same tools, shown in feed)
+      2. Send everything to the model in one comprehensive prompt
+      3. Emit the analysis as the final answer
+
+    Compatible with llama3.2:3b and any Ollama model — no function-calling required.
     """
     model = settings.ollama_model
-    ollama_tools = to_ollama_tools(TOOL_SPECS)
-
-    messages: list[dict] = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
-        {"role": "user", "content": f"Goal: {goal}\n\nCase ID: {case_id}"},
-    ]
     t0 = time.monotonic()
     total_tok_in = 0
     total_tok_out = 0
-    iterations = 0
+
+    # ── Phase 1: gather case data ─────────────────────────────────────────────
+    gathered: dict[str, str] = {}
+    for step_num, (tool_name, extra_input) in enumerate(_GATHER_STEPS, start=1):
+        call_id = f"gather_{step_num}"
+        tool_input = {"case_id": case_id, **extra_input}
+
+        yield _sse("tool_call", {"id": call_id, "name": tool_name, "input": tool_input})
+
+        try:
+            result = await execute_tool(tool_name, tool_input, case_id)
+            gathered[tool_name] = result
+            ok = True
+        except Exception as exc:
+            result = f"[unavailable: {exc}]"
+            gathered[tool_name] = result
+            ok = False
+            logger.warning("Tool %s failed: %s", tool_name, exc)
+
+        yield _sse("tool_result", {
+            "id": call_id,
+            "name": tool_name,
+            "preview": result[:200],
+            "ok": ok,
+        })
+
+    # ── Phase 2: build analysis prompt ───────────────────────────────────────
+    context_block = "\n\n".join(
+        f"=== {name.replace('get_case_', '').replace('_', ' ').upper()} ===\n{data}"
+        for name, data in gathered.items()
+        if data and not data.startswith("[unavailable")
+    )
+
+    analysis_prompt = (
+        f"Analyst goal: {goal}\n\n"
+        f"Case ID: {case_id}\n\n"
+        f"--- GATHERED CASE DATA ---\n{context_block}\n\n"
+        "--- TASK ---\n"
+        "Based on the case data above, produce a structured investigation report with these sections:\n\n"
+        "## Case Summary\n"
+        "## Key Findings\n"
+        "## Risk Indicators\n"
+        "## Recommended Next Steps\n"
+        "## Confidence Level: HIGH / MEDIUM / LOW\n\n"
+        "Write each section with bullet points where appropriate. "
+        "Reference specific amounts, dates, counterparties, and entities from the data."
+    )
+
+    yield _sse("thinking", {"text": "Analysing gathered data and generating investigation report…"})
+
+    # ── Phase 3: single LLM call for synthesis ───────────────────────────────
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _ANALYSIS_SYSTEM},
+            {"role": "user", "content": analysis_prompt},
+        ],
+        "stream": False,
+        "options": {"num_predict": 1200, "temperature": 0.1},
+    }
 
     async with httpx.AsyncClient(base_url=settings.ollama_base_url, timeout=180.0) as http:
-        while iterations < MAX_ITERATIONS:
-            iterations += 1
+        try:
+            resp = await http.post("/api/chat", json=payload)
+            resp.raise_for_status()
+            data = resp.json()
+        except Exception as exc:
+            yield _sse("error", {"message": f"Ollama error during analysis: {exc}"})
+            return
 
-            payload = {
-                "model": model,
-                "messages": messages,
-                "tools": ollama_tools,
-                "stream": False,
-            }
+    total_tok_in += data.get("prompt_eval_count", 0)
+    total_tok_out += data.get("eval_count", 0)
 
-            try:
-                resp = await http.post("/api/chat", json=payload)
-                resp.raise_for_status()
-                data = resp.json()
-            except Exception as exc:
-                yield _sse("error", {"message": f"Ollama error: {exc}"})
-                return
+    answer_text: str = (data.get("message", {}).get("content", "") or "").strip()
 
-            total_tok_in += data.get("prompt_eval_count", 0)
-            total_tok_out += data.get("eval_count", 0)
+    if not answer_text:
+        yield _sse("error", {"message": "Model returned an empty response."})
+        return
 
-            msg = data.get("message", {})
-            content_text: str = msg.get("content", "") or ""
-            tool_calls: list[dict] = msg.get("tool_calls") or []
-
-            if content_text.strip():
-                yield _sse("thinking", {"text": content_text})
-
-            # Append assistant message to history
-            messages.append({"role": "assistant", "content": content_text, "tool_calls": tool_calls})
-
-            if not tool_calls:
-                # Model is done — content_text is the final answer
-                yield _sse("answer", {"text": content_text.strip()})
-                break
-
-            # Execute each tool call
-            for tc in tool_calls:
-                fn = tc.get("function", {})
-                name = fn.get("name", "")
-                raw_args = fn.get("arguments", "{}")
-                try:
-                    tool_input = json.loads(raw_args) if isinstance(raw_args, str) else raw_args
-                except json.JSONDecodeError:
-                    tool_input = {}
-
-                call_id = tc.get("id", f"call_{iterations}_{name}")
-
-                yield _sse("tool_call", {"id": call_id, "name": name, "input": tool_input})
-
-                try:
-                    result_text = await execute_tool(name, tool_input, case_id)
-                    ok = True
-                except Exception as exc:
-                    result_text = f"Tool execution error: {exc}"
-                    ok = False
-                    logger.warning("Tool %s failed: %s", name, exc)
-
-                yield _sse("tool_result", {
-                    "id": call_id,
-                    "name": name,
-                    "preview": result_text[:300],
-                    "ok": ok,
-                })
-
-                messages.append({
-                    "role": "tool",
-                    "content": result_text,
-                    "name": name,
-                })
-
-        else:
-            yield _sse("thinking", {"text": f"[Reached maximum of {MAX_ITERATIONS} iterations]"})
-
+    yield _sse("answer", {"text": answer_text})
     yield _sse("done", {
-        "iterations": iterations,
+        "iterations": 1,
         "tokens_in": total_tok_in,
         "tokens_out": total_tok_out,
         "elapsed_ms": int((time.monotonic() - t0) * 1000),

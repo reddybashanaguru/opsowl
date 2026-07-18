@@ -71,9 +71,13 @@ type ClosureResponse struct {
 	SARConsidered       bool       `json:"sar_considered"`
 	SARRejectionReason  string     `json:"sar_rejection_reason,omitempty"`
 	Status              string     `json:"status"`
+	PreparedBy          UserRef    `json:"prepared_by"`
 	CreatedBy           UserRef    `json:"created_by"`
 	ReviewedBy          *UserRef   `json:"reviewed_by,omitempty"`
 	ApprovedBy          *UserRef   `json:"approved_by,omitempty"`
+	RejectedBy          *UserRef   `json:"rejected_by,omitempty"`
+	RejectionReason     string     `json:"rejection_reason,omitempty"`
+	RejectedAt          *time.Time `json:"rejected_at,omitempty"`
 	SubmittedAt         *time.Time `json:"submitted_at,omitempty"`
 	ApprovedAt          *time.Time `json:"approved_at,omitempty"`
 	VoidedAt            *time.Time `json:"voided_at,omitempty"`

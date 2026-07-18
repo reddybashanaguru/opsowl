@@ -2,6 +2,8 @@
 
 import { useState, useRef, useCallback } from "react";
 
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+
 export type AgentEventType =
   | "agent_start"
   | "thinking"
@@ -47,7 +49,7 @@ export function useAgentStream(caseId: string) {
       setState({ running: true, events: [], answer: null, error: null, stats: null });
 
       try {
-        const res = await fetch(`/api/v1/cases/${caseId}/ai/agent`, {
+        const res = await fetch(`${API_BASE}/api/v1/cases/${caseId}/ai/agent`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",

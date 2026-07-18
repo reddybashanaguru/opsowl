@@ -69,6 +69,8 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 	findings, _ := s.repo.GetApprovedFindings(ctx, caseID)
 	txns, _ := s.repo.GetCaseTransactions(ctx, caseID)
 	subjects, _ := s.repo.GetSubjectNames(ctx, caseID)
+	profiles, _ := s.repo.GetSubjectProfiles(ctx, caseID)
+	insights, _ := s.repo.GetAIInsights(ctx, caseID)
 
 	if subjects == nil {
 		subjects = []string{}
@@ -83,9 +85,29 @@ func (s *Service) Generate(ctx context.Context, claims *auth.Claims, caseID uuid
 		RiskLevel:         caseCtx.RiskLevel,
 		NarrativeType:     ntype,
 		SubjectNames:      subjects,
+		SubjectProfiles:   []aiSubjectProfile{},
 		InvestigatorNotes: req.InvestigatorNotes,
 		Findings:          []aiNarrativeFinding{},
 		Transactions:      []aiNarrativeTransaction{},
+	}
+	for _, p := range profiles {
+		aiReq.SubjectProfiles = append(aiReq.SubjectProfiles, aiSubjectProfile{
+			Name:      p.Name,
+			IDType:    p.IDType,
+			IDNumber:  p.IDNumber,
+			KYCTier:   p.KYCTier,
+			RiskLevel: p.RiskLevel,
+			IsPEP:     p.IsPEP,
+			Notes:     p.Notes,
+		})
+	}
+	if insights != nil {
+		aiReq.AIInsights = &aiInsightContext{
+			RiskScore:          insights.RiskScore,
+			RiskFactors:        insights.RiskFactors,
+			Anomalies:          insights.Anomalies,
+			RecommendedActions: insights.RecommendedActions,
+		}
 	}
 	for _, f := range findings {
 		aiReq.Findings = append(aiReq.Findings, aiNarrativeFinding{
@@ -266,6 +288,9 @@ func (s *Service) Approve(ctx context.Context, claims *auth.Claims, caseID, id u
 	}
 	if row.Status == "approved" {
 		return NarrativeResponse{}, ErrAlreadyApproved
+	}
+	if row.GeneratedBy.Valid && row.GeneratedBy.UUID == claims.UserID {
+		return NarrativeResponse{}, fmt.Errorf("%w: approver must be different from the narrative generator (4-eye principle)", ErrForbidden)
 	}
 	if err := s.repo.UpdateStatus(ctx, id, claims.UserID, "approved", ""); err != nil {
 		return NarrativeResponse{}, err

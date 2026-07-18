@@ -122,7 +122,7 @@ function LoginForm() {
           <div className="inline-flex items-center gap-2 mb-2">
             <span className="text-2xl font-bold text-cyan-400 tracking-tight">OpsOwl AI</span>
           </div>
-          <p className="text-slate-400 text-sm">Operations Intelligence Workspace</p>
+          <p className="text-slate-400 text-sm">AI-Native Fincrime Investigations Workspace</p>
         </div>
 
         <div className="bg-[#131f30] border border-[#1e3050] rounded-2xl ring-1 ring-white/[0.04] p-8 shadow-xl">

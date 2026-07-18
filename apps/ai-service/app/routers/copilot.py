@@ -205,9 +205,11 @@ async def ask(req: AskRequest) -> CopilotResponse:
 
 @router.post("/summarize", response_model=CopilotResponse)
 async def summarize(req: SummarizeRequest) -> CopilotResponse:
-    """Summarize all documents in a case."""
+    """Summarize the most relevant document chunks for a case."""
     t0 = time.monotonic()
-    chunks = await rag.fetch_all_chunks(req.case_id, limit=150)
+    # Use top-k relevant chunks rather than ALL chunks — keeps context window
+    # within llama3.2:3b's practical limit for fast on-premise inference.
+    chunks = await rag.fetch_all_chunks(req.case_id, limit=20)
 
     if not chunks:
         return _build_response(
@@ -239,7 +241,7 @@ async def summarize(req: SummarizeRequest) -> CopilotResponse:
     )
     messages = [{"role": "user", "content": prompt_text}]
 
-    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=2048)
+    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=800)
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     return _build_response(
@@ -300,7 +302,7 @@ async def generate_note(req: GenerateNoteRequest) -> CopilotResponse:
     )
     messages = [{"role": "user", "content": prompt_text}]
 
-    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=1500)
+    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=800)
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     return _build_response(
@@ -361,7 +363,7 @@ async def extract_actions(req: ExtractActionsRequest) -> CopilotResponse:
     )
     messages = [{"role": "user", "content": prompt_text}]
 
-    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=1000)
+    answer, model, tok_in, tok_out = await llm_router.complete(messages, system=system, max_tokens=600)
     latency_ms = int((time.monotonic() - t0) * 1000)
 
     return _build_response(

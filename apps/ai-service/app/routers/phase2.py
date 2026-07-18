@@ -307,6 +307,23 @@ class NarrativeTransaction(BaseModel):
     flag_reason: str = ""
 
 
+class SubjectProfile(BaseModel):
+    name: str
+    id_type: str = ""
+    id_number: str = ""
+    kyc_tier: str = ""
+    risk_level: str = ""
+    is_pep: bool = False
+    notes: str = ""
+
+
+class AIInsights(BaseModel):
+    risk_score: float = 0.0
+    risk_factors: list[str] = []
+    anomalies: list[str] = []
+    recommended_actions: list[str] = []
+
+
 class GenerateNarrativeRequest(BaseModel):
     case_id: str
     case_number: str
@@ -318,6 +335,8 @@ class GenerateNarrativeRequest(BaseModel):
     findings: list[NarrativeFinding] = []
     transactions: list[NarrativeTransaction] = []
     subject_names: list[str] = []
+    subject_profiles: list[SubjectProfile] = []
+    ai_insights: AIInsights | None = None
     investigator_notes: str = ""
 
 
@@ -394,8 +413,37 @@ async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrative
         txns_block = "\n".join(lines)
 
     subjects_block = ""
-    if req.subject_names:
+    if req.subject_profiles:
+        lines = ["SUBJECTS OF INVESTIGATION:"]
+        for sp in req.subject_profiles:
+            line = f"  - {sp.name}"
+            if sp.id_type and sp.id_number:
+                line += f" | {sp.id_type}: {sp.id_number}"
+            if sp.kyc_tier:
+                line += f" | KYC Tier: {sp.kyc_tier}"
+            if sp.risk_level:
+                line += f" | Risk: {sp.risk_level.upper()}"
+            if sp.is_pep:
+                line += " | PEP: YES"
+            if sp.notes:
+                line += f"\n    Profile notes: {sp.notes[:300]}"
+            lines.append(line)
+        subjects_block = "\n".join(lines)
+    elif req.subject_names:
         subjects_block = f"SUBJECTS OF INVESTIGATION: {', '.join(req.subject_names)}"
+
+    insights_block = ""
+    if req.ai_insights and (req.ai_insights.risk_factors or req.ai_insights.anomalies):
+        lines = [f"AI RISK ANALYSIS (risk score: {req.ai_insights.risk_score:.0f}/100):"]
+        if req.ai_insights.risk_factors:
+            lines.append("  Risk Factors Identified:")
+            for rf in req.ai_insights.risk_factors:
+                lines.append(f"    • {rf}")
+        if req.ai_insights.anomalies:
+            lines.append("  Transaction Anomalies Detected:")
+            for a in req.ai_insights.anomalies:
+                lines.append(f"    • {a}")
+        insights_block = "\n".join(lines)
 
     context_parts = [
         f"CASE: {req.case_number} — {req.case_title}",
@@ -405,6 +453,8 @@ async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrative
         context_parts.append(f"DESCRIPTION: {req.case_description[:500]}")
     if subjects_block:
         context_parts.append(subjects_block)
+    if insights_block:
+        context_parts.append(insights_block)
     if findings_block:
         context_parts.append(findings_block)
     if txns_block:
@@ -416,7 +466,11 @@ async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrative
 
     prompt = (
         f"{instruction}\n\n"
-        f"Use ONLY the following case data — do not invent facts:\n\n"
+        f"Use ONLY the following case data — do not invent facts. "
+        f"CRITICAL: All subject occupation, employment, and income details must come EXCLUSIVELY "
+        f"from the SUBJECTS OF INVESTIGATION section below. "
+        f"CRITICAL: Use the aggregate total from the AI RISK ANALYSIS section — "
+        f"do not independently sum transactions.\n\n"
         f"{case_context}\n\n"
         "Write the narrative now. Do not include headers, titles, or section labels. "
         "Plain paragraphs only."
@@ -424,7 +478,8 @@ async def generate_narrative(req: GenerateNarrativeRequest) -> GenerateNarrative
     system = (
         "You are a senior financial crime compliance officer writing formal investigation documentation "
         "for regulatory review. Your writing is factual, precise, and defensible under regulatory scrutiny. "
-        "Never speculate beyond the provided evidence. Never invent amounts, dates, or names."
+        "Never speculate beyond the provided evidence. Never invent amounts, dates, names, or occupations. "
+        "Use only facts explicitly stated in the case data provided."
     )
 
     try:

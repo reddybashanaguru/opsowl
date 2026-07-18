@@ -37,6 +37,9 @@ func RegisterRoutes(r chi.Router, h *Handler, jwtMgr *auth.JWTManager) {
 		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
 			Post("/cases/{caseId}/ai/extract-actions", h.ExtractActions)
 
+		r.With(auth.RequireRole("analyst", "manager", "admin", "super_admin")).
+			Post("/cases/{caseId}/ai/agent-result", h.SaveAgentResult)
+
 		// ── AI log reads ──────────────────────────────────────────────────
 		r.With(auth.RequireRole("viewer", "analyst", "manager", "admin", "super_admin")).
 			Get("/cases/{caseId}/ai/logs", h.ListLogs)

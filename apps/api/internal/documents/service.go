@@ -136,6 +136,9 @@ func (s *Service) Upload(ctx context.Context, claims *auth.Claims, caseID uuid.U
 	if totalSize > MaxFileSizeBytes {
 		return nil, ErrFileTooLarge
 	}
+	if s.repo.IsCaseClosed(ctx, caseID) {
+		return nil, ErrCaseClosed
+	}
 
 	// Read first 512 bytes for MIME detection while retaining them for upload.
 	header := make([]byte, 512)

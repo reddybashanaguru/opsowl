@@ -127,15 +127,16 @@ func (s *Server) DrainDocumentProcessing() {
 	}
 }
 
-// sseAwareTimeout applies a 30-second request timeout to all routes EXCEPT
-// SSE stream endpoints. SSE connections are long-lived by design; a 30-second
-// global timeout would silently kill them and break real-time updates.
+// sseAwareTimeout applies a 30-second request timeout to all routes EXCEPT:
+//   - SSE stream endpoints (long-lived connections)
+//   - AI copilot endpoints (LLM inference can take 60–120s on-premise)
 func sseAwareTimeout(d time.Duration) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		withTimeout := chimw.Timeout(d)(next)
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/stream") || strings.HasSuffix(r.URL.Path, "/agent") ||
-				strings.HasSuffix(r.URL.Path, "/generate") {
+			p := r.URL.Path
+			if strings.HasSuffix(p, "/stream") || strings.HasSuffix(p, "/agent") ||
+				strings.HasSuffix(p, "/generate") || strings.Contains(p, "/ai/") {
 				next.ServeHTTP(w, r)
 				return
 			}

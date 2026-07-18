@@ -271,11 +271,16 @@ func (h *Handler) LinkToCase(w http.ResponseWriter, r *http.Request) {
 		role = "primary"
 	}
 	if err := h.svc.LinkToCase(r.Context(), claims, caseID, subjectID, role); err != nil {
-		if errors.Is(err, ErrNotFound) {
+		switch {
+		case errors.Is(err, ErrNotFound):
 			response.Err(w, http.StatusNotFound, "NOT_FOUND", "subject not found")
-			return
+		case errors.Is(err, ErrAlreadyLinked):
+			response.Err(w, http.StatusConflict, "ALREADY_LINKED", err.Error())
+		case errors.Is(err, ErrCaseClosed):
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to link subject")
 		}
-		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to link subject")
 		return
 	}
 	// Return updated subject list for the case

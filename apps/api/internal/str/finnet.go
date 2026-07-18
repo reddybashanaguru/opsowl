@@ -94,12 +94,14 @@ type entityJSON struct {
 }
 
 type txJSON struct {
-	Date        string  `json:"date"`
-	Amount      float64 `json:"amount"`
-	Currency    string  `json:"currency"`
-	Type        string  `json:"type"`
-	Description string  `json:"description"`
-	Reference   string  `json:"reference"`
+	Date              string  `json:"date"`
+	Amount            float64 `json:"amount"`
+	Currency          string  `json:"currency"`
+	Type              string  `json:"type"`
+	Description       string  `json:"description"`
+	Reference         string  `json:"reference"`
+	TransmodeCode     string  `json:"transmode_code"`      // "C","T","W","D","X" set by the STR form
+	TransactionNumber string  `json:"transaction_number"`  // fallback for Reference
 }
 
 // BuildFINnetXML produces FINnet 2.0 compliant XML from a filing.
@@ -119,13 +121,25 @@ func BuildFINnetXML(f *FilingResponse) ([]byte, error) {
 		if cur == "" {
 			cur = "INR"
 		}
+		txType := t.Type
+		if txType == "" {
+			txType = transmodeToType(t.TransmodeCode)
+		}
+		txDesc := t.Description
+		if txDesc == "" {
+			txDesc = "Financial transaction — see investigation narrative"
+		}
+		ref := t.Reference
+		if ref == "" {
+			ref = t.TransactionNumber
+		}
 		items = append(items, finnetTx{
 			Date:        t.Date,
 			Amount:      t.Amount,
 			Currency:    cur,
-			Type:        t.Type,
-			Description: t.Description,
-			Reference:   t.Reference,
+			Type:        txType,
+			Description: txDesc,
+			Reference:   ref,
 		})
 	}
 
@@ -193,6 +207,23 @@ func BuildFINnetXML(f *FilingResponse) ([]byte, error) {
 	return append([]byte(xml.Header), out...), nil
 }
 
+func transmodeToType(code string) string {
+	switch code {
+	case "C":
+		return "Cash"
+	case "T":
+		return "Transfer"
+	case "W":
+		return "Wire Transfer"
+	case "D":
+		return "Deposit"
+	case "X":
+		return "Other"
+	default:
+		return "Transfer"
+	}
+}
+
 func mapSuspicionCode(basis string) string {
 	lower := strings.ToLower(basis)
 	codes := []struct{ keyword, code string }{
@@ -217,7 +248,7 @@ func hashIfPresent(s string) string {
 		return ""
 	}
 	// Store only the first/last 4 digits as a masked reference — never raw Aadhaar.
-	// Full Aadhaar must never be persisted (DPDP Act 2023 s.4).
+	// Full Aadhaar must never be persisted (DPDP Act 2023 s.6 — data minimisation).
 	if len(s) >= 8 {
 		return s[:4] + "XXXX" + s[len(s)-4:]
 	}

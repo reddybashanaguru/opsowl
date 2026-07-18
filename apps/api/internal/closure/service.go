@@ -101,6 +101,9 @@ func (s *Service) Checklist(ctx context.Context, caseID uuid.UUID) (ChecklistRes
 
 // Create creates a closure draft after validating the checklist.
 func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CreateClosureRequest) (ClosureResponse, error) {
+	if claims.Role == db.UserRoleViewer {
+		return ClosureResponse{}, ErrForbidden
+	}
 	if strings.TrimSpace(req.Summary) == "" {
 		return ClosureResponse{}, ErrBadRequest
 	}
@@ -275,10 +278,15 @@ func (s *Service) Approve(ctx context.Context, claims *auth.Claims, caseID, clos
 	return toResponse(updated), nil
 }
 
-// Reject returns a submitted closure to draft status for the analyst to revise.
+// Reject marks a submitted closure as rejected with a mandatory reason.
+// The closure stays in "rejected" state — the investigator must call Revise to
+// move it back to "draft" before editing and resubmitting.
 func (s *Service) Reject(ctx context.Context, claims *auth.Claims, caseID, closureID uuid.UUID, reason string) (ClosureResponse, error) {
 	if claims.Role != db.UserRoleManager && claims.Role != db.UserRoleAdmin && claims.Role != db.UserRoleSuperAdmin {
 		return ClosureResponse{}, ErrForbidden
+	}
+	if strings.TrimSpace(reason) == "" {
+		return ClosureResponse{}, errors.New("rejection reason is required")
 	}
 
 	row, err := s.repo.GetByID(ctx, closureID)
@@ -287,6 +295,10 @@ func (s *Service) Reject(ctx context.Context, claims *auth.Claims, caseID, closu
 	}
 	if row.Status != "submitted" {
 		return ClosureResponse{}, ErrInvalidTransition
+	}
+	// Maker-checker: the person who submitted cannot reject their own closure.
+	if row.CreatedBy == claims.UserID {
+		return ClosureResponse{}, ErrForbidden
 	}
 
 	if err := s.repo.UpdateStatus(ctx, closureID, claims.UserID, "rejected", reason); err != nil {
@@ -308,7 +320,25 @@ func (s *Service) Reject(ctx context.Context, claims *auth.Claims, caseID, closu
 		})
 	})
 
-	// Revert closure back to draft so analyst can fix it
+	updated, _ := s.repo.GetByID(ctx, closureID)
+	return toResponse(updated), nil
+}
+
+// Revise moves a rejected closure back to draft so the analyst can edit and resubmit.
+// Only the investigator who prepared the closure (or manager+) may call this.
+func (s *Service) Revise(ctx context.Context, claims *auth.Claims, caseID, closureID uuid.UUID) (ClosureResponse, error) {
+	row, err := s.repo.GetByID(ctx, closureID)
+	if err != nil || row.CaseID != caseID {
+		return ClosureResponse{}, ErrNotFound
+	}
+	if row.Status != "rejected" {
+		return ClosureResponse{}, ErrInvalidTransition
+	}
+	isManager := claims.Role == db.UserRoleManager || claims.Role == db.UserRoleAdmin || claims.Role == db.UserRoleSuperAdmin
+	if row.CreatedBy != claims.UserID && !isManager {
+		return ClosureResponse{}, ErrForbidden
+	}
+
 	if err := s.repo.UpdateStatus(ctx, closureID, claims.UserID, "draft", ""); err != nil {
 		return ClosureResponse{}, err
 	}

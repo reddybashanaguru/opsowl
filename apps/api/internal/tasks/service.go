@@ -67,6 +67,13 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, caseID uuid.U
 		return nil, ErrTitleRequired
 	}
 
+	if s.sqlDB != nil {
+		var caseStatus string
+		if err := s.sqlDB.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&caseStatus); err == nil && caseStatus == "closed" {
+			return nil, ErrCaseClosed
+		}
+	}
+
 	priority := req.Priority
 	if priority == "" {
 		priority = db.TaskPriorityMedium
@@ -433,6 +440,15 @@ func (s *Service) Complete(ctx context.Context, claims *auth.Claims, id uuid.UUI
 	}
 	if existing.Status == db.TaskStatusCancelled {
 		return nil, ErrInvalidTransition
+	}
+
+	// If the task is assigned, only the assignee or manager+ may complete it.
+	// This ensures the person responsible for the work is the one confirming it is done.
+	actorRole := claims.Role
+	if existing.AssignedTo.Valid && existing.AssignedTo.UUID != claims.UserID {
+		if actorRole != db.UserRoleManager && actorRole != db.UserRoleAdmin && actorRole != db.UserRoleSuperAdmin {
+			return nil, ErrForbidden
+		}
 	}
 
 	if _, err := s.repo.Complete(ctx, id); err != nil {

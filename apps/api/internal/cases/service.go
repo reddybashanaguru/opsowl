@@ -22,6 +22,7 @@ var (
 	ErrForbidden      = errors.New("forbidden")
 	ErrTagLimit       = errors.New("maximum 20 tags per case")
 	ErrUBOGateBlocked = errors.New("ubo verification required before closure")
+	ErrCaseClosed     = errors.New("case is closed — reopen before making changes")
 )
 
 // DefaultOrgID is used in MVP while multi-tenancy is deferred.
@@ -369,6 +370,10 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 	existing, err := s.repo.GetByID(ctx, id)
 	if err != nil {
 		return nil, ErrNotFound
+	}
+
+	if existing.Status == db.CaseStatusClosed {
+		return nil, ErrCaseClosed
 	}
 
 	actorID := claims.UserID

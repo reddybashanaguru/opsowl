@@ -72,6 +72,9 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateTra
 // Used by POST /api/v1/cases/:id/transactions so the transaction appears in
 // the case's transaction list without a separate link call.
 func (s *Service) CreateAndLink(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CreateTransactionRequest) (TransactionResponse, error) {
+	if s.repo.IsCaseClosed(ctx, caseID) {
+		return TransactionResponse{}, ErrCaseClosed
+	}
 	txn, err := s.Create(ctx, claims, req)
 	if err != nil {
 		return TransactionResponse{}, err
@@ -228,6 +231,7 @@ func (s *Service) UnlinkFromCase(ctx context.Context, claims *auth.Claims, caseI
 	return nil
 }
 
+
 func (s *Service) UpdateRelevanceNote(ctx context.Context, claims *auth.Claims, caseID, txnID uuid.UUID, note string) error {
 	row, err := s.repo.GetByID(ctx, txnID)
 	if err != nil || row.OrgID != defaultOrgID {
@@ -376,33 +380,21 @@ var STANDARD_FIELDS = []string{
 }
 
 func (s *Service) BulkImport(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req CSVImportRequest) (CSVImportResult, error) {
-	var reqs []CreateTransactionRequest
-	for _, row := range req.Rows {
-		txnReq := mapCSVRow(row, req.Mapping)
-		reqs = append(reqs, txnReq)
+	if s.repo.IsCaseClosed(ctx, caseID) {
+		return CSVImportResult{}, ErrCaseClosed
 	}
-
-	result := s.repo.BulkCreate(ctx, defaultOrgID, claims.UserID, reqs)
-
-	// Link successfully imported transactions to the case
-	// We need to re-query by txn_ref to get the IDs
-	linked := 0
-	for _, r := range reqs {
-		if r.TxnRef == "" {
+	result := CSVImportResult{}
+	for i, row := range req.Rows {
+		txnReq := mapCSVRow(row, req.Mapping)
+		txn, err := s.repo.Create(ctx, defaultOrgID, claims.UserID, txnReq)
+		if err != nil {
+			result.Skipped++
+			result.Errors = append(result.Errors, fmt.Sprintf("row %d: ERROR: %s", i+1, err.Error()))
 			continue
 		}
-		// Try to find and link (best-effort, don't fail import on link error)
-		func() {
-			acc, err := s.repo.GetAccountByNumber(ctx, defaultOrgID, r.TxnRef)
-			_ = acc
-			if err != nil {
-				return
-			}
-		}()
-		linked++
+		result.Imported++
+		_ = s.repo.LinkToCase(ctx, caseID, txn.ID, claims.UserID, "")
 	}
-	_ = linked
-
 	return result, nil
 }
 

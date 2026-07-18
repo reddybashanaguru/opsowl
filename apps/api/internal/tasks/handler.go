@@ -38,11 +38,14 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	t, err := h.svc.Create(r.Context(), claims, caseID, req)
 	if err != nil {
-		if errors.Is(err, ErrTitleRequired) {
+		switch {
+		case errors.Is(err, ErrTitleRequired):
 			response.Err(w, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
-			return
+		case errors.Is(err, ErrCaseClosed):
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
+		default:
+			response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		}
-		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
 	response.JSON(w, http.StatusCreated, t)

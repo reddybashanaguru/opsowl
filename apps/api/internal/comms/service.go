@@ -5,6 +5,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -88,7 +89,13 @@ type aiExtractResponse struct {
 	ModelUsed   string      `json:"model_used"`
 }
 
+var ErrCaseClosed = errors.New("case is closed — no new communications may be logged")
+
 func (s *Service) Create(ctx context.Context, p CreateParams) (*CommLogResponse, error) {
+	if c, err := s.queries.GetCaseByID(ctx, p.CaseID); err == nil && c.Status == db.CaseStatusClosed {
+		return nil, ErrCaseClosed
+	}
+
 	row, err := s.queries.CreateCommLog(ctx, db.CreateCommLogParams{
 		CaseID:        p.CaseID,
 		Channel:       p.Channel,

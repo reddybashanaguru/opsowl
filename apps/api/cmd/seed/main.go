@@ -69,6 +69,7 @@ func main() {
 	seedAILogs(ctx, q, cases, u)
 	seedAuditLogs(ctx, q, u, cases)
 	seedNotes(ctx, q, cases, u)
+	seedAlerts(ctx, sqlDB, u)
 	fmt.Println("✅ Done.")
 	fmt.Println("   Login:   admin@opsowl.dev / OpsOwl@2024")
 	fmt.Printf("   Cases:   %d total\n", len(cases))
@@ -78,8 +79,9 @@ func main() {
 
 func truncate(db *sql.DB) {
 	stmts := []string{
-		"TRUNCATE mentions, comments, notes, audit_logs, ai_logs, document_chunks, documents, task_comments, tasks, timeline_events, case_activities, case_watchers, case_assignments, cases, refresh_tokens, sessions, users CASCADE",
+		"TRUNCATE incoming_alerts, alert_rules, alert_sources, mentions, comments, notes, audit_logs, ai_logs, document_chunks, documents, task_comments, tasks, timeline_events, case_activities, case_watchers, case_assignments, cases, refresh_tokens, sessions, users CASCADE",
 		"ALTER SEQUENCE case_number_seq RESTART WITH 1",
+		"SELECT setval('audit_log_seq', 1, false)",
 	}
 	for _, s := range stmts {
 		_, err := db.Exec(s)
@@ -851,15 +853,23 @@ func seedAILogs(ctx context.Context, q *dbgen.Queries, cases []dbgen.Case, u use
 // ── Audit Logs ────────────────────────────────────────────────────────────────
 
 func seedAuditLogs(ctx context.Context, q *dbgen.Queries, u userSet, cases []dbgen.Case) {
+	var seq int64
 	write := func(code string, actor *uuid.UUID, ip, sev string, meta map[string]any) {
+		seq++
 		var actorNull uuid.NullUUID
 		if actor != nil {
 			actorNull = uuid.NullUUID{UUID: *actor, Valid: true}
 		}
+		prevHash := "genesis"
+		if seq > 1 {
+			prevHash = fmt.Sprintf("seed-hash-%d", seq-1)
+		}
+		entryHash := fmt.Sprintf("seed-hash-%d", seq)
 		err := q.CreateAuditLog(ctx, dbgen.CreateAuditLogParams{
 			EventCode: code, ActorID: actorNull,
 			IpAddress: sql.NullString{String: ip, Valid: true},
 			Metadata:  jsonb(meta), Severity: sev,
+			SeqNum: seq, PrevHash: prevHash, EntryHash: entryHash,
 		})
 		must(err)
 	}
@@ -1045,4 +1055,77 @@ func seedNotes(ctx context.Context, q *dbgen.Queries, cases []dbgen.Case, u user
 	}
 
 	fmt.Printf("  📝 %d notes · %d comments seeded\n", len(created), commentCount)
+}
+
+// ── Alerts ────────────────────────────────────────────────────────────────────
+
+func seedAlerts(ctx context.Context, db *sql.DB, u userSet) {
+	// Create alert source: Actimize TMS (most common TMS in India banks)
+	var sourceID uuid.UUID
+	err := db.QueryRowContext(ctx, `
+		INSERT INTO alert_sources (org_id, name, source_type, source_system, webhook_secret, description, created_by)
+		VALUES ($1, 'Actimize TMS', 'webhook', 'actimize', 'seed-secret-key', 'Primary transaction monitoring system — real-time UPI/NACH/RTGS/IMPS rule engine', $2)
+		RETURNING id`,
+		demoOrgID, u.admin.ID,
+	).Scan(&sourceID)
+	must(err)
+
+	type alertRow struct {
+		extID       string
+		alertType   string
+		riskScore   int
+		riskLevel   string
+		subject     string
+		idType      string
+		idNumber    string
+		account     string
+		amount      float64
+		desc        string
+		daysAgoVal  int
+		status      string
+	}
+
+	alerts := []alertRow{
+		// Pending — need triage
+		{"TMS-2026-001", "upi_velocity", 88, "high", "Karan Mehta", "MOBILE", "9820134567", "HDFC0012345678", 4250000, "47 UPI transfers ₹42.5L in 72h to 18 different VPAs across HDFC, ICICI, Axis. Below ₹1L per txn. Structuring pattern.", 1, "pending"},
+		{"TMS-2026-002", "nach_mandate", 92, "critical", "QuickPay Fintech Pvt Ltd", "CIN", "U74999MH2021PTC123456", "ICIC0098765432", 10400000, "340 NACH mandates with forged physical forms submitted via deactivated aggregator AGG-0442. ₹1.04 Cr in unauthorized debits.", 2, "pending"},
+		{"TMS-2026-003", "upi_mule", 85, "high", "Priya Sharma", "AADHAAR", "4567890123456", "SBIN0056789012", 1800000, "12-account UPI mule chain detected. ₹18L passed through in 5 days. Each account holds funds <6 hrs before forwarding. Hub-and-spoke topology.", 1, "pending"},
+		{"TMS-2026-004", "imps_velocity", 76, "high", "Apex Traders Ltd", "PAN", "AAACT1234D", "AXIS0034512300", 2100000, "340 IMPS transactions in single business day at ₹50K each. 17x above corporate account soft limit. Possible API-level abuse.", 3, "pending"},
+		{"TMS-2026-005", "crypto_onramp", 81, "high", "Ravi Teja Goud", "PAN", "BBBRT5678G", "KOTAK00123456", 950000, "14 P2P crypto on-ramp transactions totalling ₹9.5L in 6 hours. Beneficiary accounts registered <30 days. Possible VASP layering.", 0, "pending"},
+		{"TMS-2026-006", "rtgs_unusual", 79, "high", "Srinivas Exports Pvt Ltd", "GSTIN", "27AABCS1429B1ZB", "YESB0001234567", 15000000, "RTGS outward of ₹1.5 Cr to UAE-based entity with no prior transaction history. Import LC not on file. FEMA implications.", 4, "pending"},
+		{"TMS-2026-007", "dormant_activation", 73, "high", "Lakshmi Devi Nair", "AADHAAR", "7891234560123", "CANB0078901234", 450000, "Dormant account (inactive 26 months) received ₹4.5L IMPS and immediately withdrew via 9 UPI transactions in 3 hours.", 2, "pending"},
+		{"TMS-2026-008", "kyc_mismatch", 68, "medium", "Sanjay Patel", "PAN", "CCCSP9012F", "PNBP0034560012", 320000, "Video-KYC liveness score 0.21 (threshold: 0.70). Mobile number linked to 3 prior rejected applications. C-KYC cross-bureau flag.", 5, "pending"},
+		{"TMS-2026-009", "card_cnp", 74, "high", "Asha Krishnamurthy", "PAN", "DDDAK3456H", "HDFC0023456789", 1240000, "22 international CNP transactions on 4 cards totalling ₹12.4L in 4 hours. Same IP subnet 203.0.113.0/27. Cards issued <30 days.", 1, "pending"},
+		{"TMS-2026-010", "loan_bypass", 82, "high", "Suresh Babu Reddy", "AADHAAR", "1234567890123", "IDBI0056789012", 1850000, "Loan ₹18.5L disbursed 4 hours after approval. Bypassed 48-hr cooling. Disbursement account differs from application. No maker-checker.", 3, "pending"},
+		// Reviewing
+		{"TMS-2026-011", "tblm_import", 94, "critical", "Bharat Electronics Imports", "GSTIN", "07AAACB1234C1Z5", "CITI0012345600", 28000000, "8 import LCs for electronics at 240% of market rate. Dubai beneficiary registered 60 days ago. UBO cross-check flagged shared beneficial owner.", 6, "reviewing"},
+		{"TMS-2026-012", "shell_rtgs", 90, "critical", "Brightway Traders LLP", "PAN", "EEEBT6789J", "DCBL0000123456", 8000000, "₹80L received from 41 individuals (<₹1L each) within 7 days. All funds forwarded T+0 to one beneficiary. Classic PMLA integration stage.", 7, "reviewing"},
+		{"TMS-2026-013", "insider_access", 86, "high", "Amit Verma (EMP-2248)", "EMPID", "EMP-2248", "INTERNAL", 0, "RM accessed 127 accounts outside portfolio over 3 weeks. Evening/weekend access pattern. 23 accounts had address/mobile updated post-access.", 8, "reviewing"},
+		// Dismissed
+		{"TMS-2026-014", "upi_velocity", 42, "medium", "Ananya Tech Solutions", "PAN", "FFATS2345K", "HDFC0056789123", 180000, "UPI velocity trigger on salary disbursement day. Cross-checked with HR records — legitimate payroll run for 180 employees.", 10, "dismissed"},
+		{"TMS-2026-015", "nach_mandate", 38, "low", "Greenfield Cooperative Society", "PAN", "GGGCS4567L", "SBIN0012456789", 95000, "NACH mandate volume spike. Confirmed seasonal membership renewal. 820 members paying annual dues ₹1,160 each.", 12, "dismissed"},
+		// Converted
+		{"TMS-2026-016", "atm_skimming", 95, "critical", "BLR-ATM-044 (Koramangala)", "TERMINAL", "BLR-ATM-044", "MULTIPLE", 0, "Physical inspection confirmed skimming device on ATM-044. Operational 72 hours. 84 cards compromised. FIR filed with Bengaluru Cyber Crime.", 18, "converted"},
+		{"TMS-2026-017", "sim_swap", 88, "high", "Vikram Nair (CUST-7721)", "MOBILE", "9876543210", "ICIC0034512367", 480000, "SIM swap at Jio confirmed 11 hours before ₹4.8L NEFT transfer. OTP-based 2FA bypassed. Operator did not verify physical presence.", 26, "converted"},
+		{"TMS-2026-018", "synthetic_identity", 91, "critical", "Cluster: 5 New Accounts", "AADHAAR", "CLUSTER-SYNTH-01", "MULTIPLE", 0, "5 accounts opened same week with Aadhaar numbers with identical DOB pattern. DeepID score <0.3 all. Coordinated small-deposit warming cycles.", 9, "converted"},
+		{"TMS-2026-019", "gold_loan", 77, "high", "Ramesh Chetty", "PAN", "HHHRC8901M", "IDFB0012345678", 420000, "Gold loan GL-2024-9901 valuation 30% above market. Same valuator involved in 3 prior over-valued loans at MUM-019. Suspected collusion.", 14, "converted"},
+		{"TMS-2026-020", "microfinance", 89, "critical", "SHG Cluster — 18 Accounts", "MFI_ID", "MFI-SHG-CLUSTER-01", "MULTIPLE", 0, "MFI disbursements returned as deposits to JLG account within 48h then re-disbursed as new loans. ₹38.4L net NPA suppression.", 7, "converted"},
+	}
+
+	insert := `INSERT INTO incoming_alerts
+		(org_id, source_id, external_alert_id, alert_type, risk_score, risk_level,
+		 subject_name, subject_id_type, subject_id_number, account_number,
+		 amount, currency, transaction_date, description, source_system, raw_payload, status, created_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'INR',NOW()-($12::int * INTERVAL '1 day'),$13,'actimize','{}', $14, NOW()-($12::int * INTERVAL '1 day'))
+		ON CONFLICT DO NOTHING`
+
+	for _, a := range alerts {
+		_, err := db.ExecContext(ctx, insert,
+			demoOrgID, sourceID, a.extID, a.alertType, a.riskScore, a.riskLevel,
+			a.subject, a.idType, a.idNumber, a.account,
+			a.amount, a.daysAgoVal, a.desc, a.status,
+		)
+		must(err)
+	}
+	fmt.Printf("  🚨 %d alerts seeded (10 pending, 3 reviewing, 2 dismissed, 5 converted)\n", len(alerts))
 }

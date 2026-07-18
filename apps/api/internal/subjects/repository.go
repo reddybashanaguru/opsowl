@@ -661,3 +661,11 @@ func (r *Repository) ConfirmMatch(ctx context.Context, fromID, toID, userID uuid
 	)
 	return err
 }
+
+
+// IsCaseClosed returns true when the case status is 'closed'.
+func (r *Repository) IsCaseClosed(ctx context.Context, caseID uuid.UUID) bool {
+	var status string
+	err := r.db.QueryRowContext(ctx, `SELECT status FROM cases WHERE id = $1`, caseID).Scan(&status)
+	return err == nil && status == "closed"
+}

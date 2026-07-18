@@ -155,6 +155,10 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 			response.Err(w, http.StatusForbidden, "FORBIDDEN", "you do not have permission to update this case")
 			return
 		}
+		if errors.Is(err, ErrCaseClosed) {
+			response.Err(w, http.StatusConflict, "CASE_CLOSED", err.Error())
+			return
+		}
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to update case")
 		return
 	}
@@ -363,4 +367,18 @@ func (h *Handler) BulkDelete(w http.ResponseWriter, r *http.Request) {
 	}
 	deleted, failed := h.svc.BulkDelete(r.Context(), claims, req.IDs)
 	response.JSON(w, http.StatusOK, map[string]any{"deleted": deleted, "failed": failed})
+}
+
+func (h *Handler) GetCompletion(w http.ResponseWriter, r *http.Request) {
+	id, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
+	c, err := h.svc.GetCompletion(r.Context(), id)
+	if err != nil {
+		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
+		return
+	}
+	response.JSON(w, http.StatusOK, c)
 }

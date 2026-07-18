@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "OpsOwl AI — Investigation Workspace",
-  description: "AI-powered investigation and operations workspace for enterprise teams",
+  title: "OpsOwl AI — Fincrime Investigations Workspace",
+  description: "AI-native fincrime investigations workspace for compliance and fraud operations teams",
 };
 
 export default function RootLayout({

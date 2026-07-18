@@ -303,7 +303,7 @@ function TxnRow({
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-slate-700/50 border border-slate-600/50 text-slate-400 hover:text-red-400 hover:border-red-500/40 transition-colors"
             >
               <X size={11} />
-              Remove from Case
+              Remove from Evidence
             </button>
           </div>
         </div>
@@ -319,7 +319,7 @@ const STANDARD_FIELDS = [
   "txn_ref", "txn_date", "txn_time", "amount", "currency", "txn_type",
   "channel", "description", "narration", "from_account_raw", "to_account_raw",
   "from_name_raw", "to_name_raw", "counterparty_bank", "counterparty_country",
-  "is_flagged", "risk_score", "external_id",
+  "is_flagged", "flag_reason", "risk_score", "external_id",
 ];
 
 function CSVImportModal({
@@ -489,7 +489,7 @@ function CSVImportModal({
                 <p className="text-slate-200 font-medium">{result.imported} transactions imported</p>
                 {result.skipped > 0 && <p className="text-amber-400 text-sm">{result.skipped} rows skipped</p>}
               </div>
-              {result.errors.length > 0 && (
+              {(result.errors?.length ?? 0) > 0 && (
                 <div className="text-left bg-slate-700/40 rounded p-3 space-y-1 max-h-32 overflow-y-auto">
                   {result.errors.map((e, i) => (
                     <p key={i} className="text-xs text-red-300 font-mono">{e}</p>
@@ -550,7 +550,7 @@ function AddTransactionForm({
     txn_ref: "", txn_date: "", amount: "", currency: defaultCurrency || "EUR", txn_type: "debit",
     channel: isEU ? "sepa" : "unknown", narration: "", description: "",
     from_account_raw: "", to_account_raw: "", from_name_raw: "", to_name_raw: "",
-    counterparty_bank: "", counterparty_country: defaultCountry || "",
+    counterparty_bank: "", counterparty_country: (defaultCountry || "").toUpperCase(),
     bic_swift: "",
     is_flagged: false, flag_reason: "", risk_score: "0",
   };
@@ -586,15 +586,11 @@ function AddTransactionForm({
   const mutation = useMutation({
     mutationFn: async () => {
       const { bic_swift, ...rest } = form;
-      const txn = await api.post<TransactionResponse>(`/api/v1/cases/${caseId}/transactions`, {
+      await api.post<TransactionResponse>(`/api/v1/cases/${caseId}/transactions`, {
         ...rest,
         counterparty_bank: form.counterparty_bank || (bic_swift ? `BIC: ${bic_swift}` : ""),
         amount: parseFloat(form.amount) || 0,
         risk_score: parseInt(form.risk_score) || 0,
-      });
-      await api.post(`/api/v1/cases/${caseId}/transactions/link`, {
-        transaction_id: txn.id,
-        relevance_note: "",
       });
     },
     onSuccess: () => { setError(""); submittingRef.current = false; onDone(); },
@@ -709,7 +705,7 @@ function AddTransactionForm({
         {/* Bank */}
         <div>
           <label className="block text-xs text-slate-400 mb-1">
-            {isEU ? "Counterparty Bank" : "Bank"}
+            {"Counterparty Bank"}
           </label>
           <input type="text" value={form.counterparty_bank} onChange={(e) => set("counterparty_bank", e.target.value)}
             placeholder={bankPlaceholder} className={inputCls("counterparty_bank")} />
@@ -771,11 +767,39 @@ function AddTransactionForm({
           className="w-full bg-slate-700/60 border border-slate-600 rounded px-2.5 py-1.5 text-sm text-slate-100 placeholder:text-slate-600 focus:outline-none focus:ring-1 focus:ring-cyan-500" />
       </div>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" checked={form.is_flagged} onChange={(e) => set("is_flagged", e.target.checked)}
-          className="w-4 h-4 rounded accent-amber-500" />
-        <span className="text-xs text-slate-300">Flag as suspicious</span>
-      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex items-center gap-2 col-span-2 sm:col-span-1">
+          <input type="checkbox" checked={form.is_flagged} onChange={(e) => set("is_flagged", e.target.checked)}
+            className="w-4 h-4 rounded accent-amber-500 cursor-pointer" />
+          <span className="text-xs text-slate-300">Flag as suspicious</span>
+        </div>
+        <div>
+          <label className="block text-xs text-slate-400 mb-1">
+            Txn Risk Score <span className="text-slate-600">(0–100)</span>
+            <span className="relative ml-1 group inline-block align-middle cursor-help">
+              <span className="text-slate-600 hover:text-slate-400 text-[10px] border border-slate-600 rounded-full px-1">?</span>
+              <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-56 bg-slate-900 border border-slate-700 rounded-lg p-2.5 text-[10px] text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity z-50 shadow-xl leading-relaxed">
+                <span className="block font-semibold text-slate-200 mb-1">Scoring Rubric</span>
+                <span className="block text-emerald-400">0–39 · Low</span>
+                <span className="block text-amber-400">40–69 · Medium</span>
+                <span className="block text-orange-400">70–84 · High</span>
+                <span className="block text-red-400">85–100 · Critical</span>
+                <span className="block mt-1.5 text-slate-500 font-semibold uppercase tracking-wide text-[9px]">Add points for:</span>
+                <span className="block">+20 · Amount &gt;10× monthly income</span>
+                <span className="block">+15 · Round amount pattern</span>
+                <span className="block">+15 · Small Finance Bank counterparty</span>
+                <span className="block">+15 · Cash / SWIFT channel</span>
+                <span className="block">+25 · High-risk jurisdiction</span>
+                <span className="block mt-1 text-slate-500 italic">TMS-imported scores override manual entry.</span>
+              </span>
+            </span>
+          </label>
+          <input type="number" min="0" max="100" value={form.risk_score}
+            onChange={(e) => set("risk_score", e.target.value)}
+            placeholder="0"
+            className={inputCls("risk_score")} />
+        </div>
+      </div>
       {form.is_flagged && (
         <input value={form.flag_reason} onChange={(e) => set("flag_reason", e.target.value)}
           placeholder="Reason for flagging"
@@ -851,6 +875,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
     qc.invalidateQueries({ queryKey: ["transactions-flow", caseId] });
   };
 
+  const isCaseClosed = caseData?.status === "closed";
   const transactions = listData ?? [];
   const filtered = transactions.filter((t) => {
     if (filterFlagged && !t.is_flagged) return false;
@@ -869,40 +894,43 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
   });
 
   return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={caseId}
-        activeTab="transactions"
-        caseNumber={caseData?.case_number}
-        action={
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setShowImport(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
-            >
-              <Upload size={13} /> Import CSV
-            </button>
-            <button
-              onClick={() => setShowAdd(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-            >
-              <Plus size={13} /> Add Transaction
-            </button>
-          </div>
-        }
-      />
+    <div className="flex flex-col h-full overflow-hidden">
 
-      <div className="mb-6">
-        <h1 className="text-xl font-bold text-white">Transactions</h1>
-        <p className="text-slate-400 text-sm mt-0.5">Financial evidence — link transactions to this case and trace the flow of funds.</p>
-      </div>
+      {/* ── Fixed header: subnav + title + summary + filters ── */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-3">
+        <CaseSubNav
+          caseId={caseId}
+          activeTab="transactions"
+          caseNumber={caseData?.case_number}
+          action={
+            !isCaseClosed ? (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowImport(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
+                >
+                  <Upload size={13} /> Import CSV
+                </button>
+                <button
+                  onClick={() => setShowAdd(true)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+                >
+                  <Plus size={13} /> Add Transaction
+                </button>
+              </div>
+            ) : undefined
+          }
+        />
 
-      {/* Summary bar */}
-      {summary && <SummaryBar summary={summary} currency={cfg.local_currency || "EUR"} />}
+        <div className="mb-5">
+          <h1 className="text-xl font-bold text-white">Transactions</h1>
+          <p className="text-slate-400 text-sm mt-0.5">Financial evidence — link transactions to this case and trace the flow of funds.</p>
+        </div>
 
-        {/* Add form */}
+        {summary && <SummaryBar summary={summary} currency={cfg.local_currency || "EUR"} />}
+
         {showAdd && (
-          <div className="mb-5">
+          <div className="mb-4">
             <AddTransactionForm
               caseId={caseId}
               defaultCurrency={cfg.local_currency || "EUR"}
@@ -915,7 +943,7 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
         )}
 
         {/* View toggle + filters */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
+        <div className="flex items-center gap-3 flex-wrap">
           <div className="flex items-center bg-slate-800 border border-slate-700 rounded-lg p-0.5">
             {(["list", "flow"] as const).map((v) => (
               <button
@@ -958,41 +986,46 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
             {filtered.length} of {transactions.length}
           </span>
         </div>
+      </div>
 
-        {/* Content */}
-        {view === "list" ? (
-          <div className="space-y-2">
-            {isLoading && (
-              <div className="space-y-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-14 bg-slate-800/40 border border-slate-700/50 rounded-lg animate-pulse" />
-                ))}
-              </div>
-            )}
-            {!isLoading && filtered.length === 0 && (
-              <div className="text-center py-16 text-slate-500">
-                <ArrowLeftRight size={32} className="mx-auto mb-3 opacity-30" />
-                <p className="text-sm">No transactions linked to this case yet.</p>
-                <p className="text-xs mt-1">Add individual transactions or import from CSV.</p>
-              </div>
-            )}
-            {filtered.map((txn) => (
-              <TxnRow
-                key={txn.id}
-                txn={txn}
-                onFlag={(id, flagged) => flagMutation.mutate({ id, flagged })}
-                onRemove={(id) => removeMutation.mutate(id)}
-                ctrThreshold={cfg.ctr_threshold ?? 0}
-              />
-            ))}
-          </div>
-        ) : flowGraph ? (
-          <FlowOfFundsGraph graph={flowGraph} currency={cfg.local_currency} />
-        ) : (
-          <div className="bg-[#131f30] border border-[#1e3050] rounded-xl h-32 flex items-center justify-center text-slate-500 text-sm animate-pulse">
-            Building flow graph…
-          </div>
-        )}
+      {/* ── Scrollable content area ── */}
+      {view === "list" ? (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6 space-y-2">
+          {isLoading && (
+            <div className="space-y-2">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="h-14 bg-slate-800/40 border border-slate-700/50 rounded-lg animate-pulse" />
+              ))}
+            </div>
+          )}
+          {!isLoading && filtered.length === 0 && (
+            <div className="text-center py-16 text-slate-500">
+              <ArrowLeftRight size={32} className="mx-auto mb-3 opacity-30" />
+              <p className="text-sm">No transactions linked to this case yet.</p>
+              <p className="text-xs mt-1">Add individual transactions or import from CSV.</p>
+            </div>
+          )}
+          {filtered.map((txn) => (
+            <TxnRow
+              key={txn.id}
+              txn={txn}
+              onFlag={(id, flagged) => flagMutation.mutate({ id, flagged })}
+              onRemove={(id) => removeMutation.mutate(id)}
+              ctrThreshold={cfg.ctr_threshold ?? 0}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 pb-6">
+          {flowGraph ? (
+            <FlowOfFundsGraph graph={flowGraph} currency={cfg.local_currency} />
+          ) : (
+            <div className="bg-[#131f30] border border-[#1e3050] rounded-xl h-32 flex items-center justify-center text-slate-500 text-sm animate-pulse">
+              Building flow graph…
+            </div>
+          )}
+        </div>
+      )}
 
       {/* CSV Import Modal */}
       {showImport && (

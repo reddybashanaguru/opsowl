@@ -433,6 +433,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   function openEdit() {
     if (!c) return;
+    if (c.status === "closed") return;
     setEditTitle(c.title);
     setEditDescription(c.description ?? "");
     setEditPriority(c.priority);
@@ -543,7 +544,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
         <div className="flex-1 min-w-0 pr-4">
           <div className="flex items-center gap-2 mb-1">
             <div className="font-mono text-sm text-cyan-400">{c.case_number}</div>
-            {!editing && (
+            {!editing && c.status !== "closed" && (
               <button
                 onClick={openEdit}
                 title="Edit case details"

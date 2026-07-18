@@ -10,6 +10,7 @@ import {
   CheckCircle,
   ChevronDown,
   ChevronRight,
+  ChevronUp,
   Clock,
   Copy,
   Download,
@@ -197,10 +198,12 @@ function GenerateModal({
             <ul className="list-disc list-inside space-y-0.5 ml-1">
               <li>All <strong>approved findings</strong> for this case</li>
               <li>All <strong>linked transactions</strong> (flagged first)</li>
-              <li>Case metadata (risk level, subjects, description)</li>
+              <li><strong>Subject profile</strong> — identity, KYC tier, risk level</li>
+              <li><strong>AI Insights</strong> — risk factors &amp; anomalies from document analysis</li>
             </ul>
             <p className="text-slate-500 mt-1">
               Generation is logged to AI Logs for regulatory auditability.
+              A manager must approve before the narrative is finalised (4-eye rule).
             </p>
           </div>
 
@@ -245,20 +248,25 @@ function NarrativeCard({
   narrative,
   caseId,
   canReview,
+  userId,
   onMutated,
 }: {
   narrative: NarrativeResponse;
   caseId: string;
   canReview: boolean;
+  userId: string;
   onMutated: () => void;
 }) {
   const qc = useQueryClient();
+  const [expanded, setExpanded] = useState(narrative.status === "approved");
   const [isEditing, setIsEditing] = useState(false);
   const [editBody, setEditBody] = useState(narrative.active_body);
   const [showRejectForm, setShowRejectForm] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [copied, setCopied] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const PREVIEW_CHARS = 160;
 
   useEffect(() => {
     if (isEditing && textareaRef.current) {
@@ -304,14 +312,25 @@ function NarrativeCard({
   };
 
   const isApproved = narrative.status === "approved";
+  const isCreator = narrative.generated_by?.id === userId;
   const wc = wordCount(narrative.active_body);
+
+  const preview = narrative.active_body.slice(0, PREVIEW_CHARS);
+  const hasMore = narrative.active_body.length > PREVIEW_CHARS;
 
   return (
     <div className={`border rounded-xl overflow-hidden transition-colors ${
       isApproved ? "border-emerald-500/30 bg-emerald-900/5" : "border-slate-700/50 bg-slate-800/40"
     }`}>
-      {/* Header */}
-      <div className="flex items-start gap-3 px-5 py-4">
+      {/* Header — always visible, click to expand/collapse */}
+      {/* div instead of button because it contains nested action buttons (Copy, Download) */}
+      <div
+        role="button"
+        tabIndex={0}
+        className="w-full flex items-start gap-3 px-5 py-4 text-left hover:bg-white/[0.02] transition-colors cursor-pointer"
+        onClick={() => { if (!isEditing && !showRejectForm) setExpanded((v) => !v); }}
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (!isEditing && !showRejectForm) setExpanded((v) => !v); } }}
+      >
         <PenLine size={16} className="text-cyan-400 mt-0.5 shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -327,7 +346,7 @@ function NarrativeCard({
               </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500">
+          <div className="flex items-center gap-3 mt-1 text-[11px] text-slate-500 flex-wrap">
             <span>Generated {fmtDate(narrative.created_at)}</span>
             {narrative.generated_by && <span>by {narrative.generated_by.full_name}</span>}
             <span>·</span>
@@ -336,16 +355,18 @@ function NarrativeCard({
             <span>{wc} words</span>
             {narrative.findings_included > 0 && <span>· {narrative.findings_included} findings</span>}
             {narrative.txns_included > 0 && <span>· {narrative.txns_included} txns</span>}
-            {narrative.ai_log_id && (
-              <span className="text-cyan-600">
-                AI log: {narrative.ai_log_id.slice(0, 8)}…
-              </span>
-            )}
           </div>
+
+          {/* Preview — only shown when collapsed */}
+          {!expanded && (
+            <p className="text-slate-500 text-xs mt-1.5 leading-relaxed line-clamp-2">
+              {preview}{hasMore ? "…" : ""}
+            </p>
+          )}
         </div>
 
-        {/* Action buttons */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        {/* Action buttons + chevron */}
+        <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => e.stopPropagation()}>
           <button onClick={copyToClipboard} title="Copy to clipboard"
             className="p-1.5 text-slate-500 hover:text-slate-300 rounded transition-colors">
             <Copy size={13} />
@@ -356,124 +377,137 @@ function NarrativeCard({
           </button>
           {copied && <span className="text-xs text-emerald-400">Copied!</span>}
         </div>
+        <div className="shrink-0 mt-0.5">
+          {expanded ? <ChevronUp size={14} className="text-slate-500" /> : <ChevronDown size={14} className="text-slate-500" />}
+        </div>
       </div>
 
-      {/* Rejection reason */}
-      {narrative.status === "rejected" && narrative.rejection_reason && (
-        <div className="mx-5 mb-3 p-2 bg-red-900/20 border border-red-500/20 rounded-lg text-xs text-red-300">
-          <span className="font-medium">Rejection reason: </span>{narrative.rejection_reason}
-        </div>
-      )}
-
-      {/* Body */}
-      <div className="px-5 pb-4">
-        {isEditing ? (
-          <div className="space-y-2">
-            <textarea
-              ref={textareaRef}
-              value={editBody}
-              onChange={(e) => setEditBody(e.target.value)}
-              className="w-full bg-slate-700/60 border border-cyan-500/50 rounded-lg px-3 py-2.5 text-sm text-slate-100 leading-relaxed focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none min-h-48"
-              style={{ overflow: "hidden" }}
-            />
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => editMutation.mutate()}
-                disabled={editMutation.isPending || !editBody.trim()}
-                className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs rounded-lg font-medium transition-colors"
-              >
-                {editMutation.isPending ? "Saving…" : "Save Edit"}
-              </button>
-              <button onClick={() => { setIsEditing(false); setEditBody(narrative.active_body); }}
-                className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs text-slate-300 rounded-lg transition-colors">
-                Cancel
-              </button>
-              <span className="text-xs text-slate-500 ml-auto">{wordCount(editBody)} words</span>
+      {/* Expanded body */}
+      {expanded && (
+        <>
+          {/* Rejection reason */}
+          {narrative.status === "rejected" && narrative.rejection_reason && (
+            <div className="mx-5 mb-3 p-2 bg-red-900/20 border border-red-500/20 rounded-lg text-xs text-red-300">
+              <span className="font-medium">Rejection reason: </span>{narrative.rejection_reason}
             </div>
+          )}
+
+          {/* Body */}
+          <div className="px-5 pb-4 border-t border-slate-700/40 pt-3">
+            {isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  ref={textareaRef}
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  className="w-full bg-slate-700/60 border border-cyan-500/50 rounded-lg px-3 py-2.5 text-sm text-slate-100 leading-relaxed focus:outline-none focus:ring-1 focus:ring-cyan-500 resize-none min-h-48"
+                  style={{ overflow: "hidden" }}
+                />
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => editMutation.mutate()}
+                    disabled={editMutation.isPending || !editBody.trim()}
+                    className="px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 disabled:opacity-50 text-white text-xs rounded-lg font-medium transition-colors"
+                  >
+                    {editMutation.isPending ? "Saving…" : "Save Edit"}
+                  </button>
+                  <button onClick={() => { setIsEditing(false); setEditBody(narrative.active_body); }}
+                    className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 text-xs text-slate-300 rounded-lg transition-colors">
+                    Cancel
+                  </button>
+                  <span className="text-xs text-slate-500 ml-auto">{wordCount(editBody)} words</span>
+                </div>
+              </div>
+            ) : (
+              <div className="prose prose-sm prose-invert max-w-none">
+                <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-serif">
+                  {narrative.active_body}
+                </p>
+              </div>
+            )}
           </div>
-        ) : (
-          <div className="prose prose-sm prose-invert max-w-none">
-            <p className="text-slate-300 text-sm leading-relaxed whitespace-pre-wrap font-serif">
-              {narrative.active_body}
-            </p>
-          </div>
-        )}
-      </div>
 
-      {/* Review info for approved */}
-      {isApproved && narrative.reviewed_by && (
-        <div className="px-5 pb-3">
-          <p className="text-xs text-emerald-400">
-            <CheckCircle size={11} className="inline mr-1" />
-            Approved by {narrative.reviewed_by.full_name}
-            {narrative.reviewed_at && <> on {fmtDate(narrative.reviewed_at)}</>}
-          </p>
-        </div>
-      )}
-
-      {/* Actions */}
-      {!isApproved && (
-        <div className="px-5 pb-4 flex items-center gap-2 flex-wrap border-t border-slate-700/40 pt-3">
-          {!isEditing && (
-            <button
-              onClick={() => setIsEditing(true)}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-700/50 border border-slate-600/50 text-slate-400 hover:text-slate-200 rounded-lg transition-colors"
-            >
-              <PenLine size={11} /> Edit
-            </button>
+          {/* Review info for approved */}
+          {isApproved && narrative.reviewed_by && (
+            <div className="px-5 pb-3">
+              <p className="text-xs text-emerald-400">
+                <CheckCircle size={11} className="inline mr-1" />
+                Approved by {narrative.reviewed_by.full_name}
+                {narrative.reviewed_at && <> on {fmtDate(narrative.reviewed_at)}</>}
+              </p>
+            </div>
           )}
 
-          {canReview && narrative.status === "draft" && !isEditing && (
-            <>
+          {/* Actions */}
+          {!isApproved && (
+            <div className="px-5 pb-4 flex items-center gap-2 flex-wrap border-t border-slate-700/40 pt-3">
+              {!isEditing && (
+                <button
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-slate-700/50 border border-slate-600/50 text-slate-400 hover:text-slate-200 rounded-lg transition-colors"
+                >
+                  <PenLine size={11} /> Edit
+                </button>
+              )}
+
+              {narrative.status === "draft" && !isEditing && canReview && !isCreator && (
+                <>
+                  <button
+                    onClick={() => approveMutation.mutate()}
+                    disabled={approveMutation.isPending}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-emerald-900/30 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50 rounded-lg transition-colors"
+                  >
+                    <ThumbsUp size={11} />
+                    {approveMutation.isPending ? "Approving…" : "Approve"}
+                  </button>
+                  <button
+                    onClick={() => setShowRejectForm((v) => !v)}
+                    className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-900/20 border border-red-500/30 text-red-400 hover:bg-red-900/40 rounded-lg transition-colors"
+                  >
+                    <ThumbsDown size={11} /> Reject
+                  </button>
+                </>
+              )}
+              {narrative.status === "draft" && !isEditing && isCreator && (
+                <span className="flex items-center gap-1.5 text-xs text-amber-400 px-2.5 py-1.5 bg-amber-900/20 border border-amber-500/30 rounded-lg">
+                  <Clock size={11} /> Awaiting a different approver (4-eye rule)
+                </span>
+              )}
+
+              {narrative.status !== "approved" && (
+                <button
+                  onClick={() => { if (confirm("Delete this narrative draft?")) deleteMutation.mutate(); }}
+                  disabled={deleteMutation.isPending}
+                  className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-slate-600 hover:text-red-400 rounded-lg transition-colors ml-auto"
+                >
+                  <Trash2 size={11} />
+                  {deleteMutation.isPending ? "Deleting…" : "Delete"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Reject form */}
+          {showRejectForm && (
+            <div className="px-5 pb-4 space-y-2 border-t border-slate-700/40 pt-3">
+              <label className="text-xs text-slate-300 font-medium">Rejection reason</label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={2}
+                placeholder="What needs to be corrected or regenerated?"
+                className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
+              />
               <button
-                onClick={() => approveMutation.mutate()}
-                disabled={approveMutation.isPending}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-emerald-900/30 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-900/50 rounded-lg transition-colors"
+                onClick={() => rejectMutation.mutate()}
+                disabled={rejectMutation.isPending || !rejectReason.trim()}
+                className="px-3 py-1.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-xs rounded-lg font-medium transition-colors"
               >
-                <ThumbsUp size={11} />
-                {approveMutation.isPending ? "Approving…" : "Approve"}
+                {rejectMutation.isPending ? "Rejecting…" : "Confirm Rejection"}
               </button>
-              <button
-                onClick={() => setShowRejectForm((v) => !v)}
-                className="flex items-center gap-1 text-xs px-2.5 py-1.5 bg-red-900/20 border border-red-500/30 text-red-400 hover:bg-red-900/40 rounded-lg transition-colors"
-              >
-                <ThumbsDown size={11} /> Reject
-              </button>
-            </>
+            </div>
           )}
-
-          {narrative.status !== "approved" && (
-            <button
-              onClick={() => { if (confirm("Delete this narrative draft?")) deleteMutation.mutate(); }}
-              disabled={deleteMutation.isPending}
-              className="flex items-center gap-1 text-xs px-2.5 py-1.5 text-slate-600 hover:text-red-400 rounded-lg transition-colors ml-auto"
-            >
-              <Trash2 size={11} />
-              {deleteMutation.isPending ? "Deleting…" : "Delete"}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Reject form */}
-      {showRejectForm && (
-        <div className="px-5 pb-4 space-y-2 border-t border-slate-700/40 pt-3">
-          <label className="text-xs text-slate-300 font-medium">Rejection reason</label>
-          <textarea
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            rows={2}
-            placeholder="What needs to be corrected or regenerated?"
-            className="w-full bg-slate-700/60 border border-slate-600 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-red-500 resize-none"
-          />
-          <button
-            onClick={() => rejectMutation.mutate()}
-            disabled={rejectMutation.isPending || !rejectReason.trim()}
-            className="px-3 py-1.5 bg-red-700 hover:bg-red-600 disabled:opacity-50 text-white text-xs rounded-lg font-medium transition-colors"
-          >
-            {rejectMutation.isPending ? "Rejecting…" : "Confirm Rejection"}
-          </button>
-        </div>
+        </>
       )}
     </div>
   );
@@ -596,13 +630,14 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
           </div>
         )}
 
-        <div className="space-y-4">
+        <div className="space-y-4 pb-24">
           {filtered.map((n) => (
             <NarrativeCard
               key={n.id}
               narrative={n}
               caseId={caseId}
               canReview={canReview}
+              userId={user?.id ?? ""}
               onMutated={invalidate}
             />
           ))}

@@ -209,7 +209,15 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
   });
 
-  const canCreate = hasRole("analyst");
+  const isCaseClosed = caseData?.status === "closed";
+  const canCreate = hasRole("analyst") && !isCaseClosed;
+
+  // Only the assigned person OR a manager+ may complete a task.
+  // Anyone can complete an unassigned task.
+  const canCompleteTask = (task: Task) => {
+    if (!task.assigned_to) return hasRole("analyst");
+    return task.assigned_to.id === user?.id || hasRole("manager");
+  };
 
   if (isLoading) {
     return (
@@ -358,7 +366,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
                 key={task.id}
                 task={displayTask}
                 onClick={() => router.push(`/cases/${caseId}/tasks/${task.id}`)}
-                onComplete={justCompleted.has(task.id) ? undefined : () => completeMutation.mutate(task.id)}
+                onComplete={!justCompleted.has(task.id) && canCompleteTask(task) ? () => completeMutation.mutate(task.id) : undefined}
                 onDelete={() => deleteMutation.mutate(task.id)}
                 onAssignToMe={!task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => assignToMeMutation.mutate(task.id) : undefined}
                 onUnassign={task.assigned_to && !justCompleted.has(task.id) && taskTab === "active" ? () => unassignMutation.mutate(task.id) : undefined}

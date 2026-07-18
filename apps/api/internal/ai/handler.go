@@ -123,6 +123,26 @@ func (h *Handler) RunAgent(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (h *Handler) SaveAgentResult(w http.ResponseWriter, r *http.Request) {
+	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
+	if err != nil {
+		response.Err(w, http.StatusBadRequest, "INVALID_ID", "invalid case id")
+		return
+	}
+	var req SaveAgentResultRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Err(w, http.StatusBadRequest, "BAD_REQUEST", "invalid request body")
+		return
+	}
+	claims := auth.ClaimsFromCtx(r.Context())
+	result, err := h.svc.SaveAgentResult(r.Context(), claims, caseID, req)
+	if err != nil {
+		h.handleError(w, err)
+		return
+	}
+	response.JSON(w, http.StatusCreated, result)
+}
+
 func (h *Handler) ListLogs(w http.ResponseWriter, r *http.Request) {
 	caseID, err := uuid.Parse(chi.URLParam(r, "caseId"))
 	if err != nil {

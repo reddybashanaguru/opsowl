@@ -122,6 +122,63 @@ func (s *Service) ExtractActions(ctx context.Context, claims *auth.Claims, caseI
 	return s.storeLog(ctx, claims, caseID, "extract_actions", resp, db.TimelineEventTypeAiActionSuggested)
 }
 
+// SaveAgentResultRequest is posted by the frontend after the agent SSE stream completes.
+type SaveAgentResultRequest struct {
+	Answer    string `json:"answer"`
+	Goal      string `json:"goal"`
+	TokensIn  int32  `json:"tokens_in"`
+	TokensOut int32  `json:"tokens_out"`
+	ElapsedMs int32  `json:"elapsed_ms"`
+	ModelUsed string `json:"model_used"`
+	Provider  string `json:"provider"`
+}
+
+// SaveAgentResult persists the completed agent report to ai_logs so it appears
+// in the AI Activity Log and survives copilot panel close/reopen.
+func (s *Service) SaveAgentResult(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, req SaveAgentResultRequest) (*AILogResponse, error) {
+	if len(req.Answer) == 0 {
+		return nil, fmt.Errorf("%w: answer is required", ErrBadRequest)
+	}
+	answer := req.Answer
+	if len(answer) > 32000 {
+		answer = answer[:32000]
+	}
+	modelUsed := req.ModelUsed
+	if modelUsed == "" {
+		modelUsed = "llama3.2:3b"
+	}
+	provider := req.Provider
+	if provider == "" {
+		provider = "ollama"
+	}
+
+	row, err := s.repo.Create(ctx, db.CreateAILogParams{
+		CaseID:          caseID,
+		TriggeredBy:     claims.UserID,
+		ActionType:      "agent_run",
+		PromptText:      req.Goal,
+		ResponseText:    answer,
+		ModelUsed:       modelUsed,
+		Provider:        provider,
+		TokensInput:     req.TokensIn,
+		TokensOutput:    req.TokensOut,
+		LatencyMs:       req.ElapsedMs,
+		ConfidenceScore: sql.NullString{},
+		Citations:       []byte("[]"),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to save agent result: %w", err)
+	}
+
+	s.emitTimeline(ctx, caseID, claims.UserID, db.TimelineEventTypeAiQuery, map[string]interface{}{
+		"log_id":      row.ID.String(),
+		"action_type": "agent_run",
+		"model_used":  modelUsed,
+	})
+
+	return buildFullResponse(row), nil
+}
+
 // StreamAgent proxies the autonomous agent SSE stream from the Python service to the HTTP client.
 // The response is never buffered — bytes are flushed as they arrive.
 func (s *Service) StreamAgent(ctx context.Context, claims *auth.Claims, caseID uuid.UUID, goal string, w http.ResponseWriter) error {
@@ -197,7 +254,14 @@ func (s *Service) StreamAgent(ctx context.Context, claims *auth.Claims, caseID u
 // ── Human review actions ──────────────────────────────────────────────────────
 
 func (s *Service) Approve(ctx context.Context, claims *auth.Claims, logID uuid.UUID) (*AILogResponse, error) {
-	_, err := s.repo.Approve(ctx, logID, claims.UserID)
+	row, err := s.repo.GetByID(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+	if row.TriggeredBy == claims.UserID {
+		return nil, fmt.Errorf("%w: reviewer must be a different person from the AI action triggerer", ErrForbidden)
+	}
+	_, err = s.repo.Approve(ctx, logID, claims.UserID)
 	if err != nil {
 		return nil, err
 	}
@@ -208,7 +272,14 @@ func (s *Service) Reject(ctx context.Context, claims *auth.Claims, logID uuid.UU
 	if reason == "" {
 		return nil, fmt.Errorf("%w: rejection reason is required", ErrBadRequest)
 	}
-	_, err := s.repo.Reject(ctx, logID, claims.UserID, reason)
+	row, err := s.repo.GetByID(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+	if row.TriggeredBy == claims.UserID {
+		return nil, fmt.Errorf("%w: reviewer must be a different person from the AI action triggerer", ErrForbidden)
+	}
+	_, err = s.repo.Reject(ctx, logID, claims.UserID, reason)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +290,14 @@ func (s *Service) Edit(ctx context.Context, claims *auth.Claims, logID uuid.UUID
 	if editedResponse == "" {
 		return nil, fmt.Errorf("%w: edited response cannot be empty", ErrBadRequest)
 	}
-	_, err := s.repo.Edit(ctx, logID, claims.UserID, editedResponse)
+	row, err := s.repo.GetByID(ctx, logID)
+	if err != nil {
+		return nil, err
+	}
+	if row.TriggeredBy == claims.UserID {
+		return nil, fmt.Errorf("%w: editor must be a different person from the AI action triggerer", ErrForbidden)
+	}
+	_, err = s.repo.Edit(ctx, logID, claims.UserID, editedResponse)
 	if err != nil {
 		return nil, err
 	}

@@ -81,7 +81,7 @@ func buildHTML(d ReportData) string {
       <tr>
         <td colspan="2" style="background:#0f172a;padding:24px 28px;">
           <span style="color:#22d3ee;font-size:22px;font-weight:800;letter-spacing:-0.5px;">OpsOwl AI</span>
-          <span style="color:#64748b;font-size:11px;display:block;margin-top:2px;letter-spacing:1px;">OPERATIONS INTELLIGENCE WORKSPACE</span>
+          <span style="color:#64748b;font-size:11px;display:block;margin-top:2px;letter-spacing:1px;">AI-NATIVE FINCRIME INVESTIGATIONS WORKSPACE</span>
         </td>
       </tr>
 

@@ -15,6 +15,7 @@ var (
 	ErrInvalidTransition  = errors.New("invalid status transition")
 	ErrTitleRequired      = errors.New("title is required")
 	ErrBlocked            = errors.New("task is blocked: prerequisite step not completed")
+	ErrCaseClosed         = errors.New("case is closed — no new tasks may be added")
 )
 
 // ── Request / Response types ──────────────────────────────────────────────────
