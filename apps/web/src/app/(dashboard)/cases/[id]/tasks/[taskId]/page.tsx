@@ -217,7 +217,18 @@ export default function TaskDetailPage({
 
       <div className="grid grid-cols-3 gap-6">
         {/* Main */}
-        <div className="col-span-2 space-y-6">
+        <div className="col-span-2 space-y-4">
+          {/* Back navigation */}
+          <button
+            onClick={() => router.push(`/cases/${caseId}/tasks`)}
+            className="flex items-center gap-1.5 text-slate-500 hover:text-cyan-400 text-xs font-medium transition-colors group"
+          >
+            <svg className="w-3.5 h-3.5 flex-shrink-0 group-hover:-translate-x-0.5 transition-transform" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
+            </svg>
+            All tasks
+          </button>
+
           {/* Task header */}
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-6">
             {isEditing ? (
@@ -509,15 +520,6 @@ export default function TaskDetailPage({
             </div>
           </div>
 
-          <button
-            onClick={() => router.push(`/cases/${caseId}/tasks`)}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-700 bg-[#131f30] hover:bg-slate-700/30 hover:border-slate-600 text-slate-400 hover:text-slate-200 text-xs font-medium transition-all"
-          >
-            <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 16 16" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10 12L6 8l4-4" />
-            </svg>
-            All tasks
-          </button>
         </div>
       </div>
     </div>
