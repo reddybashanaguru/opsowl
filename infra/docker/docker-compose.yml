@@ -136,6 +136,8 @@ services:
       TIMELINE_LABEL: ${TIMELINE_LABEL:-Timeline}
       NOTE_LABEL: ${NOTE_LABEL:-Note}
       NOTES_LABEL: ${NOTES_LABEL:-Notes}
+      UBO_ENABLED: ${UBO_ENABLED:-true}
+      UBO_THRESHOLD_PCT: ${UBO_THRESHOLD_PCT:-25}
     volumes:
       - ../../apps/api/keys:/app/keys:ro
     depends_on:
