@@ -98,7 +98,7 @@ SELECT
 FROM users u
 LEFT JOIN cases c ON c.assigned_to = u.id AND c.deleted_at IS NULL
 LEFT JOIN tasks t ON t.assigned_to = u.id AND t.deleted_at IS NULL
-WHERE u.role IN ('analyst','manager')
+WHERE u.role IN ('analyst','manager','admin')
   AND u.is_active = TRUE
 GROUP BY u.id, u.full_name, u.email, u.role
 ORDER BY active_cases DESC, overdue_tasks DESC
