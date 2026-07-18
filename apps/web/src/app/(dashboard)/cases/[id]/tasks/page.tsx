@@ -245,29 +245,31 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   }
 
   return (
-    <div className="p-6">
-      <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
+    <div>
+      {/* ── Sticky header ───────────────────────────────────────────── */}
+      <div className="sticky top-0 z-20 bg-[#080e1a] px-6 pt-6 pb-0 shadow-[0_4px_12px_rgba(8,14,26,0.9)]">
+        <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
 
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-white text-xl font-bold">Tasks</h1>
-          {caseData && (
-            <p className="text-slate-500 text-sm mt-0.5 font-mono">{caseData.case_number} · {caseData.title}</p>
+        {/* Page title row */}
+        <div className="flex items-center justify-between mt-6 mb-4">
+          <div>
+            <h1 className="text-white text-xl font-bold">Tasks</h1>
+            {caseData && (
+              <p className="text-slate-500 text-sm mt-0.5 font-mono">{caseData.case_number} · {caseData.title}</p>
+            )}
+          </div>
+          {canCreate && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+            >
+              <span className="text-lg leading-none">+</span> New Task
+            </button>
           )}
         </div>
-        {canCreate && (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 font-semibold px-4 py-2 rounded-lg text-sm transition-colors flex items-center gap-1.5"
-          >
-            <span className="text-lg leading-none">+</span> New Task
-          </button>
-        )}
-      </div>
 
-      {/* Active / Done tab bar */}
-      <div className="flex items-center gap-1 mb-4 border-b border-slate-700/50">
+        {/* Active / Done tab bar */}
+        <div className="flex items-center gap-1 border-b border-slate-700/50">
         <button
           onClick={() => setTaskTab("active")}
           className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
@@ -322,6 +324,10 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
           <span className="text-slate-600 text-xs">{totalCount} task{totalCount !== 1 ? "s" : ""}</span>
         </div>
       </div>
+      </div>{/* ── end sticky header ── */}
+
+      {/* ── Scrollable task list ───────────────────────────────────── */}
+      <div className="px-6 pt-4 pb-6">
 
       {/* Undo toast */}
       {undoToast && (
@@ -408,6 +414,8 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
           )}
         </div>
       )}
+
+      </div>{/* ── end scrollable list ── */}
 
       {/* Create task modal */}
       {showCreate && (
