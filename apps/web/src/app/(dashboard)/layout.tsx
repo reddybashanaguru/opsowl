@@ -112,7 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     },
     {
       heading: "Compliance",
-      icon: Timer,
+      icon: CheckSquare,
       items: [
         { label: cfg.sla_label + " Policies", href: "/sla",               icon: Timer },
         { label: "Data Retention",            href: "/settings/retention", icon: Archive },
@@ -139,18 +139,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ],
     },
     {
-      heading: "Reporting & Integrations",
+      heading: "Reports & Webhooks",
       icon: BarChart3,
       items: [
         { label: "Scheduled Reports", href: "/settings/reports",   icon: BarChart3 },
         { label: "Webhooks",          href: "/settings/webhooks",  icon: Webhook },
-      ],
-    },
-    {
-      heading: "System",
-      icon: Settings,
-      items: [
-        { label: "Settings", href: "/settings", icon: Settings, exact: true },
       ],
     },
   ];
@@ -239,7 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                           hasActive ? "text-cyan-400" : "text-slate-600 group-hover/grp:text-slate-400"
                         }`}
                       />
-                      <span className={`flex-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                      <span className={`flex-1 truncate text-[11px] font-semibold uppercase tracking-wide transition-colors ${
                         hasActive ? "text-cyan-400" : "text-slate-500 group-hover/grp:text-slate-300"
                       }`}>
                         {group.heading}
@@ -266,6 +259,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                 );
               })}
+              <div className="border-t border-[#1e3050]/50 mt-0.5 pt-0.5">
+                <NavLink item={{ label: "Settings", href: "/settings", icon: Settings, exact: true }} />
+              </div>
             </RBACGate>
           </nav>
 
