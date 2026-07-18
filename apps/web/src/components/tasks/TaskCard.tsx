@@ -97,19 +97,27 @@ export function TaskCard({
       onClick={onClick}
     >
       <div className="flex items-start gap-3">
-        {/* Complete checkbox */}
+        {/* Complete checkbox — disabled when predecessor step not yet done */}
         <button
           className={`flex-shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
             isDone
               ? "bg-green-500 border-green-500 text-white"
+              : task.is_blocked && !isDone
+              ? "border-slate-700 bg-slate-800/60 cursor-not-allowed opacity-40"
               : "border-slate-600 hover:border-cyan-400"
           }`}
           onClick={(e) => {
             e.stopPropagation();
-            if (!isDone && !isCancelled) onComplete?.();
+            if (!isDone && !isCancelled && !task.is_blocked) onComplete?.();
           }}
-          disabled={isDone || isCancelled}
-          title={isDone ? "Completed" : "Mark complete"}
+          disabled={isDone || isCancelled || task.is_blocked}
+          title={
+            isDone
+              ? "Completed"
+              : task.is_blocked
+              ? `Complete Step ${task.depends_on_step} first`
+              : "Mark complete"
+          }
         >
           {isDone && (
             <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 12 12">

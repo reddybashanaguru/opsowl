@@ -60,11 +60,28 @@ type Service struct {
 	assignEng       AssignmentEngine
 	playbookApplier PlaybookApplier
 	uboGate         UBOGate
+	casePrefix      string // configurable prefix for case numbers, e.g. "OWL", "DCN"
 }
 
 func NewService(repo *Repository, sqlDB *sql.DB, emitter timeline.Emitter) *Service {
 	repo.WithDB(sqlDB)
-	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter}
+	return &Service{repo: repo, sqlDB: sqlDB, emitter: emitter, casePrefix: "OWL"}
+}
+
+func (s *Service) WithCasePrefix(prefix string) *Service {
+	if prefix != "" {
+		s.casePrefix = prefix
+	}
+	return s
+}
+
+// nextCaseNumber allocates the next sequence value and returns a formatted case number.
+func (s *Service) nextCaseNumber(ctx context.Context) (string, error) {
+	seq, err := s.repo.NextCaseSeq(ctx)
+	if err != nil {
+		return "", fmt.Errorf("case number sequence: %w", err)
+	}
+	return fmt.Sprintf("%s-%d-%05d", s.casePrefix, time.Now().Year(), seq), nil
 }
 
 func (s *Service) WithNotifications(notifSvc *notifications.Service) *Service {
@@ -116,7 +133,13 @@ func (s *Service) Create(ctx context.Context, claims *auth.Claims, req CreateCas
 
 	creatorID := claims.UserID
 
+	caseNum, err := s.nextCaseNumber(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	c, err := s.repo.Create(ctx, db.CreateCaseParams{
+		CaseNumber:     caseNum,
 		Title:          req.Title,
 		Description:    req.Description,
 		Status:         db.CaseStatusOpen,
@@ -193,7 +216,13 @@ func (s *Service) CreateAuto(ctx context.Context, createdBy uuid.UUID, req Creat
 		}
 	}
 
+	autoCaseNum, err := s.nextCaseNumber(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	c, err := s.repo.Create(ctx, db.CreateCaseParams{
+		CaseNumber:     autoCaseNum,
 		Title:          req.Title,
 		Description:    req.Description,
 		Status:         db.CaseStatusOpen,

@@ -25,6 +25,10 @@ func (r *Repository) WithDB(sqlDB *sql.DB) *Repository {
 	return r
 }
 
+func (r *Repository) NextCaseSeq(ctx context.Context) (int64, error) {
+	return r.q.NextCaseSeq(ctx)
+}
+
 const listActiveCasesSQL = `
 SELECT
   c.id, c.case_number, c.title, c.description, c.status, c.priority, c.assigned_to, c.created_by, c.organization_id, c.due_date, c.sla_breach_at, c.sla_breached, c.tags, c.created_at, c.updated_at, c.deleted_at, c.search_vector,

@@ -173,9 +173,22 @@ func (s *Service) ListByCase(ctx context.Context, caseID uuid.UUID, f ListFilter
 		nextCursor = &c
 	}
 
+	// Compute which playbook steps are already done so we can set is_blocked correctly
+	// without N extra DB queries.
+	doneSteps := make(map[int32]bool, len(rows))
+	for _, r := range rows {
+		if r.Status == db.TaskStatusDone && r.PlaybookStepOrder > 0 {
+			doneSteps[r.PlaybookStepOrder] = true
+		}
+	}
+
 	out := make([]TaskResponse, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, s.toResponseFromListRow(r))
+		t := s.toResponseFromListRow(r)
+		if r.DependsOnStep > 0 && !doneSteps[r.DependsOnStep] {
+			t.IsBlocked = true
+		}
+		out = append(out, t)
 	}
 	return out, ListMeta{TotalCount: total, HasMore: hasMore, NextCursor: nextCursor}, nil
 }
@@ -343,8 +356,8 @@ func (s *Service) Update(ctx context.Context, claims *auth.Claims, id uuid.UUID,
 		if err := validateTransition(existing.Status, *req.Status); err != nil {
 			return nil, err
 		}
-		// Block in_progress if a prerequisite playbook step is not yet done
-		if *req.Status == db.TaskStatusInProgress && s.isBlocked(ctx, id) {
+		// Block in_progress AND done if a prerequisite playbook step is not yet done
+		if (*req.Status == db.TaskStatusInProgress || *req.Status == db.TaskStatusDone) && s.isBlocked(ctx, id) {
 			return nil, ErrBlocked
 		}
 	}
@@ -440,6 +453,11 @@ func (s *Service) Complete(ctx context.Context, claims *auth.Claims, id uuid.UUI
 	}
 	if existing.Status == db.TaskStatusCancelled {
 		return nil, ErrInvalidTransition
+	}
+
+	// Block completion if a prerequisite playbook step is not yet done.
+	if s.isBlocked(ctx, id) {
+		return nil, ErrBlocked
 	}
 
 	// If the task is assigned, only the assignee or manager+ may complete it.

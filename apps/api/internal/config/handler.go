@@ -18,6 +18,7 @@ import (
 type AppConfig struct {
 	AppName        string `json:"app_name"`
 	Industry       string `json:"industry"`
+	CasePrefix     string `json:"case_prefix"`  // prefix for auto-generated case numbers, e.g. "OWL", "DCN", "HDFC"
 	CaseLabel      string `json:"case_label"`
 	CasesLabel     string `json:"cases_label"`
 	TaskLabel      string `json:"task_label"`
@@ -99,6 +100,7 @@ func genericDefaults(jurisdiction, country string) AppConfig {
 	return AppConfig{
 		AppName:           "OpsOwl AI",
 		Industry:          envOr("INDUSTRY", "financial_services"),
+		CasePrefix:        envOr("CASE_PREFIX", "OWL"),
 		CaseLabel:         envOr("CASE_LABEL", "Case"),
 		CasesLabel:        envOr("CASES_LABEL", "Cases"),
 		TaskLabel:         envOr("TASK_LABEL", "Task"),
@@ -138,6 +140,7 @@ func indiaDefaults() AppConfig {
 	return AppConfig{
 		AppName:        "OpsOwl AI",
 		Industry:       envOr("INDUSTRY", "financial_services"),
+		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
 		CaseLabel:      envOr("CASE_LABEL", "Case"),
 		CasesLabel:     envOr("CASES_LABEL", "Cases"),
 		TaskLabel:      envOr("TASK_LABEL", "Task"),
@@ -180,6 +183,7 @@ func uaeDefaults() AppConfig {
 	return AppConfig{
 		AppName:        "OpsOwl AI",
 		Industry:       envOr("INDUSTRY", "financial_services"),
+		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
 		CaseLabel:      envOr("CASE_LABEL", "Case"),
 		CasesLabel:     envOr("CASES_LABEL", "Cases"),
 		TaskLabel:      envOr("TASK_LABEL", "Task"),
@@ -258,6 +262,7 @@ func euDefaults(country string) AppConfig {
 	return AppConfig{
 		AppName:        "OpsOwl AI",
 		Industry:       envOr("INDUSTRY", "financial_services"),
+		CasePrefix:     envOr("CASE_PREFIX", "OWL"),
 		CaseLabel:      envOr("CASE_LABEL", "Case"),
 		CasesLabel:     envOr("CASES_LABEL", "Cases"),
 		TaskLabel:      envOr("TASK_LABEL", "Task"),
@@ -364,6 +369,9 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	// Backfill fields missing from older stored blobs.
 	defaults := deploymentDefaults()
+	if cfg.CasePrefix == "" {
+		cfg.CasePrefix = defaults.CasePrefix
+	}
 	if cfg.LocalCurrency == "" {
 		cfg.LocalCurrency = defaults.LocalCurrency
 	}

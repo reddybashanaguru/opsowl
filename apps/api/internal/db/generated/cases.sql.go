@@ -83,19 +83,29 @@ func (q *Queries) CountCases(ctx context.Context, arg CountCasesParams) (int64, 
 	return count, err
 }
 
+const nextCaseSeq = `SELECT nextval('case_number_seq')`
+
+// NextCaseSeq returns the next value from the case_number_seq sequence.
+// Used by the cases service to build a prefix-configurable case number.
+func (q *Queries) NextCaseSeq(ctx context.Context) (int64, error) {
+	var seq int64
+	err := q.db.QueryRowContext(ctx, nextCaseSeq).Scan(&seq)
+	return seq, err
+}
+
 const createCase = `-- name: CreateCase :one
 INSERT INTO cases (
   case_number, title, description, status, priority,
   assigned_to, created_by, organization_id, due_date, sla_breach_at, tags
 ) VALUES (
-  'OWL-' || EXTRACT(YEAR FROM NOW())::TEXT || '-' || LPAD(nextval('case_number_seq')::TEXT, 5, '0'),
-  $1, $2, $3, $4,
-  $5, $6, $7, $8, $9, $10
+  $1, $2, $3, $4, $5,
+  $6, $7, $8, $9, $10, $11
 )
 RETURNING id, case_number, title, description, status, priority, assigned_to, created_by, organization_id, due_date, sla_breach_at, sla_breached, tags, created_at, updated_at, deleted_at, search_vector
 `
 
 type CreateCaseParams struct {
+	CaseNumber     string        `json:"case_number"`
 	Title          string        `json:"title"`
 	Description    string        `json:"description"`
 	Status         CaseStatus    `json:"status"`
@@ -110,6 +120,7 @@ type CreateCaseParams struct {
 
 func (q *Queries) CreateCase(ctx context.Context, arg CreateCaseParams) (Case, error) {
 	row := q.db.QueryRowContext(ctx, createCase,
+		arg.CaseNumber,
 		arg.Title,
 		arg.Description,
 		arg.Status,
