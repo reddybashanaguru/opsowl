@@ -363,8 +363,13 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		playbooks.RegisterRoutes(r, playbooksHandler, s.jwtMgr)
 		casesSvc.WithPlaybookApplier(playbooksSvc)
 
-		// UBO Verification — EU AMLR 2024 Art. 42 closure gate
+		// UBO Verification closure gate
 		uboThreshold := 25.0
+		if v := os.Getenv("UBO_THRESHOLD_PCT"); v != "" {
+			if f, err := strconv.ParseFloat(v, 64); err == nil && f > 0 {
+				uboThreshold = f
+			}
+		}
 		deploymentCountry := strings.ToLower(os.Getenv("DEPLOYMENT_COUNTRY"))
 		uboSvc := ubo.NewService(s.sqlDB, uboThreshold, deploymentCountry)
 		uboHandler := ubo.NewHandler(uboSvc)

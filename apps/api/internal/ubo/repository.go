@@ -20,7 +20,7 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID string) ([]*UBORec
 		SELECT id, case_id, entity_name, owner_name, owner_nationality,
 		       owner_id_type, owner_id_number, owner_birth_date,
 		       ownership_pct, control_type, status, registry_url,
-		       verified_by::text, verified_at, discrepancy_note,
+		       created_by::text, verified_by::text, verified_at, discrepancy_note,
 		       created_at, updated_at
 		FROM ubo_records
 		WHERE case_id = $1
@@ -33,17 +33,20 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID string) ([]*UBORec
 	var result []*UBORecord
 	for rows.Next() {
 		rec := &UBORecord{}
-		var verifiedBy sql.NullString
+		var createdBy, verifiedBy sql.NullString
 		var verifiedAt sql.NullTime
 		if err := rows.Scan(
 			&rec.ID, &rec.CaseID, &rec.EntityName, &rec.OwnerName,
 			&rec.OwnerNationality, &rec.OwnerIDType, &rec.OwnerIDNumber,
 			&rec.OwnerBirthDate, &rec.OwnershipPct, &rec.ControlType,
 			&rec.Status, &rec.RegistryURL,
-			&verifiedBy, &verifiedAt, &rec.DiscrepancyNote,
+			&createdBy, &verifiedBy, &verifiedAt, &rec.DiscrepancyNote,
 			&rec.CreatedAt, &rec.UpdatedAt,
 		); err != nil {
 			return nil, fmt.Errorf("ubo: scan: %w", err)
+		}
+		if createdBy.Valid {
+			rec.CreatedBy = createdBy.String
 		}
 		if verifiedBy.Valid {
 			rec.VerifiedBy = verifiedBy.String
@@ -54,49 +57,42 @@ func (r *Repository) ListByCaseID(ctx context.Context, caseID string) ([]*UBORec
 		}
 		result = append(result, rec)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("ubo: list rows: %w", err)
+	}
 	return result, nil
-}
-
-func (r *Repository) Insert(ctx context.Context, rec *UBORecord) error {
-	_, err := r.db.ExecContext(ctx, `
-		INSERT INTO ubo_records
-			(id, case_id, entity_name, owner_name, owner_nationality,
-			 owner_id_type, owner_id_number, owner_birth_date,
-			 ownership_pct, control_type, status, registry_url,
-			 created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
-		rec.ID, rec.CaseID, rec.EntityName, rec.OwnerName,
-		rec.OwnerNationality, rec.OwnerIDType, rec.OwnerIDNumber,
-		rec.OwnerBirthDate, rec.OwnershipPct, rec.ControlType,
-		rec.Status, rec.RegistryURL,
-		rec.CreatedAt, rec.UpdatedAt,
-	)
-	return err
 }
 
 type UpdateStatusParams struct {
 	ID              string
+	CaseID          string
 	Status          VerificationStatus
 	VerifiedBy      string
 	DiscrepancyNote string
 }
 
 func (r *Repository) UpdateStatus(ctx context.Context, p UpdateStatusParams) error {
-	_, err := r.db.ExecContext(ctx, `
+	res, err := r.db.ExecContext(ctx, `
 		UPDATE ubo_records
-		SET status = $2,
-		    verified_by = CASE WHEN $3 = '' THEN verified_by ELSE $3::uuid END,
-		    verified_at = CASE WHEN $2 IN ('verified','discrepant') THEN NOW() ELSE verified_at END,
-		    discrepancy_note = $4,
-		    updated_at = $5
-		WHERE id = $1`,
-		p.ID, string(p.Status), p.VerifiedBy, p.DiscrepancyNote, time.Now().UTC(),
+		SET status = $3,
+		    verified_by = CASE WHEN $4 = '' THEN verified_by ELSE $4::uuid END,
+		    verified_at = CASE WHEN $3 IN ('verified','discrepant') THEN NOW() ELSE verified_at END,
+		    discrepancy_note = CASE WHEN $3 = 'discrepant' THEN $5 ELSE discrepancy_note END,
+		    updated_at = $6
+		WHERE id = $1 AND case_id = $2`,
+		p.ID, p.CaseID, string(p.Status), p.VerifiedBy, p.DiscrepancyNote, time.Now().UTC(),
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if n, _ := res.RowsAffected(); n == 0 {
+		return sql.ErrNoRows
+	}
+	return nil
 }
 
-func (r *Repository) Delete(ctx context.Context, id string) error {
-	res, err := r.db.ExecContext(ctx, `DELETE FROM ubo_records WHERE id = $1`, id)
+func (r *Repository) Delete(ctx context.Context, id, caseID string) error {
+	res, err := r.db.ExecContext(ctx, `DELETE FROM ubo_records WHERE id = $1 AND case_id = $2`, id, caseID)
 	if err != nil {
 		return err
 	}

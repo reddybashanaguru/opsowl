@@ -250,7 +250,7 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 		FROM users u
 		LEFT JOIN cases c ON c.assigned_to = u.id
 		LEFT JOIN str_filings sr ON sr.submitted_by = u.id
-		WHERE u.role IN ('analyst','manager') AND u.active = true
+		WHERE u.role IN ('analyst','manager') AND u.is_active = true
 		GROUP BY u.id, u.full_name
 		ORDER BY 3 DESC, u.full_name`
 	if krows, err := h.rawDB.QueryContext(ctx, kpiQ); err == nil {
@@ -264,4 +264,74 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.JSON(w, http.StatusOK, out)
+}
+
+// GET /api/v1/analytics/mlro-summary/export — CSV for monthly regulatory reporting
+func (h *Handler) ExportMLROSummary(w http.ResponseWriter, r *http.Request) {
+	var data MLROSummaryResponse
+	data.DispositionCounts = make(map[string]int64)
+	data.Investigators = []InvestigatorKPI{}
+
+	// reuse the same queries as MLROSummary
+	ctx := r.Context()
+	if h.rawDB != nil {
+		statsQ := `
+			SELECT
+				(SELECT COUNT(*) FROM cases WHERE created_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
+				(SELECT COUNT(*) FROM cases WHERE status = 'closed' AND updated_at >= date_trunc('month', NOW()) AND deleted_at IS NULL),
+				(SELECT COUNT(*) FROM str_filings WHERE status IN ('approved','filed') AND updated_at >= date_trunc('month', NOW())),
+				(SELECT COUNT(*) FROM str_filings WHERE status IN ('draft','submitted')),
+				(SELECT COUNT(*) FROM cases WHERE sla_breached = true AND status NOT IN ('closed','draft') AND deleted_at IS NULL),
+				(SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - created_at))/86400), 0)::bigint FROM cases WHERE status NOT IN ('closed','draft') AND deleted_at IS NULL)`
+		_ = h.rawDB.QueryRowContext(ctx, statsQ).Scan(
+			&data.CasesOpenedMTD, &data.CasesClosedMTD,
+			&data.STRsFiledMTD, &data.STRsPendingReview,
+			&data.SLABreachedOpen, &data.AvgCaseAgeDays,
+		)
+		if krows, err := h.rawDB.QueryContext(ctx, `
+			SELECT u.id::text, u.full_name,
+				COALESCE(SUM(CASE WHEN c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0),
+				COALESCE(SUM(CASE WHEN c.status = 'closed' AND c.updated_at >= date_trunc('month', NOW()) THEN 1 ELSE 0 END), 0),
+				COALESCE(COUNT(DISTINCT CASE WHEN sr.status IN ('approved','filed') AND sr.updated_at >= date_trunc('month', NOW()) THEN sr.id END), 0),
+				COALESCE(SUM(CASE WHEN c.sla_breached = true AND c.status NOT IN ('closed','draft') AND c.deleted_at IS NULL THEN 1 ELSE 0 END), 0)
+			FROM users u
+			LEFT JOIN cases c ON c.assigned_to = u.id
+			LEFT JOIN str_filings sr ON sr.submitted_by = u.id
+			WHERE u.role IN ('analyst','manager') AND u.is_active = true
+			GROUP BY u.id, u.full_name ORDER BY 3 DESC, u.full_name`); err == nil {
+			defer krows.Close()
+			for krows.Next() {
+				var kpi InvestigatorKPI
+				if err := krows.Scan(&kpi.UserID, &kpi.FullName, &kpi.ActiveCases, &kpi.ClosedMTD, &kpi.STRsMTD, &kpi.BreachedOpen); err == nil {
+					data.Investigators = append(data.Investigators, kpi)
+				}
+			}
+		}
+	}
+
+	month := time.Now().UTC().Format("2006-01")
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="mlro-report-`+month+`.csv"`)
+
+	cw := csv.NewWriter(w)
+	_ = cw.Write([]string{"metric", "value"})
+	_ = cw.Write([]string{"period", month})
+	_ = cw.Write([]string{"cases_opened_mtd", strconv.FormatInt(data.CasesOpenedMTD, 10)})
+	_ = cw.Write([]string{"cases_closed_mtd", strconv.FormatInt(data.CasesClosedMTD, 10)})
+	_ = cw.Write([]string{"strs_filed_mtd", strconv.FormatInt(data.STRsFiledMTD, 10)})
+	_ = cw.Write([]string{"strs_pending_review", strconv.FormatInt(data.STRsPendingReview, 10)})
+	_ = cw.Write([]string{"sla_breached_open", strconv.FormatInt(data.SLABreachedOpen, 10)})
+	_ = cw.Write([]string{"avg_case_age_days", strconv.FormatInt(data.AvgCaseAgeDays, 10)})
+	_ = cw.Write([]string{})
+	_ = cw.Write([]string{"investigator", "active_cases", "closed_mtd", "strs_mtd", "sla_breached"})
+	for _, inv := range data.Investigators {
+		_ = cw.Write([]string{
+			inv.FullName,
+			strconv.FormatInt(inv.ActiveCases, 10),
+			strconv.FormatInt(inv.ClosedMTD, 10),
+			strconv.FormatInt(inv.STRsMTD, 10),
+			strconv.FormatInt(inv.BreachedOpen, 10),
+		})
+	}
+	cw.Flush()
 }

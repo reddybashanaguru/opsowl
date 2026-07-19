@@ -30,9 +30,20 @@ const (
 	StatusNotApplicable VerificationStatus = "n/a"          // individual subject, not a legal entity
 )
 
-// NationalRegistry maps EU member state country codes to their UBO registry.
+// NationalRegistry maps country codes to their official company/UBO registry.
 // Used to generate a direct deep-link for the analyst to verify the UBO manually.
 var NationalRegistry = map[string]string{
+	// India
+	"in": "https://www.mca.gov.in/content/mca/global/en/home.html", // MCA21 — Ministry of Corporate Affairs
+	// UAE
+	"ae": "https://www.uaeregistrar.gov.ae",                        // UAE Registrar of Companies
+	// United Kingdom
+	"gb": "https://find-and-update.company-information.service.gov.uk", // Companies House
+	// Singapore
+	"sg": "https://www.bizfile.gov.sg",                             // ACRA BizFile+
+	// Australia
+	"au": "https://connectonline.asic.gov.au",                      // ASIC Connect
+	// EU member states
 	"gr": "https://efiling.gsis.gr",          // GEMI — Γενικό Εμπορικό Μητρώο
 	"de": "https://www.handelsregister.de",
 	"fr": "https://data.inpi.fr",
@@ -64,23 +75,24 @@ var NationalRegistry = map[string]string{
 
 // UBORecord is a single beneficial owner of a legal entity subject.
 type UBORecord struct {
-	ID             string             `json:"id"`
-	CaseID         string             `json:"case_id"`
-	EntityName     string             `json:"entity_name"`        // the legal entity being investigated
-	OwnerName      string             `json:"owner_name"`
-	OwnerNationality string           `json:"owner_nationality"`  // ISO 3166-1 alpha-2
-	OwnerIDType    string             `json:"owner_id_type"`
-	OwnerIDNumber  string             `json:"owner_id_number"`
-	OwnerBirthDate string             `json:"owner_birth_date"`   // YYYY-MM-DD
-	OwnershipPct   float64            `json:"ownership_pct"`      // percentage direct + indirect control
-	ControlType    string             `json:"control_type"`       // "share", "voting_right", "other_control"
-	Status         VerificationStatus `json:"status"`
-	RegistryURL    string             `json:"registry_url,omitempty"` // pre-filled from NationalRegistry
-	VerifiedBy     string             `json:"verified_by,omitempty"`  // user ID
-	VerifiedAt     *time.Time         `json:"verified_at,omitempty"`
-	DiscrepancyNote string            `json:"discrepancy_note,omitempty"`
-	CreatedAt      time.Time          `json:"created_at"`
-	UpdatedAt      time.Time          `json:"updated_at"`
+	ID               string             `json:"id"`
+	CaseID           string             `json:"case_id"`
+	EntityName       string             `json:"entity_name"`
+	OwnerName        string             `json:"owner_name"`
+	OwnerNationality string             `json:"owner_nationality"`  // ISO 3166-1 alpha-2
+	OwnerIDType      string             `json:"owner_id_type"`
+	OwnerIDNumber    string             `json:"owner_id_number"`
+	OwnerBirthDate   string             `json:"owner_birth_date"`   // YYYY-MM-DD
+	OwnershipPct     float64            `json:"ownership_pct"`
+	ControlType      string             `json:"control_type"`       // "share", "voting_right", "other_control"
+	Status           VerificationStatus `json:"status"`
+	RegistryURL      string             `json:"registry_url,omitempty"`
+	CreatedBy        string             `json:"created_by,omitempty"`  // user ID who added the record
+	VerifiedBy       string             `json:"verified_by,omitempty"` // user ID who verified
+	VerifiedAt       *time.Time         `json:"verified_at,omitempty"`
+	DiscrepancyNote  string             `json:"discrepancy_note,omitempty"`
+	CreatedAt        time.Time          `json:"created_at"`
+	UpdatedAt        time.Time          `json:"updated_at"`
 }
 
 // Service manages UBO records and enforces the closure gate.
@@ -91,10 +103,23 @@ type Service struct {
 	deploymentCountry string
 }
 
+// jurisdictionLabel returns the regulation citation for the deployment jurisdiction.
+func jurisdictionLabel(country string) string {
+	switch country {
+	case "in":
+		return "Companies Act 2013 Section 90 / PMLA 2002 / RBI KYC MD 2023"
+	case "ae":
+		return "UAE Federal Decree-Law No. 20 of 2018"
+	case "gb":
+		return "UK MLR 2017 Reg. 5"
+	default:
+		return "EU AMLR 2024 Art. 42"
+	}
+}
+
 // NewService creates a UBO service.
 // thresholdPct is the beneficial ownership percentage that triggers UBO verification
-// (EU AMLR 2024 default: 25%). deploymentCountry determines which NationalRegistry
-// URL is pre-filled.
+// (default: 25%). deploymentCountry determines which NationalRegistry URL is pre-filled.
 func NewService(db *sql.DB, thresholdPct float64, deploymentCountry string) *Service {
 	return &Service{
 		db:                db,
@@ -121,17 +146,21 @@ func (s *Service) Create(ctx context.Context, rec *UBORecord) (*UBORecord, error
 		rec.RegistryURL = NationalRegistry[s.deploymentCountry]
 	}
 
+	var createdBy *string
+	if rec.CreatedBy != "" {
+		createdBy = &rec.CreatedBy
+	}
 	_, err := s.db.ExecContext(ctx, `
 		INSERT INTO ubo_records
 			(id, case_id, entity_name, owner_name, owner_nationality,
 			 owner_id_type, owner_id_number, owner_birth_date,
 			 ownership_pct, control_type, status, registry_url,
-			 created_at, updated_at)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+			 created_by, created_at, updated_at)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)`,
 		rec.ID, rec.CaseID, rec.EntityName, rec.OwnerName, rec.OwnerNationality,
 		rec.OwnerIDType, rec.OwnerIDNumber, rec.OwnerBirthDate,
 		rec.OwnershipPct, rec.ControlType, rec.Status, rec.RegistryURL,
-		rec.CreatedAt, rec.UpdatedAt,
+		createdBy, rec.CreatedAt, rec.UpdatedAt,
 	)
 	if err != nil {
 		return nil, fmt.Errorf("ubo: create record: %w", err)
@@ -154,8 +183,8 @@ func (s *Service) CaseMayClose(ctx context.Context, caseID string) error {
 	}
 	if pendingCount > 0 {
 		return fmt.Errorf(
-			"ubo: %d beneficial owner record(s) require verification before closure (EU AMLR 2024 Art. 42)",
-			pendingCount,
+			"ubo: %d beneficial owner record(s) require verification before closure (%s)",
+			pendingCount, jurisdictionLabel(s.deploymentCountry),
 		)
 	}
 	return nil

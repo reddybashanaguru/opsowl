@@ -1,10 +1,12 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { ExportButton } from "@/components/analytics/ExportButton";
 import { LoadBar } from "@/components/analytics/LoadBar";
 import { RBACGate } from "@/components/auth/RBACGate";
+import Link from "next/link";
 
 interface AnalystWorkload {
   id: string;
@@ -57,19 +59,22 @@ function Metric({ label, value, color }: { label: string; value: number | string
   );
 }
 
-function avgCaseAge(hours: string): string {
+function avgCaseAge(hours: string): { label: string; stale: boolean } {
   const h = parseFloat(hours);
-  if (isNaN(h)) return "—";
-  if (h < 24) return `${Math.round(h)}h`;
-  return `${Math.round(h / 24)}d`;
+  if (isNaN(h)) return { label: "—", stale: false };
+  if (h < 24) return { label: `${Math.round(h)}h`, stale: false };
+  const days = Math.round(h / 24);
+  return { label: `${days}d`, stale: days > 14 };
 }
 
 export default function WorkloadPage() {
+  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
   const { data: analysts, isLoading, error } = useQuery<AnalystWorkload[]>({
     queryKey: ["workload"],
     queryFn: () => api.get<AnalystWorkload[]>("/api/v1/analytics/workload"),
     refetchInterval: 30000,
   });
+  useEffect(() => { if (analysts) setLastRefreshed(new Date()); }, [analysts]);
 
   const { data: riskRows, isLoading: riskLoading } = useQuery<RiskRow[]>({
     queryKey: ["risk-leaderboard"],
@@ -106,7 +111,12 @@ export default function WorkloadPage() {
           <div>
             <h1 className="text-white text-2xl font-bold">Team Workload</h1>
             <p className="text-slate-400 text-sm mt-1">
-              Real-time case and task distribution across analysts and managers.
+              Live case and task distribution across investigators
+              {lastRefreshed && (
+                <span className="text-slate-600 ml-1">
+                  · as of {lastRefreshed.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
             </p>
           </div>
           <ExportButton
@@ -143,60 +153,69 @@ export default function WorkloadPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {analysts.map((a) => (
-              <div
-                key={a.id}
-                className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-slate-600 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                    {a.full_name.charAt(0).toUpperCase()}
-                  </div>
+            {analysts.map((a) => {
+              const age = avgCaseAge(a.avg_case_age_hours);
+              return (
+                <Link
+                  key={a.id}
+                  href={`/cases?assigned_to=${a.id}`}
+                  className="block bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] p-5 hover:border-slate-600 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-600 to-violet-600 flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
+                      {a.full_name.charAt(0).toUpperCase()}
+                    </div>
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="text-white font-semibold text-sm">{a.full_name}</span>
-                      <span
-                        className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${
-                          ROLE_BADGE[a.role] ?? "bg-slate-700 text-slate-400"
-                        }`}
-                      >
-                        {a.role}
-                      </span>
-                      {a.overdue_tasks > 0 && (
-                        <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">
-                          {a.overdue_tasks} overdue
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-semibold text-sm">{a.full_name}</span>
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded font-medium capitalize ${
+                            ROLE_BADGE[a.role] ?? "bg-slate-700 text-slate-400"
+                          }`}
+                        >
+                          {a.role}
                         </span>
-                      )}
-                    </div>
-                    <p className="text-slate-500 text-xs">{a.email}</p>
+                        {a.overdue_tasks > 0 && (
+                          <span className="text-xs text-red-400 bg-red-500/10 border border-red-500/30 px-2 py-0.5 rounded">
+                            {a.overdue_tasks} overdue
+                          </span>
+                        )}
+                        {age.stale && (
+                          <span className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded">
+                            avg case &gt;14d
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-500 text-xs">{a.email}</p>
 
-                    <div className="mt-2 grid grid-cols-2 gap-3">
-                      <div>
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>Cases</span>
-                          <span>{a.active_cases}</span>
+                      <div className="mt-2 grid grid-cols-2 gap-3">
+                        <div>
+                          <div className="flex justify-between text-xs text-slate-500 mb-1">
+                            <span>Cases</span>
+                            <span>{a.active_cases}</span>
+                          </div>
+                          <LoadBar value={a.active_cases} max={maxCases} color="bg-cyan-500" />
                         </div>
-                        <LoadBar value={a.active_cases} max={maxCases} color="bg-cyan-500" />
-                      </div>
-                      <div>
-                        <div className="flex justify-between text-xs text-slate-500 mb-1">
-                          <span>Tasks</span>
-                          <span>{a.open_tasks}</span>
+                        <div>
+                          <div className="flex justify-between text-xs text-slate-500 mb-1">
+                            <span>Tasks</span>
+                            <span>{a.open_tasks}</span>
+                          </div>
+                          <LoadBar value={a.open_tasks} max={maxTasks} color="bg-violet-500" />
                         </div>
-                        <LoadBar value={a.open_tasks} max={maxTasks} color="bg-violet-500" />
                       </div>
+                    </div>
+
+                    <div className="grid grid-cols-3 gap-6 flex-shrink-0">
+                      <Metric label="Active Cases" value={a.active_cases} color="text-cyan-400" />
+                      <Metric label="Open Tasks" value={a.open_tasks} color="text-violet-400" />
+                      <Metric label="Avg Case Age" value={age.label} color={age.stale ? "text-amber-400" : "text-slate-300"} />
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-3 gap-6 flex-shrink-0">
-                    <Metric label="Active Cases" value={a.active_cases} color="text-cyan-400" />
-                    <Metric label="Open Tasks" value={a.open_tasks} color="text-violet-400" />
-                    <Metric label="Avg Case Age" value={avgCaseAge(a.avg_case_age_hours)} color="text-slate-300" />
-                  </div>
-                </div>
-              </div>
-            ))}
+                </Link>
+              );
+            })}
           </div>
         )}
 
@@ -229,9 +248,10 @@ export default function WorkloadPage() {
           </div>
         ) : (
           <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] overflow-hidden">
+            <div className="overflow-y-auto max-h-[420px]">
             <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-700 text-slate-500 text-xs uppercase tracking-wider font-medium">
+              <thead className="sticky top-0 z-10 bg-[#131f30] shadow-[0_1px_0_0_rgb(51,65,85)]">
+                <tr className="text-slate-500 text-xs uppercase tracking-wider font-medium">
                   <th className="text-left px-4 py-3 font-medium">#</th>
                   <th className="text-left px-4 py-3 font-medium">Case</th>
                   <th className="text-left px-4 py-3 font-medium">Status</th>
@@ -245,7 +265,8 @@ export default function WorkloadPage() {
                 {riskRows.map((row, i) => (
                   <tr
                     key={row.id}
-                    className="border-b border-slate-700/50 last:border-0 hover:bg-slate-700/30 transition-colors"
+                    onClick={() => window.location.href = `/cases/${row.id}`}
+                    className="border-b border-slate-700/50 last:border-0 hover:bg-slate-700/30 transition-colors cursor-pointer"
                   >
                     <td className="px-4 py-3 text-slate-600 text-xs font-mono">{i + 1}</td>
                     <td className="px-4 py-3">
@@ -287,6 +308,7 @@ export default function WorkloadPage() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         )}
 

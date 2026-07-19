@@ -53,6 +53,7 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	req.CaseID = caseID
+	req.CreatedBy = claims.UserID.String()
 	rec, err := h.svc.Create(r.Context(), &req)
 	if err != nil {
 		if errors.Is(err, ErrCaseClosed) {
@@ -62,7 +63,6 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", err.Error())
 		return
 	}
-	_ = claims
 	response.JSON(w, http.StatusCreated, rec)
 }
 
@@ -73,6 +73,7 @@ type updateStatusRequest struct {
 
 // PATCH /api/v1/cases/{caseId}/ubo/{id}
 func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+	caseID := chi.URLParam(r, "caseId")
 	id := chi.URLParam(r, "id")
 	claims := auth.ClaimsFromCtx(r.Context())
 
@@ -93,6 +94,7 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	err := h.svc.repo.UpdateStatus(r.Context(), UpdateStatusParams{
 		ID:              id,
+		CaseID:          caseID,
 		Status:          status,
 		VerifiedBy:      claims.UserID.String(),
 		DiscrepancyNote: req.DiscrepancyNote,
@@ -110,8 +112,9 @@ func (h *Handler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 // DELETE /api/v1/cases/{caseId}/ubo/{id}
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	caseID := chi.URLParam(r, "caseId")
 	id := chi.URLParam(r, "id")
-	err := h.svc.repo.Delete(r.Context(), id)
+	err := h.svc.repo.Delete(r.Context(), id, caseID)
 	if err == sql.ErrNoRows {
 		response.Err(w, http.StatusNotFound, "NOT_FOUND", "ubo record not found")
 		return

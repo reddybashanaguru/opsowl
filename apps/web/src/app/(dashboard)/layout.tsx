@@ -149,7 +149,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const insightsNav: NavItem[] = [
     { label: "Workload",       href: "/workload",  icon: BarChart2 },
-    { label: "MLRO Dashboard", href: "/analytics", icon: BarChart },
+    { label: "Compliance",     href: "/analytics", icon: BarChart },
   ];
 
   const adminGroups: AdminGroup[] = [
