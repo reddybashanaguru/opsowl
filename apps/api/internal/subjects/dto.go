@@ -1,6 +1,8 @@
 package subjects
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -164,5 +166,28 @@ type ListFilters struct {
 	IsSanctioned *bool
 	Watchlisted  *bool
 	Limit        int
+	Cursor       *string
 	Offset       int
+}
+
+type subjectCursor struct {
+	LastSeenAt time.Time `json:"t"`
+	ID         uuid.UUID `json:"id"`
+}
+
+func encodeSubjectCursor(lastSeenAt time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(subjectCursor{LastSeenAt: lastSeenAt, ID: id})
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func decodeSubjectCursor(s string) (time.Time, uuid.UUID, error) {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	var c subjectCursor
+	if err := json.Unmarshal(b, &c); err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	return c.LastSeenAt, c.ID, nil
 }

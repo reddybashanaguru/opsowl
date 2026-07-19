@@ -48,14 +48,22 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 	}
 	f.Limit = limit
 	f.Offset = offset
+	if v := q.Get("cursor"); v != "" {
+		f.Cursor = &v
+	}
 
 	subjects, total, err := h.svc.List(r.Context(), f)
 	if err != nil {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list subjects")
 		return
 	}
-	hasMore := int64(f.Offset+len(subjects)) < total
-	response.JSONWithMeta(w, http.StatusOK, subjects, response.Meta{HasMore: hasMore, Total: &total})
+	var nextCursor *string
+	if len(subjects) == f.Limit {
+		last := subjects[len(subjects)-1]
+		c := encodeSubjectCursor(last.LastSeenAt, last.ID)
+		nextCursor = &c
+	}
+	response.JSONWithMeta(w, http.StatusOK, subjects, response.Meta{HasMore: nextCursor != nil, Total: &total, NextCursor: nextCursor})
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {

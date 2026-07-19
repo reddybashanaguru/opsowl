@@ -388,8 +388,9 @@ func (r *Repository) List(ctx context.Context, orgID uuid.UUID, f AlertListFilte
 		return nil, 0, err
 	}
 
-	args = append(args, f.Limit, f.Offset)
-	rows, err := r.db.QueryContext(ctx, `
+	// Cursor-based keyset pagination: avoids slow OFFSET scans at large page numbers.
+	// Falls back to OFFSET when no cursor is provided (first page).
+	selectQ := `
 SELECT ia.id, ia.external_alert_id, ia.alert_type, ia.risk_score, ia.risk_level,
   ia.subject_name, ia.subject_id_type, ia.subject_id_number, ia.account_number,
   ia.amount, ia.currency, ia.transaction_date, ia.description, ia.source_system,
@@ -397,7 +398,22 @@ SELECT ia.id, ia.external_alert_id, ia.alert_type, ia.risk_score, ia.risk_level,
   ia.dismiss_reason, ia.created_at, ia.updated_at
 FROM incoming_alerts ia
 LEFT JOIN cases c ON c.id = ia.linked_case_id
-WHERE `+cond+fmt.Sprintf(` ORDER BY ia.created_at DESC LIMIT $%d OFFSET $%d`, n, n+1), args...)
+WHERE `
+	var rows *sql.Rows
+	var err error
+	if f.Cursor != nil {
+		cursorTime, cursorID, decErr := decodeAlertCursor(*f.Cursor)
+		if decErr == nil {
+			args = append(args, cursorTime, cursorID, f.Limit)
+			rows, err = r.db.QueryContext(ctx, selectQ+cond+
+				fmt.Sprintf(` AND (ia.created_at, ia.id) < ($%d, $%d) ORDER BY ia.created_at DESC, ia.id DESC LIMIT $%d`, n, n+1, n+2), args...)
+		}
+	}
+	if rows == nil && err == nil {
+		args = append(args, f.Limit, f.Offset)
+		rows, err = r.db.QueryContext(ctx, selectQ+cond+
+			fmt.Sprintf(` ORDER BY ia.created_at DESC, ia.id DESC LIMIT $%d OFFSET $%d`, n, n+1), args...)
+	}
 	if err != nil {
 		return nil, 0, err
 	}

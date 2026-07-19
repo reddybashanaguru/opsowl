@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { api, newIdempotencyKey } from "@/lib/api";
@@ -36,6 +36,7 @@ interface AlertsPage {
   total: number;
   limit: number;
   offset: number;
+  next_cursor?: string | null;
 }
 
 interface BulkResult {
@@ -180,31 +181,44 @@ function DismissModal({
   );
 }
 
+const LIMIT = 25;
+
 export default function AlertQueuePage() {
   const qc = useQueryClient();
-  const [statusFilter, setStatusFilter] = useState("pending");
-  const [riskFilter,   setRiskFilter]   = useState("");
-  const [offset,       setOffset]       = useState(0);
-  const [convertAlert, setConvertAlert] = useState<AlertRow | null>(null);
-  const [dismissId,    setDismissId]    = useState<string | null>(null);
+  const [statusFilter,  setStatusFilter]  = useState("pending");
+  const [riskFilter,    setRiskFilter]    = useState("");
+  const [cursorStack,   setCursorStack]   = useState<(string | null)[]>([null]);
+  const [page,          setPage]          = useState(0);
+  const [convertAlert,  setConvertAlert]  = useState<AlertRow | null>(null);
+  const [dismissId,     setDismissId]     = useState<string | null>(null);
 
-  // Bulk selection state
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [bulkReason,  setBulkReason]  = useState("");
+  const [selectedIds,  setSelectedIds]  = useState<Set<string>>(new Set());
+  const [bulkReason,   setBulkReason]   = useState("");
   const [bulkFeedback, setBulkFeedback] = useState<string | null>(null);
 
-  // Keyboard row-navigation state
   const [focusedIndex, setFocusedIndex] = useState(-1);
   const focusedRowRef = useRef<HTMLTableRowElement | null>(null);
 
-  const LIMIT = 25;
+  const cursor = cursorStack[page];
+
+  const resetPagination = useCallback(() => {
+    setCursorStack([null]);
+    setPage(0);
+    setSelectedIds(new Set());
+  }, []);
+
+  const queryKey = useMemo(
+    () => ["alerts", statusFilter, riskFilter, cursor],
+    [statusFilter, riskFilter, cursor],
+  );
 
   const { data, isFetching, refetch } = useQuery<AlertsPage>({
-    queryKey: ["alerts", statusFilter, riskFilter, offset],
+    queryKey,
     queryFn: () => {
-      const params = new URLSearchParams({ limit: String(LIMIT), offset: String(offset) });
+      const params = new URLSearchParams({ limit: String(LIMIT) });
       if (statusFilter) params.set("status", statusFilter);
       if (riskFilter)   params.set("risk_level", riskFilter);
+      if (cursor)       params.set("cursor", cursor);
       return api.get<AlertsPage>(`/api/v1/alerts?${params}`);
     },
     refetchInterval: 30_000,
@@ -212,9 +226,8 @@ export default function AlertQueuePage() {
 
   const invalidate = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["alerts"] });
-    setOffset(0);
-    setSelectedIds(new Set());
-  }, [qc]);
+    resetPagination();
+  }, [qc, resetPagination]);
 
   const clearSelection = () => {
     setSelectedIds(new Set());
@@ -323,14 +336,14 @@ export default function AlertQueuePage() {
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); setOffset(0); }}
+        <select value={statusFilter} onChange={e => { setStatusFilter(e.target.value); resetPagination(); }}
           className="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500">
           <option value="">All statuses</option>
           {STATUS_OPTIONS.filter(Boolean).map(s => (
             <option key={s} value={s}>{s.charAt(0).toUpperCase() + s.slice(1)}</option>
           ))}
         </select>
-        <select value={riskFilter} onChange={e => { setRiskFilter(e.target.value); setOffset(0); }}
+        <select value={riskFilter} onChange={e => { setRiskFilter(e.target.value); resetPagination(); }}
           className="bg-slate-800 border border-slate-700 text-slate-300 text-sm rounded-lg px-3 py-1.5 focus:outline-none focus:border-cyan-500">
           <option value="">All risk levels</option>
           {RISK_OPTIONS.filter(Boolean).map(r => (
@@ -470,14 +483,21 @@ export default function AlertQueuePage() {
       {total > LIMIT && (
         <div className="flex items-center justify-between mt-4">
           <span className="text-slate-500 text-xs">
-            Showing {offset + 1}–{Math.min(offset + LIMIT, total)} of {total}
+            Showing {(page * LIMIT + 1).toLocaleString()}–{(page * LIMIT + alerts.length).toLocaleString()} of {total.toLocaleString()}
           </span>
           <div className="flex gap-2">
-            <button disabled={offset === 0} onClick={() => setOffset(Math.max(0, offset - LIMIT))}
+            <button disabled={page === 0} onClick={() => setPage(p => p - 1)}
               className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs disabled:opacity-40 hover:border-slate-500 transition-colors">
               Previous
             </button>
-            <button disabled={offset + LIMIT >= total} onClick={() => setOffset(offset + LIMIT)}
+            <button
+              disabled={!data?.next_cursor}
+              onClick={() => {
+                const nc = data?.next_cursor;
+                if (!nc) return;
+                setCursorStack(prev => { const s = [...prev]; s[page + 1] = nc; return s; });
+                setPage(p => p + 1);
+              }}
               className="px-3 py-1.5 rounded-lg border border-slate-700 text-slate-300 text-xs disabled:opacity-40 hover:border-slate-500 transition-colors">
               Next
             </button>

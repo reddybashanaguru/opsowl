@@ -116,7 +116,9 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 			f.Limit = n
 		}
 	}
-	if v := q.Get("offset"); v != "" {
+	if v := q.Get("cursor"); v != "" {
+		f.Cursor = &v
+	} else if v := q.Get("offset"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
 			f.Offset = n
 		}
@@ -141,11 +143,18 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "failed to list alerts")
 		return
 	}
+	var nextCursor *string
+	if len(items) == f.Limit {
+		last := items[len(items)-1]
+		c := encodeAlertCursor(last.CreatedAt, last.ID)
+		nextCursor = &c
+	}
 	response.JSON(w, http.StatusOK, map[string]any{
-		"alerts": items,
-		"total":  total,
-		"limit":  f.Limit,
-		"offset": f.Offset,
+		"alerts":      items,
+		"total":       total,
+		"limit":       f.Limit,
+		"offset":      f.Offset,
+		"next_cursor": nextCursor,
 	})
 }
 

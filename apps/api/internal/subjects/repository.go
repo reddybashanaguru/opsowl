@@ -158,8 +158,7 @@ func (r *Repository) List(ctx context.Context, orgID uuid.UUID, f ListFilters) (
 		return nil, 0, err
 	}
 
-	args = append(args, f.Limit, f.Offset)
-	rows, err := r.db.QueryContext(ctx, `
+	selectQ := `
 SELECT id, org_id, canonical_name, entity_type, id_type, id_number,
        secondary_ids, nationality, date_of_birth, gender,
        addresses, phones, emails,
@@ -168,7 +167,21 @@ SELECT id, org_id, canonical_name, entity_type, id_type, id_number,
        kyc_tier, kyc_last_reviewed_at,
        total_cases, open_cases, total_str_filings,
        notes, first_seen_at, last_seen_at, created_at, updated_at
-FROM subjects WHERE `+cond+` ORDER BY last_seen_at DESC LIMIT $`+itoa(n)+` OFFSET $`+itoa(n+1), args...)
+FROM subjects WHERE `
+	var rows *sql.Rows
+	var err error
+	if f.Cursor != nil {
+		cursorTime, cursorID, decErr := decodeSubjectCursor(*f.Cursor)
+		if decErr == nil {
+			args = append(args, cursorTime, cursorID, f.Limit)
+			rows, err = r.db.QueryContext(ctx, selectQ+cond+
+				` AND (last_seen_at, id) < ($`+itoa(n)+`, $`+itoa(n+1)+`) ORDER BY last_seen_at DESC, id DESC LIMIT $`+itoa(n+2), args...)
+		}
+	}
+	if rows == nil && err == nil {
+		args = append(args, f.Limit, f.Offset)
+		rows, err = r.db.QueryContext(ctx, selectQ+cond+` ORDER BY last_seen_at DESC, id DESC LIMIT $`+itoa(n)+` OFFSET $`+itoa(n+1), args...)
+	}
 	if err != nil {
 		return nil, 0, err
 	}

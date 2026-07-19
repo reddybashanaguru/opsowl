@@ -1,6 +1,8 @@
 package alerts
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -175,10 +177,36 @@ type IngestResponse struct {
 }
 
 type AlertListFilters struct {
-	Status     string
-	AlertType  string
-	RiskLevel  string
-	SourceID   *uuid.UUID
-	Limit      int
-	Offset     int
+	Status    string
+	AlertType string
+	RiskLevel string
+	SourceID  *uuid.UUID
+	Limit     int
+	// Cursor-based pagination (preferred). Encodes {created_at, id} of the last seen row.
+	// When set, Offset is ignored.
+	Cursor *string
+	// Offset kept for backwards-compat with any existing callers; ignored when Cursor is set.
+	Offset int
+}
+
+type alertCursor struct {
+	CreatedAt time.Time `json:"t"`
+	ID        uuid.UUID `json:"id"`
+}
+
+func encodeAlertCursor(createdAt time.Time, id uuid.UUID) string {
+	b, _ := json.Marshal(alertCursor{CreatedAt: createdAt, ID: id})
+	return base64.StdEncoding.EncodeToString(b)
+}
+
+func decodeAlertCursor(s string) (time.Time, uuid.UUID, error) {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	var c alertCursor
+	if err := json.Unmarshal(b, &c); err != nil {
+		return time.Time{}, uuid.Nil, err
+	}
+	return c.CreatedAt, c.ID, nil
 }

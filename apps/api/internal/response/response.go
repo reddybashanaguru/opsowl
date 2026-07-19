@@ -15,9 +15,10 @@ type envelope struct {
 }
 
 type Meta struct {
-	Cursor  string `json:"cursor,omitempty"`
-	HasMore bool   `json:"has_more"`
-	Total   *int64 `json:"total,omitempty"`
+	Cursor     string  `json:"cursor,omitempty"`
+	NextCursor *string `json:"next_cursor,omitempty"`
+	HasMore    bool    `json:"has_more"`
+	Total      *int64  `json:"total,omitempty"`
 }
 
 type Error struct {

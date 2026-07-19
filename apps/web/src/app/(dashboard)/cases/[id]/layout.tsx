@@ -3,7 +3,11 @@
 import { use } from "react";
 import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
-import { CopilotPanel } from "@/components/ai/CopilotPanel";
+import dynamic from "next/dynamic";
+const CopilotPanel = dynamic(
+  () => import("@/components/ai/CopilotPanel").then(m => ({ default: m.CopilotPanel })),
+  { ssr: false, loading: () => <div className="w-full h-full bg-[#0c1929] animate-pulse rounded-xl" /> },
+);
 import { useCopilotStore } from "@/lib/stores/copilot.store";
 import { CaseNavProvider, useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { CaseSubNav } from "@/components/cases/CaseSubNav";

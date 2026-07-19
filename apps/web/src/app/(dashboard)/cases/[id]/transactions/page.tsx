@@ -5,7 +5,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useCaseNav } from "@/lib/contexts/CaseNavContext";
-import { FlowOfFundsGraph } from "@/components/cases/FlowOfFundsGraph";
+import dynamic from "next/dynamic";
+const FlowOfFundsGraph = dynamic(
+  () => import("@/components/cases/FlowOfFundsGraph").then(m => ({ default: m.FlowOfFundsGraph })),
+  { ssr: false, loading: () => <div className="h-64 bg-slate-800/40 rounded-xl animate-pulse" /> },
+);
 import { useConfig } from "@/lib/hooks/useConfig";
 import { formatCurrency, getCTRStatus } from "@/lib/utils/currency";
 import {

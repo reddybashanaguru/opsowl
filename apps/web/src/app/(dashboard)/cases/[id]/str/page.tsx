@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState, useEffect, useMemo } from "react";
+import { use, useState, useEffect, useMemo, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
@@ -736,7 +736,7 @@ function TransactionRows({
 
 // ── Filing card ──────────────────────────────────────────────────────────────
 
-function FilingCard({
+const FilingCard = memo(function FilingCard({
   filing, caseId, userId, userRole, onAction,
 }: {
   filing: STRFiling; caseId: string; userId: string; userRole: string; onAction: () => void;
@@ -1010,7 +1010,7 @@ function FilingCard({
       )}
     </div>
   );
-}
+});
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -1024,6 +1024,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   const caseData = useCaseSummary(caseId);
   const { setAction } = useCaseNav();
+  const noop = useCallback(() => {}, []);
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
   const [populating, setPopulating] = useState(false);
@@ -1688,7 +1689,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
               caseId={caseId}
               userId={user?.id ?? ""}
               userRole={user?.role ?? ""}
-              onAction={() => {}}
+              onAction={noop}
             />
           ))}
         </div>
