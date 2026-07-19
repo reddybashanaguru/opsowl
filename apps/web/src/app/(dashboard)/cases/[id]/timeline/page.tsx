@@ -7,7 +7,6 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { useTimelineSSE, type TimelineEvent } from "@/lib/hooks/useTimelineSSE";
 import { TimelineEventCard } from "@/components/cases/TimelineEventCard";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { api } from "@/lib/api";
 import { PageError } from "@/components/ui/PageError";
 
@@ -52,15 +51,12 @@ function StatusDot({ status }: { status: string }) {
   );
 }
 
-import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 export default function TimelinePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const cfg = useConfig();
-
-  const caseData = useCaseSummary(id);
 
   const [selectedSources, setSelectedSources] = useState<Set<Source>>(new Set());
   const [selectedTypes, setSelectedTypes] = useState<Set<string>>(new Set());
@@ -152,9 +148,6 @@ export default function TimelinePage({ params }: { params: Promise<{ id: string 
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      <div className="px-6 pt-4 flex-shrink-0">
-        <CaseSubNav caseId={id} activeTab="timeline" caseNumber={caseData?.case_number} />
-      </div>
       <div className="flex flex-col flex-1 overflow-hidden">
       {/* Header */}
       <div className="border-b border-slate-700 bg-[#080e1a] px-6 py-4 flex items-center justify-between flex-shrink-0">

@@ -3,7 +3,7 @@
 import { use, useState, useEffect, useMemo, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { PageError } from "@/components/ui/PageError";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -461,6 +461,25 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   const analysing = analyseMutation.isPending || polling;
   const riskColorClass = RISK_COLORS[ins?.risk_level ?? "unknown"] ?? RISK_COLORS.unknown;
 
+  const { setAction } = useCaseNav();
+  useEffect(() => {
+    setAction(
+      <button
+        onClick={() => analyseMutation.mutate()}
+        disabled={analysing}
+        className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
+      >
+        {analysing ? (
+          <>
+            <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+            Analysing…
+          </>
+        ) : ins?.ai_available ? "Re-analyse" : "Run AI Analysis"}
+      </button>
+    );
+    return () => setAction(null);
+  }, [analysing, ins?.ai_available, setAction]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -471,8 +490,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
 
   if (isError) {
     return (
-      <div className="p-6">
-        <CaseSubNav caseId={id} activeTab="insights" caseNumber={caseData?.case_number} />
+      <div className="px-6 pb-6">
         <PageError error={error as Error | null} onRetry={() => refetch()} />
       </div>
     );
@@ -481,26 +499,7 @@ export default function InsightsPage({ params }: { params: Promise<{ id: string 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Fixed header — tabs + banners */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-3">
-        <CaseSubNav
-          caseId={id}
-          activeTab="insights"
-          caseNumber={caseData?.case_number}
-          action={
-            <button
-              onClick={() => analyseMutation.mutate()}
-              disabled={analysing}
-              className="bg-violet-600 hover:bg-violet-500 text-white text-sm font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-2"
-            >
-              {analysing ? (
-                <>
-                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Analysing…
-                </>
-              ) : ins?.ai_available ? "Re-analyse" : "Run AI Analysis"}
-            </button>
-          }
-        />
+      <div className="flex-shrink-0 px-6 pt-4 pb-3">
 
         {polling && (
           <div className="bg-violet-500/10 border border-violet-500/30 text-violet-300 rounded-xl p-4 mt-4 text-sm flex items-center gap-3">

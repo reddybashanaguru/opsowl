@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import {
   CheckCircle,
   XCircle,
@@ -345,19 +345,18 @@ export default function ClosurePage({ params }: { params: Promise<{ id: string }
   const canEdit = isDraft;
   const canSubmit = isDraft && closure && effectiveSummary.length >= 100 && effectiveDisposition;
 
-  return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={caseId}
-        activeTab="closure"
-        caseNumber={caseData?.case_number}
-        action={closure ? (
-          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[closure.status]}`}>
-            {closure.status.charAt(0).toUpperCase() + closure.status.slice(1)}
-          </span>
-        ) : undefined}
-      />
+  const { setAction } = useCaseNav();
+  useEffect(() => {
+    setAction(closure ? (
+      <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${STATUS_STYLES[closure.status]}`}>
+        {closure.status.charAt(0).toUpperCase() + closure.status.slice(1)}
+      </span>
+    ) : null);
+    return () => setAction(null);
+  }, [closure, setAction]);
 
+  return (
+    <div className="px-6 pb-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Case Closure</h1>
         <p className="text-slate-400 text-sm mt-0.5">Complete the pre-closure checklist, fill the closure form, and submit for manager approval.</p>

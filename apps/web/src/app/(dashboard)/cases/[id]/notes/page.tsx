@@ -10,7 +10,6 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { NoteEditor } from "@/components/notes/NoteEditor";
 import { NoteCard, Note } from "@/components/notes/NoteCard";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
@@ -149,9 +148,7 @@ export default function CaseNotesPage({ params }: { params: Promise<{ id: string
   const canWrite = hasRole("analyst") && !isCaseClosed;
 
   return (
-    <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="notes" caseNumber={caseData?.case_number} />
-
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

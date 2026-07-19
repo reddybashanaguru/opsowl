@@ -8,7 +8,6 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { TaskStatusBadge } from "@/components/tasks/TaskStatusBadge";
 import { TaskPriorityBadge } from "@/components/tasks/TaskPriorityBadge";
 import { Task } from "@/components/tasks/TaskCard";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 interface Comment {
@@ -212,9 +211,7 @@ export default function TaskDetailPage({
   }
 
   return (
-    <div className="p-6">
-      <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
-
+    <div className="px-6 pb-6">
       {/* Back navigation — above grid so both columns align */}
       <button
         onClick={() => router.push(`/cases/${caseId}/tasks`)}

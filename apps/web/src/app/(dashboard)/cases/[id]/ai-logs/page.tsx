@@ -5,9 +5,7 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from "@tansta
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { AICard, AILog } from "@/components/ai/AICard";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
-import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 interface ListMeta {
   total_count: number;
@@ -21,8 +19,6 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   const user = useAuthStore((s) => s.user);
   const hasRole = useAuthStore((s) => s.hasRole);
   const canReviewLog = (log: AILog) => hasRole("analyst") && log.triggered_by?.id !== user?.id;
-
-  const caseData = useCaseSummary(id);
 
   const [statusFilter, setStatusFilter] = useState("");
   const [rejectingLogId, setRejectingLogId] = useState<string | null>(null);
@@ -62,9 +58,7 @@ export default function AILogsPage({ params }: { params: Promise<{ id: string }>
   });
 
   return (
-    <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="ai-logs" caseNumber={caseData?.case_number} />
-
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

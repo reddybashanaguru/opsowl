@@ -12,7 +12,6 @@ import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { TaskCard, Task } from "@/components/tasks/TaskCard";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
 
 interface ListMeta {
@@ -255,8 +254,7 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
 
   if (isError) {
     return (
-      <div className="p-6">
-        <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
+      <div className="px-6 pb-6">
         <PageError error={error as Error | null} onRetry={() => refetch()} />
       </div>
     );
@@ -265,11 +263,10 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
   return (
     <div>
       {/* ── Sticky header ───────────────────────────────────────────── */}
-      <div className="sticky top-0 z-20 bg-[#080e1a] px-6 pt-6 pb-0 shadow-[0_4px_12px_rgba(8,14,26,0.9)]">
-        <CaseSubNav caseId={caseId} activeTab="tasks" caseNumber={caseData?.case_number} />
+      <div className="sticky top-0 z-20 bg-[#080e1a] px-6 pb-0 shadow-[0_4px_12px_rgba(8,14,26,0.9)]">
 
         {/* Page title row */}
-        <div className="flex items-center justify-between mt-6 mb-4">
+        <div className="flex items-center justify-between pt-4 mb-4">
           <div>
             <h1 className="text-white text-xl font-bold">Tasks</h1>
             {caseData && (

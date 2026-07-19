@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState, useCallback, useRef } from "react";
+import { use, useState, useCallback, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { FlowOfFundsGraph } from "@/components/cases/FlowOfFundsGraph";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { formatCurrency, getCTRStatus } from "@/lib/utils/currency";
@@ -876,6 +876,28 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
   };
 
   const isCaseClosed = caseData?.status === "closed";
+
+  const { setAction } = useCaseNav();
+  useEffect(() => {
+    setAction(!isCaseClosed ? (
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => setShowImport(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
+        >
+          <Upload size={13} /> Import CSV
+        </button>
+        <button
+          onClick={() => setShowAdd(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+        >
+          <Plus size={13} /> Add Transaction
+        </button>
+      </div>
+    ) : null);
+    return () => setAction(null);
+  }, [isCaseClosed, setAction]);
+
   const transactions = listData ?? [];
   const filtered = transactions.filter((t) => {
     if (filterFlagged && !t.is_flagged) return false;
@@ -896,32 +918,8 @@ export default function TransactionsPage({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
-      {/* ── Fixed header: subnav + title + summary + filters ── */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-3">
-        <CaseSubNav
-          caseId={caseId}
-          activeTab="transactions"
-          caseNumber={caseData?.case_number}
-          action={
-            !isCaseClosed ? (
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowImport(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-700/60 hover:bg-slate-700 text-slate-300 text-xs rounded-lg transition-colors border border-slate-600/50"
-                >
-                  <Upload size={13} /> Import CSV
-                </button>
-                <button
-                  onClick={() => setShowAdd(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-                >
-                  <Plus size={13} /> Add Transaction
-                </button>
-              </div>
-            ) : undefined
-          }
-        />
-
+      {/* ── Fixed header: title + summary + filters ── */}
+      <div className="flex-shrink-0 px-6 pt-4 pb-3">
         <div className="mb-5">
           <h1 className="text-xl font-bold text-white">Transactions</h1>
           <p className="text-slate-400 text-sm mt-0.5">Financial evidence — link transactions to this case and trace the flow of funds.</p>

@@ -4,7 +4,7 @@ import { use, useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import {
   AlertCircle,
   CheckCircle,
@@ -525,6 +525,7 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
   const canReview = roleLevel >= 3;
 
   const caseData = useCaseSummary(caseId);
+  const { setAction } = useCaseNav();
 
   const [showGenerate, setShowGenerate] = useState(false);
   const [filterType, setFilterType] = useState("");
@@ -540,22 +541,20 @@ export default function NarrativePage({ params }: { params: Promise<{ id: string
   const filtered = filterType ? narratives.filter((n) => n.narrative_type === filterType) : narratives;
   const approvedCount = narratives.filter((n) => n.status === "approved").length;
 
-  return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={caseId}
-        activeTab="narrative"
-        caseNumber={caseData?.case_number}
-        action={
-          <button
-            onClick={() => setShowGenerate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-          >
-            <Plus size={13} /> Generate Narrative
-          </button>
-        }
-      />
+  useEffect(() => {
+    setAction(
+      <button
+        onClick={() => setShowGenerate(true)}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        <Plus size={13} /> Generate Narrative
+      </button>
+    );
+    return () => setAction(null);
+  }, [setAction]);
 
+  return (
+    <div className="px-6 pb-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Investigation Narratives</h1>
         <p className="text-slate-400 text-sm mt-0.5">AI-drafted narratives grounded in approved findings and linked transactions. Edit, approve, and export for STR/SAR filings or case closure.</p>

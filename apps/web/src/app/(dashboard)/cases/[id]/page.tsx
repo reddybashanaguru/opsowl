@@ -1,13 +1,13 @@
 "use client";
 
-import { use, useState, useRef, useMemo } from "react";
+import { use, useState, useRef, useMemo, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, APIError } from "@/lib/api";
 import { StatusBadge } from "@/components/cases/StatusBadge";
 import { PriorityBadge } from "@/components/cases/PriorityBadge";
 import { SLACountdown } from "@/components/cases/SLACountdown";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { useAuthStore } from "@/lib/stores/auth.store";
 import { useTimelineSSE, TimelineEvent } from "@/lib/hooks/useTimelineSSE";
 import { useCopilotStore } from "@/lib/stores/copilot.store";
@@ -339,6 +339,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
   const [reason, setReason] = useState("");
   const [statusError, setStatusError] = useState("");
   const [exportingPDF, setExportingPDF] = useState(false);
+  const { setAction } = useCaseNav();
   const [noteText, setNoteText] = useState("");
   const [noteSuccess, setNoteSuccess] = useState(false);
   const [assigneeOpen, setAssigneeOpen] = useState(false);
@@ -479,8 +480,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   if (isError || !c) {
     return (
-      <div className="p-6">
-        <CaseSubNav caseId={id} activeTab="case" />
+      <div className="px-6 pb-6">
         <PageError error={error as Error | null} onRetry={() => refetch()} />
       </div>
     );
@@ -488,50 +488,49 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
 
   const nextStatuses = VALID_TRANSITIONS[c.status] ?? [];
 
-  return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={id}
-        activeTab="case"
-        action={
+  // Sync the PDF export button to the shared layout action slot
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    setAction(
+      <button
+        onClick={async () => {
+          setExportingPDF(true);
+          try {
+            const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+            const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
+              credentials: "include",
+            });
+            if (!res.ok) throw new Error("Failed to generate report");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${c?.case_number ?? id}-report.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+          } finally {
+            setExportingPDF(false);
+          }
+        }}
+        disabled={exportingPDF}
+        className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1.5"
+        title="Export PDF Report"
+      >
+        {exportingPDF ? (
           <>
-            <button
-              onClick={async () => {
-                setExportingPDF(true);
-                try {
-                  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-                  const res = await fetch(`${apiBase}/api/v1/cases/${id}/report`, {
-                    credentials: "include",
-                  });
-                  if (!res.ok) throw new Error("Failed to generate report");
-                  const blob = await res.blob();
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = `${c?.case_number ?? id}-report.pdf`;
-                  document.body.appendChild(a);
-                  a.click();
-                  a.remove();
-                  URL.revokeObjectURL(url);
-                } finally {
-                  setExportingPDF(false);
-                }
-              }}
-              disabled={exportingPDF}
-              className="bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 hover:text-emerald-200 border border-emerald-500/30 text-sm font-medium px-3 py-1 rounded-lg transition-colors disabled:opacity-60 flex items-center gap-1.5"
-              title="Export PDF Report"
-            >
-              {exportingPDF ? (
-                <>
-                  <span className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-                  Generating…
-                </>
-              ) : "📄 Export PDF"}
-            </button>
+            <span className="w-3 h-3 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+            Generating…
           </>
-        }
-      />
+        ) : "📄 Export PDF"}
+      </button>
+    );
+    return () => setAction(null);
+  }, [exportingPDF, c?.case_number, id, setAction]);
 
+  return (
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className={`flex items-start justify-between mb-6 pl-4 border-l-4 ${
         c.status === "open"           ? "border-blue-500" :

@@ -1,11 +1,11 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { PageError } from "@/components/ui/PageError";
 
 interface CommLog {
@@ -209,6 +209,21 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
     onSuccess: () => qc.invalidateQueries({ queryKey: ["comms", id] }),
   });
 
+  const { setAction } = useCaseNav();
+
+  useEffect(() => {
+    if (!canWrite) { setAction(null); return; }
+    setAction(
+      <button
+        onClick={() => setShowForm(f => !f)}
+        className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
+      >
+        + Log Communication
+      </button>
+    );
+    return () => setAction(null);
+  }, [canWrite, setAction]);
+
   const handleSubmit = () => {
     if (!form.contact_name.trim() || !form.body.trim()) {
       setFormError("Contact name and body are required.");
@@ -218,21 +233,7 @@ export default function CommsPage({ params }: { params: Promise<{ id: string }> 
   };
 
   return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={id}
-        activeTab="comms"
-        caseNumber={caseData?.case_number}
-        action={canWrite ? (
-          <button
-            onClick={() => setShowForm(!showForm)}
-            className="bg-cyan-500 hover:bg-cyan-400 text-slate-900 text-sm font-semibold px-4 py-2 rounded-lg transition-colors"
-          >
-            + Log Communication
-          </button>
-        ) : undefined}
-      />
-
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Communications</h1>

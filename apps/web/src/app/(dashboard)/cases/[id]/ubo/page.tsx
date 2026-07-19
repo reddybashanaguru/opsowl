@@ -6,7 +6,6 @@ import { Users, ExternalLink, Plus, CheckCircle, AlertTriangle, XCircle, Loader2
 import { api } from "@/lib/api";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 
 interface UBORecord {
   id: string;
@@ -27,7 +26,6 @@ interface UBORecord {
   created_at: string;
 }
 
-import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
 const STATUS_CONFIG = {
   pending:    { label: "Pending",    color: "bg-amber-500/15 text-amber-400",   Icon: Loader2 },
@@ -196,8 +194,6 @@ export default function CaseUBOPage({ params }: { params: Promise<{ id: string }
   const [showAdd, setShowAdd] = useState(false);
   const [discrepancyTarget, setDiscrepancyTarget] = useState<UBORecord | null>(null);
 
-  const caseData = useCaseSummary(caseId);
-
   const { data: records = [], isFetching } = useQuery<UBORecord[]>({
     queryKey: ["ubo", caseId],
     queryFn: () => api.get(`/api/v1/cases/${caseId}/ubo`),
@@ -224,9 +220,7 @@ export default function CaseUBOPage({ params }: { params: Promise<{ id: string }
   const pendingCount = records.filter((r) => r.status === "pending" || r.status === "discrepant").length;
 
   return (
-    <div className="px-8 py-6">
-      <CaseSubNav caseId={caseId} activeTab="ubo" caseNumber={caseData?.case_number} />
-
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>

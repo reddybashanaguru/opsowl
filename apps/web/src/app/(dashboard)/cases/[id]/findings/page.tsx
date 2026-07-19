@@ -1,10 +1,10 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { PageError } from "@/components/ui/PageError";
 import {
   Shield, ShieldAlert, ShieldCheck, Sparkles,
@@ -557,6 +557,19 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
   const isCaseClosed = caseData?.status === "closed";
   const canCreate = hasRole("analyst") && !isCaseClosed;
 
+  const { setAction } = useCaseNav();
+  useEffect(() => {
+    setAction(canCreate ? (
+      <button
+        onClick={() => setShowCreate(true)}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        <Plus size={13} /> New Finding
+      </button>
+    ) : null);
+    return () => setAction(null);
+  }, [canCreate, setAction]);
+
   if (isError) return (
     <PageError title="Failed to load findings" />
   );
@@ -566,24 +579,8 @@ export default function CaseFindingsPage({ params }: { params: Promise<{ id: str
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Fixed header */}
-      <div className="flex-shrink-0 px-6 pt-6 pb-3">
-        <CaseSubNav
-          caseId={id}
-          activeTab="findings"
-          caseNumber={caseData?.case_number}
-          action={
-            canCreate ? (
-              <button
-                onClick={() => setShowCreate(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-              >
-                <Plus size={13} /> New Finding
-              </button>
-            ) : undefined
-          }
-        />
-
-        <div className="mt-4 mb-3">
+      <div className="flex-shrink-0 px-6 pt-4 pb-3">
+        <div className="mb-3">
           <h1 className="text-xl font-bold text-white">Findings</h1>
           <p className="text-slate-400 text-sm mt-0.5">Documented investigation findings — approved findings carry evidential weight for STR and case closure.</p>
         </div>

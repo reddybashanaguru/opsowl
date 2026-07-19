@@ -8,7 +8,6 @@ import { useAuthStore } from "@/lib/stores/auth.store";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { DocumentCard, Document } from "@/components/documents/DocumentCard";
 import { DocumentUploadZone } from "@/components/documents/DocumentUploadZone";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
 import { PageError } from "@/components/ui/PageError";
 import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
@@ -112,9 +111,7 @@ export default function CaseDocumentsPage({
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="p-6">
-      <CaseSubNav caseId={id} activeTab="documents" caseNumber={caseData?.case_number} />
-
+    <div className="px-6 pb-6">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">{cfg.documents_label}</h1>

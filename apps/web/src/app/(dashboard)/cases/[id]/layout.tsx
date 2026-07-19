@@ -1,26 +1,79 @@
 "use client";
 
 import { use } from "react";
+import { usePathname } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { CopilotPanel } from "@/components/ai/CopilotPanel";
 import { useCopilotStore } from "@/lib/stores/copilot.store";
+import { CaseNavProvider, useCaseNav } from "@/lib/contexts/CaseNavContext";
+import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseSummary } from "@/lib/hooks/useCaseSummary";
 
-export default function CaseLayout({
+type Tab =
+  | "case" | "notes" | "tasks" | "documents" | "comms"
+  | "insights" | "timeline" | "ai-logs" | "str" | "findings"
+  | "closure" | "transactions" | "narrative" | "ubo";
+
+const SEGMENT_TO_TAB: Record<string, Tab> = {
+  "":            "case",
+  "documents":   "documents",
+  "transactions":"transactions",
+  "insights":    "insights",
+  "tasks":       "tasks",
+  "comms":       "comms",
+  "notes":       "notes",
+  "findings":    "findings",
+  "ubo":         "ubo",
+  "narrative":   "narrative",
+  "str":         "str",
+  "ai-logs":     "ai-logs",
+  "timeline":    "timeline",
+  "closure":     "closure",
+};
+
+function tabFromPathname(pathname: string, caseId: string): Tab {
+  const base = `/cases/${caseId}`;
+  const suffix = pathname.startsWith(base) ? pathname.slice(base.length) : "";
+  const segment = suffix.replace(/^\//, "").split("/")[0];
+  return SEGMENT_TO_TAB[segment] ?? "case";
+}
+
+function CaseLayoutInner({
+  id,
   children,
-  params,
 }: {
+  id: string;
   children: React.ReactNode;
-  params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params);
+  const pathname = usePathname();
+  const { action } = useCaseNav();
   const open = useCopilotStore((s) => s.open);
   const setOpen = useCopilotStore((s) => s.setOpen);
+  const caseData = useCaseSummary(id);
+  const activeTab = tabFromPathname(pathname, id);
 
   return (
     <>
-      {children}
+      {/*
+        CaseSubNav is flex-shrink-0 (never scrolls away).
+        Children get the remaining viewport height in their own scroll container
+        so sticky headers inside child pages, and h-full pages (timeline,
+        findings, transactions), all work correctly.
+      */}
+      <div className="h-full flex flex-col">
+        <div className="px-6 pt-6 flex-shrink-0">
+          <CaseSubNav
+            caseId={id}
+            activeTab={activeTab}
+            caseNumber={caseData?.case_number}
+            action={action}
+          />
+        </div>
+        <div className="flex-1 min-h-0 overflow-y-auto">
+          {children}
+        </div>
+      </div>
 
-      {/* Persistent floating AI Copilot button — visible across all case tabs */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
@@ -32,11 +85,23 @@ export default function CaseLayout({
         </button>
       )}
 
-      <CopilotPanel
-        caseId={id}
-        open={open}
-        onClose={() => setOpen(false)}
-      />
+      <CopilotPanel caseId={id} open={open} onClose={() => setOpen(false)} />
     </>
+  );
+}
+
+export default function CaseLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = use(params);
+
+  return (
+    <CaseNavProvider>
+      <CaseLayoutInner id={id}>{children}</CaseLayoutInner>
+    </CaseNavProvider>
   );
 }

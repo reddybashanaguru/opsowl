@@ -4,7 +4,7 @@ import { use, useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, APIError } from "@/lib/api";
 import { useAuthStore } from "@/lib/stores/auth.store";
-import { CaseSubNav } from "@/components/cases/CaseSubNav";
+import { useCaseNav } from "@/lib/contexts/CaseNavContext";
 import { useConfig } from "@/lib/hooks/useConfig";
 import { CheckCircle, XCircle, AlertTriangle, ChevronDown, ChevronUp, Brain, Zap, BookOpen, Wand2, Loader2, ShieldCheck } from "lucide-react";
 import { formatEmiratesID, emiratesIDError } from "@/lib/utils/emirates-id";
@@ -1023,6 +1023,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const cfg = useConfig();
 
   const caseData = useCaseSummary(caseId);
+  const { setAction } = useCaseNav();
   const [showCreate, setShowCreate] = useState(false);
   const [createError, setCreateError] = useState("");
   const [populating, setPopulating] = useState(false);
@@ -1246,10 +1247,22 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
 
   const isManagerOrAbove = user && ["manager", "admin", "super_admin"].includes(user.role);
 
+  useEffect(() => {
+    if (!isManagerOrAbove) { setAction(null); return; }
+    setAction(
+      <button
+        onClick={() => setShowCreate(true)}
+        className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
+      >
+        + New Filing
+      </button>
+    );
+    return () => setAction(null);
+  }, [isManagerOrAbove, setAction]);
+
   if (!isManagerOrAbove) {
     return (
-      <div className="p-6">
-        <CaseSubNav caseId={caseId} activeTab="str" caseNumber={caseData?.case_number} />
+      <div className="px-6 pb-6">
         <div className="bg-red-900/20 border border-red-800/30 rounded-xl p-8 text-center">
           <p className="text-red-400 font-medium">Access Restricted</p>
           <p className="text-slate-500 text-sm mt-1">Regulatory filings are restricted to compliance officers (manager role and above).</p>
@@ -1262,21 +1275,7 @@ export default function STRFilingsPage({ params }: { params: Promise<{ id: strin
   const labelCls = "text-slate-400 text-xs mb-1.5 block";
 
   return (
-    <div className="p-6">
-      <CaseSubNav
-        caseId={caseId}
-        activeTab="str"
-        caseNumber={caseData?.case_number}
-        action={isManagerOrAbove ? (
-          <button
-            onClick={() => setShowCreate(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-medium rounded-lg transition-colors"
-          >
-            + New Filing
-          </button>
-        ) : undefined}
-      />
-
+    <div className="px-6 pb-6">
       <div className="mb-6">
         <h1 className="text-xl font-bold text-white">Regulatory Filings</h1>
         <p className="text-slate-400 text-sm mt-0.5">
