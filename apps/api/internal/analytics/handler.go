@@ -1,6 +1,7 @@
 package analytics
 
 import (
+	"context"
 	"database/sql"
 	"encoding/csv"
 	"fmt"
@@ -206,7 +207,8 @@ func (h *Handler) MLROSummary(w http.ResponseWriter, r *http.Request) {
 		response.Err(w, http.StatusInternalServerError, "INTERNAL_ERROR", "db not configured")
 		return
 	}
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+	defer cancel()
 	var out MLROSummaryResponse
 	out.DispositionCounts = make(map[string]int64)
 	out.Investigators = []InvestigatorKPI{}
@@ -273,7 +275,8 @@ func (h *Handler) ExportMLROSummary(w http.ResponseWriter, r *http.Request) {
 	data.Investigators = []InvestigatorKPI{}
 
 	// reuse the same queries as MLROSummary
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
 	if h.rawDB != nil {
 		statsQ := `
 			SELECT

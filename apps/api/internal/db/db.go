@@ -15,10 +15,10 @@ func New(ctx context.Context, databaseURL string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("parse database url: %w", err)
 	}
 
-	cfg.MaxConns = 25
+	cfg.MaxConns = 50
 	cfg.MinConns = 5
-	cfg.MaxConnLifetime = 5 * time.Minute
-	cfg.MaxConnIdleTime = 2 * time.Minute
+	cfg.MaxConnLifetime = 10 * time.Minute
+	cfg.MaxConnIdleTime = 3 * time.Minute
 	cfg.HealthCheckPeriod = 30 * time.Second
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
