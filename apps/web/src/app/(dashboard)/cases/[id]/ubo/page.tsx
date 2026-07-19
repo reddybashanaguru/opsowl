@@ -68,7 +68,7 @@ function AddUBOModal({ caseId, onClose, onCreated }: { caseId: string; onClose: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl w-full max-w-lg">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl w-full max-w-2xl">
         <div className="flex items-center justify-between p-5 border-b border-[#1e3050]">
           <h2 className="text-slate-100 font-semibold">Add Beneficial Owner</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 text-lg leading-none">×</button>
@@ -224,7 +224,7 @@ export default function CaseUBOPage({ params }: { params: Promise<{ id: string }
   const pendingCount = records.filter((r) => r.status === "pending" || r.status === "discrepant").length;
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="px-8 py-6">
       <CaseSubNav caseId={caseId} activeTab="ubo" caseNumber={caseData?.case_number} />
 
       {/* Header */}
