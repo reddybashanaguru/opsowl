@@ -470,26 +470,8 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
-
-  if (isError || !c) {
-    return (
-      <div className="px-6 pb-6">
-        <PageError error={error as Error | null} onRetry={() => refetch()} />
-      </div>
-    );
-  }
-
-  const nextStatuses = VALID_TRANSITIONS[c.status] ?? [];
-
-  // Sync the PDF export button to the shared layout action slot
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // Must be before any early returns — Rules of Hooks
+  const caseNumber = (c as { case_number?: string } | null)?.case_number;
   useEffect(() => {
     setAction(
       <button
@@ -505,7 +487,7 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
             a.href = url;
-            a.download = `${c?.case_number ?? id}-report.pdf`;
+            a.download = `${caseNumber ?? id}-report.pdf`;
             document.body.appendChild(a);
             a.click();
             a.remove();
@@ -527,7 +509,25 @@ export default function CaseDetailPage({ params }: { params: Promise<{ id: strin
       </button>
     );
     return () => setAction(null);
-  }, [exportingPDF, c?.case_number, id, setAction]);
+  }, [exportingPDF, caseNumber, id, setAction]);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-6 h-6 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (isError || !c) {
+    return (
+      <div className="px-6 pb-6">
+        <PageError error={error as Error | null} onRetry={() => refetch()} />
+      </div>
+    );
+  }
+
+  const nextStatuses = VALID_TRANSITIONS[c.status] ?? [];
 
   return (
     <div className="px-6 pb-6">
