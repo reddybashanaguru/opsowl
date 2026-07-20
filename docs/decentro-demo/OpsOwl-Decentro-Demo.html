@@ -1,0 +1,973 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>OpsOwl AI — Decentro Demo</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;background:#060f1c;color:#f0f4f8;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ── Slide engine ── */
+.slide{position:absolute;inset:0;display:none;flex-direction:column}
+.slide.on{display:flex}
+
+/* ── Navigation ── */
+#dots{position:fixed;top:18px;right:26px;display:flex;gap:6px;align-items:center;z-index:200}
+.dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,.15);cursor:pointer;transition:.2s}
+.dot.on{background:#3b82f6;width:20px;border-radius:4px}
+#slno{position:fixed;bottom:13px;right:20px;font-size:10px;color:rgba(255,255,255,.18);font-weight:700;letter-spacing:.5px}
+#hint{position:fixed;bottom:13px;left:50%;transform:translateX(-50%);font-size:10px;color:rgba(255,255,255,.12)}
+
+/* ── Shell ── */
+.hdr{padding:13px 52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.06);flex-shrink:0}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-sq{width:27px;height:27px;background:#2563eb;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:900;color:#fff}
+.logo-n{font-size:13px;font-weight:800;color:#f1f5f9}
+.logo-s{font-size:9px;color:#334155;text-transform:uppercase;letter-spacing:1px}
+.hdr-tag{font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#1e3a5f}
+.body{flex:1;display:flex;flex-direction:column;padding:36px 56px;overflow:hidden;gap:0}
+.ftr{padding:9px 52px;border-top:1px solid rgba(255,255,255,.05);display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ftr-l{font-size:10.5px;color:#1e3a5f;font-weight:600}
+.ftr-r{font-size:10.5px;color:#1e3a5f}
+
+/* ── Type ── */
+.ey{font-size:10px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;margin-bottom:8px}
+.cy{color:#3b82f6}.am{color:#f59e0b}.gn{color:#10b981}.pu{color:#a78bfa}.pk{color:#f472b6}
+.t2{color:#94a3b8}.t3{color:#475569}.wh{color:#f1f5f9}
+.h1{font-size:54px;font-weight:900;line-height:1.06;letter-spacing:-2px;color:#f1f5f9}
+.h2{font-size:32px;font-weight:900;line-height:1.12;letter-spacing:-.8px;color:#f1f5f9}
+.lead{font-size:15px;color:#64748b;line-height:1.6;margin-top:8px}
+
+/* ── Cards / containers ── */
+.card{background:#0b1c31;border:1px solid rgba(255,255,255,.07);border-radius:11px;padding:20px}
+.row{display:flex;gap:16px}
+.col{display:flex;flex-direction:column;gap:12px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+
+/* ── Lifecycle diagram (S2) ── */
+.lc-wrap{display:flex;align-items:stretch;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden}
+.lc-seg{flex:1;padding:16px 14px 44px;display:flex;flex-direction:column;gap:6px;position:relative}
+.lc-seg+.lc-seg{border-left:1px solid rgba(255,255,255,.06)}
+.lc-seg.active{background:linear-gradient(180deg,rgba(59,130,246,.08),rgba(16,185,129,.05));border-left-color:rgba(59,130,246,.2)}
+.lc-seg.active2{background:linear-gradient(180deg,rgba(16,185,129,.08),rgba(16,185,129,.04));border-left-color:rgba(16,185,129,.2)}
+.lc-seg.dim{background:#060f1c}
+.lc-tag{font-size:9px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+.lc-h{font-size:14px;font-weight:800;color:#f1f5f9;margin-bottom:2px}
+.lc-items{display:flex;flex-direction:column;gap:3px}
+.lc-item{font-size:11px;color:#475569;line-height:1.4}
+.lc-item.hi{color:#94a3b8}
+.lc-badge{position:absolute;bottom:12px;left:14px;font-size:9.5px;font-weight:800;padding:3px 8px;border-radius:4px}
+.lc-arrow{display:flex;align-items:center;justify-content:center;padding:0 8px;background:#060f1c;color:#1e3a5f;font-size:16px;font-weight:900;flex-shrink:0;border-top:1px solid rgba(255,255,255,.06);border-bottom:1px solid rgba(255,255,255,.06)}
+
+/* ── Problem gaps (S3) ── */
+.gap-row{display:flex;gap:14px;align-items:stretch;padding:14px 18px;border-radius:10px;border:1px solid rgba(255,255,255,.06);background:#0a1826}
+.gap-n{width:34px;height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:900;flex-shrink:0;align-self:flex-start;margin-top:2px}
+.gap-body{flex:1}
+.gap-h{font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:5px}
+.gap-without{font-size:12.5px;color:#475569;line-height:1.5;margin-bottom:8px}
+.gap-with{font-size:12.5px;color:#94a3b8;line-height:1.5}
+.gap-with span{color:#10b981;font-weight:700}
+.gap-sep{width:1px;background:rgba(255,255,255,.06);flex-shrink:0;align-self:stretch}
+
+/* ── Impact table (S4) ── */
+.impact-table{display:flex;flex-direction:column;gap:0;border:1px solid rgba(255,255,255,.08);border-radius:12px;overflow:hidden;flex:1;min-height:0}
+.impact-table-scroll{overflow-y:auto;flex:1;scrollbar-width:thin;scrollbar-color:rgba(59,130,246,.3) transparent}
+.impact-table-scroll::-webkit-scrollbar{width:5px}
+.impact-table-scroll::-webkit-scrollbar-track{background:transparent}
+.impact-table-scroll::-webkit-scrollbar-thumb{background:rgba(59,130,246,.3);border-radius:3px}
+.it-head{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:0;background:#080f1a;padding:12px 0;flex-shrink:0}
+.it-head-c{padding:0 20px;font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase}
+.it-row{display:grid;grid-template-columns:1.6fr 1fr 1fr;border-top:1px solid rgba(255,255,255,.05);align-items:stretch}
+.it-row:nth-child(even){background:rgba(255,255,255,.02)}
+.it-c{padding:11px 20px;font-size:12.5px;line-height:1.5;display:block}
+.it-c.metric{font-weight:700;color:#94a3b8;font-size:12px;display:flex;align-items:center}
+.it-c.without{color:#475569}
+.it-c.with{color:#94a3b8}
+.it-c.with span{display:block;color:#10b981;font-weight:800;font-size:13px;margin-bottom:3px}
+
+/* ── Story timeline (S5, S6) ── */
+.tl-wrap{display:flex;flex-direction:column;gap:0;flex:1;justify-content:space-between}
+.tl-step{display:flex;gap:0;align-items:stretch;position:relative}
+.tl-left{display:flex;flex-direction:column;align-items:center;width:70px;flex-shrink:0;padding-top:4px}
+.tl-time{font-size:10.5px;font-weight:800;color:#3b82f6;letter-spacing:.5px;text-align:center;white-space:nowrap}
+.tl-line{flex:1;width:2px;background:linear-gradient(180deg,rgba(59,130,246,.3),rgba(59,130,246,.05));margin-top:6px}
+.tl-step:last-child .tl-line{display:none}
+.tl-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;margin-top:8px;border:2px solid}
+.tl-right{flex:1;padding:0 0 20px 16px}
+.tl-event{font-size:14.5px;font-weight:800;color:#f1f5f9;margin-bottom:4px}
+.tl-detail{font-size:12px;color:#475569;line-height:1.45;margin-bottom:7px}
+.tl-opsowl{font-size:12px;color:#94a3b8;line-height:1.5;background:#0a1826;border-left:3px solid;border-radius:0 6px 6px 0;padding:7px 10px;margin-bottom:7px}
+.tl-feat{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:800;padding:2px 9px;border-radius:4px}
+
+/* ── AI slide (S7) ── */
+.ai-cap{background:#0b1c31;border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:16px;display:flex;gap:12px;align-items:flex-start}
+.ai-cap-icon{font-size:22px;flex-shrink:0}
+.ai-cap-h{font-size:14px;font-weight:800;color:#f1f5f9;margin-bottom:4px}
+.ai-cap-d{font-size:12px;color:#64748b;line-height:1.5}
+.ai-guard{display:flex;align-items:flex-start;gap:10px;padding:9px 12px;background:#070e1a;border-radius:7px;border:1px solid rgba(255,255,255,.05)}
+.ai-guard-n{width:22px;height:22px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;flex-shrink:0;background:#0f2040;color:#3b82f6;border:1px solid rgba(59,130,246,.2)}
+.ai-guard-h{font-size:13px;font-weight:800;color:#f1f5f9;margin-bottom:2px}
+.ai-guard-d{font-size:11.5px;color:#475569;line-height:1.45}
+
+/* ── Roadmap (S8) ── */
+.rm-col{flex:1;display:flex;flex-direction:column;gap:0}
+.rm-head{font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;padding:10px 14px;border-radius:8px 8px 0 0;border:1px solid;border-bottom:none}
+.rm-body{flex:1;border-radius:0 0 8px 8px;border:1px solid;border-top:none;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.rm-item{display:flex;align-items:flex-start;gap:8px}
+.rm-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:5px}
+.rm-t{font-size:12.5px;font-weight:700;color:#f1f5f9;margin-bottom:1px}
+.rm-d{font-size:11px;color:#475569;line-height:1.4}
+
+/* ── Closing (S9) ── */
+.close-wrap{flex:1;display:flex;gap:20px;align-items:stretch}
+.close-left{flex:1;display:flex;flex-direction:column;gap:14px;justify-content:center}
+.close-point{display:flex;align-items:flex-start;gap:14px;padding:16px 18px;background:#0a1826;border-radius:10px;border:1px solid rgba(255,255,255,.06)}
+.close-icon{font-size:20px;flex-shrink:0}
+.close-h{font-size:14.5px;font-weight:800;color:#f1f5f9;margin-bottom:3px}
+.close-d{font-size:12.5px;color:#64748b;line-height:1.45}
+.close-right{width:300px;flex-shrink:0;background:linear-gradient(160deg,rgba(37,99,235,.12),rgba(16,185,129,.07));border:1px solid rgba(59,130,246,.2);border-radius:14px;padding:28px 24px;display:flex;flex-direction:column;gap:20px;justify-content:center}
+.pilot-step-s{display:flex;align-items:flex-start;gap:10px}
+.pil-n{width:24px;height:24px;border-radius:6px;background:#102040;border:1px solid rgba(59,130,246,.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:#3b82f6;flex-shrink:0}
+.pil-t{font-size:13px;font-weight:700;color:#f1f5f9;margin-bottom:2px}
+.pil-d{font-size:11.5px;color:#475569}
+
+/* ── Glossary ── */
+.glos{column-count:2;column-gap:40px}
+.gi{break-inside:avoid;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+.gt{font-size:12.5px;font-weight:800;color:#f1f5f9;margin-bottom:3px}
+.gd{font-size:11.5px;color:#475569;line-height:1.5}
+.gu{font-size:10.5px;color:#2563eb;margin-top:3px;font-style:italic}
+
+/* ── Cover special ── */
+#s1{background:#060f1c}
+.cover-wrap{flex:1;display:flex;align-items:stretch;overflow:hidden}
+.cover-left{flex:1;display:flex;flex-direction:column;justify-content:center;padding:52px 56px 52px 64px;background:radial-gradient(ellipse 80% 70% at 20% 60%,rgba(37,99,235,.1) 0%,transparent 65%)}
+.cover-right{width:380px;flex-shrink:0;background:#080f1a;border-left:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;justify-content:center;padding:48px 36px;gap:20px}
+.cov-stat{background:#060f1c;border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:18px 20px;position:relative;overflow:hidden}
+.cov-stat::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:2px 0 0 2px}
+.cov-stat-n{font-size:30px;font-weight:900;line-height:1;letter-spacing:-1px;margin-bottom:5px}
+.cov-stat-l{font-size:11.5px;color:#475569;line-height:1.4}
+.cov-badge{display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;padding:5px 13px;border-radius:6px;border:1px solid}
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════
+     S1 · COVER
+════════════════════════════════════════════════════ -->
+<div class="slide on" id="s1">
+  <!-- Top bar -->
+  <div style="padding:14px 48px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.05);flex-shrink:0">
+    <div class="logo">
+      <div class="logo-sq" style="width:32px;height:32px;font-size:14px">O</div>
+      <div><div class="logo-n" style="font-size:15px">OpsOwl AI</div><div class="logo-s">AI-Native Fincrime Investigations Workspace</div></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:1.5px;text-transform:uppercase;color:#1e3a5f;padding:4px 10px;border:1px solid #0f2040;border-radius:4px">Confidential</div>
+      <div style="font-size:10px;color:#1e3a5f">Prepared for Decentro Risk &amp; Compliance · July 2026</div>
+    </div>
+  </div>
+
+  <!-- Split body -->
+  <div class="cover-wrap">
+
+    <!-- LEFT -->
+    <div class="cover-left">
+      <div style="font-size:10px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:#3b82f6;margin-bottom:18px">AML Investigation · India-Native · On-Premise</div>
+
+      <div class="h1" style="font-size:56px;margin-bottom:16px;line-height:1.05">From TMS alert<br>to FIU-IND filing.<br><span class="gn">In one system.</span></div>
+
+      <div style="font-size:14.5px;color:#475569;line-height:1.6;max-width:480px;margin-bottom:30px">OpsOwl is the structured investigation layer between your TMS and FIU-IND — from alert to goAML-filed STR, with a complete audit trail, on your own server.</div>
+
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <div class="cov-badge" style="background:rgba(16,185,129,.07);border-color:rgba(16,185,129,.18);color:#34d399">🇮🇳 FIU-IND / PMLA / goAML 4.0</div>
+        <div class="cov-badge" style="background:rgba(59,130,246,.07);border-color:rgba(59,130,246,.18);color:#60a5fa">🔒 100% On-Premise · Air-Gap Ready</div>
+        <div class="cov-badge" style="background:rgba(167,139,250,.07);border-color:rgba(167,139,250,.18);color:#c4b5fd">👁 Human-in-the-Loop AI</div>
+        <div class="cov-badge" style="background:rgba(245,158,11,.07);border-color:rgba(245,158,11,.18);color:#fbbf24">₹0 Pilot — 30 Days</div>
+      </div>
+    </div>
+
+    <!-- RIGHT — key numbers -->
+    <div class="cover-right">
+      <div style="font-size:9.5px;font-weight:800;letter-spacing:2.5px;text-transform:uppercase;color:#1e3a5f;margin-bottom:4px">WHAT OPSOWL DELIVERS</div>
+
+      <div class="cov-stat">
+        <div class="cov-stat::before" style="background:#3b82f6"></div>
+        <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:#3b82f6;border-radius:2px 0 0 2px"></div>
+        <div class="cov-stat-n" style="color:#3b82f6">&lt; 20 min</div>
+        <div class="cov-stat-l">Alert to FIU-IND-ready STR — active investigation time, structured workflow, on-prem AI</div>
+        <div style="font-size:9.5px;color:#1e3a5f;margin-top:5px">Regulatory SLA deadline: 5 days &nbsp;·&nbsp; OpsOwl delivers in under 20 minutes</div>
+      </div>
+
+      <div class="cov-stat">
+        <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:#f472b6;border-radius:2px 0 0 2px"></div>
+        <div class="cov-stat-n" style="color:#f472b6">90 sec</div>
+        <div class="cov-stat-l">AI-drafted STR narrative — grounded in approved case findings, every sentence cited to source</div>
+      </div>
+
+      <div class="cov-stat">
+        <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:#10b981;border-radius:2px 0 0 2px"></div>
+        <div class="cov-stat-n" style="color:#10b981">1 click</div>
+        <div class="cov-stat-l">goAML 4.0 XML export — correct format, all PMLA fields, FIU-IND ready</div>
+      </div>
+
+      <div class="cov-stat">
+        <div style="position:absolute;top:0;left:0;width:3px;height:100%;background:#f59e0b;border-radius:2px 0 0 2px"></div>
+        <div class="cov-stat-n" style="color:#f59e0b">0 bytes</div>
+        <div class="cov-stat-l">Data that leaves your server — AI runs on-premise via Ollama, zero cloud egress</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar -->
+  <div style="padding:10px 48px;border-top:1px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;flex-shrink:0">
+    <span style="font-size:10px;color:#1e3a5f">G = Glossary of business terms for presenter reference</span>
+    <span style="font-size:10px;color:#1e3a5f">Press Space or → to begin</span>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S2 · WHAT IS OPSOWL · WHERE IT FITS
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s2">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">What is OpsOwl · Where it fits</div></div>
+
+  <div class="body" style="gap:18px;padding-top:28px">
+    <div>
+      <div class="ey cy">What OpsOwl is</div>
+      <div class="h2" style="font-size:21px;line-height:1.25">An AI-native fincrime investigations workspace — <span class="gn">the missing layer</span> between your TMS and FIU-IND.</div>
+      <div class="lead" style="margin-top:5px;font-size:13.5px">OpsOwl does not generate alerts. It receives them, manages the investigation, and produces a PMLA-compliant, audit-sealed STR — purpose-built for Indian financial institutions.</div>
+    </div>
+
+    <!-- Fincrime Lifecycle -->
+    <div style="flex:1;display:flex;flex-direction:column;gap:10px">
+      <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#334155;margin-bottom:8px">THE FINCRIME LIFECYCLE — WHERE OPSOWL OPERATES</div>
+      <div class="lc-wrap" style="flex:1">
+        <!-- Detection -->
+        <div class="lc-seg dim">
+          <div class="lc-tag t3">Stage 1</div>
+          <div class="lc-h t3">Detection</div>
+          <div class="lc-items">
+            <div class="lc-item">• Transaction Monitoring System</div>
+            <div class="lc-item">• Rules engine / ML model</div>
+            <div class="lc-item">• Alert generation</div>
+          </div>
+          <div class="lc-badge" style="background:rgba(100,116,139,.1);color:#475569;border:1px solid rgba(100,116,139,.15)">Not OpsOwl</div>
+        </div>
+        <div class="lc-arrow">→</div>
+        <!-- Prevention -->
+        <div class="lc-seg dim">
+          <div class="lc-tag t3">Stage 2</div>
+          <div class="lc-h t3">Prevention</div>
+          <div class="lc-items">
+            <div class="lc-item">• KYC / CDD onboarding</div>
+            <div class="lc-item">• Sanctions &amp; PEP screening</div>
+            <div class="lc-item">• Risk scoring at onboarding</div>
+          </div>
+          <div class="lc-badge" style="background:rgba(100,116,139,.1);color:#475569;border:1px solid rgba(100,116,139,.15)">Not OpsOwl</div>
+        </div>
+        <div class="lc-arrow" style="color:#3b82f6;font-size:18px">→</div>
+        <!-- Investigation — OpsOwl -->
+        <div class="lc-seg active">
+          <div class="lc-tag cy">Stage 3 ← OpsOwl starts here</div>
+          <div class="lc-h">Investigation</div>
+          <div class="lc-items">
+            <div class="lc-item hi">• Receives alert via webhook</div>
+            <div class="lc-item hi">• Case management + playbooks</div>
+            <div class="lc-item hi">• Evidence upload + AI analysis</div>
+            <div class="lc-item hi">• Findings + FATF typologies</div>
+            <div class="lc-item hi">• 4-eye maker-checker review</div>
+          </div>
+          <div class="lc-badge" style="background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.2);bottom:10px">OpsOwl ✓</div>
+        </div>
+        <div class="lc-arrow" style="color:#10b981;font-size:18px">→</div>
+        <!-- Case Closure -->
+        <div class="lc-seg active2">
+          <div class="lc-tag gn">Stage 4 ← OpsOwl ends here</div>
+          <div class="lc-h">Case Closure &amp; Reporting</div>
+          <div class="lc-items">
+            <div class="lc-item hi">• AI STR narrative draft</div>
+            <div class="lc-item hi">• Supervisor 4-eye approval</div>
+            <div class="lc-item hi">• goAML 4.0 XML export</div>
+            <div class="lc-item hi">• FIU-IND / FINnet submission</div>
+            <div class="lc-item hi">• Hash-chain sealed audit trail</div>
+          </div>
+          <div class="lc-badge" style="background:rgba(16,185,129,.12);color:#34d399;border:1px solid rgba(16,185,129,.2);bottom:10px">OpsOwl ✓</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bridge statement -->
+    <div style="background:#091626;border:1px solid rgba(59,130,246,.15);border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:16px">
+      <div style="font-size:24px">🔗</div>
+      <div>
+        <div style="font-size:14px;font-weight:800;color:#f1f5f9;margin-bottom:3px">The connection: TMS fires the alert. OpsOwl investigates it, files it, and proves it.</div>
+        <div style="font-size:12.5px;color:#475569">OpsOwl integrates with any TMS via webhook — not replacing it, sitting after it. It also connects forward to FIU-IND via goAML 4.0 XML.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 1 of 8</div><div class="ftr-r">→ Next: The exact problem we solve</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S3 · THE EXACT PROBLEM + OUR SOLUTION
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s3">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">The Problem We Solve</div></div>
+
+  <div class="body" style="gap:16px;padding-top:26px">
+    <div>
+      <div class="ey cy">The exact gap OpsOwl closes</div>
+      <div class="h2" style="font-size:28px">AML investigation has a structural gap between alert and STR filing.<br>Three specific breakdowns — one platform that closes all three.</div>
+    </div>
+
+    <div style="display:flex;flex-direction:column;gap:0;flex:1;justify-content:space-evenly">
+
+      <!-- Gap 1 -->
+      <div class="gap-row">
+        <div class="gap-n" style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.18)">1</div>
+        <div class="gap-body">
+          <div class="gap-h">No structured investigation workflow from alert to STR</div>
+          <div class="gap-without">Without a dedicated system: each alert is handled ad-hoc — different analysts, different formats, no SLA clock, no mandatory evidence requirements. Investigation quality is inconsistent and hard to audit.</div>
+          <div class="gap-with"><span>OpsOwl provides:</span> Every alert becomes a structured case with a playbook (assigned tasks, required evidence, SLA clock). Every analyst follows the same process — from day one, on every case.</div>
+        </div>
+        <div class="gap-sep"></div>
+        <div style="flex-shrink:0;display:flex;align-items:center;padding:0 14px">
+          <div style="text-align:center">
+            <div style="font-size:28px;font-weight:900;color:#3b82f6;line-height:1">&lt;20m</div>
+            <div style="font-size:9px;color:#334155;margin-top:3px">alert → STR</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gap 2 -->
+      <div class="gap-row">
+        <div class="gap-n" style="background:rgba(167,139,250,.1);color:#a78bfa;border:1px solid rgba(167,139,250,.18)">2</div>
+        <div class="gap-body">
+          <div class="gap-h">AI is being used to draft STRs without a governance layer</div>
+          <div class="gap-without">Without a governance layer: AI tools accelerate STR narrative drafting — but there is no log of which model was used, no proof the output was grounded in case facts only, and no named human approver on record. FIU-IND will ask for this during examinations.</div>
+          <div class="gap-with"><span>OpsOwl provides:</span> Every AI decision is logged (model, full prompt, output). AI reads only approved case findings — never training data. Every AI output requires a named second reviewer before the case can advance.</div>
+        </div>
+        <div class="gap-sep"></div>
+        <div style="flex-shrink:0;display:flex;align-items:center;padding:0 14px">
+          <div style="text-align:center">
+            <div style="font-size:28px;font-weight:900;color:#a78bfa;line-height:1">90s</div>
+            <div style="font-size:9px;color:#334155;margin-top:3px">AI draft</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gap 3 -->
+      <div class="gap-row">
+        <div class="gap-n" style="background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.18)">3</div>
+        <div class="gap-body">
+          <div class="gap-h">No direct, error-free path from investigation to FIU-IND</div>
+          <div class="gap-without">Without a dedicated system: the journey from completed investigation to goAML XML submission is manual — format errors, mismatched fields, and FIU-IND rejections that force refiling under time pressure. The audit trail is not sealed or tamper-evident.</div>
+          <div class="gap-with"><span>OpsOwl provides:</span> One-click goAML 4.0 XML export — correct format, all PMLA-required fields pre-populated. Case sealed with hash-chain audit trail the moment it closes. Every record tamper-evident.</div>
+        </div>
+        <div class="gap-sep"></div>
+        <div style="flex-shrink:0;display:flex;align-items:center;padding:0 14px">
+          <div style="text-align:center">
+            <div style="font-size:28px;font-weight:900;color:#10b981;line-height:1">1-click</div>
+            <div style="font-size:9px;color:#334155;margin-top:3px">goAML XML</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 2 of 8</div><div class="ftr-r">→ Next: How effective is our solution</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S4 · IMPACT — WITH vs WITHOUT
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s4">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">Impact — With vs Without</div></div>
+
+  <div class="body" style="gap:16px;padding-top:26px">
+    <div>
+      <div class="ey cy">The measurable difference</div>
+      <div class="h2" style="font-size:26px">What OpsOwl changes — specifically, and measurably.</div>
+    </div>
+
+    <div class="impact-table">
+      <div class="it-head">
+        <div class="it-head-c t3">Metric</div>
+        <div class="it-head-c" style="color:#475569">Without a dedicated<br>investigation platform</div>
+        <div class="it-head-c gn">With OpsOwl</div>
+      </div>
+      <div class="impact-table-scroll">
+      <div class="it-row">
+        <div class="it-c metric">Alert → Filed STR (timeline)</div>
+        <div class="it-c without">10–15 days without a dedicated platform. Alerts sit in queues, priority is informal, and SLA risk is only visible when a deadline has already passed.</div>
+        <div class="it-c with"><span>Under 20 minutes.</span> SLA clock starts automatically on alert arrival. Breach alerts before they happen. Regulatory SLA: 5 days — OpsOwl clears it in minutes.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">STR Narrative Drafting</div>
+        <div class="it-c without">60 – 90 minutes per case. Written from scratch. No citation trail showing what the AI read.</div>
+        <div class="it-c with"><span>90 seconds.</span> AI reads only approved findings — every sentence linked to source evidence. Full citation trail.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">Audit Trail for FIU-IND Examination</div>
+        <div class="it-c without">Days to compile. Evidence scattered across drives, emails, and different analyst formats.</div>
+        <div class="it-c with"><span>1 click.</span> Every action on every case — evidence, findings, approvals, AI outputs — in one sealed export.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">Investigation Consistency Across Team</div>
+        <div class="it-c without">Varies by analyst experience. New hires and veterans follow different processes.</div>
+        <div class="it-c with"><span>Playbook-enforced.</span> Every case follows the same mandatory steps. New hire = veteran quality from day one.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">AI Output Accountability</div>
+        <div class="it-c without">None. No record of what model was used, what it was given, or who reviewed the output.</div>
+        <div class="it-c with"><span>Full log.</span> Model version, full prompt, output, reviewer name, timestamp — retained permanently. FIU-IND ready.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">goAML XML Submission Quality</div>
+        <div class="it-c without">Manual formatting. Errors common. FIU-IND rejections require refiling under time pressure.</div>
+        <div class="it-c with"><span>Auto-generated.</span> Correct goAML 4.0 format. All PMLA fields pre-populated. Zero rejection risk from formatting.</div>
+      </div>
+      <div class="it-row">
+        <div class="it-c metric">Data Security</div>
+        <div class="it-c without">Depends on tools in use. Subject PII may reach external services (cloud AI, email, shared drives).</div>
+        <div class="it-c with"><span>Zero egress.</span> Fully on-premise. LLM runs on-prem via Ollama. No customer data leaves the organization's server.</div>
+      </div>
+      </div><!-- end impact-table-scroll -->
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 3 of 8</div><div class="ftr-r">→ Next: A real investigation, step by step</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S5 · REAL WORLD STORY — PART 1
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s5">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">The Investigation — Part 1 of 2</div></div>
+
+  <div class="body" style="gap:10px;padding-top:14px">
+    <!-- Scene setter -->
+    <div style="background:linear-gradient(90deg,rgba(59,130,246,.06),rgba(59,130,246,.02));border:1px solid rgba(59,130,246,.12);border-radius:9px;padding:12px 18px;display:flex;align-items:center;gap:16px">
+      <div style="font-size:22px;flex-shrink:0">🌙</div>
+      <div>
+        <div style="font-size:13.5px;font-weight:800;color:#f1f5f9;margin-bottom:3px">Between 1:14 AM and 6:22 AM, a merchant moved ₹38.4L through 19 UPI collects — each just below the ₹2L reporting threshold. Counterparties: 11 newly registered accounts with zero prior transaction history.</div>
+        <div style="font-size:12px;color:#475569">The merchant had been onboarded 47 days ago. Category on record: Textile &amp; Apparel Retail. This pattern — structuring through a merchant account, layering across freshly registered counterparties — is the same exposure every payment compliance team is watching for. Here is how the investigation runs from the moment TMS fires.</div>
+      </div>
+    </div>
+
+    <div class="tl-wrap">
+      <!-- Step 1 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">6:30 AM</div>
+          <div class="tl-dot" style="background:#3b82f6;border-color:#3b82f6;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">The TMS fires. The alert reaches OpsOwl in under 3 seconds.</div>
+          <div class="tl-detail">Rule TMS-R112: high-velocity UPI collects, structuring indicator · Arjun Mehta Enterprises · 19 transactions · ₹38.4L · 11 counterparty UPI handles registered &lt;30 days ago, zero prior transaction history</div>
+          <div class="tl-opsowl" style="border-color:#3b82f6"><span class="cy" style="font-weight:800">OpsOwl:</span> Webhook received, HMAC signature verified. Case OWL-2026-01847 created automatically. Risk: HIGH. <strong style="color:#f1f5f9">SLA clock running: 7 days to file STR with FIU-IND.</strong> No one had to create this case manually — it was ready before the compliance team started their day.</div>
+          <div class="tl-feat" style="background:rgba(59,130,246,.1);color:#60a5fa;border:1px solid rgba(59,130,246,.2)">Alert Ingestion + Webhook · SLA Clock</div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:00 AM</div>
+          <div class="tl-dot" style="background:#8b5cf6;border-color:#8b5cf6;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">Nisha logs in. The case is structured and waiting. She knows exactly what to do.</div>
+          <div class="tl-detail">Nisha is an AML Analyst with 3 years of experience. When she opens OpsOwl, she sees the case — priority HIGH, 6 mandatory tasks pre-assigned by the "Merchant UPI Structuring" playbook. She doesn't decide where to start. The system tells her.</div>
+          <div class="tl-opsowl" style="border-color:#8b5cf6"><span style="color:#a78bfa;font-weight:800">OpsOwl:</span> Task 1: Pull merchant KYC. Task 2: Export transaction log from TMS. Task 3: Verify counterparty IDs. Task 4: Document findings. Task 5: Get 4-eye approval. Task 6: Draft narrative and export goAML. <strong style="color:#f1f5f9">She cannot close this case without completing every task.</strong> Not a recommendation — a hard gate.</div>
+          <div class="tl-feat" style="background:rgba(139,92,246,.1);color:#a78bfa;border:1px solid rgba(139,92,246,.2)">Case Management + Investigation Playbooks</div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:06 AM</div>
+          <div class="tl-dot" style="background:#f59e0b;border-color:#f59e0b;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">Nisha uploads the evidence. What would take her 90 minutes to read, AI reads in 45 seconds.</div>
+          <div class="tl-detail">Merchant onboarding KYC (PDF) · TMS transaction export (CSV, 19 records) · Counterparty UPI registration data — all uploaded to the case. Everything stays on the server. PAN and Aadhaar masked before reaching the AI model.</div>
+          <div class="tl-opsowl" style="border-color:#f59e0b"><span class="am" style="font-weight:800">AI Copilot:</span> <em style="color:#f1f5f9">"Every transaction falls between ₹1.85L–₹1.97L — consistently below the ₹2L mandatory reporting threshold. Activity window 1:14–6:22 AM is inconsistent with textile retail operations. 11 of 19 counterparty UPI handles were registered less than 30 days ago and show zero prior transaction history. This is a structuring pattern with layering characteristics."</em></div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <div class="tl-feat" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2)">Evidence Store + Document Upload</div>
+            <div class="tl-feat" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2)">AI Investigation Copilot (on-premise)</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 4 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:18 AM</div>
+          <div class="tl-dot" style="background:#10b981;border-color:#10b981;margin-top:4px"></div>
+        </div>
+        <div class="tl-right" style="padding-bottom:0">
+          <div class="tl-event">Nisha documents the findings — not in a Word doc, not in an email. In OpsOwl, linked directly to evidence.</div>
+          <div class="tl-detail"><strong style="color:#f1f5f9">Finding 1 (Structuring · FATF ST-01):</strong> "Arjun Mehta Enterprises conducted 19 UPI collects totalling ₹38.4L between 1:14–6:22 AM, each between ₹1.85L–₹1.97L, structured below the ₹2L reporting threshold." <strong style="color:#f1f5f9">Finding 2 (Layering · FATF LA-03):</strong> "11 of 19 counterparty UPI handles registered &lt;30 days ago, zero prior transaction history."</div>
+          <div class="tl-opsowl" style="border-color:#10b981"><span class="gn" style="font-weight:800">OpsOwl:</span> Both findings saved with direct links to the 19 transaction records as evidence. FATF codes ST-01 + LA-03 attached. Severity: HIGH. <strong style="color:#f1f5f9">The AI Narrative Generator is locked.</strong> It will not run until a second analyst has independently reviewed and approved both findings. Nisha cannot approve her own work.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <div class="tl-feat" style="background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.2)">Findings + Evidence Links</div>
+            <div class="tl-feat" style="background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.2)">FATF Typology Codes</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 4 of 8</div><div class="ftr-r">→ Next: The findings get approved. The STR is drafted. The case is sealed.</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S6 · REAL WORLD STORY — PART 2
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s6">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">The Investigation — Part 2 of 2</div></div>
+
+  <div class="body" style="gap:10px;padding-top:14px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="ey cy" style="margin-bottom:0">Continuing OWL-2026-01847 · Arjun Mehta Enterprises</div>
+      <div style="font-size:11px;color:#334155;padding:3px 10px;background:#0a1826;border-radius:4px;border:1px solid rgba(255,255,255,.05)">7:18 AM → Two findings documented. Now: second reviewer → AI narrative → FIU-IND filing</div>
+    </div>
+
+    <div class="tl-wrap">
+      <!-- Step 5 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:22 AM</div>
+          <div class="tl-dot" style="background:#f59e0b;border-color:#f59e0b;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">Vikram (Senior Analyst) reviews the findings independently — without seeing Nisha's reasoning first.</div>
+          <div class="tl-detail">This isn't a rubber stamp. Vikram opens the same 19 transaction records Nisha linked as evidence and reads through the AI Copilot output himself. He cannot be the same person as Nisha — the system enforces this in backend code, not a UI warning.</div>
+          <div class="tl-opsowl" style="border-color:#f59e0b"><span class="am" style="font-weight:800">OpsOwl 4-Eye:</span> Vikram approves both findings. Logged: Vikram Rao · 7:22:44 AM · Finding IDs F-00301, F-00302 · Status: Approved. <strong style="color:#f1f5f9">AI Narrative Generator now unlocked.</strong> Every approval entry is immutable — it cannot be edited, deleted, or backdated. This is the compliance team's protection if FIU-IND ever questions who signed off.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <div class="tl-feat" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2)">4-Eye Maker-Checker · code-enforced</div>
+            <div class="tl-feat" style="background:rgba(245,158,11,.1);color:#fbbf24;border:1px solid rgba(245,158,11,.2)">Case Audit Log · immutable</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 6 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:24 AM</div>
+          <div class="tl-dot" style="background:#f472b6;border-color:#f472b6;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">Nisha clicks "Generate Narrative." 90 seconds later, the STR is written.</div>
+          <div class="tl-detail">This would have taken 60–90 minutes written manually. The AI reads only the two approved findings — not training data, not the internet, not any other case. It runs on the team's own server. The output lands in OpsOwl as a draft, not a submission.</div>
+          <div class="tl-opsowl" style="border-color:#f472b6"><span style="color:#f472b6;font-weight:800">AI Narrative (90 sec):</span> <em style="color:#94a3b8">"Arjun Mehta Enterprises, onboarded as a merchant 47 days ago under category 'Textile &amp; Apparel Retail', conducted 19 UPI collect transactions totalling ₹38.4L between 01:14 and 06:22 AM. Each transaction ranged ₹1.85L–₹1.97L, structured below the ₹2L mandatory reporting threshold [Source: TMS Log, records 1–19]. 11 of 19 counterparty UPI handles show zero prior activity and were registered less than 30 days prior [Source: Counterparty KYC Export]. Pattern: FATF ST-01 (Structuring) and LA-03 (Layering)..."</em></div>
+          <div class="tl-feat" style="background:rgba(244,114,182,.1);color:#f9a8d4;border:1px solid rgba(244,114,182,.2)">AI Narrative Generator · on-premise · reads approved findings only · every sentence source-cited</div>
+        </div>
+      </div>
+
+      <!-- Step 7 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:30 AM</div>
+          <div class="tl-dot" style="background:#06b6d4;border-color:#06b6d4;margin-top:4px"></div>
+          <div class="tl-line"></div>
+        </div>
+        <div class="tl-right">
+          <div class="tl-event">Vikram reads the narrative and approves it. His name goes on the record — permanently.</div>
+          <div class="tl-detail">Nisha wrote it, Vikram approves it. The same rule applies: same person cannot generate and approve. If Vikram disagrees with anything in the narrative, he rejects it with a note — Nisha revises and resubmits.</div>
+          <div class="tl-opsowl" style="border-color:#06b6d4"><span style="color:#22d3ee;font-weight:800">AI Audit Log — permanent record:</span> Model: llama3.2:3b · Prompt hash: b7e3d2 · Output hash: f91c4a · Confidence: 0.93 · <strong style="color:#f1f5f9">Reviewed by: Vikram Rao · 7:30:08 AM · Approved.</strong> If FIU-IND walks in tomorrow and asks "who reviewed the AI output on this STR?" — the answer is one query away. PMLA Section 12 compliant. Never purged.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <div class="tl-feat" style="background:rgba(6,182,212,.1);color:#22d3ee;border:1px solid rgba(6,182,212,.2)">4-Eye on Narrative</div>
+            <div class="tl-feat" style="background:rgba(6,182,212,.1);color:#22d3ee;border:1px solid rgba(6,182,212,.2)">AI Decision Audit Log · permanent · PMLA S.12</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 8 -->
+      <div class="tl-step">
+        <div class="tl-left">
+          <div class="tl-time">7:35 AM</div>
+          <div class="tl-dot" style="background:#10b981;border-color:#10b981;margin-top:4px"></div>
+        </div>
+        <div class="tl-right" style="padding-bottom:0">
+          <div class="tl-event">One click. goAML 4.0 XML generated. Case sealed. Done by 7:35 AM.</div>
+          <div class="tl-detail">All 6 playbook tasks complete. Both findings approved. Narrative approved. Closure checklist passed. The case closes and the hash-chain seals every record from the 6:30 AM alert to this moment.</div>
+          <div class="tl-opsowl" style="border-color:#10b981"><span class="gn" style="font-weight:800">OpsOwl:</span> goAML 4.0 XML exported — correct format, all PMLA-required fields, zero formatting errors, FIU-IND ready. <strong style="color:#f1f5f9">Without OpsOwl, this same case would reach FIU-IND in 10–15 days, formatted manually, with no guaranteed audit trail.</strong> This scenario: 35 minutes of active analyst work from first login to filed STR. Best case with evidence pre-staged: under 20 minutes. No data left the server. Two named humans on every decision. Tamper-evident from end to end.</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">
+            <div class="tl-feat" style="background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.2)">goAML 4.0 XML Export · FIU-IND ready</div>
+            <div class="tl-feat" style="background:rgba(16,185,129,.1);color:#34d399;border:1px solid rgba(16,185,129,.2)">Hash-Chain Audit Trail · Closure Checklist</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result strip -->
+    <div style="background:linear-gradient(90deg,rgba(16,185,129,.1),rgba(16,185,129,.04));border:1px solid rgba(16,185,129,.2);border-radius:9px;padding:11px 18px;display:flex;align-items:center;gap:20px">
+      <div style="font-size:11px;font-weight:800;color:#10b981;letter-spacing:1px;flex-shrink:0">RESULT</div>
+      <div style="flex:1;font-size:12px;color:#94a3b8">OWL-2026-01847 · ₹38.4L structuring scheme · Alert at 6:30 AM → FIU-IND-ready STR · <span style="color:#f1f5f9;font-weight:800">35 min active work · under 20 min best case</span> · 2 named approvers on record · hash-sealed · zero bytes egressed · same case without OpsOwl = 10–15 days</div>
+      <div style="display:flex;gap:10px;flex-shrink:0">
+        <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#10b981">&lt;20m</div><div style="font-size:9px;color:#334155">alert to STR</div></div>
+        <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#f472b6">90s</div><div style="font-size:9px;color:#334155">AI draft</div></div>
+        <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#3b82f6">2</div><div style="font-size:9px;color:#334155">approvers</div></div>
+        <div style="text-align:center"><div style="font-size:20px;font-weight:900;color:#22d3ee">0</div><div style="font-size:9px;color:#334155">bytes egress</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 5 of 8</div><div class="ftr-r">→ Next: How AI helps — and how we keep it responsible</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S7 · AI — HOW IT HELPS + RESPONSIBLE USE
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s7">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">AI in OpsOwl — How It Helps + Responsible Use</div></div>
+
+  <div class="body" style="gap:18px;padding-top:24px">
+    <div>
+      <div class="ey cy">AI that is useful and auditable</div>
+      <div class="h2" style="font-size:26px">Three ways AI accelerates investigation. Five principles that keep it responsible.</div>
+    </div>
+
+    <div class="g2" style="flex:1;gap:20px">
+      <!-- Left: How AI helps -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#475569;margin-bottom:4px">HOW AI HELPS</div>
+        <div class="ai-cap">
+          <div class="ai-cap-icon">🤖</div>
+          <div>
+            <div class="ai-cap-h">AI Investigation Copilot</div>
+            <div class="ai-cap-d">Answers investigative questions using uploaded case documents. <em>"Does this account show prior structuring patterns?"</em> — it reads the documents, not training data. Every answer cites its source. Streams results in real time.</div>
+          </div>
+        </div>
+        <div class="ai-cap">
+          <div class="ai-cap-icon">✍️</div>
+          <div>
+            <div class="ai-cap-h">AI Narrative Generator</div>
+            <div class="ai-cap-d">Drafts a complete PMLA-compliant STR narrative in 90 seconds — grounded exclusively in the approved findings on the case. Never reads training data. Never invents facts. Every sentence links to source evidence.</div>
+          </div>
+        </div>
+        <div class="ai-cap">
+          <div class="ai-cap-icon">🔍</div>
+          <div>
+            <div class="ai-cap-h">Document Risk Analysis (AI)</div>
+            <div class="ai-cap-d">Analyzes uploaded KYC, bank statements, and transaction histories. Flags anomalies, patterns, and typology indicators in 45 seconds. Saves the analyst 30–45 minutes of manual document review per case.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: Responsible AI -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#475569;margin-bottom:4px">HOW WE KEEP IT RESPONSIBLE</div>
+        <div class="ai-guard">
+          <div class="ai-guard-n">1</div>
+          <div>
+            <div class="ai-guard-h">AI reads case facts. Not training data.</div>
+            <div class="ai-guard-d">The STR narrative AI reads only the approved findings on the specific case. It has no access to the internet, no access to external data, and does not use training data to fill gaps. INSUFFICIENT_CONTEXT is returned when evidence is missing.</div>
+          </div>
+        </div>
+        <div class="ai-guard">
+          <div class="ai-guard-n">2</div>
+          <div>
+            <div class="ai-guard-h">Every AI output requires human approval. Always.</div>
+            <div class="ai-guard-d">All AI outputs start as "pending." A named second reviewer must approve before the case advances. This is enforced in Go backend code — it cannot be bypassed with a toggle or a shortcut.</div>
+          </div>
+        </div>
+        <div class="ai-guard">
+          <div class="ai-guard-n">3</div>
+          <div>
+            <div class="ai-guard-h">PAN, Aadhaar, mobile — masked before reaching the model.</div>
+            <div class="ai-guard-d">Microsoft Presidio strips all Indian PII identifiers before any text is sent to the AI model. Tokens ([PAN_1], [AADHAAR_1]) are used instead. The real values never reach the model or its logs.</div>
+          </div>
+        </div>
+        <div class="ai-guard">
+          <div class="ai-guard-n">4</div>
+          <div>
+            <div class="ai-guard-h">Every AI decision is logged permanently.</div>
+            <div class="ai-guard-d">Model version, full prompt, output, confidence score, reviewer name, reviewer timestamp — stored permanently, never purged. FIU-IND can ask "who approved this AI output?" and the answer is one query.</div>
+          </div>
+        </div>
+        <div class="ai-guard">
+          <div class="ai-guard-n">5</div>
+          <div>
+            <div class="ai-guard-h">AI is read-only. It cannot take any action.</div>
+            <div class="ai-guard-d">The AI investigation agent has zero write-capable tools. It cannot create, update, close, or file anything. Every action in the system is taken by a named human, with a logged timestamp.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 6 of 8</div><div class="ftr-r">→ Next: What's Built Today</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S8 · ROADMAP
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s8">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">What's Built Today</div></div>
+
+  <div class="body" style="gap:16px;padding-top:24px">
+    <div>
+      <div class="ey cy">What OpsOwl has today</div>
+      <div class="h2" style="font-size:26px">Every capability below is live and running in production.</div>
+      <div class="lead" style="margin-top:4px">No promises, no roadmap speculation — this is what you get on day one of the pilot.</div>
+    </div>
+
+    <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:10px 18px;align-content:start">
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">📥</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Alert Ingestion — Webhook + CSV</div><div class="rm-d">Any TMS, any JSON schema, HMAC-signed. SLA clock starts on arrival. Zero manual entry.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">📋</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Case Management + Investigation Playbooks</div><div class="rm-d">Structured lifecycle with mandatory tasks per case type. SLA tracking, assignment, audit log.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">🤖</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Evidence Store + AI Investigation Copilot</div><div class="rm-d">Upload documents. AI answers investigative questions in real time using only case evidence.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">🔍</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Findings + FATF Typology Codes</div><div class="rm-d">Structured findings linked to uploaded evidence. FATF typology codes on every finding.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">👁️</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">4-Eye Maker-Checker (Code-Enforced)</div><div class="rm-d">Second reviewer required on all findings and narrative. Cannot be bypassed — enforced in backend.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">✍️</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">AI Narrative Generator</div><div class="rm-d">Full PMLA-compliant STR narrative in 90 seconds. Grounded in approved findings. Every sentence cited.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">📤</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">goAML 4.0 XML + FIU-IND Export</div><div class="rm-d">One-click. Correct format. All PMLA-required fields. Zero rejection risk from formatting errors.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">🔐</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Hash-Chain Audit Trail</div><div class="rm-d">Every action on every case is tamper-evident and sealed. Full per-case export in 1 click.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">📊</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">AI Decision Audit Log</div><div class="rm-d">Model, prompt, output, reviewer, timestamp — logged permanently for every AI action.</div></div>
+      </div>
+      <div class="rm-item" style="background:#0a1826;border:1px solid rgba(16,185,129,.12);border-radius:9px;padding:12px 16px;gap:12px">
+        <div style="width:28px;height:28px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.2);display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="font-size:14px">📦</span></div>
+        <div><div class="rm-t" style="font-size:13.5px">Air-Gap Bundle + On-Premise Deployment</div><div class="rm-d">Zero internet dependencies. Ships as a tarball. Runs in a fully isolated environment.</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 7 of 8</div><div class="ftr-r">All 10 capabilities verified in production · → Next: Closing</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     S9 · CLOSING
+════════════════════════════════════════════════════ -->
+<div class="slide" id="s9">
+  <div class="hdr"><div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div></div></div><div class="hdr-tag">Closing</div></div>
+
+  <div class="body" style="gap:18px;padding-top:28px">
+    <div>
+      <div class="ey gn">In summary</div>
+      <div class="h2" style="font-size:28px">Every AML investigation need — structured, AI-assisted,<br>human-approved, and audit-sealed — in one system.</div>
+    </div>
+
+    <div class="close-wrap">
+      <div class="close-left">
+        <div class="close-point">
+          <div class="close-icon">🔗</div>
+          <div>
+            <div class="close-h">One connected workflow. Alert to sealed STR.</div>
+            <div class="close-d">OpsOwl closes the gap between TMS and FIU-IND. Every step — triage, investigation, AI analysis, 4-eye approval, goAML export — happens in one system. No fragmented tools, no lost evidence, no manual last-mile errors.</div>
+          </div>
+        </div>
+        <div class="close-point">
+          <div class="close-icon">🇮🇳</div>
+          <div>
+            <div class="close-h">Built for India. FIU-IND ready from day one.</div>
+            <div class="close-d">FIU-IND STR format, PMLA Section 12 record-keeping, goAML 4.0 XML, FINnet — native, not retrofitted. Every field maps correctly. Zero formatting errors. Zero XML rejections.</div>
+          </div>
+        </div>
+        <div class="close-point">
+          <div class="close-icon">🔒</div>
+          <div>
+            <div class="close-h">All data stays on your server. Always.</div>
+            <div class="close-d">AI runs on-premise. KYC documents, transaction records, subject PII — zero egress. Air-gap deployment available. IT security and compliance can both approve this in one meeting.</div>
+          </div>
+        </div>
+        <div style="background:#091626;border-left:3px solid #10b981;border-radius:0 8px 8px 0;padding:14px 18px">
+          <div style="font-size:15px;font-weight:800;color:#f1f5f9;margin-bottom:4px">The one-line version:</div>
+          <div style="font-size:14px;color:#94a3b8;font-style:italic;line-height:1.5">"When FIU-IND walks in, you open OpsOwl — not a shared drive."</div>
+        </div>
+      </div>
+
+      <!-- Pilot offer -->
+      <div class="close-right">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:2px;text-transform:uppercase;color:#3b82f6;margin-bottom:10px">THE 30-DAY PILOT — FOR RISK &amp; COMPLIANCE</div>
+          <div style="font-size:15px;font-weight:900;color:#f1f5f9;line-height:1.3;margin-bottom:4px">Validate it on your real alerts.<br>Then take the recommendation<br>to your leadership.</div>
+          <div style="font-size:11px;color:#334155;margin-bottom:14px">No vendor commitment. You evaluate it — we earn your confidence.</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px">
+          <div class="pilot-step-s">
+            <div class="pil-n">1</div>
+            <div><div class="pil-t">Share your TMS alert schema</div><div class="pil-d">JSON or CSV from your monitoring system. We configure field mapping — 1 hour on our side.</div></div>
+          </div>
+          <div class="pilot-step-s">
+            <div class="pil-n" style="color:#10b981;border-color:rgba(16,185,129,.2);background:rgba(16,185,129,.06)">2</div>
+            <div><div class="pil-t">Live in 1 business day</div><div class="pil-d">Webhook active. Playbooks configured. Zero changes to your existing systems.</div></div>
+          </div>
+          <div class="pilot-step-s">
+            <div class="pil-n" style="color:#f59e0b;border-color:rgba(245,158,11,.2);background:rgba(245,158,11,.06)">3</div>
+            <div><div class="pil-t">Run 10–20 real cases. Measure it.</div><div class="pil-d">Alert-to-STR time. Audit trail quality. goAML XML accuracy. 30 days of real data.</div></div>
+          </div>
+        </div>
+
+        <div style="border-top:1px solid rgba(255,255,255,.06);padding-top:14px">
+          <div style="font-size:11px;color:#334155;margin-bottom:8px">₹0 pilot cost · Your data never leaves your server · No infrastructure changes</div>
+          <div style="font-size:13px;font-weight:800;color:#3b82f6">→ What's your highest-volume alert type right now?</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="ftr"><div class="ftr-l">Slide 8 of 8</div><div class="ftr-r">Press G for Business Terms Glossary</div></div>
+</div>
+
+<!-- ════════════════════════════════════════════════════
+     SG · GLOSSARY — PRESENTER REFERENCE
+════════════════════════════════════════════════════ -->
+<div class="slide" id="sg">
+  <div style="padding:13px 52px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(245,158,11,.1);flex-shrink:0;background:#06080f">
+    <div class="logo"><div class="logo-sq">O</div><div><div class="logo-n">OpsOwl AI</div><div class="logo-s">Glossary — Presenter Reference</div></div></div>
+    <div style="font-size:10px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:3px 10px;border:1px solid rgba(245,158,11,.3);border-radius:4px;color:#f59e0b;background:rgba(245,158,11,.06)">Presenter Only · Not for Client</div>
+  </div>
+
+  <div style="flex:1;padding:24px 52px;overflow-y:auto;background:#06080f">
+    <div style="margin-bottom:16px">
+      <div class="ey am" style="margin-bottom:6px">Business Terms — Know These Before You Walk In</div>
+      <div style="font-size:12.5px;color:#334155">These are terms the Decentro compliance team will use naturally. Use them back — it signals you understand their world.</div>
+    </div>
+    <div class="glos">
+      <div class="gi"><div class="gt">STR — Suspicious Transaction Report</div><div class="gd">The formal report filed with FIU-IND when a regulated entity suspects money laundering. Required by law under PMLA. Missing one is a criminal offence. The entire OpsOwl workflow leads to this output.</div><div class="gu">"OpsOwl reduces alert-to-STR time from 10–15 days to under 20 minutes."</div></div>
+
+      <div class="gi"><div class="gt">FIU-IND — Financial Intelligence Unit India</div><div class="gd">The government body under the Ministry of Finance that receives all STR filings and conducts compliance examinations. Think of it as the primary AML regulator for financial institutions in India.</div><div class="gu">"When FIU-IND walks in for an examination, you open OpsOwl — not a shared drive."</div></div>
+
+      <div class="gi"><div class="gt">PMLA — Prevention of Money Laundering Act, 2002</div><div class="gd">India's primary AML law. Mandates record-keeping for 5 years (Section 12), STR reporting to FIU-IND, and internal controls. All OpsOwl records meet PMLA Section 12 requirements permanently.</div><div class="gu">"OpsOwl meets PMLA Section 12 record-keeping out of the box."</div></div>
+
+      <div class="gi"><div class="gt">TMS — Transaction Monitoring System</div><div class="gd">Software that watches every transaction and fires alerts on suspicious patterns. OpsOwl does NOT replace TMS — it receives alerts FROM TMS via webhook and manages the investigation from there.</div><div class="gu">"We connect to your TMS in one business day — no changes to your TMS setup."</div></div>
+
+      <div class="gi"><div class="gt">goAML</div><div class="gd">The UNODC-built software platform used by FIU-IND to receive STR filings. STRs must be submitted in goAML 4.0 XML format. OpsOwl generates this XML automatically in one click — correct format, all required fields.</div><div class="gu">"One-click goAML 4.0 XML. FIU-IND ready. No formatting errors."</div></div>
+
+      <div class="gi"><div class="gt">FINnet — Financial Intelligence Network</div><div class="gd">The secure network through which STRs are submitted to FIU-IND. Think of it as the delivery pipe — goAML is the format, FINnet is how it gets there. OpsOwl produces the file; submission goes through FINnet.</div><div class="gu">Say "we export directly to FINnet via goAML 4.0 XML."</div></div>
+
+      <div class="gi"><div class="gt">4-Eye Principle / Maker-Checker</div><div class="gd">Two separate people must review before anything is finalised. Maker creates, Checker approves. In OpsOwl, this is enforced in Go backend code — it cannot be bypassed by any toggle, shortcut, or user permission.</div><div class="gu">"The analyst who drafts the STR cannot approve it. Second reviewer enforced in code."</div></div>
+
+      <div class="gi"><div class="gt">FATF Typology Codes</div><div class="gd">FATF (Financial Action Task Force) is the global AML standards body. Typology codes classify the pattern of suspicious behaviour — e.g., Structuring (ST-01), Layering (LA-03), Smurfing. OpsOwl requires a typology code on every finding before the narrative can be generated.</div><div class="gu">"Structuring + Layering" is what Arjun Mehta Enterprises was doing in the demo case — ST-01 and LA-03.</div></div>
+
+      <div class="gi"><div class="gt">Alert Triage</div><div class="gd">The process of reviewing TMS alerts and deciding: is this worth investigating, or is it a false positive? Most TMS alerts (80–95%) are false positives. OpsOwl provides a risk-ranked queue and bulk-dismiss capability to handle this efficiently.</div><div class="gu">"Analysts spend less time triaging, more time on cases that matter."</div></div>
+
+      <div class="gi"><div class="gt">Investigation Playbook</div><div class="gd">A pre-defined checklist that auto-assigns when a case is created by case type. Ensures every analyst follows the same steps: collect evidence, document findings, get 4-eye approval, draft narrative, export goAML. Cases cannot close until all playbook tasks are complete.</div><div class="gu">"Every analyst follows the same process. New hires investigate like veterans from day one."</div></div>
+
+      <div class="gi"><div class="gt">Hash-Chain Audit Trail</div><div class="gd">Each database record contains a cryptographic hash of the previous record. If any past record is modified, the chain breaks — tampering is detectable. OpsOwl applies this to every action on every case. Proves to a regulator that the investigation record was not altered after the fact.</div><div class="gu">"The audit trail is hash-sealed — any tampering breaks the chain detectably."</div></div>
+
+      <div class="gi"><div class="gt">On-Premise (On-Prem)</div><div class="gd">Software running entirely on the customer's own servers — not on the vendor's cloud. For compliance teams, on-prem means sensitive investigation data (KYC, transaction records, subject PII) never leaves the organization's controlled environment.</div><div class="gu">"On-prem means zero data egress. Your IT security team approves this in one meeting."</div></div>
+
+      <div class="gi"><div class="gt">Air-Gap Deployment</div><div class="gd">Server with zero internet connectivity — completely isolated network. OpsOwl ships an air-gap bundle — a tarball with every dependency pre-packaged — so it can run in a completely isolated environment with no inbound or outbound internet.</div><div class="gu">"We have an air-gap bundle. Your IT team never needs to open a port."</div></div>
+
+      <div class="gi"><div class="gt">Obligated Entity</div><div class="gd">Any business legally required to comply with PMLA — banks, NBFCs, fintechs, payment aggregators, insurance companies. Decentro is an obligated entity as a payment aggregator regulated by RBI. Non-compliance can result in penalties or criminal prosecution.</div><div class="gu">Use this term to show you understand Decentro's regulatory position.</div></div>
+
+      <div class="gi"><div class="gt">PEP — Politically Exposed Person</div><div class="gd">High-risk customer category — politicians, government officials, their family members. Regulated entities must apply enhanced due diligence. OpsOwl flags PEP status on subject profiles and adds extra approval requirements on PEP-related cases.</div><div class="gu">"PEP screening is built in — it flags on subject create, not just at onboarding."</div></div>
+
+      <div class="gi"><div class="gt">Webhook Integration</div><div class="gd">A simple HTTP POST from your TMS to OpsOwl whenever a new alert fires. OpsOwl validates the HMAC signature and creates a case automatically. One-time setup: share one sample alert, we configure field mapping, webhook live in 1 business day.</div><div class="gu">"Webhook goes live in 1 business day. Zero changes to your TMS."</div></div>
+
+      <div class="gi"><div class="gt">STR Narrative</div><div class="gd">The written description in an STR: who the subject is, what they did, why it's suspicious, and what the analyst found. Most time-consuming part of STR filing — 60–90 minutes per case. OpsOwl's AI drafts this in 90 seconds from approved findings.</div><div class="gu">"90 seconds to draft what currently takes an analyst an hour to write from scratch."</div></div>
+
+      <div class="gi"><div class="gt">Structuring</div><div class="gd">A common money laundering typology where a person breaks large transactions into smaller ones to avoid reporting thresholds (e.g., multiple transfers below ₹2L). FATF Typology ST-01. This is exactly what Rajesh Kumar Gupta was doing in the demo case.</div><div class="gu">Use this word — compliance teams know it and it immediately contextualises the demo case.</div></div>
+    </div>
+  </div>
+
+  <div style="padding:9px 52px;border-top:1px solid rgba(245,158,11,.1);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#06080f">
+    <span style="font-size:10.5px;color:#334155">Press 1–9 to return to any slide · Esc to close glossary</span>
+    <span style="font-size:10.5px;color:#334155;font-weight:800">Presenter Reference Only</span>
+  </div>
+</div>
+
+<!-- ── Navigation dots ── -->
+<div id="dots"></div>
+<div id="slno"></div>
+<div id="hint">← → Space to navigate &nbsp;·&nbsp; 1–9 jump to slide &nbsp;·&nbsp; G = Glossary</div>
+
+<script>
+const SLIDES = ['s2','s3','s4','s5','s6','s7','s8','s9','sg'];
+const LABELS = ['What is OpsOwl','The Problem','Impact','Story Pt1','Story Pt2','AI','Whats Built','Closing','Glossary'];
+const N = 9;
+let cur = 0; // index into SLIDES (0=s2=slide1, ..., 7=s9=slide9, 8=sg=glossary); s1=cover is special
+
+// s1 is cover, navigated via arrow from cover
+let onCover = true;
+
+function showSlide(slideId) {
+  document.querySelectorAll('.slide').forEach(s => s.classList.remove('on'));
+  document.getElementById(slideId).classList.add('on');
+}
+
+function showIdx(idx) {
+  idx = Math.max(0, Math.min(SLIDES.length-1, idx));
+  cur = idx;
+  onCover = false;
+  showSlide(SLIDES[idx]);
+  document.querySelectorAll('.dot').forEach((d,i) => d.classList.toggle('on', i === idx && idx < N-1));
+  document.getElementById('slno').textContent = idx < N-1 ? (idx+1)+' / '+(N-1) : 'REF';
+}
+
+function goTo(n) {
+  // n is 1-based slide number (1=What is OpsOwl … 8=Closing … 9=Glossary)
+  showIdx(n-1);
+}
+
+// Build dots (8 for slides 1-8, not glossary)
+const dotWrap = document.getElementById('dots');
+for (let i = 0; i < N-1; i++) {
+  const d = document.createElement('div');
+  d.className = 'dot';
+  d.title = LABELS[i];
+  d.onclick = () => showIdx(i);
+  dotWrap.appendChild(d);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'g' || e.key === 'G') { showIdx(SLIDES.length-1); return; }
+  if (e.key === 'Escape') { if (cur === SLIDES.length-1) showIdx(N-2); return; }
+  if (e.key >= '1' && e.key <= '9') { goTo(+e.key); return; }
+  if (e.key === 'ArrowRight' || e.key === ' ') {
+    e.preventDefault();
+    if (onCover) { onCover = false; showIdx(0); return; }
+    if (cur < SLIDES.length-2) showIdx(cur+1); // don't auto-advance to glossary
+    return;
+  }
+  if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    if (cur === 0) { onCover = true; showSlide('s1'); document.getElementById('slno').textContent = ''; document.querySelectorAll('.dot').forEach(d=>d.classList.remove('on')); return; }
+    showIdx(cur-1);
+  }
+});
+
+// Start on cover
+showSlide('s1');
+document.getElementById('slno').textContent = '';
+</script>
+</body>
+</html>

@@ -53,49 +53,7 @@ type NavItem = {
 type AdminGroup = {
   heading: string;
   icon: React.ElementType;
-  colorClass: "violet" | "amber" | "cyan" | "blue" | "emerald";
   items: NavItem[];
-};
-
-const GROUP_COLORS: Record<
-  AdminGroup["colorClass"],
-  { icon: string; activeIcon: string; bg: string; activeBg: string; headingActive: string }
-> = {
-  violet: {
-    icon: "text-violet-400/60",
-    activeIcon: "text-violet-300",
-    bg: "bg-violet-500/10",
-    activeBg: "bg-violet-500/20",
-    headingActive: "text-violet-300",
-  },
-  amber: {
-    icon: "text-amber-400/60",
-    activeIcon: "text-amber-300",
-    bg: "bg-amber-500/10",
-    activeBg: "bg-amber-500/20",
-    headingActive: "text-amber-300",
-  },
-  cyan: {
-    icon: "text-cyan-400/60",
-    activeIcon: "text-cyan-300",
-    bg: "bg-cyan-500/10",
-    activeBg: "bg-cyan-500/20",
-    headingActive: "text-cyan-300",
-  },
-  blue: {
-    icon: "text-blue-400/60",
-    activeIcon: "text-blue-300",
-    bg: "bg-blue-500/10",
-    activeBg: "bg-blue-500/20",
-    headingActive: "text-blue-300",
-  },
-  emerald: {
-    icon: "text-emerald-400/60",
-    activeIcon: "text-emerald-300",
-    bg: "bg-emerald-500/10",
-    activeBg: "bg-emerald-500/20",
-    headingActive: "text-emerald-300",
-  },
 };
 
 function NavLink({ item, compact }: { item: NavItem; compact?: boolean }) {
@@ -156,7 +114,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       heading: "Users & Access",
       icon: ShieldCheck,
-      colorClass: "violet",
       items: [
         { label: "Team Members", href: "/users",             icon: Users },
         { label: "API Keys",     href: "/settings/api-keys", icon: KeyRound },
@@ -165,7 +122,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       heading: "Compliance & Audit",
       icon: Scale,
-      colorClass: "amber",
       items: [
         { label: "Response SLAs",  href: "/sla",               icon: Timer },
         { label: "Data Retention", href: "/settings/retention", icon: Archive },
@@ -176,7 +132,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       heading: "Alert Pipeline",
       icon: Zap,
-      colorClass: "cyan",
       items: [
         { label: "Alert Sources",    href: "/settings/alert-sources", icon: Plug },
         { label: "Inbound Webhooks", href: "/settings/inbound",       icon: Inbox },
@@ -186,7 +141,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       heading: "Investigation Workflows",
       icon: Sliders,
-      colorClass: "blue",
       items: [
         { label: "Case Routing",    href: "/settings/assignment-rules", icon: Shuffle },
         { label: "Case Templates",  href: "/settings/templates",        icon: LayoutTemplate },
@@ -197,7 +151,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {
       heading: "Reports & Notifications",
       icon: Send,
-      colorClass: "emerald",
       items: [
         { label: "Automated Reports",  href: "/settings/reports",  icon: BarChart3 },
         { label: "Outbound Webhooks",  href: "/settings/webhooks", icon: Webhook },
@@ -258,10 +211,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
             {nav.map((item) => <NavLink key={item.href} item={item} />)}
 
-            {/* Intelligence */}
+            {/* Analytics */}
             <RBACGate allowedRoles={["manager", "admin", "super_admin"]}>
               <div className="px-4 mt-5 mb-2 flex items-center gap-2">
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Intelligence</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Analytics</span>
                 <div className="flex-1 h-px bg-[#1e3050]/60" />
               </div>
               {insightsNav.map((item) => <NavLink key={item.href} item={item} />)}
@@ -281,7 +234,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   );
                   const isOpen = hasActive || openGroups.has(group.heading);
                   const GroupIcon = group.icon;
-                  const colors = GROUP_COLORS[group.colorClass];
 
                   return (
                     <div key={group.heading}>
@@ -294,30 +246,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                             return next;
                           });
                         }}
-                        className={`w-full flex items-center gap-2.5 px-3 py-2 text-left group/grp transition-colors rounded-sm ${
-                          hasActive ? "bg-white/[0.04]" : "hover:bg-white/[0.03]"
+                        className={`w-full flex items-center gap-3 px-4 py-2 text-left group/grp transition-colors ${
+                          hasActive ? "bg-white/[0.04]" : "hover:bg-white/[0.035]"
                         }`}
                       >
-                        {/* Colored icon pill */}
-                        <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 transition-colors ${
-                          hasActive ? colors.activeBg : `${colors.bg} opacity-70 group-hover/grp:opacity-100`
-                        }`}>
-                          <GroupIcon
-                            size={11}
-                            className={`transition-colors ${hasActive ? colors.activeIcon : colors.icon}`}
-                          />
-                        </div>
+                        <GroupIcon
+                          size={15}
+                          className={`flex-shrink-0 transition-colors ${
+                            hasActive ? "text-cyan-400" : "text-slate-400 group-hover/grp:text-slate-200"
+                          }`}
+                        />
 
-                        <span className={`flex-1 truncate text-[10.5px] font-semibold uppercase tracking-widest transition-colors ${
-                          hasActive ? colors.headingActive : "text-slate-500 group-hover/grp:text-slate-300"
+                        <span className={`flex-1 truncate text-sm transition-colors ${
+                          hasActive ? "text-cyan-400" : "text-slate-400 group-hover/grp:text-slate-200"
                         }`}>
                           {group.heading}
                         </span>
 
                         <ChevronRight
-                          size={10}
+                          size={12}
                           className={`flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-90" : ""} ${
-                            hasActive ? "text-slate-400" : "text-slate-700 group-hover/grp:text-slate-500"
+                            hasActive ? "text-slate-400" : "text-slate-600 group-hover/grp:text-slate-400"
                           }`}
                         />
                       </button>

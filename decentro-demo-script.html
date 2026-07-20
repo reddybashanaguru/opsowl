@@ -1,0 +1,914 @@
+<title>OpsOwl × Decentro — Demo Script</title>
+<style>
+  :root {
+    --bg:         #E8EFF8;
+    --surface:    #FFFFFF;
+    --surface-2:  #F2F7FC;
+    --border:     #C4D2E4;
+    --border-lt:  #D8E4F0;
+    --text:       #16253A;
+    --text-2:     #46607C;
+    --text-3:     #7892AC;
+    --amber:      #A85808;
+    --amber-bg:   #FEF0E0;
+    --amber-bdr:  #F59E0B;
+    --teal:       #0C6B78;
+    --teal-bg:    #DCF5F7;
+    --navy:       #16253A;
+    --navy-tx:    #E0EAF8;
+    --scene-num:  #4E7EB0;
+    --key-bg:     #FFFBEB;
+    --key-tx:     #78350F;
+    --key-bdr:    #F59E0B;
+    --req-bg:     #ECFDF5;
+    --req-tx:     #065F46;
+    --opt-bg:     #F1F5F9;
+    --opt-tx:     #475569;
+    --part-bg:    #16253A;
+    --part-tx:    #E0EAF8;
+    --divider:    #C8D8EC;
+    --font:       -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --mono:       ui-monospace, "SF Mono", "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#0A1420; --surface:#101D2E; --surface-2:#0D1828; --border:#1A3050;
+      --border-lt:#152540; --text:#C0D2E8; --text-2:#6888A8; --text-3:#3A5878;
+      --amber:#F59E0B; --amber-bg:#1A1000; --amber-bdr:#D97706;
+      --teal:#22D3EE; --teal-bg:#041820;
+      --navy:#162540; --navy-tx:#C0D2E8;
+      --scene-num:#4A7AB0; --key-bg:#110E00; --key-tx:#FCD34D; --key-bdr:#D97706;
+      --req-bg:#052010; --req-tx:#34D399; --opt-bg:#101820; --opt-tx:#64748B;
+      --part-bg:#162540; --part-tx:#C0D2E8; --divider:#1A3050;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg:#E8EFF8; --surface:#FFFFFF; --surface-2:#F2F7FC; --border:#C4D2E4;
+    --border-lt:#D8E4F0; --text:#16253A; --text-2:#46607C; --text-3:#7892AC;
+    --amber:#A85808; --amber-bg:#FEF0E0; --amber-bdr:#F59E0B;
+    --teal:#0C6B78; --teal-bg:#DCF5F7;
+    --navy:#16253A; --navy-tx:#E0EAF8; --scene-num:#4E7EB0;
+    --key-bg:#FFFBEB; --key-tx:#78350F; --key-bdr:#F59E0B;
+    --req-bg:#ECFDF5; --req-tx:#065F46; --opt-bg:#F1F5F9; --opt-tx:#475569;
+    --part-bg:#16253A; --part-tx:#E0EAF8; --divider:#C8D8EC;
+  }
+  :root[data-theme="dark"] {
+    --bg:#0A1420; --surface:#101D2E; --surface-2:#0D1828; --border:#1A3050;
+    --border-lt:#152540; --text:#C0D2E8; --text-2:#6888A8; --text-3:#3A5878;
+    --amber:#F59E0B; --amber-bg:#1A1000; --amber-bdr:#D97706;
+    --teal:#22D3EE; --teal-bg:#041820;
+    --navy:#162540; --navy-tx:#C0D2E8; --scene-num:#4A7AB0;
+    --key-bg:#110E00; --key-tx:#FCD34D; --key-bdr:#D97706;
+    --req-bg:#052010; --req-tx:#34D399; --opt-bg:#101820; --opt-tx:#64748B;
+    --part-bg:#162540; --part-tx:#C0D2E8; --divider:#1A3050;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 13.5px; line-height: 1.65; }
+
+  /* PAGE HEADER */
+  .ph { background: var(--navy); color: var(--navy-tx); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  .ph h1 { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; color: #E8F2FF; }
+  .ph .sub { font-size: 11.5px; color: #5A7898; margin-top: 2px; letter-spacing: 0.02em; }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; }
+  .leg { display: flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: #5A7898; }
+  .leg-dot { width: 7px; height: 7px; border-radius: 1.5px; }
+  .d-amber { background: #F59E0B; }
+  .d-teal  { background: #22D3EE; }
+  .d-key   { background: #A78BFA; }
+
+  /* MAIN */
+  main { max-width: 1020px; margin: 0 auto; padding: 22px 16px 60px; display: flex; flex-direction: column; gap: 14px; }
+
+  /* SUMMARY BAR */
+  .summary { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  .summary-stat { text-align: center; }
+  .summary-stat .n { font-size: 22px; font-weight: 700; color: var(--amber); font-variant-numeric: tabular-nums; line-height: 1; }
+  .summary-stat .l { font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text-3); margin-top: 3px; }
+  .summary-divider { width: 1px; height: 36px; background: var(--divider); }
+  .tip-box { background: var(--amber-bg); border: 1px solid var(--amber-bdr); border-radius: 6px; padding: 8px 12px; font-size: 12px; color: var(--amber); font-weight: 500; max-width: 340px; }
+
+  /* PART HEADER */
+  .part { background: var(--part-bg); color: var(--part-tx); padding: 9px 16px; border-radius: 7px; display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+  .part-letter { font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--amber); white-space: nowrap; }
+  .part-title { font-size: 13px; font-weight: 600; flex: 1; color: var(--navy-tx); }
+  .part-who { font-size: 10.5px; color: var(--text-3); font-style: italic; }
+
+  /* SCENE CARD */
+  .scene { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .sh { background: var(--navy); padding: 9px 14px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .sn { font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: var(--scene-num); white-space: nowrap; }
+  .st { font-size: 13px; font-weight: 600; color: var(--navy-tx); flex: 1; }
+  .sh-right { display: flex; align-items: center; gap: 8px; }
+  .badge { font-size: 9.5px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; white-space: nowrap; }
+  .req { background: var(--req-bg); color: var(--req-tx); }
+  .opt { background: var(--opt-bg); color: var(--opt-tx); }
+  .tc  { background: rgba(255,255,255,0.07); color: #7090B8; font-size: 9.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 8px; border-radius: 20px; }
+
+  /* MODULE TAGS */
+  .tags { padding: 6px 14px; display: flex; gap: 5px; flex-wrap: wrap; border-bottom: 1px solid var(--border-lt); background: var(--surface-2); }
+  .tag { font-size: 10px; font-weight: 600; letter-spacing: 0.03em; padding: 1px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--text-3); background: var(--surface); }
+
+  /* BODY */
+  .sb { display: grid; grid-template-columns: 57% 43%; }
+  .sc { padding: 14px 16px; border-right: 1px solid var(--divider); }
+  .hc { padding: 14px 14px 14px 16px; background: var(--surface-2); }
+  .cl { font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 9px; display: flex; align-items: center; gap: 5px; }
+  .cl::before { content:''; display:inline-block; width:5px; height:5px; border-radius:1.5px; flex-shrink:0; }
+  .say-cl { color: var(--amber); }
+  .say-cl::before { background: var(--amber); }
+  .shw-cl { color: var(--teal); }
+  .shw-cl::before { background: var(--teal); }
+
+  .sc p { font-size: 13.5px; line-height: 1.7; color: var(--text); margin-bottom: 8px; }
+  .sc p:last-child { margin-bottom: 0; }
+  .sc p em { color: var(--text-2); font-style: normal; }
+
+  .ask { background: var(--teal-bg); border-left: 3px solid var(--teal); border-radius: 4px; padding: 8px 12px; margin: 6px 0; font-size: 12.5px; color: var(--teal); font-style: italic; }
+
+  .hl { display: inline; background: var(--amber-bg); color: var(--amber); padding: 0 3px; border-radius: 2px; font-weight: 600; font-style: normal; }
+
+  .sl { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .sl li { font-family: var(--mono); font-size: 11.5px; line-height: 1.45; color: var(--teal); padding: 5px 9px; background: var(--teal-bg); border-radius: 4px; border-left: 2px solid var(--teal); word-break: break-all; }
+  .sl li.n { font-family: var(--font); font-size: 11.5px; color: var(--text-2); background: var(--border-lt); border-left: 2px solid var(--border); font-style: italic; word-break: normal; }
+  .sl li.warn { font-family: var(--font); color: var(--amber); background: var(--amber-bg); border-left: 2px solid var(--amber-bdr); font-style: italic; font-size: 11.5px; word-break: normal; }
+
+  /* FEATURE CALLOUT inside SAY col */
+  .fc { margin: 8px 0; border: 1px solid var(--border); border-radius: 5px; overflow: hidden; }
+  .fc-head { background: var(--surface-2); border-bottom: 1px solid var(--border-lt); padding: 5px 10px; font-size: 9px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-3); }
+  .fc-body { padding: 7px 10px; font-size: 12.5px; color: var(--text-2); line-height: 1.55; }
+  .fc-body strong { color: var(--text); }
+
+  /* KEY MESSAGE */
+  .km { border-top: 1px solid var(--divider); background: var(--key-bg); padding: 10px 16px; display: flex; gap: 10px; align-items: flex-start; border-left: 4px solid var(--key-bdr); }
+  .km-label { font-size: 8.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--amber); white-space: nowrap; padding-top: 2px; flex-shrink: 0; }
+  .km-text { font-size: 13px; font-weight: 600; color: var(--key-tx); line-height: 1.45; font-style: italic; }
+
+  /* OPENING / CLOSING */
+  .band { background: var(--surface); border: 1px solid var(--border); border-radius: 7px; overflow: hidden; }
+  .band-h { background: var(--amber-bg); border-bottom: 1px solid var(--amber-bdr); padding: 9px 16px; display: flex; justify-content: space-between; align-items: center; }
+  .band-l { font-size: 10px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--amber); }
+  .band-b { padding: 14px 16px; }
+  .band-b p { font-size: 13.5px; line-height: 1.7; color: var(--text-2); margin-bottom: 9px; }
+  .band-b p:last-child { margin-bottom: 0; }
+  .band-b strong { color: var(--text); }
+  .band-b .ask { margin-top: 8px; }
+
+  @media (max-width: 700px) {
+    .sb { grid-template-columns: 1fr; }
+    .sc { border-right: none; border-bottom: 1px solid var(--divider); }
+    .summary { flex-direction: column; }
+  }
+  @media print {
+    body { background: white; color: #111; }
+    .scene, .band, .part { break-inside: avoid; }
+    .sl li { background: #e8fafa; color: #0C6B78; }
+    .km { background: #fffbeb; }
+  }
+</style>
+
+<!-- PAGE HEADER -->
+<header class="ph">
+  <div>
+    <h1>OpsOwl &times; Decentro &mdash; Complete Feature Demo Script</h1>
+    <div class="sub">July 21, 2026 &nbsp;·&nbsp; Scenario: Rahul Verma — Structuring ₹48.5L via UPI &nbsp;·&nbsp; PMLA 2002 / FIU-IND / RBI</div>
+  </div>
+  <div class="legend">
+    <div class="leg"><span class="leg-dot d-amber"></span>SAY</div>
+    <div class="leg"><span class="leg-dot d-teal"></span>SHOW / CLICK</div>
+    <div class="leg"><span class="leg-dot" style="background:#34D399"></span>REQUIRED</div>
+    <div class="leg"><span class="leg-dot" style="background:#94A3B8"></span>OPTIONAL</div>
+  </div>
+</header>
+
+<main>
+
+<!-- SUMMARY -->
+<div class="summary">
+  <div class="summary-stat"><div class="n">~25</div><div class="l">Minutes total</div></div>
+  <div class="summary-divider"></div>
+  <div class="summary-stat"><div class="n">15</div><div class="l">Scenes</div></div>
+  <div class="summary-divider"></div>
+  <div class="summary-stat"><div class="n">35+</div><div class="l">Features covered</div></div>
+  <div class="summary-divider"></div>
+  <div class="summary-stat"><div class="n">6</div><div class="l">Story arcs</div></div>
+  <div class="summary-divider"></div>
+  <div class="tip-box">⚡ Short on time? Run only REQUIRED scenes = 15 min. Skip OPTIONAL scenes if they ask questions — questions beat features every time.</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- OPENING -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="band">
+  <div class="band-h"><span class="band-l">Opening — Don't open a screen yet</span><span class="tc">1 min</span></div>
+  <div class="band-b">
+    <p><strong>"Quick question before I show you anything — when your Fraud Engine flags an alert today, how long before your team has it documented, investigated, and an STR filed with FIU-IND?"</strong></p>
+    <div class="ask">[ Wait. Let them answer. 3–5 days is the typical answer. "We don't have a clear number" is even better. Both are your opening. ]</div>
+    <p>"For most compliance teams we talk to, it's 3 to 5 days. Spreadsheets, email threads, someone writes XML by hand, the MLRO approves over WhatsApp. FIU-IND asks for a defensible audit trail and what you hand them is a folder of PDFs."</p>
+    <p>"We built OpsOwl to close that gap — <strong>one platform, from the alert that lands in your queue to the STR that lands at FIU-IND, with a tamper-evident audit trail the whole way.</strong> Let me walk you through everything, end to end."</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART A -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part A</span>
+  <span class="part-title">The Alert Lifecycle — From Fraud Engine to Open Case</span>
+  <span class="part-who">Who sees this: Compliance Analyst, Team Lead</span>
+</div>
+
+<!-- SCENE 01 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 01</span>
+    <span class="st">How Your Fraud Engine Connects — One-Time Admin Setup</span>
+    <div class="sh-right"><span class="badge opt">Optional</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Alert Sources</span><span class="tag">Triage Rules</span><span class="tag">Playbooks</span><span class="tag">Webhook Ingest</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Before the alert queue — let me show you the plumbing, because this is the part your engineering team sets up once and never touches again."</p>
+      <div class="fc">
+        <div class="fc-head">Alert Sources — the intake pipe</div>
+        <div class="fc-body">"Your Fraud Engine — whether it's Actimize, your own detection system, or anything that fires a JSON webhook — just needs to POST to this URL. That's it. OpsOwl ingests it, normalises the payload, and runs it through your triage rules."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Triage Rules — the traffic cop</div>
+        <div class="fc-body">"This rule fires on any STRUCTURING alert above risk score 75. It auto-assigns to a senior analyst, tags it 'priority-review', and puts it in the queue. <strong>No human makes a routing decision.</strong> Your policy is encoded, not in someone's head."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Playbooks — the investigation checklist</div>
+        <div class="fc-body">"When a Structuring case is created, this playbook fires automatically — 5 tasks, in sequence, pre-assigned by role. Verify subject → review transactions → PEP screen → draft finding → file STR. <strong>Every analyst follows the same process every time.</strong>"</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Settings → Alert Sources</li>
+        <li>"Decentro Fraud Engine" card — webhook URL, HMAC-SHA256 secret, source_system: generic</li>
+        <li class="n">Point to the webhook URL. "This is all your engineers need."</li>
+        <li>Settings → Triage Rules (Alert Rules)</li>
+        <li>Rule: alert_type STRUCTURING, min_risk_score 75, mode: queue, auto_assign: Analyst role</li>
+        <li class="n">Point to dedup_window_hours — "duplicate alerts from same source are collapsed automatically"</li>
+        <li>Settings → Playbooks → "Structuring Investigation"</li>
+        <li>Show 5 steps with depends_on chain</li>
+        <li class="n">Point to Step 5 depending on Step 4 — "step 5 can't start until step 4 is done"</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">One-time setup. From tomorrow, every alert from your Fraud Engine routes to the right analyst with a ready-made investigation checklist — with zero human coordination.</span></div>
+</article>
+
+<!-- SCENE 02 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 02</span>
+    <span class="st">The Alert Queue — Risk-Ranked, Bulk Triage, Zero Noise</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Alert Queue</span><span class="tag">Bulk Triage</span><span class="tag">Risk Ranking</span><span class="tag">Cursor Pagination</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"This is where your analysts start the day. Every alert from every connected source lands here — ranked by risk score, highest first. There's no inbox. There's no shared spreadsheet. There's no 'who took this one?'"</p>
+      <p>"<em class='hl'>Rahul Verma at the top — 87 risk score, STRUCTURING, ₹48.5 lakhs, 7 UPI transactions in 72 hours.</em> That's the case we're going to investigate today."</p>
+      <p>"These three at the bottom are low-risk, different pattern — a different analyst would dismiss these in bulk. Watch."</p>
+      <p>"Done. In the real world, your team might get 300 alerts a month from your Fraud Engine. 60% are noise. This clears them in 10 seconds, not 10 minutes of email."</p>
+      <p>"Click into Rahul Verma — you see the full alert context your Fraud Engine sent: subject ID, account number, risk factors, the 7 transactions that triggered it. Everything your analyst needs to decide in 30 seconds."</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Alerts (left sidebar)</li>
+        <li>Queue sorted by risk_score desc — point to Rahul Verma at top: badge HIGH, STRUCTURING</li>
+        <li class="n">Mention: "The amber badge = High risk. The red = Critical. Colour-coded at a glance."</li>
+        <li>Select 3 lowest-risk alerts via checkboxes</li>
+        <li>Bulk Action dropdown → Dismiss → confirm</li>
+        <li class="n">They disappear. Queue is cleaner. Don't pause here — move quickly.</li>
+        <li>Click into Rahul Verma alert</li>
+        <li>Point to: risk_score 87, alert_type STRUCTURING, amount ₹48.5L, subject_id_type PAN, account_number, 7 flagged transactions, source_system: Decentro Fraud Engine</li>
+        <li class="warn">Don't click Convert yet — save that for the next beat.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Risk-ranked queue. Bulk triage. No inbox, no spreadsheet, no coordination overhead. Your analysts work the cases that matter.</span></div>
+</article>
+
+<!-- SCENE 03 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 03</span>
+    <span class="st">One Click — Alert Becomes a Live Investigation Case</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Alert Conversion</span><span class="tag">Case Creation</span><span class="tag">SLA Engine</span><span class="tag">Assignment Rules</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Your analyst decides this alert is real. One click."</p>
+      <p>"<em class='hl'>The case is open.</em> Every field from the alert — subject name, ID, source, risk score — carries over automatically. Zero re-typing."</p>
+      <p>"Notice three things that happened in the background the moment this case was created:"</p>
+      <div class="fc">
+        <div class="fc-head">1. SLA Clock started</div>
+        <div class="fc-body">7 days — your compliance policy. At 80%, OpsOwl emails the analyst. At 100%, it escalates to MLRO. <strong>No one misses a FIU-IND deadline.</strong></div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">2. Playbook auto-applied</div>
+        <div class="fc-body">5 tasks created, sequenced, pre-assigned by role. The analyst doesn't decide what to do next — they work the list.</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">3. Assignment Rule fired</div>
+        <div class="fc-body">OpsOwl routed this to the least-loaded senior analyst — not the one who happened to be online. <strong>Fair distribution, faster investigations.</strong></div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>In alert detail → click "Convert to Case"</li>
+        <li>Case opens: case number OWL-2026-00016</li>
+        <li>Point to: SLA timer "6d 23h remaining"</li>
+        <li>Point to: Assigned analyst name</li>
+        <li>Click Tasks tab → show 5 tasks, open, in sequence</li>
+        <li class="n">Point to task titles matching the playbook steps you showed in Scene 01</li>
+        <li class="n">Don't complete any tasks — just show they exist and are structured</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Investigation starts the moment the analyst clicks. Not after 30 minutes of form-filling, case creation, and task assignment. Everything is automatic.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART B -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part B</span>
+  <span class="part-title">The Investigation Workspace — Everything in One Place</span>
+  <span class="part-who">Who sees this: Compliance Analyst, Senior Investigator</span>
+</div>
+
+<!-- SCENE 04 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 04</span>
+    <span class="st">Case Workspace — Notes, Documents, Comms, Timeline</span>
+    <div class="sh-right"><span class="badge opt">Optional</span><span class="tc">2 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Notes</span><span class="tag">Documents</span><span class="tag">AI Extraction</span><span class="tag">Comms</span><span class="tag">Timeline</span><span class="tag">Insights</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Before we look at the investigation data — let me show you the workspace itself. The problem OpsOwl solves here is: <em>where does investigation work live?</em> Right now for most teams, it's scattered across email, WhatsApp, shared drives, and individual analysts' heads."</p>
+      <div class="fc">
+        <div class="fc-head">Notes — collaborative, real-time</div>
+        <div class="fc-body">"Any analyst can add a note to this case. It's real-time — two people can type simultaneously. Every note is permanent, timestamped, and linked to the audit trail. When an analyst goes on leave, their replacement has full context in 5 minutes — not 5 hours of email archaeology."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Documents — upload + AI extraction</div>
+        <div class="fc-body">"Your analyst uploads the bank statement PDF or KYC document here. OpsOwl's AI reads it — extracts names, amounts, dates, account numbers — and makes it searchable. <strong>Document review that takes 2 hours takes 10 minutes.</strong>"</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Comms — communication log</div>
+        <div class="fc-body">"Any call made to the subject's bank, any email sent, any outreach — logged here. AI reviews communication content for red flags. If a regulator asks 'did you contact the subject?' — you have a timestamped record."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">AI Insights — automatic risk score</div>
+        <div class="fc-body">"When the case was created, OpsOwl triggered an AI risk analysis in the background. It scored this case, flagged anomalies, and surfaced it here. Your MLRO sees an objective risk assessment — not just an analyst's gut feel."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Timeline — the full audit trail</div>
+        <div class="fc-body">"Every action in this case — every note, upload, status change, task completion — appears on this timeline in real-time. You're watching a live investigation. When it's done, this is your forensic record."</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → Notes tab</li>
+        <li>Show existing notes — point to author, timestamp</li>
+        <li class="n">"Two analysts, different time — full thread in one place."</li>
+        <li>Case → Documents tab</li>
+        <li>Show an uploaded document → click to open → point to AI-extracted text/entities</li>
+        <li class="n">If no doc: just show the upload area and mention extraction happens automatically</li>
+        <li>Case → Comms tab</li>
+        <li>Show a logged communication entry</li>
+        <li>Case → Insights tab</li>
+        <li>Point to: risk score, anomaly flags, model used</li>
+        <li>Case → Timeline tab</li>
+        <li>Show the chronological trail of events for this case</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Investigation work that was scattered across 5 apps — notes in email, docs in Drive, calls in WhatsApp — now lives in one auditable place. When an analyst leaves, nothing leaves with them.</span></div>
+</article>
+
+<!-- SCENE 05 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 05</span>
+    <span class="st">Subject 360 — Complete Intelligence on Who You're Investigating</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Subject 360</span><span class="tag">Entity Directory</span><span class="tag">PEP / Sanctions</span><span class="tag">Risk History</span><span class="tag">Prior Cases</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"First task in the playbook — verify the subject. Let me show you something that would normally take your analyst 30 minutes across 3 systems."</p>
+      <p>"<em class='hl'>Subject 360.</em> Every piece of intelligence OpsOwl holds on Rahul Verma, in one view. He's been in two prior cases. One of them was STR-filed in March. Risk score 78. <em class='hl'>PEP: flagged.</em>"</p>
+      <p>"And the case we just opened — it's already linked here. Your analyst sees the full history in 10 seconds without opening a second system."</p>
+      <div class="fc">
+        <div class="fc-head">Why this matters in a regulatory exam</div>
+        <div class="fc-body">"If FIU-IND audits you and asks: 'Did you know this subject had a prior STR?' — you can show them: yes, the prior case was visible to the analyst at the moment they opened this investigation. <strong>That's a defensible answer.</strong>"</div>
+      </div>
+      <p>"And because OpsOwl also runs the subject directory — <em>all your subjects are searchable</em>, with risk scores, PEP flags, sanctions status, linked entities. It's the institutional memory your team has never had before."</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case Overview → click "Rahul Verma" subject chip</li>
+        <li>Subject 360 opens</li>
+        <li>Point to: risk score 78, PEP badge, is_sanctioned: false, entity_type: individual</li>
+        <li>Point to: Cases section → 3 total (2 prior, 1 current = this case)</li>
+        <li>Point to: STR filings section → 1 prior filing, March 2026</li>
+        <li class="n">Pause here. Let the "repeat offender" visual land.</li>
+        <li>Scroll to: Risk History section (if visible)</li>
+        <li>Navigate back to case (breadcrumb)</li>
+        <li class="n">Bonus: navigate to Subjects (sidebar) to show the entity directory — all subjects searchable</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Repeat offenders don't hide. Prior cases, STR filings, PEP flags, risk history — 10 seconds, no second system. Institutional memory that doesn't walk out the door when an analyst resigns.</span></div>
+</article>
+
+<!-- SCENE 06 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 06</span>
+    <span class="st">Flow of Funds — See Where the Money Actually Went</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Transactions</span><span class="tag">Flow of Funds Graph</span><span class="tag">CTR Detection</span><span class="tag">Suspicious Flags</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Task two — review the transactions. Let me show you why this alert was flagged and why it's not a false positive."</p>
+      <p>"Seven UPI transactions, 72 hours. The amounts: ₹9.82L, ₹9.91L, ₹9.75L, ₹9.88L. <em class='hl'>Every single one is just below the ₹10 lakh CTR threshold.</em> Textbook structuring under PMLA 2002 Section 3."</p>
+      <p>"Your analyst could spot this in the table. But the graph makes it undeniable."</p>
+      <p>"Rahul Verma's account in the centre — four beneficiary accounts at the edges. The red path — OpsOwl flagged it automatically: <em>two of those destination accounts are connected to a prior flagged entity.</em>"</p>
+      <p>"A junior analyst, working manually, draws this on a whiteboard in 2 hours. It's here in 30 seconds. And it's printable — you attach this graph to your STR filing."</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → Transactions tab</li>
+        <li>Point to 7 rows: amounts ₹9.8L–₹9.9L range, channel: UPI, is_flagged: true badge</li>
+        <li class="n">Pause on the amounts column. Let the pattern land visually — don't rush.</li>
+        <li>Point to: total amount ₹48.5L, date range (72h)</li>
+        <li>Click "Flow of Funds" button</li>
+        <li>Graph loads: Rahul Verma centre → 3–4 destination nodes</li>
+        <li>Point to: red/highlighted suspicious edges</li>
+        <li>Point to: total_flow label and node labels</li>
+        <li class="n">"has_cycles: true" if shown — mention it flags circular flows too</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">The structuring pattern — visible in 30 seconds, not 2 hours. The flow of funds — one graph, zero manual drawing. Your analyst confirms the pattern; they don't discover it.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART C -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part C</span>
+  <span class="part-title">The AI Suite — Four Layers of Intelligence</span>
+  <span class="part-who">Who sees this: Analyst, MLRO, CTO</span>
+</div>
+
+<!-- SCENE 07 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 07</span>
+    <span class="st">AI Copilot + Investigation Agent — Your Analyst's Second Brain</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">2.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">AI Copilot</span><span class="tag">Investigation Agent</span><span class="tag">Autonomous Tools</span><span class="tag">Similar Case Search</span><span class="tag">On-Premise LLM</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Four AI capabilities in OpsOwl. Let me walk through them in order of impact."</p>
+      <div class="fc">
+        <div class="fc-head">AI Insights — runs automatically on case creation</div>
+        <div class="fc-body">"Already happened in the background. AI scored this case, detected anomalies, surfaced risk factors. Your analyst didn't ask for it — OpsOwl did it automatically the moment the alert converted."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">AI Copilot — ask anything about the case</div>
+        <div class="fc-body">"Ask: 'What documents have we collected?' or 'Summarise the findings so far' — Copilot reads the entire case and answers in context. It's RAG — retrieval from your actual case data, not generic AI."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Investigation Agent — autonomous, tool-using AI ⚡</div>
+        <div class="fc-body">"This is the headline. Watch it work autonomously — pulling context, reviewing all 7 transactions, pulling the case timeline, searching for similar cases across your entire investigation history. Not a chatbot — a working agent."</div>
+      </div>
+      <p><em>"It found OWL-2026-00008 — a structuring case from March that we STR-filed. Same pattern, similar account profile. And here's its full recommendation — HIGH CONFIDENCE, PMLA 2002 Section 3, STR within 7 days."</em></p>
+      <div class="fc">
+        <div class="fc-head">AI Narrative — case report, auto-drafted</div>
+        <div class="fc-body">"After findings are documented, AI generates the full case narrative — structured, referenced, ready for MLRO review. Analyst edits and approves. <strong>The part that takes 2 hours now takes 10 minutes.</strong>"</div>
+      </div>
+      <p><strong>"And critically — all of this runs on-premise. Your local Ollama instance. No investigation data leaves your network. Ever."</strong></p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → Insights tab → point to auto-generated risk score and anomaly flags</li>
+        <li class="n">"This ran automatically. Analyst didn't do anything."</li>
+        <li>Case → Copilot tab → Q&amp;A tab</li>
+        <li>Ask: "Summarise the key risk factors in this case"</li>
+        <li>Show streaming response — case-specific, not generic</li>
+        <li>Switch to ⚡ Agent tab</li>
+        <li>Type goal: "Investigate for AML red flags and recommend next steps"</li>
+        <li>Click Run Agent</li>
+        <li class="warn">Let the SSE stream run. Don't talk over it — the tool calls firing are the demo.</li>
+        <li>Narrate each tool call: get_case_context → get_case_transactions → search_similar_cases</li>
+        <li>Point to final answer: confidence, PMLA reference, STR recommendation</li>
+        <li>Case → Narrative tab → show AI-generated narrative draft (if available)</li>
+        <li class="n">If not generated yet: click "Generate Narrative" → show it being written</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Four AI layers — automatic risk scoring, contextual Q&amp;A, autonomous investigation, narrative drafting. Your analyst reviews and approves. They don't write from scratch. And none of this touches a cloud server.</span></div>
+</article>
+
+<!-- SCENE 08 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 08</span>
+    <span class="st">AI Act Compliance — Every AI Decision is Logged and Reviewed</span>
+    <div class="sh-right"><span class="badge opt">Optional</span><span class="tc">1 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">AI Logs</span><span class="tag">Human Review</span><span class="tag">AI Oversight</span><span class="tag">Model Audit</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"One thing regulators are starting to ask — and RBI will ask this — is: 'If AI made a recommendation in your investigation, how did you validate it?'"</p>
+      <p>"Every AI action in OpsOwl is logged — which model, which version, the confidence score, the exact prompt, the exact output. And before any AI recommendation is used in a finding or a filing, <em class='hl'>a human has to approve, reject, or edit it.</em>"</p>
+      <p>"This is the compliance record for your AI. If a regulator asks: 'How did AI influence this case?' — you show them this log. Model used, human reviewer, review date, final disposition. <strong>You don't just use AI — you can prove how you used it.</strong>"</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → AI Logs tab</li>
+        <li>Show entries: action_type, model_used, confidence_score, human_review_status</li>
+        <li>Click one entry → show approve/reject/edit controls</li>
+        <li class="n">Mention: "pending queue appears in Settings → AI Oversight for the MLRO"</li>
+        <li>Settings → AI Oversight → show pending review queue and export CSV button</li>
+        <li class="n">"Export this for a regulator. Every AI decision, every human review. Audit-ready."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">AI that's explainable and auditable. Not a black box. Every AI recommendation has a human reviewer on record. That's what RBI will expect.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART D -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part D</span>
+  <span class="part-title">Compliance Outputs — Findings, STR, and goAML</span>
+  <span class="part-who">Who sees this: Compliance Officer, MLRO, Regulator</span>
+</div>
+
+<!-- SCENE 09 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 09</span>
+    <span class="st">Findings + Evidence — Every Conclusion Backed by Proof</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Findings</span><span class="tag">Evidence Linking</span><span class="tag">Maker-Checker</span><span class="tag">FATF Typologies</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Your analyst has reviewed the transactions, run the AI agent, looked at the flow of funds. Now they document the finding — this is what the regulator reads."</p>
+      <p>"<em class='hl'>Structuring — PMLA 2002 Section 3. Severity: High.</em> But here's the key: every finding must be evidence-linked. You link the 7 transactions. You link the AI log. You link the flow-of-funds graph."</p>
+      <p>"It's not an assertion. It's a <strong>documented conclusion backed by a chain of evidence</strong>. That distinction matters enormously when you're being audited."</p>
+      <p>"And it's maker-checker — analyst submits, MLRO reviews and approves. Two-person rule, documented. The finding can't move to the STR without MLRO sign-off."</p>
+      <div class="fc">
+        <div class="fc-head">FATF Typologies — built-in</div>
+        <div class="fc-body">"OpsOwl has the FATF risk typology library built in — 6 categories, mapped to real-world patterns. Your analyst tags the finding to the relevant typology. When FIU-IND asks for your typology breakdown, it's already categorised."</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → Findings tab → "New Finding"</li>
+        <li>Title: "Structuring — PMLA 2002 Section 3"</li>
+        <li>Severity: High, Category: (select relevant)</li>
+        <li>Evidence tab → link 7 transactions (multi-select)</li>
+        <li>Evidence tab → link AI log entry</li>
+        <li>Submit finding</li>
+        <li class="n">Switch to MLRO role → Approve finding</li>
+        <li>Point to: evidence_count badge on the finding card</li>
+        <li class="n">Show Settings → Typologies if time allows — "FATF library, read-only, 6 categories"</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Every conclusion has evidence. Not an assertion — a documented finding linked to the transactions, the AI log, the documents. That's what survives a regulatory exam.</span></div>
+</article>
+
+<!-- SCENE 10 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 10</span>
+    <span class="st">STR Filing + goAML XML Export — FIU-IND Ready in 2 Clicks</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">2 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">STR / SAR</span><span class="tag">Pre-Flight Checklist</span><span class="tag">Dual Authorization</span><span class="tag">goAML XML</span><span class="tag">FINnet 2.0</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Now the most critical part — filing the STR with FIU-IND. This is where most compliance teams lose hours."</p>
+      <p>"Before OpsOwl lets you file, it runs a <em class='hl'>Pre-Flight Compliance Checklist</em> — 8 automated gates. Subject verified. Finding documented and approved. Transactions linked. Narrative complete. MLRO assigned. All 8 must pass before the file button activates."</p>
+      <p>"This isn't just convenience — it's your <strong>defence against an incomplete filing.</strong> FIU-IND rejects incomplete STRs. OpsOwl won't let you submit one."</p>
+      <p>"Analyst submits. It goes to the MLRO's approval queue — they review, approve. This is the dual-authorisation control that FIU-IND expects."</p>
+      <p>"MLRO approves. And now — <em class='hl'>one click: Export goAML XML.</em> FINnet 2.0 format. The exact schema FIU-IND accepts via their portal. Your compliance team is not writing XML. There is no Python script. There is no separate tool. <strong>One button.</strong>"</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → STR tab</li>
+        <li>Point to Pre-Flight Checklist panel — all 8 checks green ✓</li>
+        <li class="n">If any check is amber/red: explain what it means and how to resolve — don't hide it, it's a feature</li>
+        <li>Click "New Filing"</li>
+        <li>Fill: title, description, filing_type: STR</li>
+        <li>Submit (as analyst)</li>
+        <li>Switch to MLRO role → Approve filing</li>
+        <li>Status changes: submitted → approved → filed</li>
+        <li>Click "Export goAML XML" button</li>
+        <li>File downloads</li>
+        <li class="n">If time: briefly open the XML to show the FINnet 2.0 structure — reporting_entity, subject, transactions</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">STR from investigation to FIU-IND-ready goAML XML — in 5 minutes, not half a day. Pre-flight gates mean you can't file an incomplete STR. Dual authorisation means two people are always on record.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART E -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part E</span>
+  <span class="part-title">Closure, Audit Trail &amp; MLRO Dashboard</span>
+  <span class="part-who">Who sees this: MLRO, Head of Compliance, Internal Audit</span>
+</div>
+
+<!-- SCENE 11 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 11</span>
+    <span class="st">Closure + Hash-Chained Audit Trail — The Regulator's View</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Case Closure</span><span class="tag">Disposition</span><span class="tag">Audit Trail</span><span class="tag">Hash-Chain</span><span class="tag">SIEM</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"STR filed. Case closed."</p>
+      <p>"The closure disposition — <em class='hl'>STR Filed</em> — is a structured choice, not a text field. Reasons are standardised: STR filed, SAR filed, false positive, no action, enhanced monitoring, referred to law enforcement. Your MLRO signs off. Case sealed."</p>
+      <p>"Now — the audit trail. This is what you hand a regulator."</p>
+      <p>"Every action in this case — alert received, case created, note added, document uploaded, finding approved, STR submitted, MLRO approved, case closed — is here in chronological order."</p>
+      <p>"<em class='hl'>Hash-chained.</em> Each entry is cryptographically linked to the previous one. If anyone modifies any record, the chain breaks and the tamper is visible. This is forensically defensible evidence — not just a log."</p>
+      <p>"And if your organisation has a SIEM — Splunk, Microsoft Sentinel — OpsOwl forwards every audit event there automatically. Your security team gets investigation activity in their existing monitoring infrastructure."</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Case → Closure tab</li>
+        <li>Disposition dropdown → "STR Filed"</li>
+        <li>Fill: summary, reason_code</li>
+        <li>Submit → MLRO Approve</li>
+        <li>Case status → Closed (show status badge change)</li>
+        <li>Navigate to: Audit Trail (left sidebar)</li>
+        <li>Filter or search for this case number</li>
+        <li>Point to: chain of entries from alert → closure, each with actor + timestamp</li>
+        <li class="n">If hash column visible: "each row's hash includes the previous row. Break the chain = tamper detected."</li>
+        <li class="n">Mention SIEM integration: "Settings → forwards to Splunk/Sentinel automatically"</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Closed, documented, hash-chained. The regulator gets a forensically defensible record — not a spreadsheet with a disclaimer. Every decision, every actor, every timestamp. Tamper-evident.</span></div>
+</article>
+
+<!-- SCENE 12 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 12</span>
+    <span class="st">MLRO Dashboard — Compliance Intelligence at a Glance</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">1 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">Analytics</span><span class="tag">KPI Dashboard</span><span class="tag">Workload</span><span class="tag">Automated Reports</span><span class="tag">Export</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"Your MLRO doesn't review every case. But they need to know the compliance picture instantly. This is what they see."</p>
+      <div class="fc">
+        <div class="fc-head">Compliance Dashboard (Analytics)</div>
+        <div class="fc-body">"Open cases, STRs filed this month, average closure time, SLA breach rate. Eight KPIs, live. If breach rate is spiking, MLRO knows before the regulator does."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Workload View</div>
+        <div class="fc-body">"Analyst workloads — who has how many open cases. MLRO can rebalance assignments from this screen. No email needed, no meeting needed."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Automated Reports</div>
+        <div class="fc-body">"MLRO wants a compliance summary every Monday morning — OpsOwl emails it automatically. Daily, weekly, or monthly. The report your MLRO used to compile manually on Friday afternoons."</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Navigate to: Analytics (Compliance Dashboard)</li>
+        <li>Point to KPI cards: open cases, STRs this month, avg closure days, SLA breach %</li>
+        <li>Scroll to: investigator workload table (cases per analyst)</li>
+        <li>Point to: Export CSV button — "download for board pack or regulator"</li>
+        <li>Settings → Automated Reports → show a configured weekly report</li>
+        <li class="n">"Every Monday at 8am, the MLRO's inbox gets a compliance summary. They didn't ask for it. It just arrives."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">MLRO runs compliance, not spreadsheets. Live KPIs, workload visibility, automated reporting — the compliance picture in one screen, not 12 tabs.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- PART F -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="part">
+  <span class="part-letter">Part F</span>
+  <span class="part-title">Administration &amp; Governance — How You Run OpsOwl</span>
+  <span class="part-who">Who sees this: Admin, IT/Security, Head of Compliance</span>
+</div>
+
+<!-- SCENE 13 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 13</span>
+    <span class="st">SLA Policies, Assignment Rules, Data Retention</span>
+    <div class="sh-right"><span class="badge opt">Optional</span><span class="tc">1.5 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">SLA Policies</span><span class="tag">Assignment Rules</span><span class="tag">Case Templates</span><span class="tag">Data Retention</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <div class="fc">
+        <div class="fc-head">SLA Policies — deadline enforcement, automated</div>
+        <div class="fc-body">"You configure SLA per case type — Structuring: 7 days, PEP: 3 days. OpsOwl enforces it. At 80%, analyst gets an email. At 100%, MLRO is escalated. <strong>Zero surprise breaches.</strong>"</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Assignment Rules — least-loaded routing</div>
+        <div class="fc-body">"When a case is created, assignment rules evaluate who should get it — by role, by current open case count, by case type. The analyst with capacity gets the case, not the analyst who happened to be online first."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Case Templates — pre-populate common cases</div>
+        <div class="fc-body">"Templates let you pre-define the structure for common case types. A 'Sanctions Hit' template pre-creates the right tasks, document checklist, and required fields. New analysts start with the right structure, not a blank page."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">Data Retention — PMLA-compliant, automated</div>
+        <div class="fc-body">"PMLA 2002 requires 10 years. OpsOwl enforces the floor — you cannot set retention below 10 years. Automated scheduler deletes expired records. <strong>Your storage doesn't grow forever. Your compliance doesn't slip.</strong>"</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Settings → Response SLAs</li>
+        <li>Show configured SLA policy: breach_days per case type</li>
+        <li>Settings → Case Routing (Assignment Rules)</li>
+        <li>Show a rule: role-based or least-loaded logic</li>
+        <li>Settings → Case Templates</li>
+        <li>Show template with pre-defined task stubs</li>
+        <li>Settings → Data Retention</li>
+        <li>Show retention_years field and policy types — point to the 10-year floor note</li>
+        <li class="n">"Try to set it below 10 — the system rejects it. PMLA floor is enforced in code."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Your compliance policies — deadlines, routing, retention — encoded into the system, not into people's habits. OpsOwl enforces them even when no one is watching.</span></div>
+</article>
+
+<!-- SCENE 14 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 14</span>
+    <span class="st">Users, RBAC, MFA — Access Control for a Compliance Platform</span>
+    <div class="sh-right"><span class="badge opt">Optional</span><span class="tc">1 min</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">RBAC</span><span class="tag">MFA</span><span class="tag">Session Limits</span><span class="tag">API Keys</span><span class="tag">Outbound Webhooks</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"OpsOwl holds sensitive investigation data. Access control isn't optional — it's your first line of defence."</p>
+      <div class="fc">
+        <div class="fc-head">Role-Based Access Control — 5 roles</div>
+        <div class="fc-body">"Viewer → Analyst → Manager → Admin → Super Admin. A viewer can read cases but never approve a finding. An analyst can't access admin settings. The MLRO has a Manager-level role — they approve STRs but can't reconfigure the system. <strong>Right people, right access, nothing more.</strong>"</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">MFA + Session Limits</div>
+        <div class="fc-body">"MFA enforced organisation-wide — RBI's cybersecurity guidelines, satisfied. Max 5 concurrent sessions per user. Auto-logout on inactivity. Password expiry every 90 days, history prevents reuse. An analyst's stolen laptop doesn't become a breach."</div>
+      </div>
+      <div class="fc">
+        <div class="fc-head">API Keys + Outbound Webhooks</div>
+        <div class="fc-body">"For your downstream integrations — your risk system, your case management platform — scoped API keys let third-party tools query OpsOwl safely. And outbound webhooks push events — case created, STR filed, case closed — to any endpoint. OpsOwl fits into your stack without requiring every tool to log in."</div>
+      </div>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li>Settings → Team Members → show user list with role badges</li>
+        <li>Show invite modal — role dropdown with 5 options</li>
+        <li>Settings → Settings (hub) → MFA enforcement toggle</li>
+        <li>Point to: max_sessions_per_user, password_expiry_days config</li>
+        <li>Settings → API Keys → show a key with scopes listed</li>
+        <li>Settings → Outbound Webhooks → show a webhook with event types (case.created, str.filed)</li>
+        <li class="n">"Any system that needs to know when a case changes status subscribes via this webhook — no polling, no manual export."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">Role-based access, MFA, session controls, scoped API keys — OpsOwl is built to satisfy RBI's cybersecurity framework, not just a checklist. And it integrates into your existing stack via webhooks.</span></div>
+</article>
+
+<!-- SCENE 15 -->
+<article class="scene">
+  <div class="sh">
+    <span class="sn">Scene 15</span>
+    <span class="st">On-Premise Deployment — Your Data Never Leaves Your Network</span>
+    <div class="sh-right"><span class="badge req">Required</span><span class="tc">45 sec</span></div>
+  </div>
+  <div class="tags">
+    <span class="tag">On-Premise</span><span class="tag">Air-Gap</span><span class="tag">Local LLM</span><span class="tag">Offline License</span>
+  </div>
+  <div class="sb">
+    <div class="sc">
+      <div class="cl say-cl">Say</div>
+      <p>"One thing before I close. The demo you just saw — AI agent, narrative generation, risk scoring — ran entirely on your local machine. The LLM is Ollama, running locally. No API call to OpenAI. No data to Anthropic."</p>
+      <p>"OpsOwl is designed for deployment inside your perimeter. Go API, PostgreSQL, object storage, LLM — all containers, all yours. Air-gapped if needed. Offline license that works with no internet connection."</p>
+      <p>"<strong>Your investigation data — subjects, cases, STRs, transactions — never leaves your infrastructure. That's not a configuration option. It's the architecture.</strong>"</p>
+    </div>
+    <div class="hc">
+      <div class="cl shw-cl">Show / Click</div>
+      <ul class="sl">
+        <li class="n">No screen needed here — this is a talking point</li>
+        <li class="n">If they ask: "Show me the architecture" — mention: Go API (port 8080), PostgreSQL (5433), MinIO (object store), Ollama (11434), Next.js UI (3001). All Docker containers, all on-prem.</li>
+        <li class="n">If they ask about cloud AI option: "Available with Anthropic API key configured — but customer data is masked by our PII masker before it leaves the network."</li>
+      </ul>
+    </div>
+  </div>
+  <div class="km"><span class="km-label">Key Message</span><span class="km-text">AI that runs locally. Data that stays local. An offline-capable system for organisations where data sovereignty is non-negotiable.</span></div>
+</article>
+
+<!-- ═══════════════════════════════════════════════════════ -->
+<!-- CLOSING -->
+<!-- ═══════════════════════════════════════════════════════ -->
+<div class="band">
+  <div class="band-h"><span class="band-l">Closing — Land the Summary, Open the Conversation</span><span class="tc">1 min</span></div>
+  <div class="band-b">
+    <p><strong>"What you just saw — from a Decentro Fraud Engine alert to a Subject 360 check, flow-of-funds graph, autonomous AI investigation, evidence-linked finding, dual-auth STR, FINnet 2.0 goAML export, hash-chained closure, and MLRO dashboard — that's the complete OpsOwl investigation lifecycle."</strong></p>
+    <p>"For your compliance team, that's the difference between 5 days and under 24 hours per case. It's the difference between a regulator finding gaps and a regulator finding a clean, tamper-evident audit trail. And it all runs inside your perimeter — no data leaves your network."</p>
+    <div class="ask">"Question 1 — Does your Fraud Engine currently fire structured JSON webhooks, or is the payload in a different format? We want to understand the integration path before we talk timelines."</div>
+    <div class="ask">"Question 2 — Who on your side would be the MLRO — the person who approves STRs and closes cases? That's the seat we'd want to walk through the approval workflow with specifically."</div>
+    <div class="ask">"Question 3 — Would a 2-week pilot make sense? We can have your Fraud Engine sending live alerts into OpsOwl by end of this week, and you'd have a real investigation completed by Day 5."</div>
+  </div>
+</div>
+
+<!-- BOTTOM TIP -->
+<div class="summary">
+  <div class="tip-box" style="max-width:100%">
+    <strong>If they're engaged and asking questions in any scene — stop demoing and talk.</strong> Questions mean interest. Features mean nothing if they're not listening. Come back to the screen after the answer.
+  </div>
+</div>
+
+</main>

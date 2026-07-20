@@ -157,7 +157,7 @@ export default function AlertSourcesPage() {
             <Plug className="w-5 h-5 text-cyan-400" />
             <h1 className="text-xl font-bold text-slate-100">Alert Sources</h1>
           </div>
-          <p className="text-slate-400 text-sm mt-1">Configure TMS integrations that push alerts to OpsOwl</p>
+          <p className="text-slate-400 text-sm mt-1">Connect external fraud engines or TMS systems. Each alert lands in the queue for triage — with subject resolution, deduplication, and risk ranking. For direct case creation without triage, use Inbound Webhooks.</p>
         </div>
         <button onClick={() => setCreating(true)}
           className="flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 text-white rounded-lg text-sm font-medium transition-colors">

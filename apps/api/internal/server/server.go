@@ -408,7 +408,7 @@ func (s *Server) setupRoutes(ctx context.Context) {
 		sysUserID := resolveSystemUser(ctx, s.sqlDB)
 		alertsRepo := alerts.NewRepository(s.sqlDB)
 		alertsSvc := alerts.NewService(alertsRepo).
-			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, subjectsSvc, sysUserID, assignEng}).
+			WithCaseCreator(alertCaseCreatorAdapter{casesSvc, subjectsSvc, s.sqlDB, s.logger, assignEng}).
 			WithSubjectResolver(alertSubjectResolverAdapter{subjectsSvc, sysUserID}).
 			WithInsightsTrigger(alertInsightsTriggerAdapter{insightsHandler, sysUserID})
 		alertsHandler := alerts.NewHandler(alertsSvc)
@@ -608,10 +608,17 @@ func resolveSystemUser(ctx context.Context, db *sql.DB) uuid.UUID {
 
 // alertCaseCreatorAdapter bridges alerts.CaseCreator to cases.Service.CreateAuto.
 type alertCaseCreatorAdapter struct {
-	svc           *cases.Service
-	subjectSvc    *subjects.Service
-	systemCreator uuid.UUID
-	assignEng     *assignment.Engine
+	svc        *cases.Service
+	subjectSvc *subjects.Service
+	db         *sql.DB
+	logger     *zap.Logger
+	assignEng  *assignment.Engine
+}
+
+// systemUser resolves the system actor at call time so the adapter works correctly
+// even when the first admin user is created after server startup.
+func (a alertCaseCreatorAdapter) systemUser(ctx context.Context) uuid.UUID {
+	return resolveSystemUser(ctx, a.db)
 }
 
 func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.AlertCaseParams) (uuid.UUID, string, error) {
@@ -636,14 +643,20 @@ func (a alertCaseCreatorAdapter) CreateFromAlert(ctx context.Context, p alerts.A
 			req.AssignedTo = &userID
 		}
 	}
-	c, err := a.svc.CreateAuto(ctx, a.systemCreator, req)
+	sysID := a.systemUser(ctx)
+	c, err := a.svc.CreateAuto(ctx, sysID, req)
 	if err != nil {
 		return uuid.Nil, "", err
 	}
-	// Link subject to the auto-created case (best-effort)
-	if p.SubjectID != nil {
-		claims := &auth.Claims{UserID: a.systemCreator}
-		_ = a.subjectSvc.LinkToCase(ctx, claims, c.ID, *p.SubjectID, "primary")
+	// Link subject to the auto-created case (best-effort); log on failure.
+	if p.SubjectID != nil && sysID != uuid.Nil {
+		claims := &auth.Claims{UserID: sysID}
+		if lerr := a.subjectSvc.LinkToCase(ctx, claims, c.ID, *p.SubjectID, "primary"); lerr != nil {
+			a.logger.Warn("subject link after auto-create failed",
+				zap.String("case_id", c.ID.String()),
+				zap.String("subject_id", p.SubjectID.String()),
+				zap.Error(lerr))
+		}
 	}
 	return c.ID, c.CaseNumber, nil
 }

@@ -205,8 +205,8 @@ export default function CaseTasksPage({ params }: { params: Promise<{ id: string
     onSettled: () => qc.invalidateQueries({ queryKey: ["case-tasks", caseId] }),
   });
 
-  const assignMutation = useMutation({
-    mutationFn: ({ taskId, userId }: { taskId: string; userId: string }) =>
+  const assignMutation = useMutation<Task, Error, { taskId: string; userId: string }, { prev: unknown; queryKey: unknown[] }>({
+    mutationFn: ({ taskId, userId }) =>
       api.put<Task>(`/api/v1/tasks/${taskId}`, { assigned_to: userId }),
     onMutate: async ({ taskId, userId }) => {
       await qc.cancelQueries({ queryKey: ["case-tasks", caseId] });

@@ -78,7 +78,7 @@ export interface FlowOfFundsGraphProps {
 // ── Internal node data type stored in React Flow node bag ─────────────────
 
 interface NodeData extends FlowNode {
-  role: "source" | "intermediary" | "destination" | "unresolved";
+  role: "subject" | "source" | "intermediary" | "destination" | "unresolved";
   currency: string;
 }
 
@@ -86,6 +86,7 @@ interface NodeData extends FlowNode {
 
 function nodeRole(n: FlowNode): NodeData["role"] {
   if (!n.label || n.label.startsWith("unresolved:")) return "unresolved";
+  if (n.is_subject) return "subject";
   if (n.total_in === 0 && n.total_out > 0) return "source";
   if (n.total_out === 0 && n.total_in > 0) return "destination";
   return "intermediary";
@@ -162,12 +163,30 @@ function applyDagreLayout(nodes: Node[], edges: Edge[]): Node[] {
     return fanInLayout(nodes, pureDests[0], pureSources);
   }
 
-  // Linear chain, diamond, cycle, complex web — dagre LR handles all of these
+  // Linear chain, diamond, cycle, complex web — dagre LR handles all of these.
+  // Force Subject leftmost: reverse any edges pointing TO the subject so dagre
+  // ranks it as a pure source. Deduplicate after reversal to avoid duplicate edges.
+  const subjectId = nodes.find(n => (n.data as unknown as { is_subject: boolean }).is_subject)?.id;
+  const dagreEdges = subjectId
+    ? edges.map(e =>
+        e.target === subjectId && e.source !== subjectId
+          ? { ...e, source: e.target, target: e.source }
+          : e
+      )
+    : edges;
+  const seen = new Set<string>();
+  const uniqueDagreEdges = dagreEdges.filter(e => {
+    const key = `${e.source}|${e.target}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
   const g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: "LR", nodesep: 40, ranksep: 140, edgesep: 20 });
   g.setDefaultEdgeLabel(() => ({}));
   nodes.forEach(n => g.setNode(n.id, { width: NODE_W, height: NODE_H }));
-  edges.forEach(e => g.setEdge(e.source, e.target, { weight: 1 }));
+  uniqueDagreEdges.forEach(e => g.setEdge(e.source, e.target, { weight: 1 }));
   dagre.layout(g);
   return nodes.map(n => {
     const pos = g.node(n.id);
@@ -184,37 +203,40 @@ const AccountNode = memo(function AccountNode({ data, selected }: NodeProps) {
   const d = (data as unknown) as NodeData;
 
   const borderClass =
-    d.role === "source"      ? "border-green-500 border-2"        :
-    d.role === "destination" ? "border-red-500 border-2"          :
+    d.role === "subject"     ? "border-cyan-400 border-2"             :
+    d.role === "source"      ? "border-green-500 border-2"            :
+    d.role === "destination" ? "border-red-500 border-2"              :
     d.role === "unresolved"  ? "border-slate-600 border border-dashed" :
                                "border-amber-500/60 border";
 
   const bgClass =
+    d.role === "subject"     ? "bg-cyan-950/40"   :
     d.role === "source"      ? "bg-green-950/40"  :
     d.role === "destination" ? "bg-red-950/40"    :
     d.role === "unresolved"  ? "bg-slate-800/50"  :
                                "bg-amber-950/20";
 
   const roleColor =
+    d.role === "subject"     ? "text-cyan-400"   :
     d.role === "source"      ? "text-green-400"  :
     d.role === "destination" ? "text-red-400"    :
     d.role === "unresolved"  ? "text-slate-500"  :
                                "text-amber-400";
 
   const roleLabel =
+    d.role === "subject"     ? "Subject"     :
     d.role === "source"      ? "Source"      :
     d.role === "destination" ? "Destination" :
     d.role === "unresolved"  ? "Unresolved"  :
                                "Intermediary";
 
-  const ringClass   = selected ? "ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900" : "";
-  const subjectRing = d.is_subject ? "ring-1 ring-cyan-500 ring-offset-1 ring-offset-slate-900" : "";
+  const ringClass = selected ? "ring-2 ring-cyan-400 ring-offset-1 ring-offset-slate-900" : "";
 
   return (
     <div
       className={[
         "flex flex-col px-3 py-2 rounded-lg w-40 shadow-lg transition-shadow hover:shadow-cyan-900/30",
-        borderClass, bgClass, ringClass, subjectRing,
+        borderClass, bgClass, ringClass,
       ].filter(Boolean).join(" ")}
     >
       <Handle type="target" position={Position.Left} style={{ background: "#334155", border: "1px solid #475569", width: 8, height: 8 }} />
@@ -232,9 +254,9 @@ const AccountNode = memo(function AccountNode({ data, selected }: NodeProps) {
         )}
       </div>
       <span className={`text-[8px] font-medium uppercase tracking-wider mb-1 ${roleColor}`}>{roleLabel}</span>
-      <div className="flex items-center justify-between text-[9px]">
-        <span className="text-green-400">↑{formatCompact(d.total_in, d.currency)}</span>
-        <span className="text-red-400">↓{formatCompact(d.total_out, d.currency)}</span>
+      <div className="flex items-center justify-between text-[9px] gap-1">
+        {d.total_in  > 0 && <span className="text-green-400 font-bold">↑{formatCompact(d.total_in,  d.currency)}</span>}
+        {d.total_out > 0 && <span className="text-red-400   font-bold">↓{formatCompact(d.total_out, d.currency)}</span>}
       </div>
       <span className="text-[8px] text-slate-600 mt-0.5">{d.txn_count} txn{d.txn_count !== 1 ? "s" : ""}</span>
     </div>
@@ -248,7 +270,8 @@ const nodeTypes = { accountNode: AccountNode };
 
 function miniMapColor(n: Node): string {
   const d = (n.data as unknown) as NodeData;
-  return d.role === "source"      ? "#22c55e"
+  return d.role === "subject"     ? "#22d3ee"
+       : d.role === "source"      ? "#22c55e"
        : d.role === "destination" ? "#ef4444"
        : d.role === "unresolved"  ? "#475569"
        :                            "#f59e0b";
@@ -467,13 +490,6 @@ function GraphInner({
         id:     e.id,
         source: e.source,
         target: e.target,
-        label:  formatCompact(e.amount, currency),
-        labelStyle: {
-          fontSize:   9,
-          fill:       dimmed ? dim : (isSusp ? "#d97706" : "#64748b"),
-          fontFamily: "monospace",
-        },
-        labelBgStyle: { fill: "#0b1524", fillOpacity: dimmed ? 0.1 : 0.8 },
         style: {
           strokeWidth: strokeW,
           stroke:      dimmed ? dim : color,
@@ -649,6 +665,7 @@ function GraphWithExport({
       {graph.nodes.length > 0 && (
         <div className="px-4 py-2.5 border-t border-[#1e3050] flex flex-wrap gap-x-5 gap-y-1">
           {[
+            { cls: "bg-cyan-400",   label: "Subject (case primary)" },
             { cls: "bg-green-500",  label: "Source (outflow origin)" },
             { cls: "bg-amber-500",  label: "Intermediary (pass-through)" },
             { cls: "bg-red-500",    label: "Destination (inflow end)" },

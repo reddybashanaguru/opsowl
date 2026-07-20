@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
-import { Filter, Plus, Trash2, ToggleLeft, ToggleRight, Zap, Inbox } from "lucide-react";
+import { Filter, Plus, Trash2, ToggleLeft, ToggleRight, Zap, Inbox, Eye, X } from "lucide-react";
 import { CaseTypeSelect } from "@/components/CaseTypeSelect";
 
 interface AlertRule {
@@ -229,9 +229,123 @@ function CreateRuleModal({ onClose, onCreated }: { onClose: () => void; onCreate
   );
 }
 
+function RuleDetailModal({ rule, userMap, onClose }: { rule: AlertRule; userMap: Record<string, string>; onClose: () => void }) {
+  const createdAt = new Date(rule.created_at).toLocaleString();
+  const assignedUser = rule.auto_assign_user_id
+    ? (userMap[rule.auto_assign_user_id] ?? "Unknown user")
+    : "Admin queue";
+
+  const Row = ({ label, value }: { label: string; value: React.ReactNode }) => (
+    <div className="grid grid-cols-[160px_1fr] gap-3 py-2.5 border-b border-slate-800 last:border-0">
+      <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide pt-0.5">{label}</span>
+      <span className="text-sm text-slate-200">{value}</span>
+    </div>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-[#131f30] border border-[#1e3050] rounded-xl ring-1 ring-white/[0.04] w-full max-w-lg shadow-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
+          <div>
+            <h2 className="text-slate-100 font-semibold text-base">{rule.name}</h2>
+            <p className="text-slate-500 text-xs mt-0.5">Alert Triage Rule · sort order {rule.sort_order}</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-6 py-4">
+          <Row label="Status" value={
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${rule.is_active ? "bg-green-500/15 text-green-400 border border-green-500/30" : "bg-slate-700 text-slate-400"}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${rule.is_active ? "bg-green-400" : "bg-slate-500"}`} />
+              {rule.is_active ? "Active" : "Inactive"}
+            </span>
+          } />
+          <Row label="Mode" value={
+            <span className="inline-flex items-center gap-1.5">
+              {rule.mode === "auto" ? (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-amber-500/15 text-amber-400 rounded text-xs font-semibold border border-amber-500/30">
+                  <Zap size={10} />AUTO — case created immediately on match
+                </span>
+              ) : (
+                <span className="flex items-center gap-1 px-2 py-0.5 bg-slate-700 text-slate-400 rounded text-xs font-semibold">
+                  <Inbox size={10} />QUEUE — analyst reviews in alert queue
+                </span>
+              )}
+            </span>
+          } />
+          <Row label="Alert Type" value={
+            <code className="bg-slate-800 text-cyan-300 rounded px-1.5 py-0.5 text-xs font-mono">
+              {rule.alert_type === "*" ? "* (catch-all — matches any type)" : rule.alert_type}
+            </code>
+          } />
+          <Row label="Min Risk Score" value={
+            <span>
+              <span className="text-slate-200 font-semibold">{rule.min_risk_score}</span>
+              <span className="text-slate-500 text-xs ml-1.5">/ 100 — alerts below this score are not matched</span>
+            </span>
+          } />
+          <Row label="Priority Mapping" value={
+            <span className={`px-2 py-0.5 rounded text-xs font-semibold uppercase ${
+              rule.priority_mapping === "critical" ? "bg-red-500/15 text-red-400" :
+              rule.priority_mapping === "high"     ? "bg-orange-500/15 text-orange-400" :
+              rule.priority_mapping === "medium"   ? "bg-yellow-500/15 text-yellow-400" :
+              "bg-slate-700 text-slate-400"
+            }`}>{rule.priority_mapping}</span>
+          } />
+          <Row label="Dedup Window" value={
+            <span>
+              <span className="text-slate-200 font-semibold">{rule.dedup_window_hours}h</span>
+              <span className="text-slate-500 text-xs ml-1.5">— same entity + alert type within this window is skipped as duplicate</span>
+            </span>
+          } />
+          <Row label="Sort Order" value={
+            <span>
+              <span className="text-slate-200 font-semibold">{rule.sort_order}</span>
+              <span className="text-slate-500 text-xs ml-1.5">— lower numbers evaluated first; first match wins</span>
+            </span>
+          } />
+          {rule.playbook_case_type && (
+            <Row label="Case Type" value={
+              <span>
+                <code className="bg-slate-800 text-cyan-300 rounded px-1.5 py-0.5 text-xs font-mono">{rule.playbook_case_type}</code>
+                <span className="text-slate-500 text-xs ml-1.5">— sets case_type on auto-created case, triggers matching playbook</span>
+              </span>
+            } />
+          )}
+          {rule.mode === "auto" && (
+            <Row label="Auto-assign To" value={
+              <span className="text-cyan-400 font-medium">{assignedUser}</span>
+            } />
+          )}
+          <Row label="Tags" value={
+            rule.tags.length > 0 ? (
+              <div className="flex gap-1.5 flex-wrap">
+                {rule.tags.map(t => (
+                  <span key={t} className="px-2 py-0.5 bg-slate-800 text-slate-300 rounded text-xs border border-slate-700">{t}</span>
+                ))}
+              </div>
+            ) : <span className="text-slate-600 text-xs">No tags</span>
+          } />
+          <Row label="Rule ID" value={
+            <code className="bg-slate-800 text-slate-400 rounded px-1.5 py-0.5 text-xs font-mono break-all">{rule.id}</code>
+          } />
+          <Row label="Created" value={<span className="text-slate-400 text-xs">{createdAt}</span>} />
+        </div>
+        <div className="px-6 pb-5">
+          <button onClick={onClose} className="w-full px-4 py-2 rounded-lg border border-slate-600 text-slate-300 text-sm hover:border-slate-500 transition-colors">
+            Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function AlertRulesPage() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [viewing, setViewing] = useState<AlertRule | null>(null);
 
   const { data, isFetching } = useQuery<{ rules: AlertRule[] }>({
     queryKey: ["alert-rules"],
@@ -340,6 +454,10 @@ export default function AlertRulesPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
+                  <button onClick={() => setViewing(rule)} title="View details"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 transition-colors">
+                    <Eye size={14} />
+                  </button>
                   <button onClick={() => toggleMutation.mutate({ id: rule.id, isActive: !rule.is_active })}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 transition-colors">
                     {rule.is_active ? <ToggleRight size={18} className="text-green-400" /> : <ToggleLeft size={18} />}
@@ -368,6 +486,13 @@ export default function AlertRulesPage() {
             setCreating(false);
             qc.invalidateQueries({ queryKey: ["alert-rules"] });
           }}
+        />
+      )}
+      {viewing && (
+        <RuleDetailModal
+          rule={viewing}
+          userMap={userMap}
+          onClose={() => setViewing(null)}
         />
       )}
     </div>

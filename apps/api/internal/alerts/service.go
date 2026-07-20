@@ -230,6 +230,16 @@ func (s *Service) ConvertToCase(ctx context.Context, claims *auth.Claims, alertI
 		}
 	}
 
+	// For alerts created via the UI (not TMS ingestion), subject_id may be nil even
+	// though the alert carries id_type + id_number. Resolve the subject now so the
+	// case_subjects link is created and Subject 360 shows the case.
+	subjectID := alert.SubjectID
+	if subjectID == nil && alert.SubjectIDNumber != "" && s.subjectMgr != nil {
+		if sid, serr := s.subjectMgr.ResolveOrCreate(ctx, alert.SubjectIDType, alert.SubjectIDNumber, alert.SubjectName); serr == nil {
+			subjectID = &sid
+		}
+	}
+
 	caseID, _, err := s.caseMgr.CreateFromAlert(ctx, AlertCaseParams{
 		Title:       title,
 		Description: req.Description,
@@ -237,7 +247,7 @@ func (s *Service) ConvertToCase(ctx context.Context, claims *auth.Claims, alertI
 		Tags:        req.Tags,
 		AssignTo:    &claims.UserID,
 		AlertID:     alertID,
-		SubjectID:   alert.SubjectID,
+		SubjectID:   subjectID,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("create case: %w", err)

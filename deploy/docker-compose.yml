@@ -68,27 +68,8 @@ services:
           memory: 512M
           cpus: "0.5"
 
-  # ── ClamAV Antivirus ──────────────────────────────────────────────────────────
-  clamav:
-    image: clamav/clamav:1.4
-    container_name: opsowl-clamav
-    restart: unless-stopped
-    environment:
-      CLAMD_CONF_MaxFileSize: "52428800"
-      CLAMD_CONF_StreamMaxLength: "52428800"
-    expose:
-      - "3310"
-    healthcheck:
-      test: ["CMD", "clamdscan", "--ping", "3"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 120s
-    deploy:
-      resources:
-        limits:
-          memory: 512M
-          cpus: "0.5"
+  # ── ClamAV Antivirus — disabled (no ARM64 image available for local demo) ────
+  # clamav: disabled
 
   # ── Ollama (local LLM — all AI inference stays on-premise) ───────────────────
   ollama:
@@ -111,23 +92,7 @@ services:
           memory: 6G
           cpus: "2.0"
 
-  ollama-init:
-    image: curlimages/curl:latest
-    container_name: opsowl-ollama-init
-    restart: "no"
-    entrypoint: >
-      sh -c "
-        echo '[ollama-init] waiting for Ollama...';
-        until curl -sf http://ollama:11434/api/version; do sleep 3; done;
-        echo '[ollama-init] pulling ${OLLAMA_MODEL:-llama3.1:8b}...';
-        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_MODEL:-llama3.1:8b}\"}' | tail -1;
-        echo '[ollama-init] pulling ${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}...';
-        curl -sf -X POST http://ollama:11434/api/pull -d '{\"name\":\"${OLLAMA_EMBEDDING_MODEL:-nomic-embed-text}\"}' | tail -1;
-        echo '[ollama-init] done.';
-      "
-    depends_on:
-      ollama:
-        condition: service_started
+  # ollama-init: disabled for demo — models (llama3.2:3b, nomic-embed-text) already installed
 
   # ── Python AI Service ─────────────────────────────────────────────────────────
   ai-service:
@@ -197,7 +162,7 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       SMTP_FROM: ${SMTP_FROM:-noreply@opsowl.local}
       SMTP_TLS: ${SMTP_TLS:-true}
-      CLAMAV_ADDR: clamav:3310
+      CLAMAV_ADDR: ""
       MAX_REQUESTS_PER_MIN: ${MAX_REQUESTS_PER_MIN:-100}
       # First-boot admin seed — clears automatically after first startup
       SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
@@ -226,8 +191,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_started
-      clamav:
-        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/health"]
       interval: 15s
@@ -245,6 +208,8 @@ services:
     image: ghcr.io/reddybashanaguru/opsowl-web:${OPSOWL_VERSION:-latest}
     container_name: opsowl-web
     restart: unless-stopped
+    ports:
+      - "3001:3000"
     environment:
       NEXT_PUBLIC_API_URL: ${PUBLIC_URL:-https://localhost}
     depends_on:

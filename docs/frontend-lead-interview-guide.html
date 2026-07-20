@@ -1,0 +1,1964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Frontend Lead Interview Guide — OpsOwl AI</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #080e1a; --surface: #0b1525; --surface2: #131f30; --border: #1e3050;
+    --cyan: #22d3ee; --cyan-dim: rgba(34,211,238,0.12);
+    --green: #4ade80; --amber: #fbbf24; --violet: #a78bfa; --red: #f87171;
+    --text: #e2e8f0; --muted: #94a3b8; --faint: #475569;
+    --code-bg: #0d1a2d;
+  }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 15px; line-height: 1.7; }
+
+  /* ── Layout ── */
+  .layout { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+  .sidebar {
+    position: sticky; top: 0; height: 100vh; overflow-y: auto;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 24px 0;
+  }
+  .sidebar-brand { padding: 0 20px 20px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .sidebar-brand .logo { color: var(--cyan); font-weight: 700; font-size: 15px; }
+  .sidebar-brand .sub { color: var(--faint); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; margin-top: 3px; }
+  .sidebar nav a {
+    display: block; padding: 6px 20px; font-size: 13px; color: var(--muted);
+    text-decoration: none; border-left: 2px solid transparent; transition: all .15s;
+  }
+  .sidebar nav a:hover { color: var(--text); border-color: var(--faint); }
+  .sidebar nav a.active { color: var(--cyan); border-color: var(--cyan); background: var(--cyan-dim); }
+  .sidebar nav .group-label {
+    padding: 16px 20px 4px; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .1em; color: var(--faint);
+  }
+  .main { max-width: 900px; padding: 48px 56px; }
+
+  /* ── Typography ── */
+  h1 { font-size: 28px; font-weight: 700; color: #fff; margin-bottom: 8px; }
+  h2 { font-size: 22px; font-weight: 700; color: #fff; margin: 56px 0 16px; padding-top: 8px; }
+  h3 { font-size: 16px; font-weight: 600; color: var(--cyan); margin: 32px 0 10px; }
+  h4 { font-size: 14px; font-weight: 600; color: var(--text); margin: 20px 0 6px; }
+  p { color: var(--muted); margin-bottom: 12px; }
+  ul, ol { color: var(--muted); padding-left: 20px; margin-bottom: 12px; }
+  li { margin-bottom: 4px; }
+  strong { color: var(--text); font-weight: 600; }
+  a { color: var(--cyan); text-decoration: none; }
+
+  /* ── Section divider ── */
+  .section { border-top: 1px solid var(--border); padding-top: 24px; margin-top: 8px; }
+
+  /* ── Code blocks ── */
+  pre {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 18px 20px; margin: 14px 0; overflow-x: auto; font-size: 13px; line-height: 1.6;
+  }
+  code { font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace; }
+  p code, li code {
+    background: var(--code-bg); border: 1px solid var(--border); border-radius: 4px;
+    padding: 1px 6px; font-size: 12.5px; color: var(--cyan);
+  }
+  .kw  { color: #c792ea; } /* keyword */
+  .fn  { color: #82aaff; } /* function */
+  .str { color: #c3e88d; } /* string */
+  .cm  { color: #546e7a; font-style: italic; } /* comment */
+  .ty  { color: #ffcb6b; } /* type */
+  .num { color: #f78c6c; } /* number */
+  .op  { color: #89ddff; } /* operator / symbol */
+
+  /* ── Callout boxes ── */
+  .callout {
+    border-radius: 8px; padding: 14px 18px; margin: 16px 0; font-size: 13.5px;
+    border-left: 3px solid;
+  }
+  .callout-cyan  { background: rgba(34,211,238,.07); border-color: var(--cyan); }
+  .callout-green { background: rgba(74,222,128,.07); border-color: var(--green); }
+  .callout-amber { background: rgba(251,191,36,.07);  border-color: var(--amber); }
+  .callout-red   { background: rgba(248,113,113,.07); border-color: var(--red); }
+  .callout-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 4px; }
+  .callout-cyan  .callout-label { color: var(--cyan); }
+  .callout-green .callout-label { color: var(--green); }
+  .callout-amber .callout-label { color: var(--amber); }
+  .callout-red   .callout-label { color: var(--red); }
+
+  /* ── QA blocks ── */
+  .qa { border: 1px solid var(--border); border-radius: 8px; margin: 20px 0; overflow: hidden; }
+  .qa-q { background: var(--surface2); padding: 12px 18px; font-size: 13.5px; font-weight: 600; color: var(--amber); cursor: pointer; user-select: none; }
+  .qa-q::before { content: "Q  "; color: var(--faint); }
+  .qa-a { padding: 14px 18px; font-size: 13.5px; color: var(--muted); border-top: 1px solid var(--border); }
+  .qa-a strong { color: var(--text); }
+
+  /* ── Comparison table ── */
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 16px 0; }
+  th { background: var(--surface2); color: var(--text); font-weight: 600; padding: 10px 14px; text-align: left; border-bottom: 1px solid var(--border); }
+  td { padding: 10px 14px; border-bottom: 1px solid rgba(30,48,80,.5); color: var(--muted); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  .yes { color: var(--green); font-weight: 600; }
+  .no  { color: var(--red); }
+
+  /* ── Tag chip ── */
+  .tag { display: inline-block; background: var(--cyan-dim); color: var(--cyan); border: 1px solid rgba(34,211,238,.25); border-radius: 4px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin: 2px 2px 2px 0; }
+  .tag-green  { background: rgba(74,222,128,.1); color: var(--green); border-color: rgba(74,222,128,.25); }
+  .tag-amber  { background: rgba(251,191,36,.1); color: var(--amber); border-color: rgba(251,191,36,.25); }
+  .tag-violet { background: rgba(167,139,250,.1); color: var(--violet); border-color: rgba(167,139,250,.25); }
+
+  /* ── OpsOwl reference banner ── */
+  .opsowl-ref {
+    background: rgba(34,211,238,.04); border: 1px solid rgba(34,211,238,.18);
+    border-radius: 8px; padding: 14px 18px; margin: 14px 0; font-size: 13px;
+  }
+  .opsowl-ref-label { color: var(--cyan); font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+  .opsowl-ref p { margin: 0; color: var(--muted); }
+
+  /* ── Hero ── */
+  .hero { padding-bottom: 32px; border-bottom: 1px solid var(--border); margin-bottom: 16px; }
+  .hero .eyebrow { color: var(--cyan); font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .hero p { font-size: 16px; color: var(--muted); max-width: 640px; margin-top: 10px; }
+
+  /* ── Badge row ── */
+  .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0; }
+
+  @media (max-width: 860px) {
+    .layout { grid-template-columns: 1fr; }
+    .sidebar { display: none; }
+    .main { padding: 32px 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
+    <div class="logo">OpsOwl AI</div>
+    <div class="sub">Frontend Lead Guide</div>
+  </div>
+  <nav>
+    <div class="group-label">React</div>
+    <a href="#react-core">Core Concepts</a>
+    <a href="#hooks">Hooks Deep Dive</a>
+    <a href="#custom-hooks">Custom Hooks</a>
+    <a href="#performance">Performance</a>
+
+    <div class="group-label">Next.js</div>
+    <a href="#nextjs-app-router">App Router</a>
+    <a href="#rendering">Rendering Strategies</a>
+    <a href="#nextjs-perf">Next.js Performance</a>
+
+    <div class="group-label">State</div>
+    <a href="#zustand">Zustand</a>
+    <a href="#tanstack-query">TanStack Query</a>
+
+    <div class="group-label">Auth & Security</div>
+    <a href="#auth">JWT + Cookies</a>
+    <a href="#rbac">RBAC</a>
+    <a href="#security">XSS / CSRF / CSP</a>
+
+    <div class="group-label">Real-time</div>
+    <a href="#sse">SSE & WebSockets</a>
+    <a href="#webhooks">Webhooks</a>
+
+    <div class="group-label">JS & Browser</div>
+    <a href="#js-internals">JS Internals & Event Loop</a>
+    <a href="#browser-rendering">Browser Rendering Pipeline</a>
+
+    <div class="group-label">React Advanced</div>
+    <a href="#concurrent">Concurrent Features (React 18)</a>
+    <a href="#design-patterns">Design Patterns</a>
+
+    <div class="group-label">CSS & Build</div>
+    <a href="#css-architecture">CSS Architecture</a>
+    <a href="#build-tools">Build Tools & Modules</a>
+    <a href="#forms">Forms (RHF + Zod)</a>
+
+    <div class="group-label">Architecture</div>
+    <a href="#system-design">System Design</a>
+    <a href="#system-design-advanced">Advanced System Design</a>
+    <a href="#typescript">TypeScript Patterns</a>
+    <a href="#advanced-ts">Advanced TypeScript</a>
+    <a href="#testing">Testing</a>
+    <a href="#optimization">Bundle & Network</a>
+
+    <div class="group-label">Observability & APIs</div>
+    <a href="#monitoring">Monitoring & Feature Flags</a>
+    <a href="#pwa">Service Workers & PWA</a>
+    <a href="#web-apis">Web APIs</a>
+
+    <div class="group-label">Lead & Behavioral</div>
+    <a href="#leadership">Technical Leadership</a>
+    <a href="#behavioral">Behavioral (STAR)</a>
+    <a href="#rapid-fire">Rapid-fire Q&amp;A</a>
+  </nav>
+</aside>
+
+<!-- ═══════════════════════════ MAIN ═══════════════════════════ -->
+<main class="main">
+
+<div class="hero">
+  <div class="eyebrow">Frontend Lead Interview Preparation</div>
+  <h1>React · Next.js · Auth · Real-time · System Design</h1>
+  <p>Every concept explained with code from the OpsOwl AI investigation platform — a production Next.js 14 app with 318 E2E tests, SSE streaming, RBAC auth, TanStack Query, and Zustand.</p>
+  <div class="badge-row">
+    <span class="tag">React 18</span>
+    <span class="tag">Next.js 14 App Router</span>
+    <span class="tag">TanStack Query v5</span>
+    <span class="tag">Zustand</span>
+    <span class="tag">TypeScript</span>
+    <span class="tag">Tailwind CSS v4</span>
+    <span class="tag tag-green">Vitest</span>
+    <span class="tag tag-green">Playwright</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ REACT CORE ═══════════════════════════ -->
+<h2 id="react-core">1. React Core Concepts</h2>
+
+<h3>Virtual DOM &amp; Reconciliation</h3>
+<p>React maintains an in-memory Virtual DOM (a lightweight JS object tree). On each render it diffs the new tree against the previous one (reconciliation) and applies only the minimum set of real DOM mutations.</p>
+
+<div class="callout callout-cyan">
+  <div class="callout-label">Key insight</div>
+  <strong>React Fiber</strong> (React 16+) is the reconciler engine. It breaks reconciliation into units of work that can be paused, prioritised, and resumed — enabling concurrent features like Suspense and <code>useTransition</code>. Each fiber node corresponds to one component instance and holds state, effects, and a pointer to the next fiber.
+</div>
+
+<div class="qa">
+  <div class="qa-q">Why is mutating state directly wrong in React?</div>
+  <div class="qa-a">React's change detection is based on <strong>referential equality</strong>. When you call <code>setState</code> or a Zustand setter, React compares the new value with the old reference. If you mutate in place (e.g. <code>arr.push(x)</code> then set the same reference), the reference hasn't changed, so React sees "no update" and skips re-render. Always create new objects/arrays: <code>setState([...arr, x])</code>.</div>
+</div>
+
+<h3>Component Lifecycle (Hooks)</h3>
+<p>Functional components have no lifecycle methods — hooks map to the same concepts:</p>
+<table>
+  <tr><th>Class lifecycle</th><th>Hook equivalent</th><th>When it runs</th></tr>
+  <tr><td>componentDidMount</td><td><code>useEffect(() =&gt; …, [])</code></td><td>After first paint</td></tr>
+  <tr><td>componentDidUpdate</td><td><code>useEffect(() =&gt; …, [dep])</code></td><td>After dep changes</td></tr>
+  <tr><td>componentWillUnmount</td><td>cleanup fn returned from useEffect</td><td>Before unmount</td></tr>
+  <tr><td>shouldComponentUpdate</td><td><code>React.memo</code> + <code>useMemo</code></td><td>Before re-render</td></tr>
+  <tr><td>getDerivedStateFromError</td><td>Error Boundary (still class-based)</td><td>On render error</td></tr>
+</table>
+
+<!-- ═══════════════════════════ HOOKS ═══════════════════════════ -->
+<h2 id="hooks" class="section">2. Hooks Deep Dive</h2>
+
+<h3>useState vs useReducer</h3>
+<p>Use <code>useState</code> for independent, simple values. Switch to <code>useReducer</code> when state transitions are complex or multiple sub-values update together:</p>
+<pre><code><cm>// useReducer — better when next state depends on previous + action type</cm>
+<kw>type</kw> <ty>Action</ty> = { type: <str>"set_loading"</str> } | { type: <str>"set_data"</str>; data: <ty>Case[]</ty> } | { type: <str>"set_error"</str>; err: <ty>string</ty> };
+
+<kw>function</kw> <fn>reducer</fn>(state: <ty>State</ty>, action: <ty>Action</ty>): <ty>State</ty> {
+  <kw>switch</kw> (action.type) {
+    <kw>case</kw> <str>"set_loading"</str>: <kw>return</kw> { ...state, loading: <kw>true</kw>, error: <kw>null</kw> };
+    <kw>case</kw> <str>"set_data"</str>:    <kw>return</kw> { ...state, loading: <kw>false</kw>, data: action.data };
+    <kw>case</kw> <str>"set_error"</str>:   <kw>return</kw> { ...state, loading: <kw>false</kw>, error: action.err };
+  }
+}</code></pre>
+
+<h3>useEffect — Dependency Array Rules</h3>
+<div class="callout callout-amber">
+  <div class="callout-label">Common interview trap</div>
+  <strong>Every reactive value used inside <code>useEffect</code> must be in the dependency array</strong> — or you risk stale closures. The ESLint rule <code>exhaustive-deps</code> enforces this. To break a dependency cycle, move the value into a <code>useRef</code> (see <code>onEventRef</code> in <code>useTimelineSSE</code> below).
+</div>
+
+<h3>useMemo vs useCallback</h3>
+<table>
+  <tr><th>Hook</th><th>Returns</th><th>Use when</th></tr>
+  <tr><td><code>useMemo(fn, deps)</code></td><td>The computed <strong>value</strong></td><td>Expensive computation; passing object/array as prop to memoized child</td></tr>
+  <tr><td><code>useCallback(fn, deps)</code></td><td>A stable <strong>function reference</strong></td><td>Passing callbacks to memoized children; <code>useEffect</code> dependency that is a function</td></tr>
+</table>
+
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl — useTimelineSSE.ts</div>
+  <p>The <code>connect</code> function is wrapped in <code>useCallback</code> with <code>[caseId, enabled]</code> deps so the <code>useEffect</code> that calls it doesn't re-fire on every render. The <code>onEvent</code> callback is stored in <code>onEventRef.current</code> (a ref) so it can be called inside the EventSource handler without being a dependency — breaking what would be an infinite loop.</p>
+</div>
+
+<h3>useRef — Three Use Cases</h3>
+<ol>
+  <li><strong>DOM access</strong> — <code>const inputRef = useRef&lt;HTMLInputElement&gt;(null)</code></li>
+  <li><strong>Mutable value that doesn't trigger re-render</strong> — timers, counters, EventSource references</li>
+  <li><strong>Stable callback reference</strong> — store latest prop/callback in a ref so stale closures don't capture old values</li>
+</ol>
+
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl — useTimelineSSE.ts (lines 35–36)</div>
+  <p><code>onEventRef.current = onEvent</code> — the latest <code>onEvent</code> prop is always written to the ref synchronously each render. The EventSource handler reads <code>onEventRef.current?.(event)</code>. This means the handler never goes stale, yet it doesn't need to be listed as a <code>useCallback</code> dependency.</p>
+</div>
+
+<h3>useContext — Performance Pitfall</h3>
+<p>Every consumer re-renders when <em>any</em> part of the context value changes. Mitigations:</p>
+<ul>
+  <li>Split contexts by update frequency (user context vs theme context)</li>
+  <li>Use a state management library (Zustand) for frequently-changing global state</li>
+  <li>Wrap the Provider's value in <code>useMemo</code></li>
+</ul>
+
+<div class="qa">
+  <div class="qa-q">When would you use context over Zustand?</div>
+  <div class="qa-a">Context is good for <strong>static or rarely-changing</strong> values (theme, locale, feature flags). Zustand is better for <strong>frequently-changing shared state</strong> (auth user, case filters, notification count) because Zustand uses a subscription model — only components that subscribe to a specific slice re-render. In OpsOwl we use Zustand for <code>authStore</code> and <code>configStore</code>, while TanStack Query handles all server state.</div>
+</div>
+
+<!-- ═══════════════════════════ CUSTOM HOOKS ═══════════════════════════ -->
+<h2 id="custom-hooks" class="section">3. Custom Hooks</h2>
+
+<h3>Pattern: Encapsulate side-effect lifecycle</h3>
+<p>A custom hook extracts stateful logic from a component. Rules: name starts with <code>use</code>; can call other hooks; returns whatever the caller needs.</p>
+
+<h3>useIdleTimeout — Timer management hook</h3>
+<pre><code><cm>// apps/web/src/lib/hooks/useIdleTimeout.ts</cm>
+<cm>// Detects user inactivity and fires onTimeout after IDLE_TIMEOUT_MS.</cm>
+<cm>// Shows a 2-minute warning countdown before logout.</cm>
+
+<kw>const</kw> IDLE_TIMEOUT_MS = (<ty>Number</ty>(process.env.NEXT_PUBLIC_IDLE_TIMEOUT_MINUTES) || <num>15</num>) * <num>60_000</num>;
+<kw>const</kw> ACTIVITY_EVENTS = [<str>"mousemove"</str>, <str>"mousedown"</str>, <str>"keydown"</str>, <str>"touchstart"</str>, <str>"click"</str>] <kw>as const</kw>;
+
+<kw>export function</kw> <fn>useIdleTimeout</fn>({ onTimeout, enabled = <kw>true</kw> }: <ty>Options</ty>) {
+  <kw>const</kw> [warningVisible, setWarningVisible] = <fn>useState</fn>(<kw>false</kw>);
+  <kw>const</kw> [secondsLeft, setSecondsLeft] = <fn>useState</fn>(<num>120</num>);
+  <kw>const</kw> logoutTimer  = <fn>useRef</fn>&lt;<ty>ReturnType</ty>&lt;<kw>typeof</kw> setTimeout&gt; | <kw>null</kw>&gt;(<kw>null</kw>);
+  <kw>const</kw> onTimeoutRef = <fn>useRef</fn>(onTimeout);
+  onTimeoutRef.current = onTimeout; <cm>// always latest</cm>
+
+  <kw>const</kw> resetTimers = <fn>useCallback</fn>(() =&gt; {
+    <cm>// ... schedule warning + logout timers</cm>
+    logoutTimer.current = <fn>setTimeout</fn>(() =&gt; onTimeoutRef.current(), IDLE_TIMEOUT_MS);
+  }, []);
+
+  <fn>useEffect</fn>(() =&gt; {
+    <kw>if</kw> (!enabled) { clearAll(); <kw>return</kw>; }
+    resetTimers();
+    <kw>const</kw> handler = () =&gt; resetTimers();
+    ACTIVITY_EVENTS.forEach(e =&gt; window.<fn>addEventListener</fn>(e, handler, { passive: <kw>true</kw> }));
+    <kw>return</kw> () =&gt; ACTIVITY_EVENTS.forEach(e =&gt; window.<fn>removeEventListener</fn>(e, handler));
+  }, [enabled, resetTimers]);
+
+  <kw>return</kw> { warningVisible, secondsLeft, extendSession: resetTimers };
+}</code></pre>
+
+<div class="callout callout-green">
+  <div class="callout-label">Interview answer</div>
+  When asked <em>"how do you handle session expiry?"</em> — describe this exact pattern: idle timer on activity events, 2-min warning countdown, logout fires <code>clearAuth()</code> + redirects with <code>returnUrl</code> so the user lands back on the same page after re-login.
+</div>
+
+<h3>useTimelineSSE — Real-time event streaming hook</h3>
+<pre><code><cm>// Key features of the SSE hook:</cm>
+<cm>// 1. Gets a short-lived ticket (90s) from /api/v1/auth/sse-ticket — avoids</cm>
+<cm>//    putting the full access_token in the URL (EventSource can't set headers).</cm>
+<cm>// 2. Sends ?last_event_id= on reconnect so no events are missed.</cm>
+<cm>// 3. Exponential backoff: 1s → 2s → 4s … capped at 30s.</cm>
+<cm>// 4. Closes EventSource on onerror immediately — prevents browser auto-retry</cm>
+<cm>//    with a stale token.</cm>
+<cm>// 5. Cleanup on unmount: close ES + cancel pending reconnect timer.</cm>
+
+<kw>const</kw> <fn>connect</fn> = <fn>useCallback</fn>(<kw>async</kw> () =&gt; {
+  <kw>const</kw> token = <kw>await</kw> <fn>getSseTicket</fn>();           <cm>// short-lived ticket</cm>
+  <kw>const</kw> url = <kw>new</kw> <fn>URL</fn>(<op>`</op><op>${</op>BASE_URL<op>}</op><str>/api/v1/cases/</str><op>${</op>caseId<op>}</op><str>/timeline/stream</str><op>`</op>);
+  url.searchParams.<fn>set</fn>(<str>"token"</str>, token);
+  <kw>if</kw> (lastEventId.current) url.searchParams.<fn>set</fn>(<str>"last_event_id"</str>, lastEventId.current);
+
+  <kw>const</kw> es = <kw>new</kw> <fn>EventSource</fn>(url.toString());
+  es.<fn>addEventListener</fn>(<str>"timeline_event"</str>, (e: MessageEvent) =&gt; {
+    <kw>const</kw> event = <ty>JSON</ty>.<fn>parse</fn>(e.data) <kw>as</kw> <ty>TimelineEvent</ty>;
+    <kw>if</kw> (e.lastEventId) lastEventId.current = e.lastEventId;
+    onEventRef.current?.(event);
+  });
+  es.onerror = () =&gt; {
+    es.<fn>close</fn>();                                   <cm>// prevent browser auto-retry</cm>
+    reconnectTimer.current = <fn>setTimeout</fn>(() =&gt; {
+      reconnectDelay.current = <ty>Math</ty>.<fn>min</fn>(reconnectDelay.current * <num>2</num>, MAX_RECONNECT_DELAY_MS);
+      <fn>connect</fn>();
+    }, reconnectDelay.current);
+  };
+}, [caseId, enabled]);</code></pre>
+
+<!-- ═══════════════════════════ PERFORMANCE ═══════════════════════════ -->
+<h2 id="performance" class="section">4. React Performance Optimization</h2>
+
+<h3>Memoization Hierarchy</h3>
+<ol>
+  <li><strong>React.memo(Component)</strong> — prevents re-render if props haven't changed (shallow comparison)</li>
+  <li><strong>useMemo(fn, deps)</strong> — memoize expensive derived values</li>
+  <li><strong>useCallback(fn, deps)</strong> — stable function reference for memo'd children</li>
+</ol>
+
+<div class="callout callout-amber">
+  <div class="callout-label">Don't over-memoize</div>
+  Memoization has a cost (comparison on every render). Only apply it when: (1) the computation is measurably slow, (2) a child wrapped in <code>React.memo</code> would re-render unnecessarily, or (3) a function is used as a <code>useEffect</code> dependency.
+</div>
+
+<h3>Code Splitting &amp; Lazy Loading</h3>
+<pre><code><cm>// Route-level splitting — Next.js does this automatically per page</cm>
+<cm>// Component-level splitting — use React.lazy for heavy modals/charts</cm>
+
+<kw>const</kw> <ty>CopilotPanel</ty> = <fn>lazy</fn>(() =&gt; <kw>import</kw>(<str>"@/components/cases/CopilotPanel"</str>));
+
+<cm>// Wrap in Suspense to show fallback while chunk loads</cm>
+<op>&lt;</op><ty>Suspense</ty> fallback={<op>&lt;</op><ty>Spinner</ty> <op>/&gt;</op>}<op>&gt;</op>
+  {showCopilot &amp;&amp; <op>&lt;</op><ty>CopilotPanel</ty> caseId={id} <op>/&gt;</op>}
+<op>&lt;/</op><ty>Suspense</ty><op>&gt;</op></code></pre>
+
+<h3>Infinite Scroll with useInfiniteQuery</h3>
+<pre><code><cm>// apps/web/src/app/(dashboard)/cases/page.tsx</cm>
+<kw>const</kw> {
+  data, fetchNextPage, hasNextPage, isFetchingNextPage
+} = <fn>useInfiniteQuery</fn>({
+  queryKey: [<str>"cases"</str>, filters],
+  queryFn: ({ pageParam }) =&gt; {
+    <kw>const</kw> params = <kw>new</kw> <fn>URLSearchParams</fn>({ limit: <str>"25"</str>, ...filters });
+    <kw>if</kw> (pageParam) params.<fn>set</fn>(<str>"cursor"</str>, pageParam <kw>as</kw> <ty>string</ty>);
+    <kw>return</kw> api.<fn>getList</fn>&lt;<ty>CaseRow</ty>, <ty>ListMeta</ty>&gt;(<op>`</op><str>/api/v1/cases?</str><op>${</op>params<op>}</op><op>`</op>);
+  },
+  getNextPageParam: (lastPage) =&gt;
+    lastPage.meta.has_more ? lastPage.meta.next_cursor : <kw>undefined</kw>,
+  initialPageParam: <kw>null</kw>,
+});
+
+<cm>// Intersection Observer triggers next page load</cm>
+<kw>const</kw> sentinelRef = <fn>useRef</fn>&lt;<ty>HTMLDivElement</ty>&gt;(<kw>null</kw>);
+<fn>useEffect</fn>(() =&gt; {
+  <kw>const</kw> obs = <kw>new</kw> <fn>IntersectionObserver</fn>(([entry]) =&gt; {
+    <kw>if</kw> (entry.isIntersecting &amp;&amp; hasNextPage &amp;&amp; !isFetchingNextPage) fetchNextPage();
+  });
+  <kw>if</kw> (sentinelRef.current) obs.<fn>observe</fn>(sentinelRef.current);
+  <kw>return</kw> () =&gt; obs.<fn>disconnect</fn>();
+}, [hasNextPage, isFetchingNextPage, fetchNextPage]);</code></pre>
+
+<div class="callout callout-cyan">
+  <div class="callout-label">Why cursor pagination over offset?</div>
+  Offset pagination (<code>LIMIT 25 OFFSET 50</code>) is slow on large tables and produces duplicates if rows are inserted mid-scroll. Cursor pagination (<code>WHERE id &gt; cursor ORDER BY id LIMIT 25</code>) is O(log n) on an indexed column and is stable under concurrent inserts.
+</div>
+
+<h3>List Virtualization</h3>
+<p>For lists with 1000+ rows, render only visible items using a virtual window. Libraries: <code>@tanstack/react-virtual</code>, <code>react-window</code>. In OpsOwl the cases list uses infinite scroll (25 items per page) which avoids the need for virtualization in practice.</p>
+
+<!-- ═══════════════════════════ NEXT.JS APP ROUTER ═══════════════════════════ -->
+<h2 id="nextjs-app-router" class="section">5. Next.js 14 App Router</h2>
+
+<h3>File System Routing Conventions</h3>
+<table>
+  <tr><th>Convention</th><th>Purpose</th><th>OpsOwl example</th></tr>
+  <tr><td><code>page.tsx</code></td><td>Route segment UI</td><td><code>app/(dashboard)/cases/page.tsx</code></td></tr>
+  <tr><td><code>layout.tsx</code></td><td>Shared UI, persists across child routes</td><td><code>app/(dashboard)/layout.tsx</code> — sidebar</td></tr>
+  <tr><td><code>(group)</code></td><td>Route group — organises routes without URL segment</td><td><code>(dashboard)</code> and <code>(auth)</code></td></tr>
+  <tr><td><code>[id]</code></td><td>Dynamic segment</td><td><code>cases/[id]/page.tsx</code></td></tr>
+  <tr><td><code>[[...slug]]</code></td><td>Optional catch-all</td><td>—</td></tr>
+  <tr><td><code>loading.tsx</code></td><td>Suspense boundary skeleton</td><td>Automatic streaming skeleton</td></tr>
+  <tr><td><code>error.tsx</code></td><td>Error boundary UI</td><td>Per-route error recovery</td></tr>
+  <tr><td><code>middleware.ts</code></td><td>Runs before every request at the edge</td><td>Auth redirect guard</td></tr>
+</table>
+
+<h3>Route Groups — (dashboard) and (auth)</h3>
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl Project Structure</div>
+  <p><code>app/(dashboard)/</code> wraps all authenticated pages in <code>DashboardLayout</code> (sidebar + <code>ProtectedRoute</code>). <code>app/(auth)/</code> wraps login/register in a minimal centered layout. The parentheses mean neither <code>dashboard</code> nor <code>auth</code> appear in the URL. A user at <code>/cases</code> is served by <code>app/(dashboard)/cases/page.tsx</code>.</p>
+</div>
+
+<h3>Server Components vs Client Components</h3>
+<table>
+  <tr><th></th><th>Server Component (default)</th><th>Client Component (<code>"use client"</code>)</th></tr>
+  <tr><td>Runs on</td><td>Server only</td><td>Server (hydration) + browser</td></tr>
+  <tr><td>Can use hooks</td><td class="no">No</td><td class="yes">Yes</td></tr>
+  <tr><td>Can access DB directly</td><td class="yes">Yes</td><td class="no">No</td></tr>
+  <tr><td>Bundle size</td><td>Zero JS sent to client</td><td>JS included in bundle</td></tr>
+  <tr><td>Event handlers</td><td class="no">No</td><td class="yes">Yes</td></tr>
+  <tr><td>OpsOwl usage</td><td>None currently (all "use client")</td><td>All pages and components</td></tr>
+</table>
+
+<div class="callout callout-amber">
+  <div class="callout-label">OpsOwl design decision</div>
+  OpsOwl uses <code>"use client"</code> on all pages because the app is highly interactive (real-time SSE, optimistic updates, complex filters). Server Components shine for content-heavy, mostly-static pages. For a compliance workspace where every view is interactive, Client Components are the right default.
+</div>
+
+<h3>Data Fetching in App Router</h3>
+<pre><code><cm>// Server Component — fetch runs on server, no client JS</cm>
+<kw>async function</kw> <fn>CasePage</fn>({ params }: { params: { id: <ty>string</ty> } }) {
+  <kw>const</kw> caseData = <kw>await</kw> <fn>fetch</fn>(<op>`</op><op>${</op>API<op>}</op><str>/cases/</str><op>${</op>params.id<op>}</op><op>`</op>, {
+    next: { revalidate: <num>60</num> }  <cm>// ISR — revalidate every 60s</cm>
+  });
+  <kw>return</kw> <op>&lt;</op><ty>CaseDetail</ty> data={caseData} <op>/&gt;</op>;
+}
+
+<cm>// Client Component — use TanStack Query for interactive data</cm>
+<kw>const</kw> { data, isLoading } = <fn>useQuery</fn>({
+  queryKey: [<str>"case"</str>, id],
+  queryFn: () =&gt; api.<fn>get</fn>&lt;<ty>Case</ty>&gt;(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><op>`</op>),
+  staleTime: <num>30_000</num>,
+  refetchInterval: <num>30_000</num>,
+});</code></pre>
+
+<!-- ═══════════════════════════ RENDERING ═══════════════════════════ -->
+<h2 id="rendering" class="section">6. Rendering Strategies</h2>
+
+<table>
+  <tr><th>Strategy</th><th>When HTML is generated</th><th>Best for</th></tr>
+  <tr><td><strong>SSG</strong> — Static Site Generation</td><td>Build time</td><td>Marketing, docs, blogs</td></tr>
+  <tr><td><strong>SSR</strong> — Server-Side Rendering</td><td>Each request</td><td>Personalised, SEO-critical, auth-gated pages</td></tr>
+  <tr><td><strong>ISR</strong> — Incremental Static Regeneration</td><td>Build + background revalidation</td><td>E-commerce listings, dashboards with stale tolerance</td></tr>
+  <tr><td><strong>CSR</strong> — Client-Side Rendering</td><td>In browser via JS</td><td>Highly interactive, auth-only apps</td></tr>
+  <tr><td><strong>Streaming SSR</strong></td><td>Server, progressively flushed</td><td>Pages with slow data fetches — show shell instantly</td></tr>
+</table>
+
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl — CSR choice</div>
+  <p>OpsOwl is fully CSR (Next.js with all <code>"use client"</code> pages). The app sits behind a login wall — SEO is irrelevant. Data changes frequently and requires real-time updates. CSR with TanStack Query gives us fine-grained cache control, optimistic updates, and background refetching without the complexity of streaming SSR.</p>
+</div>
+
+<div class="qa">
+  <div class="qa-q">What are Core Web Vitals and how do you improve them?</div>
+  <div class="qa-a">
+    <strong>LCP (Largest Contentful Paint)</strong> — time until the largest image/text block is visible. Improve: preload hero images, use <code>next/image</code> with <code>priority</code>, reduce TTFB with CDN/caching.<br><br>
+    <strong>INP (Interaction to Next Paint)</strong> — responsiveness to user input. Improve: break up long tasks with <code>useTransition</code>, avoid synchronous layout reads in event handlers, defer non-critical work with <code>requestIdleCallback</code>.<br><br>
+    <strong>CLS (Cumulative Layout Shift)</strong> — unexpected layout shifts. Improve: always set explicit width/height on images, avoid injecting content above existing content, use CSS transforms for animations (not <code>top/left</code>).
+  </div>
+</div>
+
+<!-- ═══════════════════════════ NEXT.JS PERF ═══════════════════════════ -->
+<h2 id="nextjs-perf" class="section">7. Next.js Performance Features</h2>
+
+<h3>next/image</h3>
+<ul>
+  <li>Automatic WebP/AVIF conversion</li>
+  <li>Lazy loading by default (<code>loading="lazy"</code>)</li>
+  <li>Prevents CLS via required <code>width</code>/<code>height</code> or <code>fill</code></li>
+  <li>Serves via Next.js image optimizer — CDN-cacheable</li>
+  <li>Add <code>priority</code> prop to above-fold images to trigger <code>&lt;link rel="preload"&gt;</code></li>
+</ul>
+
+<h3>next/font</h3>
+<ul>
+  <li>Downloads fonts at build time — no runtime network requests</li>
+  <li>Inlines font-face CSS in <code>&lt;head&gt;</code> — eliminates render-blocking font CSS</li>
+  <li>Automatic <code>font-display: swap</code> and size-adjust to reduce CLS</li>
+</ul>
+
+<h3>Route-level Code Splitting</h3>
+<p>Every <code>page.tsx</code> in the App Router is automatically a separate JS chunk. The user downloads only the JS needed for the current route. Navigating to <code>/cases</code> doesn't load <code>/analytics</code> code.</p>
+
+<h3>Middleware</h3>
+<pre><code><cm>// middleware.ts — runs at edge before every request</cm>
+<kw>import</kw> { NextResponse } <kw>from</kw> <str>"next/server"</str>;
+<kw>import type</kw> { NextRequest } <kw>from</kw> <str>"next/server"</str>;
+
+<kw>export function</kw> <fn>middleware</fn>(request: <ty>NextRequest</ty>) {
+  <kw>const</kw> isAuth = request.cookies.<fn>has</fn>(<str>"access_token"</str>);
+  <kw>const</kw> isAuthRoute = request.nextUrl.pathname.<fn>startsWith</fn>(<str>"/login"</str>);
+
+  <kw>if</kw> (!isAuth &amp;&amp; !isAuthRoute) {
+    <kw>return</kw> NextResponse.<fn>redirect</fn>(<kw>new</kw> <fn>URL</fn>(<str>"/login"</str>, request.url));
+  }
+  <kw>return</kw> NextResponse.<fn>next</fn>();
+}
+
+<kw>export const</kw> config = { matcher: [<str>"/((?!api|_next|favicon).*)"],</str> };</code></pre>
+
+<div class="callout callout-cyan">
+  <div class="callout-label">OpsOwl auth approach</div>
+  OpsOwl doesn't use middleware-based auth redirect — it uses <strong>client-side <code>ProtectedRoute</code></strong> which fires a silent token refresh attempt on mount. This works because the app is entirely client-rendered. Middleware redirect is better for SSR apps where you want to avoid flashing unauthenticated content.
+</div>
+
+<!-- ═══════════════════════════ ZUSTAND ═══════════════════════════ -->
+<h2 id="zustand" class="section">8. Zustand State Management</h2>
+
+<h3>Why Zustand over Redux?</h3>
+<table>
+  <tr><th></th><th>Zustand</th><th>Redux Toolkit</th></tr>
+  <tr><td>Boilerplate</td><td>Minimal — one <code>create()</code> call</td><td>Slices, reducers, actions, selectors</td></tr>
+  <tr><td>Bundle size</td><td>~1 KB</td><td>~12 KB</td></tr>
+  <tr><td>React coupling</td><td>Optional (can use outside components)</td><td>Requires Provider wrapping tree</td></tr>
+  <tr><td>Devtools</td><td>Via middleware</td><td>Built-in Redux DevTools</td></tr>
+  <tr><td>Best for</td><td>Small–medium global state</td><td>Large apps, complex state machines</td></tr>
+</table>
+
+<h3>OpsOwl Auth Store — Full Pattern</h3>
+<pre><code><cm>// apps/web/src/lib/stores/auth.store.ts</cm>
+
+<cm>// Role hierarchy — hasRole checks if user's level >= minimum required</cm>
+<kw>const</kw> ROLE_HIERARCHY: <ty>Record</ty>&lt;<ty>UserRole</ty>, <ty>number</ty>&gt; = {
+  super_admin: <num>5</num>, admin: <num>4</num>, manager: <num>3</num>, analyst: <num>2</num>, viewer: <num>1</num>,
+};
+
+<kw>export const</kw> <fn>useAuthStore</fn> = <fn>create</fn>&lt;<ty>AuthState</ty>&gt;((set, get) =&gt; ({
+  user: <fn>loadUser</fn>(),        <cm>// hydrate from sessionStorage on load</cm>
+
+  setAuth: (user) =&gt; {
+    sessionStorage.<fn>setItem</fn>(<str>"opsowl_user"</str>, <ty>JSON</ty>.<fn>stringify</fn>(user));
+    <fn>set</fn>({ user });
+  },
+  clearAuth: () =&gt; {
+    sessionStorage.<fn>removeItem</fn>(<str>"opsowl_user"</str>);
+    <fn>set</fn>({ user: <kw>null</kw> });
+  },
+  hasRole: (...roles) =&gt; {
+    <kw>const</kw> userLevel = ROLE_HIERARCHY[get().user?.role ?? <str>"viewer"</str>] ?? <num>0</num>;
+    <kw>return</kw> roles.<fn>some</fn>(r =&gt; ROLE_HIERARCHY[r] &lt;= userLevel);
+  },
+}));</code></pre>
+
+<div class="callout callout-green">
+  <div class="callout-label">Selector pattern — avoid re-renders</div>
+  Components should select only the slice they need: <code>const user = useAuthStore(s =&gt; s.user)</code> instead of destructuring the whole store. Zustand only re-renders subscribers when their selected value changes.
+</div>
+
+<!-- ═══════════════════════════ TANSTACK QUERY ═══════════════════════════ -->
+<h2 id="tanstack-query" class="section">9. TanStack Query (React Query)</h2>
+
+<h3>Server State vs Client State</h3>
+<p>TanStack Query is for <strong>server state</strong> — data that lives on the server and needs to be fetched, cached, and kept in sync. Zustand is for <strong>client state</strong> — UI state, user preferences, auth session.</p>
+
+<h3>QueryClient Configuration (OpsOwl)</h3>
+<pre><code><cm>// apps/web/src/lib/query-client.ts</cm>
+<kw>export const</kw> queryClient = <kw>new</kw> <fn>QueryClient</fn>({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) =&gt; {
+        <kw>if</kw> (error <kw>instanceof</kw> <ty>APIError</ty> &amp;&amp; error.status === <num>401</num>) <kw>return</kw> <kw>false</kw>;
+        <kw>return</kw> failureCount &lt; <num>2</num>;
+      },
+      staleTime: <num>30_000</num>,          <cm>// data is fresh for 30s — no refetch</cm>
+      refetchOnWindowFocus: <kw>false</kw>, <cm>// don't refetch when tab regains focus</cm>
+    },
+    mutations: { retry: <num>0</num> },       <cm>// mutations never auto-retry</cm>
+  },
+});</code></pre>
+
+<h3>useQuery — Key Patterns</h3>
+<pre><code><cm>// Basic query</cm>
+<kw>const</kw> { data, isLoading, error } = <fn>useQuery</fn>({
+  queryKey: [<str>"case"</str>, id],              <cm>// cache key — array for granular invalidation</cm>
+  queryFn: () =&gt; api.<fn>get</fn>&lt;<ty>Case</ty>&gt;(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><op>`</op>),
+  staleTime: <num>30_000</num>,
+  enabled: !!id,                         <cm>// don't run if id is falsy</cm>
+});
+
+<cm>// Dependent query — runs only after first resolves</cm>
+<kw>const</kw> { data: tasks } = <fn>useQuery</fn>({
+  queryKey: [<str>"tasks"</str>, id],
+  queryFn: () =&gt; api.<fn>getList</fn>(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><str>/tasks</str><op>`</op>),
+  enabled: !!data,                       <cm>// only after case is loaded</cm>
+});</code></pre>
+
+<h3>useMutation — With Cache Invalidation</h3>
+<pre><code><kw>const</kw> qc = <fn>useQueryClient</fn>();
+
+<kw>const</kw> statusMutation = <fn>useMutation</fn>({
+  mutationFn: ({ status, reason }: { status: <ty>string</ty>; reason: <ty>string</ty> }) =&gt;
+    api.<fn>patch</fn>(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><op>`</op>, { status, status_reason: reason }),
+
+  onSuccess: () =&gt; {
+    qc.<fn>invalidateQueries</fn>({ queryKey: [<str>"case"</str>, id] });     <cm>// refetch case detail</cm>
+    qc.<fn>invalidateQueries</fn>({ queryKey: [<str>"cases"</str>] });          <cm>// refetch list</cm>
+    qc.<fn>invalidateQueries</fn>({ queryKey: [<str>"timeline"</str>, id] });   <cm>// refetch timeline</cm>
+  },
+
+  onError: (err) =&gt; {
+    <kw>if</kw> (err <kw>instanceof</kw> <ty>APIError</ty>) setError(err.message);
+  },
+});</code></pre>
+
+<h3>Optimistic Updates</h3>
+<pre><code><kw>const</kw> mutation = <fn>useMutation</fn>({
+  mutationFn: (newTitle: <ty>string</ty>) =&gt; api.<fn>patch</fn>(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><op>`</op>, { title: newTitle }),
+
+  onMutate: <kw>async</kw> (newTitle) =&gt; {
+    <kw>await</kw> qc.<fn>cancelQueries</fn>({ queryKey: [<str>"case"</str>, id] });
+    <kw>const</kw> prev = qc.<fn>getQueryData</fn>([<str>"case"</str>, id]);
+    qc.<fn>setQueryData</fn>([<str>"case"</str>, id], (old: <ty>Case</ty>) =&gt; ({ ...old, title: newTitle }));
+    <kw>return</kw> { prev };            <cm>// context for rollback</cm>
+  },
+  onError: (_err, _vars, ctx) =&gt; {
+    qc.<fn>setQueryData</fn>([<str>"case"</str>, id], ctx?.prev);  <cm>// rollback</cm>
+  },
+  onSettled: () =&gt; {
+    qc.<fn>invalidateQueries</fn>({ queryKey: [<str>"case"</str>, id] }); <cm>// sync with server</cm>
+  },
+});</code></pre>
+
+<!-- ═══════════════════════════ AUTH ═══════════════════════════ -->
+<h2 id="auth" class="section">10. Authentication — JWT + httpOnly Cookies</h2>
+
+<h3>Cookie-based Auth vs localStorage</h3>
+<table>
+  <tr><th></th><th>httpOnly Cookie</th><th>localStorage / sessionStorage</th></tr>
+  <tr><td>XSS access</td><td class="yes">Immune — JS can't read it</td><td class="no">Vulnerable — any script can read</td></tr>
+  <tr><td>CSRF risk</td><td>Yes — mitigated by SameSite=Strict</td><td class="yes">None (not auto-sent)</td></tr>
+  <tr><td>Sent with requests</td><td class="yes">Automatically by browser</td><td>Must be manually added as header</td></tr>
+  <tr><td>OpsOwl choice</td><td class="yes">Used for access_token + refresh_token</td><td>User profile only (non-sensitive)</td></tr>
+</table>
+
+<h3>Token Flow in OpsOwl</h3>
+<pre><code><cm>// Login response sets two httpOnly cookies:</cm>
+<cm>//   access_token  — 60 min TTL</cm>
+<cm>//   refresh_token — 7 day TTL</cm>
+<cm>// No token stored in JS memory. api.ts sends credentials:"include" on every fetch.</cm>
+
+<cm>// Silent refresh — single in-flight promise (no double-refresh race)</cm>
+<kw>let</kw> _refreshPromise: <ty>Promise</ty>&lt;<kw>void</kw>&gt; | <kw>null</kw> = <kw>null</kw>;
+
+<kw>async function</kw> <fn>silentRefresh</fn>(): <ty>Promise</ty>&lt;<kw>void</kw>&gt; {
+  <kw>if</kw> (_refreshPromise) <kw>return</kw> _refreshPromise;  <cm>// share in-flight promise</cm>
+  _refreshPromise = <fn>fetch</fn>(<op>`</op><op>${</op>API_BASE<op>}</op><str>/api/v1/auth/refresh</str><op>`</op>, {
+    method: <str>"POST"</str>, credentials: <str>"include"</str>, ...
+  }).<fn>finally</fn>(() =&gt; { _refreshPromise = <kw>null</kw>; });
+  <kw>return</kw> _refreshPromise;
+}
+
+<cm>// On 401, refresh once then retry the original request</cm>
+<kw>if</kw> (response.status === <num>401</num> &amp;&amp; !path.<fn>includes</fn>(<str>"/auth/"</str>)) {
+  <kw>await</kw> <fn>silentRefresh</fn>();
+  <kw>return</kw> <kw>await</kw> <fn>fetch</fn>(url, options);  <cm>// retry once</cm>
+}
+
+<cm>// Auto-refresh timer in useAuth.ts — 55 min into 60 min token lifetime</cm>
+refreshTimer.current = <fn>setTimeout</fn>(() =&gt; refresh(), <num>55</num> * <num>60</num> * <num>1000</num>);</code></pre>
+
+<h3>SSE Token Problem</h3>
+<div class="callout callout-cyan">
+  <div class="callout-label">Why SSE needs a separate ticket</div>
+  <code>EventSource</code> cannot set custom headers — it uses GET with browser-managed cookies. If the same-site policy allows cookies (which it does for same-origin), the <code>access_token</code> cookie is sent automatically. <strong>But</strong> if you need to authenticate cross-origin SSE (e.g., Next.js frontend on :3001 talking to Go API on :8080), cookies won't be sent. OpsOwl solves this by issuing a short-lived (90s) SSE ticket via a cookie-authenticated endpoint, then appending it as <code>?token=</code> in the URL.
+</div>
+
+<!-- ═══════════════════════════ RBAC ═══════════════════════════ -->
+<h2 id="rbac" class="section">11. Role-Based Access Control (RBAC)</h2>
+
+<h3>Three-layer RBAC in OpsOwl</h3>
+<ol>
+  <li><strong>Zustand store — <code>hasRole()</code></strong>: hierarchical check — admin can do anything manager can do</li>
+  <li><strong><code>&lt;RBACGate&gt;</code> component</strong>: wraps UI sections that should only show for certain roles</li>
+  <li><strong>Backend enforcement</strong>: every API endpoint checks the JWT role claim — frontend gates are UX-only</li>
+</ol>
+
+<pre><code><cm>// RBACGate — gate entire sections of UI</cm>
+<op>&lt;</op><ty>RBACGate</ty> allowedRoles={[<str>"admin"</str>, <str>"super_admin"</str>]}<op>&gt;</op>
+  <op>&lt;</op><ty>AdminNavSection</ty> <op>/&gt;</op>
+<op>&lt;/</op><ty>RBACGate</ty><op>&gt;</op>
+
+<cm>// Programmatic check — gate individual actions</cm>
+<kw>const</kw> { hasRole } = <fn>useAuth</fn>();
+<kw>const</kw> canEscalate = <fn>hasRole</fn>(<str>"manager"</str>, <str>"admin"</str>, <str>"super_admin"</str>);
+
+<cm>// hasRole uses hierarchy: passing "manager" allows manager, admin, super_admin</cm>
+<kw>function</kw> <fn>hasRole</fn>(...roles: <ty>UserRole</ty>[]) {
+  <kw>const</kw> userLevel = ROLE_HIERARCHY[user.role];
+  <kw>return</kw> roles.<fn>some</fn>(r =&gt; ROLE_HIERARCHY[r] &lt;= userLevel);
+  <cm>// manager(3) &lt;= admin(4) → admin CAN do manager actions ✓</cm>
+}</code></pre>
+
+<div class="qa">
+  <div class="qa-q">What's the difference between authentication and authorization?</div>
+  <div class="qa-a"><strong>Authentication</strong> = "who are you?" — verifying identity via JWT/session. <strong>Authorization</strong> = "what can you do?" — checking permissions after identity is confirmed. In OpsOwl: the JWT cookie proves identity (auth); the <code>role</code> claim inside the JWT determines what routes/actions are permitted (authz).</div>
+</div>
+
+<!-- ═══════════════════════════ SECURITY ═══════════════════════════ -->
+<h2 id="security" class="section">12. Frontend Security</h2>
+
+<h3>XSS — Cross-Site Scripting</h3>
+<p>Injecting malicious scripts into pages that other users view. React escapes all JSX string values by default — <code>&lt;div&gt;{userInput}&lt;/div&gt;</code> is safe. Only <code>dangerouslySetInnerHTML</code> can introduce XSS, and it must be avoided or sanitised with <code>DOMPurify</code>.</p>
+
+<h3>CSRF — Cross-Site Request Forgery</h3>
+<p>A malicious site tricks the user's browser into making authenticated requests. Mitigations:</p>
+<ul>
+  <li><strong>SameSite=Strict</strong> cookies — browser won't send the cookie cross-origin</li>
+  <li><strong>CSRF token</strong> — server issues a token that must be in every state-changing request header</li>
+  <li><strong>Custom request header check</strong> — any request with a non-simple header (e.g. <code>Content-Type: application/json</code>) triggers a preflight, blocking CSRF from simple form posts</li>
+</ul>
+
+<h3>Content Security Policy (CSP)</h3>
+<pre><code><cm>// next.config.js — add CSP header</cm>
+<kw>const</kw> cspHeader = <op>`</op>
+  <str>default-src 'self';</str>
+  <str>script-src 'self' 'unsafe-eval' 'unsafe-inline';</str>
+  <str>style-src 'self' 'unsafe-inline';</str>
+  <str>img-src 'self' blob: data:;</str>
+  <str>connect-src 'self' https://api.opsowl.internal;</str>
+<op>`</op>;</code></pre>
+
+<h3>Idempotency Keys</h3>
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl — api.ts idempotentPost()</div>
+  <p>For case creation, OpsOwl generates a UUID client-side using <code>crypto.randomUUID()</code> and sends it as <code>Idempotency-Key</code> header. If the network fails after the server processes but before the response arrives, the client retries with the same key and gets the cached response — no duplicate case is created.</p>
+</div>
+
+<!-- ═══════════════════════════ SSE ═══════════════════════════ -->
+<h2 id="sse" class="section">13. Real-time: SSE vs WebSocket vs Polling</h2>
+
+<table>
+  <tr><th></th><th>SSE (EventSource)</th><th>WebSocket</th><th>Long Polling</th></tr>
+  <tr><td>Direction</td><td>Server → Client only</td><td>Bidirectional</td><td>Server → Client</td></tr>
+  <tr><td>Protocol</td><td>HTTP/1.1 or HTTP/2</td><td>WS upgrade (TCP)</td><td>HTTP</td></tr>
+  <tr><td>Auto-reconnect</td><td class="yes">Built-in</td><td>Manual</td><td>Manual</td></tr>
+  <tr><td>Proxy/firewall</td><td>Works everywhere</td><td>Sometimes blocked</td><td>Works everywhere</td></tr>
+  <tr><td>Binary support</td><td class="no">Text only</td><td class="yes">Binary + text</td><td class="no">Text only</td></tr>
+  <tr><td>OpsOwl use</td><td>Timeline stream per case</td><td>—</td><td>Dashboard stats (15s poll)</td></tr>
+</table>
+
+<h3>SSE — Why OpsOwl chose it over WebSockets</h3>
+<ul>
+  <li>Timeline is <strong>server-push only</strong> — no need for bidirectional channel</li>
+  <li>Works through corporate HTTP proxies that block WebSocket upgrades</li>
+  <li>Browser auto-reconnects on disconnect (with our custom override for stale token handling)</li>
+  <li>HTTP/2 multiplexes multiple SSE streams over one connection</li>
+</ul>
+
+<h3>EventSource gotchas</h3>
+<pre><code><cm>// Problem: browser auto-reconnects with same URL — stale token after 90s</cm>
+<cm>// Fix: close on onerror and manually reconnect with a fresh ticket</cm>
+es.onerror = () =&gt; {
+  es.<fn>close</fn>();          <cm>// prevent browser retry with stale ?token=</cm>
+  <fn>setTimeout</fn>(() =&gt; <fn>connect</fn>(), reconnectDelay.current);  <cm>// fresh ticket</cm>
+};
+
+<cm>// Resume from last event — no missed events during reconnect</cm>
+url.searchParams.<fn>set</fn>(<str>"last_event_id"</str>, lastEventId.current);
+<cm>// Server reads Last-Event-ID header or ?last_event_id= param</cm>
+<cm>// and replays missed events from its buffer</cm></code></pre>
+
+<!-- ═══════════════════════════ WEBHOOKS ═══════════════════════════ -->
+<h2 id="webhooks" class="section">14. Webhooks</h2>
+
+<h3>What is a webhook?</h3>
+<p>A webhook is an HTTP POST from <em>server to server</em> triggered by an event. It's the inverse of an API call — instead of polling "did anything change?", the sender pushes a notification when something happens.</p>
+
+<h3>Inbound Webhooks (OpsOwl)</h3>
+<p>External systems (core banking, fraud detection) POST alerts to <code>POST /api/v1/inbound/{source}</code>. OpsOwl validates the payload, creates or enriches an alert, and optionally auto-assigns it to a case.</p>
+
+<h3>Outbound Webhooks (OpsOwl)</h3>
+<pre><code><cm>// When a case status changes, OpsOwl fires POST to registered webhook URLs</cm>
+<cm>// apps/web/src/app/(dashboard)/settings/webhooks/page.tsx</cm>
+
+<kw>interface</kw> <ty>Webhook</ty> {
+  id: <ty>string</ty>;
+  url: <ty>string</ty>;
+  signing_secret?: <ty>string</ty>;    <cm>// HMAC-SHA256 signing key</cm>
+  event_types: <ty>string</ty>[];       <cm>// ["case.status_changed", "case.created"]</cm>
+  is_active: <ty>boolean</ty>;
+}
+
+<kw>interface</kw> <ty>Delivery</ty> {
+  status: <str>"pending"</str> | <str>"success"</str> | <str>"failed"</str> | <str>"exhausted"</str>;
+  attempt_count: <ty>number</ty>;
+  next_attempt_at: <ty>string</ty>;    <cm>// exponential backoff retry</cm>
+  last_status: <ty>number</ty> | <kw>null</kw>; <cm>// HTTP status from receiver</cm>
+}</code></pre>
+
+<h3>Webhook Security — HMAC Signing</h3>
+<pre><code><cm>// Server signs payload with HMAC-SHA256 using the webhook's secret</cm>
+<cm>// Receiver verifies the signature before processing</cm>
+
+<cm>// Go (server side):</cm>
+<cm>// mac := hmac.New(sha256.New, []byte(secret))</cm>
+<cm>// mac.Write(payload)</cm>
+<cm>// signature := hex.EncodeToString(mac.Sum(nil))</cm>
+<cm>// Header: X-OpsOwl-Signature: sha256=&lt;signature&gt;</cm>
+
+<cm>// Receiver (Node.js):</cm>
+<kw>const</kw> expected = <fn>createHmac</fn>(<str>"sha256"</str>, secret)
+  .<fn>update</fn>(rawBody)
+  .<fn>digest</fn>(<str>"hex"</str>);
+<kw>const</kw> received = req.headers[<str>"x-opsowl-signature"</str>].<fn>replace</fn>(<str>"sha256="</str>, <str>""</str>);
+
+<cm>// Use timingSafeEqual to prevent timing attacks!</cm>
+<kw>const</kw> valid = <fn>timingSafeEqual</fn>(
+  Buffer.<fn>from</fn>(expected), Buffer.<fn>from</fn>(received)
+);</code></pre>
+
+<div class="qa">
+  <div class="qa-q">How do you handle webhook delivery failures?</div>
+  <div class="qa-a">
+    <strong>Exponential backoff with jitter:</strong> retry after 1s, 5s, 30s, 5min, 30min. After N attempts mark as "exhausted" and stop. Store every delivery attempt with its HTTP status code, error message, and timestamp — visible in the OpsOwl webhook deliveries log so admins can diagnose and manually replay. <strong>Idempotency:</strong> each webhook delivery has a unique ID in the payload so receivers can deduplicate retries. <strong>Timeout:</strong> set a short connect/read timeout (5–10s) — slow receivers shouldn't block the retry queue.
+  </div>
+</div>
+
+<!-- ═══════════════════════════ SYSTEM DESIGN ═══════════════════════════ -->
+<h2 id="system-design" class="section">15. Frontend System Design</h2>
+
+<h3>How to structure a Frontend System Design answer</h3>
+<ol>
+  <li><strong>Clarify requirements</strong> — DAU, latency targets, real-time needs, auth model, mobile?</li>
+  <li><strong>High-level architecture</strong> — CDN → Next.js → API layer → DB</li>
+  <li><strong>Component architecture</strong> — page / feature / shared / ui layers</li>
+  <li><strong>Data fetching strategy</strong> — SSR vs CSR, caching, real-time</li>
+  <li><strong>State management</strong> — server state vs client state split</li>
+  <li><strong>Performance</strong> — Core Web Vitals targets, lazy loading, bundle</li>
+  <li><strong>Auth &amp; security</strong> — token strategy, RBAC, CSP</li>
+  <li><strong>Testing strategy</strong> — unit, integration, E2E</li>
+  <li><strong>Scalability &amp; observability</strong> — error tracking, metrics, feature flags</li>
+</ol>
+
+<h3>OpsOwl Component Architecture</h3>
+<pre><code>src/
+├── app/                   <cm># Next.js App Router — pages only</cm>
+│   ├── (auth)/            <cm># Login, register — no sidebar</cm>
+│   └── (dashboard)/       <cm># All authenticated pages</cm>
+│       ├── layout.tsx     <cm># Sidebar layout — rendered once</cm>
+│       ├── cases/
+│       │   ├── page.tsx   <cm># Cases list with infinite scroll</cm>
+│       │   └── [id]/
+│       │       ├── page.tsx       <cm># Case detail workspace</cm>
+│       │       ├── notes/page.tsx
+│       │       └── tasks/page.tsx
+├── components/
+│   ├── auth/              <cm># ProtectedRoute, RBACGate</cm>
+│   ├── cases/             <cm># StatusBadge, SLACountdown, CaseSubNav</cm>
+│   ├── notifications/     <cm># NotificationBell</cm>
+│   └── ui/                <cm># Generic: Button, Modal, Spinner</cm>
+└── lib/
+    ├── api.ts             <cm># Typed fetch wrapper + silent refresh</cm>
+    ├── query-client.ts    <cm># TanStack QueryClient singleton</cm>
+    ├── hooks/             <cm># useAuth, useTimelineSSE, useIdleTimeout</cm>
+    └── stores/            <cm># Zustand: auth.store, config.store</cm></code></pre>
+
+<h3>Design a notification system (interview question)</h3>
+<pre><code><cm>// Requirements: real-time alerts for SLA breaches + case assignments</cm>
+<cm>// Solution: SSE stream + local Zustand store</cm>
+
+<cm>// 1. Server pushes events via SSE (same pattern as timeline)</cm>
+<cm>// 2. NotificationBell subscribes to Zustand notif store</cm>
+<cm>// 3. useNotificationsSSE hook updates store on each event</cm>
+<cm>// 4. Badge count = unread.length from store</cm>
+<cm>// 5. Mark-as-read fires PATCH /api/v1/notifications/:id/read</cm>
+<cm>// 6. Browser Notification API for SLA breaches (if user permitted)</cm>
+
+<kw>const</kw> useNotificationsSSE = () =&gt; {
+  <kw>const</kw> addNotif = <fn>useNotifStore</fn>(s =&gt; s.add);
+  <fn>useEffect</fn>(() =&gt; {
+    <kw>const</kw> es = <kw>new</kw> <fn>EventSource</fn>(<str>"/api/v1/notifications/stream"</str>);
+    es.<fn>addEventListener</fn>(<str>"notification"</str>, e =&gt; {
+      <kw>const</kw> notif = <ty>JSON</ty>.<fn>parse</fn>(e.data);
+      <fn>addNotif</fn>(notif);
+      <kw>if</kw> (notif.priority === <str>"critical"</str>) {
+        <kw>new</kw> <fn>Notification</fn>(notif.title, { body: notif.body });
+      }
+    });
+    <kw>return</kw> () =&gt; es.<fn>close</fn>();
+  }, [addNotif]);
+};</code></pre>
+
+<!-- ═══════════════════════════ TYPESCRIPT ═══════════════════════════ -->
+<h2 id="typescript" class="section">16. TypeScript Patterns</h2>
+
+<h3>Discriminated Unions for API responses</h3>
+<pre><code><kw>type</kw> <ty>AsyncState</ty>&lt;T&gt; =
+  | { status: <str>"idle"</str> }
+  | { status: <str>"loading"</str> }
+  | { status: <str>"success"</str>; data: T }
+  | { status: <str>"error"</str>; error: <ty>string</ty> };
+
+<cm>// TypeScript narrows correctly in each branch</cm>
+<kw>function</kw> <fn>render</fn>(state: <ty>AsyncState</ty>&lt;<ty>Case</ty>&gt;) {
+  <kw>switch</kw> (state.status) {
+    <kw>case</kw> <str>"loading"</str>: <kw>return</kw> <op>&lt;</op><ty>Spinner</ty> <op>/&gt;</op>;
+    <kw>case</kw> <str>"success"</str>: <kw>return</kw> <op>&lt;</op><ty>CaseDetail</ty> data={state.data} <op>/&gt;</op>; <cm>// data is Case</cm>
+    <kw>case</kw> <str>"error"</str>:   <kw>return</kw> <op>&lt;</op><ty>ErrorMsg</ty> msg={state.error} <op>/&gt;</op>; <cm>// error is string</cm>
+  }
+}</code></pre>
+
+<h3>Generic Components</h3>
+<pre><code><cm>// Reusable table component typed to its row data</cm>
+<kw>interface</kw> <ty>DataTableProps</ty>&lt;T&gt; {
+  data: T[];
+  columns: { key: <kw>keyof</kw> T; label: <ty>string</ty> }[];
+  onRowClick?: (row: T) =&gt; <kw>void</kw>;
+}
+
+<kw>function</kw> <fn>DataTable</fn>&lt;T <kw>extends</kw> { id: <ty>string</ty> }&gt;({ data, columns, onRowClick }: <ty>DataTableProps</ty>&lt;T&gt;) {
+  <kw>return</kw> (
+    <op>&lt;</op><ty>table</ty><op>&gt;</op>
+      {data.<fn>map</fn>(row =&gt; (
+        <op>&lt;</op><ty>tr</ty> key={row.id} onClick={() =&gt; onRowClick?.(row)}<op>&gt;</op>
+          {columns.<fn>map</fn>(col =&gt; <op>&lt;</op><ty>td</ty> key={<ty>String</ty>(col.key)}<op>&gt;</op>{<ty>String</ty>(row[col.key])}<op>&lt;/</op><ty>td</ty><op>&gt;</op>)}
+        <op>&lt;/</op><ty>tr</ty><op>&gt;</op>
+      ))}
+    <op>&lt;/</op><ty>table</ty><op>&gt;</op>
+  );
+}</code></pre>
+
+<h3>Utility Types — Most useful in React</h3>
+<table>
+  <tr><th>Type</th><th>What it does</th><th>Example</th></tr>
+  <tr><td><code>Partial&lt;T&gt;</code></td><td>All fields optional</td><td>Patch/update payloads</td></tr>
+  <tr><td><code>Required&lt;T&gt;</code></td><td>All fields required</td><td>Form validation state</td></tr>
+  <tr><td><code>Pick&lt;T, K&gt;</code></td><td>Subset of fields</td><td><code>Pick&lt;Case, "id" | "title"&gt;</code></td></tr>
+  <tr><td><code>Omit&lt;T, K&gt;</code></td><td>Exclude fields</td><td><code>Omit&lt;Case, "created_at"&gt;</code></td></tr>
+  <tr><td><code>Record&lt;K, V&gt;</code></td><td>Object map type</td><td><code>Record&lt;UserRole, number&gt;</code></td></tr>
+  <tr><td><code>ReturnType&lt;F&gt;</code></td><td>Infer return type</td><td><code>ReturnType&lt;typeof useAuth&gt;</code></td></tr>
+</table>
+
+<!-- ═══════════════════════════ TESTING ═══════════════════════════ -->
+<h2 id="testing" class="section">17. Testing Strategy</h2>
+
+<h3>Testing Pyramid in OpsOwl</h3>
+<table>
+  <tr><th>Layer</th><th>Tool</th><th>Count</th><th>What</th></tr>
+  <tr><td>Unit</td><td>Vitest</td><td>190</td><td>Hooks, utilities, API client, store logic</td></tr>
+  <tr><td>E2E</td><td>Playwright</td><td>318</td><td>Full user flows: login → create case → close</td></tr>
+</table>
+
+<h3>Testing Custom Hooks</h3>
+<pre><code><cm>// Vitest + @testing-library/react</cm>
+<kw>import</kw> { <fn>renderHook</fn>, act } <kw>from</kw> <str>"@testing-library/react"</str>;
+<kw>import</kw> { <fn>useIdleTimeout</fn> } <kw>from</kw> <str>"../useIdleTimeout"</str>;
+
+<fn>it</fn>(<str>"calls onTimeout after idle period"</str>, <kw>async</kw> () =&gt; {
+  <fn>vi.useFakeTimers</fn>();
+  <kw>const</kw> onTimeout = <fn>vi.fn</fn>();
+  <fn>renderHook</fn>(() =&gt; <fn>useIdleTimeout</fn>({ onTimeout, enabled: <kw>true</kw> }));
+
+  <kw>await</kw> <fn>act</fn>(<kw>async</kw> () =&gt; {
+    <fn>vi.advanceTimersByTime</fn>(<num>15</num> * <num>60</num> * <num>1000</num>); <cm>// 15 minutes</cm>
+  });
+
+  <fn>expect</fn>(onTimeout).<fn>toHaveBeenCalledTimes</fn>(<num>1</num>);
+  <fn>vi.useRealTimers</fn>();
+});</code></pre>
+
+<h3>Playwright E2E Pattern</h3>
+<pre><code><cm>// tests/cases.spec.ts</cm>
+<kw>test</kw>(<str>"analyst can create and close a case"</str>, <kw>async</kw> ({ page }) =&gt; {
+  <kw>await</kw> page.<fn>goto</fn>(<str>"/cases/new"</str>);
+  <kw>await</kw> page.<fn>fill</fn>(<str>"[name=title]"</str>, <str>"Test Case 001"</str>);
+  <kw>await</kw> page.<fn>click</fn>(<str>"text=Create Case"</str>);
+  <kw>await</kw> <fn>expect</fn>(page.<fn>locator</fn>(<str>"[data-testid=case-status]"</str>)).<fn>toHaveText</fn>(<str>"Open"</str>);
+
+  <kw>await</kw> page.<fn>click</fn>(<str>"text=Close Case"</str>);
+  <kw>await</kw> page.<fn>fill</fn>(<str>"[name=reason]"</str>, <str>"No suspicious activity found"</str>);
+  <kw>await</kw> page.<fn>click</fn>(<str>"text=Confirm"</str>);
+  <kw>await</kw> <fn>expect</fn>(page.<fn>locator</fn>(<str>"[data-testid=case-status]"</str>)).<fn>toHaveText</fn>(<str>"Closed"</str>);
+});</code></pre>
+
+<div class="qa">
+  <div class="qa-q">How do you test real-time SSE features?</div>
+  <div class="qa-a">In Playwright, you can <strong>mock the SSE endpoint</strong> using <code>page.route()</code> to return a streamed response with custom event data. For unit tests, mock the <code>EventSource</code> global with a class that lets you programmatically fire events. OpsOwl uses a real test database — the E2E tests create a case, trigger a status change via API, and assert the timeline update appears in the UI within a <code>waitFor</code> timeout.</div>
+</div>
+
+<!-- ═══════════════════════════ BUNDLE & NETWORK ═══════════════════════════ -->
+<h2 id="optimization" class="section">18. Bundle &amp; Network Optimization</h2>
+
+<h3>Bundle Analysis</h3>
+<pre><code><cm># Visualise what's in your bundle</cm>
+npx @next/bundle-analyzer   <cm># Install: ANALYZE=true next build</cm>
+npx bundlephobia            <cm># Check package size before installing</cm></code></pre>
+
+<h3>Tree Shaking</h3>
+<p>Import only what you use. Named imports are tree-shakable; default imports of entire libraries are not:</p>
+<pre><code><cm>// Bad — imports entire lodash (~70 KB gzipped)</cm>
+<kw>import</kw> _ <kw>from</kw> <str>"lodash"</str>;
+<kw>const</kw> x = _.debounce(fn, <num>300</num>);
+
+<cm>// Good — imports only debounce</cm>
+<kw>import</kw> debounce <kw>from</kw> <str>"lodash/debounce"</str>;
+<cm>// Better — use native or tiny package</cm>
+<kw>const</kw> debounced = <kw>useMemo</kw>(() =&gt; debounce(fn, <num>300</num>), [fn]);</code></pre>
+
+<h3>Tailwind CSS v4 — OpsOwl approach</h3>
+<pre><code><cm>/* globals.css — single @import, no config file needed */</cm>
+@import <str>"tailwindcss"</str>;
+
+@theme {
+  --color-cyan-400: #22d3ee;
+  <cm>/* Custom design tokens inline */</cm>
+}
+
+<cm>/* Tailwind v4 scans source files at build time and purges unused classes</cm>
+<cm>   Final CSS: ~8 KB gzipped for a complex app */</cm></code></pre>
+
+<h3>HTTP Caching Strategy</h3>
+<table>
+  <tr><th>Resource</th><th>Cache-Control</th><th>Why</th></tr>
+  <tr><td>JS/CSS chunks (<code>_next/static</code>)</td><td><code>public, max-age=31536000, immutable</code></td><td>Content-hashed filenames — safe to cache forever</td></tr>
+  <tr><td>API responses</td><td><code>no-store</code></td><td>Sensitive compliance data — never cache at CDN</td></tr>
+  <tr><td><code>next/image</code> served images</td><td><code>public, max-age=86400</code></td><td>Images don't change frequently</td></tr>
+  <tr><td>TanStack Query in-memory</td><td><code>staleTime: 30_000</code></td><td>Browser-level cache — avoids redundant fetches</td></tr>
+</table>
+
+<h3>Debounce vs Throttle</h3>
+<table>
+  <tr><th></th><th>Debounce</th><th>Throttle</th></tr>
+  <tr><td>Fires when</td><td>After N ms of silence</td><td>At most once per N ms</td></tr>
+  <tr><td>Use for</td><td>Search input, resize handler</td><td>Scroll events, mousemove</td></tr>
+  <tr><td>OpsOwl</td><td>Case search — 300ms debounce</td><td>Timeline scroll handler</td></tr>
+</table>
+
+<!-- ═══════════════════════════ INTERVIEW Q&A RAPID FIRE ═══════════════════════════ -->
+<h2 id="rapid-fire" class="section" style="margin-top:56px;">34. Rapid-fire Q&amp;A</h2>
+
+<div class="qa">
+  <div class="qa-q">What is a closure and how does it cause stale state in hooks?</div>
+  <div class="qa-a">A closure captures variables from its surrounding scope at the time it's defined. In <code>useEffect</code>, the callback closes over state/props values at the time the effect was created. If the effect runs later without re-creating (because deps didn't change), it reads the old stale value. <strong>Fix:</strong> add the variable to the deps array, or store it in a <code>useRef</code> that's updated each render (the <code>onEventRef.current = onEvent</code> pattern from <code>useTimelineSSE</code>).</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">What is hydration and what causes hydration errors?</div>
+  <div class="qa-a">Hydration is React attaching event listeners to the HTML string rendered by the server, making it interactive. A hydration mismatch happens when the server-rendered HTML differs from what the client would render on first pass — e.g. using <code>window</code> or <code>Date.now()</code> in a Server Component, or conditional rendering based on <code>localStorage</code>. Fix: guard browser-only code with <code>useEffect</code> (runs only on client) or <code>typeof window !== "undefined"</code>.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">Explain the difference between useLayoutEffect and useEffect.</div>
+  <div class="qa-a"><code>useEffect</code> runs <strong>after</strong> the browser has painted. <code>useLayoutEffect</code> runs <strong>synchronously after</strong> DOM mutations but <strong>before</strong> paint. Use <code>useLayoutEffect</code> when you need to read DOM measurements (e.g. element width) and synchronously update state before the user sees a flash. In practice, 95% of cases use <code>useEffect</code> — <code>useLayoutEffect</code> is for scroll-restoration, tooltip positioning, etc.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How does Next.js Image component prevent CLS?</div>
+  <div class="qa-a">CLS occurs when images pop in without reserved space. <code>next/image</code> requires <code>width</code> and <code>height</code> props (or <code>fill</code>), which Next.js uses to set the CSS aspect ratio on the container before the image loads. The browser reserves the exact space, so no layout shift occurs when the image loads.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">What is React 18's concurrent mode and when does it matter?</div>
+  <div class="qa-a">Concurrent mode allows React to <strong>interrupt, pause, and resume</strong> rendering work. Key APIs: <code>useTransition</code> (mark an update as non-urgent — keeps UI responsive), <code>useDeferredValue</code> (defer re-rendering a slow subtree), <code>Suspense</code> for async data. Practically: wrap expensive filter/sort updates in <code>startTransition</code> so the input stays responsive. In OpsOwl the cases list search uses a 300ms debounce to avoid concurrent-mode complexity, but a large app would benefit from <code>useTransition</code> on filter changes.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How would you implement micro-frontends?</div>
+  <div class="qa-a"><strong>Module Federation</strong> (Webpack 5) lets separate apps expose and consume components at runtime. Use when: multiple teams own different parts of the app, teams deploy independently, tech stacks diverge. Downsides: complex shared dependency management, no single bundle optimisation, higher coordination overhead. For most product companies (including OpsOwl), a well-structured monorepo with clear ownership boundaries is simpler and faster than micro-frontends.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How do you handle errors globally in a React app?</div>
+  <div class="qa-a">Three layers: (1) <strong>Error Boundaries</strong> (class components) catch render errors and show fallback UI — use Next.js <code>error.tsx</code> per route segment. (2) <strong>TanStack Query error state</strong> — all fetch errors surface via <code>isError</code> / <code>error</code> and can be caught globally in <code>QueryClient onError</code>. (3) <strong>Unhandled promise rejection</strong> — add <code>window.addEventListener("unhandledrejection")</code> and report to Sentry/DataDog. In OpsOwl, API 401s are caught in <code>api.ts</code> and trigger a silent refresh — this prevents most "session expired" error states from ever reaching the UI.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">What's the difference between controlled and uncontrolled components?</div>
+  <div class="qa-a"><strong>Controlled:</strong> form state lives in React (<code>value={state}</code> + <code>onChange</code>). React is the source of truth — every keystroke re-renders. Good for validation, dependent fields, programmatic resets. <strong>Uncontrolled:</strong> DOM is the source of truth — read via <code>ref.current.value</code> on submit. Simpler for large forms where you only need the final value. Libraries like React Hook Form use uncontrolled inputs internally for performance.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How do you approach accessibility (a11y) in a complex app?</div>
+  <div class="qa-a">Semantic HTML first (<code>&lt;button&gt;</code> not <code>&lt;div onClick&gt;</code>, <code>&lt;nav&gt;</code>, <code>&lt;main&gt;</code>). ARIA labels for icons-only buttons. Keyboard navigation — every interactive element reachable via Tab, modals trap focus. Color contrast ≥ 4.5:1. <code>role="alert"</code> for dynamic status messages so screen readers announce them. Test with axe DevTools or <code>@axe-core/playwright</code> in CI. In OpsOwl's sidebar, every nav link is an <code>&lt;a&gt;</code> and active state is conveyed by both color and the <code>aria-current="page"</code> attribute.</div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">As a Frontend Lead, how do you decide when to introduce a new dependency?</div>
+  <div class="qa-a">Check: (1) <strong>Bundle cost</strong> — run on bundlephobia.com; is it worth it? (2) <strong>Maintenance</strong> — last commit, GitHub stars, open issues trend. (3) <strong>Can we write it ourselves in &lt;2 hours?</strong> — for simple utilities like <code>timeAgo()</code> (which OpsOwl implements inline at 10 lines), native &gt; npm. (4) <strong>Security</strong> — <code>npm audit</code>, check CVEs. (5) <strong>Lock-in</strong> — is the API stable? Is there an escape hatch? Prefer small, single-purpose packages over large frameworks that own your architecture.</div>
+</div>
+
+<!-- ═══════════════════════════ JS INTERNALS ═══════════════════════════ -->
+<h2 id="js-internals" class="section">20. JavaScript Internals</h2>
+<p>This is the most frequently asked topic at Flipkart/Swiggy/Razorpay SDE-3 level. Know every concept below cold.</p>
+
+<h3>Event Loop — Call Stack, Task Queue, Microtask Queue</h3>
+<pre><code><cm>// JavaScript is single-threaded. The event loop coordinates three structures:</cm>
+<cm>// 1. Call Stack     — currently executing function frames</cm>
+<cm>// 2. Microtask Queue — Promises, queueMicrotask, MutationObserver callbacks</cm>
+<cm>// 3. (Macro)Task Queue — setTimeout, setInterval, I/O, UI events</cm>
+
+<cm>// Rule: when call stack empties, drain ALL microtasks first,</cm>
+<cm>// then pick ONE macrotask, then drain microtasks again — repeat.</cm>
+
+<fn>console.log</fn>(<str>"1"</str>);
+
+<fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(<str>"2"</str>), <num>0</num>);   <cm>// macrotask — queued last</cm>
+
+<ty>Promise</ty>.<fn>resolve</fn>().<fn>then</fn>(() =&gt; <fn>console.log</fn>(<str>"3"</str>)); <cm>// microtask</cm>
+<ty>Promise</ty>.<fn>resolve</fn>().<fn>then</fn>(() =&gt; <fn>console.log</fn>(<str>"4"</str>)); <cm>// microtask</cm>
+
+<fn>console.log</fn>(<str>"5"</str>);
+
+<cm>// Output: 1, 5, 3, 4, 2</cm>
+<cm>// Explanation: sync runs first (1, 5), then all microtasks (3, 4), then macrotask (2)</cm></code></pre>
+
+<div class="callout callout-amber">
+  <div class="callout-label">Classic interview trick</div>
+  <code>async/await</code> is syntactic sugar over Promises. Everything after <code>await</code> is a microtask. So <code>async function f() { await something(); console.log("x"); }</code> — the <code>console.log("x")</code> runs as a microtask after the awaited promise resolves.
+</div>
+
+<pre><code><cm>// Promise chaining = microtask chain — each .then is a new microtask</cm>
+<fn>console.log</fn>(<str>"start"</str>);
+
+<kw>async function</kw> <fn>main</fn>() {
+  <fn>console.log</fn>(<str>"async start"</str>);
+  <kw>await</kw> <ty>Promise</ty>.<fn>resolve</fn>();
+  <fn>console.log</fn>(<str>"after await"</str>);  <cm>// microtask</cm>
+}
+
+<fn>main</fn>();
+<fn>console.log</fn>(<str>"sync end"</str>);
+
+<cm>// Output: "start", "async start", "sync end", "after await"</cm></code></pre>
+
+<h3>Closures</h3>
+<pre><code><cm>// A closure = function + its lexical environment (variables in scope when defined)</cm>
+
+<kw>function</kw> <fn>counter</fn>() {
+  <kw>let</kw> count = <num>0</num>;
+  <kw>return</kw> {
+    inc: () =&gt; ++count,
+    get: () =&gt; count,
+  };
+}
+<kw>const</kw> c = <fn>counter</fn>();
+c.<fn>inc</fn>(); c.<fn>inc</fn>();
+<fn>console.log</fn>(c.<fn>get</fn>()); <cm>// 2 — count lives in the closure</cm>
+
+<cm>// Classic bug: loop + var + async callback</cm>
+<kw>for</kw> (<kw>var</kw> i = <num>0</num>; i &lt; <num>3</num>; i++) {
+  <fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(i), <num>0</num>); <cm>// prints 3, 3, 3 — all share same var i</cm>
+}
+
+<cm>// Fix 1: use let (block-scoped — new binding per iteration)</cm>
+<kw>for</kw> (<kw>let</kw> i = <num>0</num>; i &lt; <num>3</num>; i++) {
+  <fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(i), <num>0</num>); <cm>// 0, 1, 2</cm>
+}
+
+<cm>// Fix 2: IIFE to capture current i</cm>
+<kw>for</kw> (<kw>var</kw> i = <num>0</num>; i &lt; <num>3</num>; i++) {
+  (<kw>function</kw>(j) { <fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(j), <num>0</num>); })(i);
+}</code></pre>
+
+<h3>Prototypal Inheritance</h3>
+<pre><code><cm>// Every JS object has a [[Prototype]] link — the prototype chain</cm>
+<kw>function</kw> <fn>Animal</fn>(name) { <kw>this</kw>.name = name; }
+<ty>Animal</ty>.prototype.<fn>speak</fn> = <kw>function</kw>() { <kw>return</kw> <op>`</op><op>${</op><kw>this</kw>.name<op>}</op><str> speaks</str><op>`</op>; };
+
+<kw>function</kw> <fn>Dog</fn>(name) { <fn>Animal</fn>.<fn>call</fn>(<kw>this</kw>, name); }  <cm>// call parent constructor</cm>
+<ty>Dog</ty>.prototype = <ty>Object</ty>.<fn>create</fn>(<ty>Animal</ty>.prototype); <cm>// set prototype chain</cm>
+
+<kw>const</kw> d = <kw>new</kw> <fn>Dog</fn>(<str>"Rex"</str>);
+d.<fn>speak</fn>(); <cm>// "Rex speaks" — found via prototype chain</cm>
+
+<cm>// ES6 class syntax is syntactic sugar — same prototype chain under the hood</cm>
+<kw>class</kw> <ty>Dog</ty> <kw>extends</kw> <ty>Animal</ty> {
+  <fn>constructor</fn>(name) { <kw>super</kw>(name); }
+}</code></pre>
+
+<h3>this — Four Binding Rules</h3>
+<pre><code><cm>// 1. Implicit: obj.method() — this = obj</cm>
+<cm>// 2. Explicit: fn.call(ctx), fn.apply(ctx), fn.bind(ctx)</cm>
+<cm>// 3. new: new Fn() — this = newly created object</cm>
+<cm>// 4. Default (sloppy): standalone fn() — this = window / undefined (strict)</cm>
+<cm>// Arrow functions: NO own this — inherit from enclosing lexical scope</cm>
+
+<kw>class</kw> <ty>Timer</ty> {
+  <fn>constructor</fn>() { <kw>this</kw>.count = <num>0</num>; }
+  <fn>start</fn>() {
+    <cm>// Arrow function — this is inherited from start()'s context (Timer instance)</cm>
+    <fn>setInterval</fn>(() =&gt; { <kw>this</kw>.count++; }, <num>1000</num>);
+    <cm>// Regular function would lose this — this.count++ would fail</cm>
+  }
+}</code></pre>
+
+<h3>Memory Leaks — Top Causes in React</h3>
+<ul>
+  <li><strong>Event listener not removed</strong> — add in <code>useEffect</code>, remove in cleanup <code>return () =&gt; removeEventListener</code></li>
+  <li><strong>setInterval / setTimeout not cleared</strong> — clear in useEffect cleanup (OpsOwl useIdleTimeout does this correctly)</li>
+  <li><strong>Closure holding a DOM ref</strong> — large component removed but closure in event handler keeps its subtree alive</li>
+  <li><strong>Global cache growing unboundedly</strong> — TanStack Query's <code>gcTime</code> (default 5min) removes unused query data</li>
+  <li><strong>EventSource / WebSocket not closed</strong> — OpsOwl's <code>useTimelineSSE</code> calls <code>es.close()</code> in useEffect cleanup</li>
+</ul>
+
+<h3>var / let / const — Hoisting &amp; TDZ</h3>
+<pre><code><cm>// var: function-scoped, hoisted (declared at top, value = undefined)</cm>
+<fn>console.log</fn>(x); <cm>// undefined — var is hoisted</cm>
+<kw>var</kw> x = <num>5</num>;
+
+<cm>// let/const: block-scoped, hoisted but NOT initialised → Temporal Dead Zone</cm>
+<fn>console.log</fn>(y); <cm>// ReferenceError: Cannot access 'y' before initialization</cm>
+<kw>let</kw> y = <num>5</num>;
+
+<cm>// const: same as let but binding is immutable (object contents can change)</cm>
+<kw>const</kw> obj = { a: <num>1</num> };
+obj.a = <num>2</num>; <cm>// ✓ — mutating contents is allowed</cm>
+<cm>// obj = {} — TypeError: Assignment to constant variable</cm></code></pre>
+
+<h3>Common Output-based Questions</h3>
+<pre><code><cm>// Q: What does this print?</cm>
+<fn>console.log</fn>(<num>1</num>);
+<fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(<num>2</num>), <num>1000</num>);
+<fn>setTimeout</fn>(() =&gt; <fn>console.log</fn>(<num>3</num>), <num>0</num>);
+<ty>Promise</ty>.<fn>resolve</fn>().<fn>then</fn>(() =&gt; <fn>console.log</fn>(<num>4</num>));
+<fn>console.log</fn>(<num>5</num>);
+<cm>// Answer: 1, 5, 4, 3, 2</cm>
+
+<cm>// Q: typeof null</cm>
+<kw>typeof</kw> <kw>null</kw>   <cm>// "object" — historic JS bug, never fixed for backwards compat</cm>
+<kw>typeof</kw> []     <cm>// "object"</cm>
+<kw>typeof</kw> <fn>fn</fn>     <cm>// "function"</cm>
+<kw>typeof</kw> <kw>undefined</kw> <cm>// "undefined"</cm>
+
+<cm>// == (loose) vs === (strict)</cm>
+<num>0</num> == <kw>false</kw>    <cm>// true — coercion</cm>
+<num>0</num> === <kw>false</kw>   <cm>// false</cm>
+<kw>null</kw> == <kw>undefined</kw> <cm>// true</cm>
+<kw>null</kw> === <kw>undefined</kw> <cm>// false</cm>
+<str>""</str> == <kw>false</kw>    <cm>// true</cm></code></pre>
+
+<!-- ═══════════════════════════ BROWSER RENDERING ═══════════════════════════ -->
+<h2 id="browser-rendering" class="section">21. Browser Rendering Pipeline</h2>
+
+<h3>Critical Rendering Path (CRP)</h3>
+<pre><code><cm>// Step 1: Parse HTML → DOM tree (incrementally, can be blocked by scripts)</cm>
+<cm>// Step 2: Parse CSS → CSSOM tree (blocks rendering until complete)</cm>
+<cm>// Step 3: DOM + CSSOM → Render Tree (visible nodes only — display:none excluded)</cm>
+<cm>// Step 4: Layout (Reflow) — calculate exact position/size of every node</cm>
+<cm>// Step 5: Paint — fill pixels: text, colors, images, shadows</cm>
+<cm>// Step 6: Composite — combine painted layers in correct order (z-index, opacity)</cm>
+
+<cm>// Goal: get to first paint as fast as possible</cm>
+<cm>// Block: render-blocking CSS (in &lt;head&gt;), parser-blocking scripts (no async/defer)</cm></code></pre>
+
+<h3>Reflow vs Repaint vs Composite</h3>
+<table>
+  <tr><th>Operation</th><th>Triggered by</th><th>Cost</th><th>Fix</th></tr>
+  <tr><td><strong>Reflow (Layout)</strong></td><td>Changing width, height, margin, padding, font-size; reading offsetWidth, getBoundingClientRect</td><td>Most expensive — cascades to children</td><td>Batch DOM reads/writes; use CSS transforms instead of top/left</td></tr>
+  <tr><td><strong>Repaint</strong></td><td>Changing color, background, visibility, box-shadow</td><td>Medium — re-paints affected layer</td><td>Avoid in animation hot paths</td></tr>
+  <tr><td><strong>Composite only</strong></td><td>CSS <code>transform</code>, <code>opacity</code></td><td>Cheapest — GPU handles it; no reflow or repaint</td><td><strong>Use these for all animations</strong></td></tr>
+</table>
+
+<pre><code><cm>// BAD: reading layout then writing causes forced synchronous reflow</cm>
+<kw>const</kw> w = el.offsetWidth;  <cm>// read (forces flush)</cm>
+el.style.width = w + <num>10</num> + <str>"px"</str>; <cm>// write</cm>
+<kw>const</kw> h = el.offsetHeight; <cm>// read again → SECOND forced reflow</cm>
+
+<cm>// GOOD: batch reads, then writes</cm>
+<kw>const</kw> w = el.offsetWidth;  <cm>// read</cm>
+<kw>const</kw> h = el.offsetHeight; <cm>// read (same reflow)</cm>
+el.style.width  = w + <num>10</num> + <str>"px"</str>; <cm>// write</cm>
+el.style.height = h + <num>10</num> + <str>"px"</str>; <cm>// write (batched)</cm>
+
+<cm>// BEST: use CSS transform — no reflow, GPU composited</cm>
+el.style.transform = <op>`</op><str>translateX(</str><op>${</op>offset<op>}</op><str>px)</str><op>`</op>;</code></pre>
+
+<h3>GPU Layer Promotion</h3>
+<pre><code><cm>/* Promote to own GPU layer — compositing is cheaper than reflow+repaint */</cm>
+<cm>/* Use for elements that animate frequently */</cm>
+.animated {
+  transform: translateZ(0);      <cm>/* trick to promote */</cm>
+  will-change: transform;        <cm>/* modern: hint to browser */</cm>
+  <cm>/* WARNING: don't over-use will-change — each layer uses GPU memory */</cm>
+}</code></pre>
+
+<h3>requestAnimationFrame</h3>
+<pre><code><cm>// rAF fires before the browser's next repaint — smooth 60fps animations</cm>
+<cm>// Never use setTimeout(fn, 16) for animations — it drifts</cm>
+
+<kw>function</kw> <fn>animate</fn>(timestamp: <ty>number</ty>) {
+  <cm>// update position based on timestamp</cm>
+  el.style.transform = <op>`</op><str>translateX(</str><op>${</op>position<op>}</op><str>px)</str><op>`</op>;
+  requestAnimationFrame(animate);
+}
+requestAnimationFrame(animate);</code></pre>
+
+<div class="qa">
+  <div class="qa-q">What happens when you call getBoundingClientRect() inside a React render?</div>
+  <div class="qa-a">It forces a <strong>synchronous layout flush</strong> (reflow). React batches DOM updates and applies them together; reading a layout property mid-batch forces the browser to flush those updates first to give you accurate measurements. This kills performance in loops. Always read layout properties in <code>useLayoutEffect</code> (after DOM mutations, before paint) or cache the result. Never read layout inside JSX render functions.</div>
+</div>
+
+<!-- ═══════════════════════════ REACT CONCURRENT ═══════════════════════════ -->
+<h2 id="concurrent" class="section">22. React 18 — Concurrent Features</h2>
+
+<h3>useTransition — Keep UI Responsive During Heavy Updates</h3>
+<pre><code><cm>// Without useTransition: typing in search input lags because the list</cm>
+<cm>// re-renders synchronously with every keystroke</cm>
+
+<kw>const</kw> [isPending, startTransition] = <fn>useTransition</fn>();
+<kw>const</kw> [query, setQuery] = <fn>useState</fn>(<str>""</str>);
+<kw>const</kw> [results, setResults] = <fn>useState</fn>([]);
+
+<kw>const</kw> handleInput = (e: <ty>React.ChangeEvent</ty>&lt;<ty>HTMLInputElement</ty>&gt;) =&gt; {
+  setQuery(e.target.value);  <cm>// urgent — update input immediately</cm>
+
+  startTransition(() =&gt; {
+    setResults(<fn>heavyFilter</fn>(e.target.value));  <cm>// non-urgent — can be interrupted</cm>
+  });
+};
+
+<cm>// isPending: true while transition is in progress → show spinner</cm>
+<kw>return</kw> (
+  <op>&lt;</op><op>&gt;</op>
+    <op>&lt;</op><ty>input</ty> value={query} onChange={handleInput} <op>/&gt;</op>
+    {isPending ? <op>&lt;</op><ty>Spinner</ty> <op>/&gt;</op> : <op>&lt;</op><ty>ResultsList</ty> items={results} <op>/&gt;</op>}
+  <op>&lt;/</op><op>&gt;</op>
+);</code></pre>
+
+<h3>useDeferredValue — Defer Rendering a Slow Subtree</h3>
+<pre><code><cm>// Similar to useTransition but when you don't control the state update</cm>
+<cm>// e.g. the state is owned by a parent</cm>
+
+<kw>function</kw> <fn>SearchResults</fn>({ query }: { query: <ty>string</ty> }) {
+  <kw>const</kw> deferredQuery = <fn>useDeferredValue</fn>(query);
+  <cm>// deferredQuery lags behind query during typing</cm>
+  <cm>// Results list only re-renders when browser is idle</cm>
+  <kw>return</kw> <op>&lt;</op><ty>HeavyList</ty> query={deferredQuery} <op>/&gt;</op>;
+}</code></pre>
+
+<h3>Suspense Boundaries</h3>
+<pre><code><cm>// Suspense wraps components that may "suspend" (throw a Promise)</cm>
+<cm>// TanStack Query integrates with Suspense via useSuspenseQuery</cm>
+
+<kw>import</kw> { <fn>useSuspenseQuery</fn> } <kw>from</kw> <str>"@tanstack/react-query"</str>;
+
+<kw>function</kw> <fn>CaseDetail</fn>({ id }: { id: <ty>string</ty> }) {
+  <cm>// Throws a Promise until data is ready — no isLoading check needed</cm>
+  <kw>const</kw> { data } = <fn>useSuspenseQuery</fn>({
+    queryKey: [<str>"case"</str>, id],
+    queryFn: () =&gt; api.<fn>get</fn>&lt;<ty>Case</ty>&gt;(<op>`</op><str>/api/v1/cases/</str><op>${</op>id<op>}</op><op>`</op>),
+  });
+  <kw>return</kw> <op>&lt;</op><ty>CaseView</ty> data={data} <op>/&gt;</op>; <cm>// data guaranteed non-null</cm>
+}
+
+<cm>// Wrap in Suspense — shows fallback while data loads</cm>
+<op>&lt;</op><ty>Suspense</ty> fallback={<op>&lt;</op><ty>CaseSkeleton</ty> <op>/&gt;</op>}<op>&gt;</op>
+  <op>&lt;</op><ty>CaseDetail</ty> id={id} <op>/&gt;</op>
+<op>&lt;/</op><ty>Suspense</ty><op>&gt;</op></code></pre>
+
+<!-- ═══════════════════════════ DESIGN PATTERNS ═══════════════════════════ -->
+<h2 id="design-patterns" class="section">23. React Design Patterns</h2>
+
+<h3>Higher-Order Component (HOC)</h3>
+<pre><code><cm>// HOC: function that takes a component and returns an enhanced component</cm>
+<cm>// Use: cross-cutting concerns (auth gate, analytics, error boundary)</cm>
+
+<kw>function</kw> <fn>withRBAC</fn>&lt;P <kw>extends</kw> <ty>object</ty>&gt;(
+  <ty>Component</ty>: <ty>React.ComponentType</ty>&lt;P&gt;,
+  allowedRoles: <ty>UserRole</ty>[]
+) {
+  <kw>return function</kw> <fn>ProtectedComponent</fn>(props: P) {
+    <kw>const</kw> { hasRole } = <fn>useAuth</fn>();
+    <kw>if</kw> (!<fn>hasRole</fn>(...allowedRoles)) <kw>return</kw> <op>&lt;</op><ty>AccessDenied</ty> <op>/&gt;</op>;
+    <kw>return</kw> <op>&lt;</op><ty>Component</ty> {...props} <op>/&gt;</op>;
+  };
+}
+<kw>const</kw> <ty>AdminPage</ty> = <fn>withRBAC</fn>(<ty>DashboardPage</ty>, [<str>"admin"</str>, <str>"super_admin"</str>]);
+
+<cm>// HOC drawbacks: prop collision, wrapper hell — custom hooks preferred today</cm>
+<cm>// OpsOwl uses RBACGate component + useAuth hook instead of HOC</cm></code></pre>
+
+<h3>Compound Components — With Context</h3>
+<pre><code><cm>// Parent manages state; children access it via context without prop drilling</cm>
+<cm>// e.g. &lt;Select&gt; / &lt;Select.Option&gt;  or  &lt;Modal&gt; / &lt;Modal.Header&gt;</cm>
+
+<kw>const</kw> TabContext = <fn>createContext</fn>&lt;{ active: <ty>string</ty>; setActive: (v: <ty>string</ty>) =&gt; <kw>void</kw> }&gt;(<kw>null</kw>!);
+
+<kw>function</kw> <fn>Tabs</fn>({ children, defaultTab }: { children: <ty>React.ReactNode</ty>; defaultTab: <ty>string</ty> }) {
+  <kw>const</kw> [active, setActive] = <fn>useState</fn>(defaultTab);
+  <kw>return</kw> <op>&lt;</op><ty>TabContext.Provider</ty> value={{ active, setActive }}<op>&gt;</op>{children}<op>&lt;/</op><ty>TabContext.Provider</ty><op>&gt;</op>;
+}
+<kw>function</kw> <fn>Tab</fn>({ id, children }: { id: <ty>string</ty>; children: <ty>React.ReactNode</ty> }) {
+  <kw>const</kw> { active, setActive } = <fn>useContext</fn>(TabContext);
+  <kw>return</kw> <op>&lt;</op><ty>button</ty> onClick={() =&gt; setActive(id)} className={active === id ? <str>"active"</str> : <str>""</str>}<op>&gt;</op>{children}<op>&lt;/</op><ty>button</ty><op>&gt;</op>;
+}
+<ty>Tabs</ty>.Tab = Tab;
+
+<cm>// Usage:</cm>
+<cm>// &lt;Tabs defaultTab="notes"&gt;</cm>
+<cm>//   &lt;Tabs.Tab id="notes"&gt;Notes&lt;/Tabs.Tab&gt;</cm>
+<cm>//   &lt;Tabs.Tab id="tasks"&gt;Tasks&lt;/Tabs.Tab&gt;</cm>
+<cm>// &lt;/Tabs&gt;</cm></code></pre>
+
+<h3>Render Props</h3>
+<pre><code><cm>// Pass a function as prop — child decides what to render</cm>
+<cm>// Largely replaced by custom hooks, but still seen in some libs (react-virtuoso)</cm>
+
+<kw>function</kw> <fn>DataFetcher</fn>&lt;T&gt;({
+  url, render
+}: {
+  url: <ty>string</ty>;
+  render: (data: T | <kw>null</kw>, loading: <ty>boolean</ty>) =&gt; <ty>React.ReactNode</ty>
+}) {
+  <kw>const</kw> { data, isLoading } = <fn>useQuery</fn>({ queryKey: [url], queryFn: () =&gt; api.<fn>get</fn>&lt;T&gt;(url) });
+  <kw>return</kw> &lt;&gt;{render(data ?? <kw>null</kw>, isLoading)}&lt;/&gt;;
+}
+
+<cm>// &lt;DataFetcher url="/api/cases" render={(data, loading) =&gt; loading ? &lt;Spinner/&gt; : &lt;List items={data}/&gt;} /&gt;</cm></code></pre>
+
+<h3>Container / Presenter (Smart / Dumb) Pattern</h3>
+<pre><code><cm>// Container: owns data fetching, state, business logic</cm>
+<cm>// Presenter: pure UI — receives props, fires callbacks, easily testable</cm>
+
+<cm>// Container</cm>
+<kw>function</kw> <fn>CaseListContainer</fn>() {
+  <kw>const</kw> { data, isLoading } = <fn>useQuery</fn>({ queryKey: [<str>"cases"</str>], queryFn: <fn>fetchCases</fn> });
+  <kw>return</kw> <op>&lt;</op><ty>CaseListView</ty> cases={data ?? []} loading={isLoading} <op>/&gt;</op>;
+}
+<cm>// Presenter — pure, testable, no data-fetching logic</cm>
+<kw>function</kw> <fn>CaseListView</fn>({ cases, loading }: { cases: <ty>CaseRow</ty>[]; loading: <ty>boolean</ty> }) {
+  <kw>if</kw> (loading) <kw>return</kw> <op>&lt;</op><ty>Skeleton</ty> <op>/&gt;</op>;
+  <kw>return</kw> <op>&lt;</op><ty>ul</ty><op>&gt;</op>{cases.<fn>map</fn>(c =&gt; <op>&lt;</op><ty>CaseRow</ty> key={c.id} {...c} <op>/&gt;</op>)}<op>&lt;/</op><ty>ul</ty><op>&gt;</op>;
+}</code></pre>
+
+<!-- ═══════════════════════════ CSS ═══════════════════════════ -->
+<h2 id="css-architecture" class="section">24. CSS Architecture</h2>
+
+<h3>Flexbox vs Grid — Decision Rule</h3>
+<table>
+  <tr><th></th><th>Flexbox</th><th>Grid</th></tr>
+  <tr><td>Direction</td><td>One axis (row OR column)</td><td>Two axes (row AND column)</td></tr>
+  <tr><td>Content vs container driven</td><td>Content-driven (items determine size)</td><td>Container-driven (you define tracks)</td></tr>
+  <tr><td>Best for</td><td>Nav bars, button groups, form rows, centering</td><td>Page layouts, card grids, dashboards</td></tr>
+  <tr><td>OpsOwl use</td><td>Sidebar nav items (<code>flex items-center gap-3</code>), header rows</td><td>Dashboard stats grid, case detail two-column</td></tr>
+</table>
+
+<h3>CSS Specificity — 0,0,0,0 Model</h3>
+<pre><code><cm>/* Specificity calculated as (inline, ID, class/attr/pseudo, element) */</cm>
+<cm>/* Higher specificity wins; same specificity → later rule wins */</cm>
+
+style=""              <cm>/* 1,0,0,0  — always wins (except !important) */</cm>
+#id                   <cm>/* 0,1,0,0 */</cm>
+.class, [attr], :hover <cm>/* 0,0,1,0 */</cm>
+div, p, ::before      <cm>/* 0,0,0,1 */</cm>
+*                     <cm>/* 0,0,0,0 */</cm>
+
+<cm>/* Tailwind avoids specificity wars: utility classes are 0,0,1,0 each */</cm>
+<cm>/* Use @layer to control specificity in Tailwind v4 */</cm></code></pre>
+
+<h3>CSS Custom Properties (Variables)</h3>
+<pre><code><cm>/* Defined on :root — globally accessible */</cm>
+:root {
+  --color-bg: #080e1a;
+  --color-cyan: #22d3ee;
+  --spacing-4: 1rem;
+}
+.card { background: var(--color-bg); padding: var(--spacing-4); }
+
+<cm>/* Dynamic theming — change variable in JS, all consumers update instantly */</cm>
+document.documentElement.style.setProperty(<str>"--color-bg"</str>, <str>"#fff"</str>);</code></pre>
+
+<h3>CSS Animations — Performance Rules</h3>
+<pre><code><cm>/* ✓ GPU-accelerated — use for all animations */</cm>
+@keyframes slideIn {
+  from { transform: translateX(-20px); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
+}
+.modal { animation: slideIn 200ms ease-out; }
+
+<cm>/* ✗ Triggers reflow — never animate these */</cm>
+<cm>/* width, height, top, left, margin, padding */</cm>
+
+<cm>/* ✓ For JS-driven animations — use rAF or CSS transitions */</cm>
+el.style.transition = <str>"transform 200ms ease"</str>;
+el.style.transform = <str>"translateX(100px)"</str>;</code></pre>
+
+<!-- ═══════════════════════════ BUILD TOOLS ═══════════════════════════ -->
+<h2 id="build-tools" class="section">25. Build Tools &amp; Module Systems</h2>
+
+<h3>CommonJS vs ES Modules</h3>
+<table>
+  <tr><th></th><th>CommonJS (CJS)</th><th>ES Modules (ESM)</th></tr>
+  <tr><td>Syntax</td><td><code>require() / module.exports</code></td><td><code>import / export</code></td></tr>
+  <tr><td>Loading</td><td>Synchronous (blocking)</td><td>Asynchronous (non-blocking)</td></tr>
+  <tr><td>Tree shaking</td><td class="no">Not possible — dynamic requires</td><td class="yes">Yes — static analysis at build time</td></tr>
+  <tr><td>Environment</td><td>Node.js (server)</td><td>Browser + Node.js 12+</td></tr>
+  <tr><td>Next.js</td><td>Server-side still sees CJS libs</td><td>App Router is ESM-first</td></tr>
+</table>
+
+<h3>Webpack vs Vite</h3>
+<table>
+  <tr><th></th><th>Webpack</th><th>Vite</th></tr>
+  <tr><td>Dev server</td><td>Bundles entire app first — slow cold start</td><td>Serves native ESM — no bundling in dev, instant start</td></tr>
+  <tr><td>HMR</td><td>Re-bundles changed module's chunk</td><td>Replaces only the changed module via native ESM</td></tr>
+  <tr><td>Production</td><td>Webpack (mature, flexible)</td><td>Rollup (smaller, faster)</td></tr>
+  <tr><td>Config</td><td>Complex but powerful loaders/plugins</td><td>Simpler — convention over configuration</td></tr>
+  <tr><td>Next.js</td><td>Default (Webpack 5), Turbopack opt-in</td><td>Not used in Next.js</td></tr>
+</table>
+
+<pre><code><cm>// Turbopack — Next.js 14 dev server (Rust-based, replaces Webpack in dev)</cm>
+<cm>// next dev --turbo  — up to 10× faster HMR than Webpack</cm>
+<cm>// Production build still uses Webpack (Turbopack prod is in progress)</cm>
+
+<cm>// Key Webpack concepts:</cm>
+<cm>// Entry: starting module for dependency graph</cm>
+<cm>// Output: where to emit bundles</cm>
+<cm>// Loaders: transform non-JS files (CSS, images, TypeScript)</cm>
+<cm>// Plugins: tap into lifecycle (HtmlWebpackPlugin, MiniCssExtractPlugin)</cm>
+<cm>// Code splitting: splitChunks — separate vendor, common, page chunks</cm></code></pre>
+
+<h3>Source Maps</h3>
+<p>Source maps map minified/bundled output back to original source. Essential for debugging production errors in Sentry. Next.js generates <code>.map</code> files but doesn't expose them publicly in production — Sentry can be configured to upload them privately during CI.</p>
+
+<!-- ═══════════════════════════ FORMS ═══════════════════════════ -->
+<h2 id="forms" class="section">26. Form Management — React Hook Form + Zod</h2>
+
+<h3>Why React Hook Form?</h3>
+<p>Uses uncontrolled inputs internally — no re-render on every keystroke. Only re-renders on submit, error change, and explicit <code>watch()</code>. For a 20-field form this is the difference between 20 re-renders per keystroke and zero.</p>
+
+<pre><code><kw>import</kw> { <fn>useForm</fn> } <kw>from</kw> <str>"react-hook-form"</str>;
+<kw>import</kw> { z } <kw>from</kw> <str>"zod"</str>;
+<kw>import</kw> { <fn>zodResolver</fn> } <kw>from</kw> <str>"@hookform/resolvers/zod"</str>;
+
+<cm>// 1. Define schema with Zod</cm>
+<kw>const</kw> caseSchema = z.<fn>object</fn>({
+  title:       z.<fn>string</fn>().<fn>min</fn>(<num>3</num>, <str>"Title must be at least 3 characters"</str>),
+  priority:    z.<fn>enum</fn>([<str>"critical"</str>, <str>"high"</str>, <str>"medium"</str>, <str>"low"</str>]),
+  description: z.<fn>string</fn>().<fn>optional</fn>(),
+  due_date:    z.<fn>string</fn>().<fn>datetime</fn>().<fn>optional</fn>(),
+});
+<kw>type</kw> <ty>CaseForm</ty> = z.<fn>infer</fn>&lt;<kw>typeof</kw> caseSchema&gt;;  <cm>// auto-derive TypeScript type</cm>
+
+<cm>// 2. Use in component</cm>
+<kw>const</kw> { register, handleSubmit, formState: { errors, isSubmitting } } = <fn>useForm</fn>&lt;<ty>CaseForm</ty>&gt;({
+  resolver: <fn>zodResolver</fn>(caseSchema),
+  defaultValues: { priority: <str>"medium"</str> },
+});
+
+<kw>const</kw> onSubmit = <kw>async</kw> (data: <ty>CaseForm</ty>) =&gt; {
+  <kw>await</kw> api.<fn>post</fn>(<str>"/api/v1/cases"</str>, data);
+};
+
+<kw>return</kw> (
+  <op>&lt;</op><ty>form</ty> onSubmit={<fn>handleSubmit</fn>(onSubmit)}<op>&gt;</op>
+    <op>&lt;</op><ty>input</ty> {...<fn>register</fn>(<str>"title"</str>)} placeholder=<str>"Case title"</str> <op>/&gt;</op>
+    {errors.title &amp;&amp; <op>&lt;</op><ty>span</ty> className=<str>"text-red-400"</str><op>&gt;</op>{errors.title.message}<op>&lt;/</op><ty>span</ty><op>&gt;</op>}
+    <op>&lt;</op><ty>button</ty> disabled={isSubmitting}<op>&gt;</op>
+      {isSubmitting ? <str>"Creating..."</str> : <str>"Create Case"</str>}
+    <op>&lt;/</op><ty>button</ty><op>&gt;</op>
+  <op>&lt;/</op><ty>form</ty><op>&gt;</op>
+);</code></pre>
+
+<!-- ═══════════════════════════ MONITORING ═══════════════════════════ -->
+<h2 id="monitoring" class="section">27. Frontend Monitoring &amp; Observability</h2>
+
+<h3>Sentry — Error Tracking</h3>
+<pre><code><cm>// next.config.js + Sentry integration</cm>
+<cm>// Captures: unhandled exceptions, promise rejections, network errors</cm>
+<cm>// Features: source maps, release tracking, user context, breadcrumbs</cm>
+
+<kw>import</kw> * <kw>as</kw> Sentry <kw>from</kw> <str>"@sentry/nextjs"</str>;
+
+Sentry.<fn>init</fn>({
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
+  environment: process.env.NODE_ENV,
+  tracesSampleRate: <num>0.2</num>,  <cm>// 20% of transactions traced</cm>
+});
+
+<cm>// Manual error capture — useful in catch blocks</cm>
+<kw>try</kw> {
+  <kw>await</kw> api.<fn>post</fn>(<str>"/api/v1/cases"</str>, data);
+} <kw>catch</kw> (err) {
+  Sentry.<fn>captureException</fn>(err, {
+    tags: { feature: <str>"case-creation"</str> },
+    user: { id: user.id, email: user.email },
+  });
+  <fn>setError</fn>(<str>"Failed to create case"</str>);
+}</code></pre>
+
+<h3>Web Vitals — Measuring in Code</h3>
+<pre><code><cm>// pages/_app.tsx (Pages Router) or layout.tsx + client component</cm>
+<kw>import</kw> { <fn>onCLS</fn>, <fn>onINP</fn>, <fn>onLCP</fn>, <fn>onFCP</fn>, <fn>onTTFB</fn> } <kw>from</kw> <str>"web-vitals"</str>;
+
+<kw>function</kw> <fn>sendToAnalytics</fn>(metric: Metric) {
+  <cm>// Send to your monitoring backend / DataDog / Grafana</cm>
+  <fn>fetch</fn>(<str>"/api/vitals"</str>, {
+    method: <str>"POST"</str>,
+    body: <ty>JSON</ty>.<fn>stringify</fn>({ name: metric.name, value: metric.value }),
+  });
+}
+
+<fn>onLCP</fn>(sendToAnalytics);
+<fn>onINP</fn>(sendToAnalytics);
+<fn>onCLS</fn>(sendToAnalytics);</code></pre>
+
+<h3>Lighthouse CI — Automated CWV in Pull Requests</h3>
+<pre><code><cm># .github/workflows/lighthouse.yml</cm>
+<cm># Runs Lighthouse on every PR, fails if scores drop below thresholds</cm>
+- <kw>uses</kw>: treosh/lighthouse-ci-action@v9
+  <kw>with</kw>:
+    urls: <str>"http://localhost:3001/dashboard"</str>
+    budgetPath: <str>".lighthouserc.json"</str>
+
+<cm># .lighthouserc.json</cm>
+{
+  <str>"ci"</str>: { <str>"assert"</str>: { <str>"assertions"</str>: {
+    <str>"categories:performance"</str>: [<str>"warn"</str>, { <str>"minScore"</str>: 0.85 }],
+    <str>"first-contentful-paint"</str>: [<str>"error"</str>, { <str>"maxNumericValue"</str>: 2000 }],
+    <str>"cumulative-layout-shift"</str>: [<str>"error"</str>, { <str>"maxNumericValue"</str>: 0.1 }]
+  }}}
+}</code></pre>
+
+<h3>Feature Flags</h3>
+<pre><code><cm>// Feature flags let you ship code dark and enable by percentage/user</cm>
+<cm>// Common tools: LaunchDarkly, GrowthBook (open source), Unleash</cm>
+
+<cm>// Pattern: check flag before rendering new feature</cm>
+<kw>const</kw> flags = <fn>useFeatureFlags</fn>();
+<kw>return</kw> (
+  <op>&lt;</op><op>&gt;</op>
+    {flags.<fn>isEnabled</fn>(<str>"new_ai_copilot_v2"</str>) ? <op>&lt;</op><ty>CopilotV2</ty> <op>/&gt;</op> : <op>&lt;</op><ty>CopilotV1</ty> <op>/&gt;</op>}
+  <op>&lt;/</op><op>&gt;</op>
+);
+<cm>// Enables: gradual rollouts, A/B testing, instant kill-switch, beta groups</cm></code></pre>
+
+<!-- ═══════════════════════════ SERVICE WORKERS ═══════════════════════════ -->
+<h2 id="pwa" class="section">28. Progressive Web Apps &amp; Service Workers</h2>
+
+<h3>Service Worker Caching Strategies</h3>
+<table>
+  <tr><th>Strategy</th><th>How</th><th>Best for</th></tr>
+  <tr><td><strong>Cache First</strong></td><td>Cache → network fallback</td><td>Static assets (CSS, JS, images) with content hashing</td></tr>
+  <tr><td><strong>Network First</strong></td><td>Network → cache fallback</td><td>API responses where freshness matters; graceful offline</td></tr>
+  <tr><td><strong>Stale-While-Revalidate</strong></td><td>Serve cache immediately, update in background</td><td>Frequently changing but delay-tolerant data (news feeds)</td></tr>
+  <tr><td><strong>Cache Only</strong></td><td>Cache only — error if not cached</td><td>Pre-cached offline-first assets</td></tr>
+</table>
+
+<div class="opsowl-ref">
+  <div class="opsowl-ref-label">OpsOwl — potential offline use</div>
+  <p>A compliance investigator should be able to view their open case list even with a flaky VPN. Network-First caching for <code>/api/v1/cases?assigned_to=me</code> with a 5-minute stale threshold would allow viewing last-known cases offline. This would be a Phase 2 feature — the core app currently requires a live API connection.</p>
+</div>
+
+<!-- ═══════════════════════════ WEB APIs ═══════════════════════════ -->
+<h2 id="web-apis" class="section">29. Web APIs Every Senior Dev Should Know</h2>
+
+<h3>Web Workers — Offload CPU-Intensive Work</h3>
+<pre><code><cm>// Main thread is the UI thread — heavy computation freezes the UI</cm>
+<cm>// Web Workers run in a background thread, communicate via postMessage</cm>
+
+<cm>// worker.ts</cm>
+<fn>self.addEventListener</fn>(<str>"message"</str>, (e) =&gt; {
+  <kw>const</kw> result = <fn>heavyComputation</fn>(e.data);
+  self.<fn>postMessage</fn>(result);
+});
+
+<cm>// main.tsx — non-blocking</cm>
+<kw>const</kw> worker = <kw>new</kw> <fn>Worker</fn>(<kw>new</kw> <fn>URL</fn>(<str>"./worker.ts"</str>, <kw>import</kw>.meta.url));
+worker.<fn>postMessage</fn>(largeDataset);
+worker.<fn>onmessage</fn> = (e) =&gt; <fn>setResults</fn>(e.data);
+
+<cm>// OpsOwl use case: parsing large CSV imports before uploading</cm>
+<cm>// Parse 50,000 transaction rows without freezing the import UI</cm></code></pre>
+
+<h3>Intersection Observer — Infinite Scroll &amp; Lazy Images</h3>
+<pre><code><cm>// Fires callback when element enters/leaves viewport</cm>
+<cm>// More performant than scroll event + getBoundingClientRect</cm>
+
+<kw>const</kw> observer = <kw>new</kw> <fn>IntersectionObserver</fn>(
+  ([entry]) =&gt; { <kw>if</kw> (entry.isIntersecting) <fn>fetchNextPage</fn>(); },
+  { rootMargin: <str>"200px"</str> }  <cm>// trigger 200px before reaching end</cm>
+);
+observer.<fn>observe</fn>(sentinelRef.current);
+<kw>return</kw> () =&gt; observer.<fn>disconnect</fn>();
+<cm>// Used in OpsOwl cases list for infinite scroll pagination</cm></code></pre>
+
+<h3>Other Observers</h3>
+<pre><code><cm>// MutationObserver — watch DOM tree changes</cm>
+<kw>const</kw> mo = <kw>new</kw> <fn>MutationObserver</fn>((mutations) =&gt; {
+  <cm>// React to DOM changes (e.g. detect 3rd party injections, dynamic titles)</cm>
+});
+mo.<fn>observe</fn>(document.body, { childList: <kw>true</kw>, subtree: <kw>true</kw> });
+
+<cm>// ResizeObserver — watch element size changes (not window, the element)</cm>
+<kw>const</kw> ro = <kw>new</kw> <fn>ResizeObserver</fn>(([entry]) =&gt; {
+  setWidth(entry.contentRect.width);
+});
+ro.<fn>observe</fn>(containerRef.current);</code></pre>
+
+<h3>URL API — Search Params (used heavily in OpsOwl)</h3>
+<pre><code><cm>// URLSearchParams — cleaner than string manipulation</cm>
+<kw>const</kw> params = <kw>new</kw> <fn>URLSearchParams</fn>({ limit: <str>"25"</str>, status: <str>"open"</str> });
+params.<fn>append</fn>(<str>"tag"</str>, <str>"fraud"</str>);
+params.<fn>toString</fn>(); <cm>// "limit=25&status=open&tag=fraud"</cm>
+
+<cm>// Next.js hook equivalent</cm>
+<kw>const</kw> searchParams = <fn>useSearchParams</fn>();
+<kw>const</kw> status = searchParams.<fn>get</fn>(<str>"status"</str>) ?? <str>"open"</str>;</code></pre>
+
+<!-- ═══════════════════════════ ADVANCED TYPESCRIPT ═══════════════════════════ -->
+<h2 id="advanced-ts" class="section">30. Advanced TypeScript</h2>
+
+<h3>Mapped Types</h3>
+<pre><code><cm>// Transform all fields of a type</cm>
+<kw>type</kw> <ty>Optional</ty>&lt;T&gt; = { [K <kw>in</kw> <kw>keyof</kw> T]?: T[K] };    <cm>// same as Partial&lt;T&gt;</cm>
+<kw>type</kw> <ty>Readonly</ty>&lt;T&gt; = { <kw>readonly</kw> [K <kw>in</kw> <kw>keyof</kw> T]: T[K] };
+<kw>type</kw> <ty>Nullable</ty>&lt;T&gt; = { [K <kw>in</kw> <kw>keyof</kw> T]: T[K] | <kw>null</kw> };
+
+<cm>// API response wrapper</cm>
+<kw>type</kw> <ty>ApiResponse</ty>&lt;T&gt; = {
+  data: T;
+  meta: { total_count: <ty>number</ty>; has_more: <ty>boolean</ty>; next_cursor: <ty>string</ty> | <kw>null</kw> };
+};</code></pre>
+
+<h3>Conditional Types</h3>
+<pre><code><kw>type</kw> <ty>IsString</ty>&lt;T&gt; = T <kw>extends</kw> <ty>string</ty> ? <kw>true</kw> : <kw>false</kw>;
+<kw>type</kw> <ty>A</ty> = <ty>IsString</ty>&lt;<ty>string</ty>&gt;;   <cm>// true</cm>
+<kw>type</kw> <ty>B</ty> = <ty>IsString</ty>&lt;<ty>number</ty>&gt;;   <cm>// false</cm>
+
+<cm>// Unwrap promise type</cm>
+<kw>type</kw> <ty>Awaited</ty>&lt;T&gt; = T <kw>extends</kw> <ty>Promise</ty>&lt;<kw>infer</kw> U&gt; ? U : T;
+<kw>type</kw> <ty>C</ty> = <ty>Awaited</ty>&lt;<ty>Promise</ty>&lt;<ty>string</ty>&gt;&gt;;  <cm>// string</cm></code></pre>
+
+<h3>Template Literal Types</h3>
+<pre><code><kw>type</kw> <ty>EventName</ty> = <op>`</op><str>case.</str><op>${</op><str>"created"</str> | <str>"updated"</str> | <str>"closed"</str><op>}</op><op>`</op>;
+<cm>// "case.created" | "case.updated" | "case.closed"</cm>
+
+<kw>type</kw> <ty>CSSProperty</ty> = <op>`</op><str>margin-</str><op>${</op><str>"top"</str> | <str>"right"</str> | <str>"bottom"</str> | <str>"left"</str><op>}</op><op>`</op>;
+<cm>// "margin-top" | "margin-right" | "margin-bottom" | "margin-left"</cm></code></pre>
+
+<!-- ═══════════════════════════ ADVANCED SYSTEM DESIGN ═══════════════════════════ -->
+<h2 id="system-design-advanced" class="section">31. Frontend System Design — Full Walkthroughs</h2>
+
+<h3>Design OpsOwl's Case Management Frontend</h3>
+<div class="callout callout-cyan">
+  <div class="callout-label">Use this as your go-to system design answer</div>
+  Walk the interviewer through how you actually built it — real numbers, real tradeoffs.
+</div>
+
+<table>
+  <tr><th>Requirement</th><th>Decision</th><th>Why</th></tr>
+  <tr><td>Auth-gated app, SEO irrelevant</td><td>CSR with Next.js</td><td>No need for SSR overhead; full interactivity needed</td></tr>
+  <tr><td>Complex navigation</td><td>Next.js App Router + route groups</td><td>Nested layouts without prop drilling</td></tr>
+  <tr><td>Server state (cases, tasks, docs)</td><td>TanStack Query</td><td>Cache, background refresh, optimistic updates built-in</td></tr>
+  <tr><td>Auth state (user, role)</td><td>Zustand + sessionStorage</td><td>Survives page refresh; survives new tab (sessionStorage)</td></tr>
+  <tr><td>Real-time timeline</td><td>SSE via custom hook</td><td>Server-push only; works through proxies; auto-reconnect</td></tr>
+  <tr><td>Role-gated UI</td><td>RBACGate + hasRole()</td><td>Component-level + programmatic gate; backend enforces too</td></tr>
+  <tr><td>Large case lists</td><td>Cursor-based infinite scroll</td><td>Stable under concurrent inserts; O(log n) DB queries</td></tr>
+  <tr><td>Session security</td><td>httpOnly cookies + 15-min idle timeout</td><td>Compliance requirement; XSS-safe token storage</td></tr>
+  <tr><td>Forms</td><td>React Hook Form + Zod</td><td>Zero re-renders per keystroke; runtime + static type safety</td></tr>
+</table>
+
+<h3>Design a Real-time Collaborative Document Editor</h3>
+<p><em>(Common at Notion/Google-level companies)</em></p>
+<ol>
+  <li><strong>Transport</strong>: WebSocket (bidirectional — clients push edits, server broadcasts)</li>
+  <li><strong>Conflict resolution</strong>: Operational Transformation (OT) or CRDTs (Conflict-free Replicated Data Types — Yjs library)</li>
+  <li><strong>Editor core</strong>: ProseMirror or Slate.js — rich text with plugins</li>
+  <li><strong>Cursors</strong>: Each user's cursor position broadcast via WebSocket, rendered as overlaid spans</li>
+  <li><strong>Offline support</strong>: Yjs handles offline edits and merges on reconnect</li>
+  <li><strong>Performance</strong>: Virtualize document — only render visible paragraphs</li>
+</ol>
+
+<h3>Design a High-Performance Infinite Feed (Instagram/Twitter)</h3>
+<ol>
+  <li><strong>Virtualization</strong>: <code>@tanstack/react-virtual</code> — render only ~15 visible items regardless of feed length</li>
+  <li><strong>Pagination</strong>: Cursor-based — <code>?cursor=lastItemId</code></li>
+  <li><strong>Prefetching</strong>: Fetch next page when user is 80% down current page (Intersection Observer)</li>
+  <li><strong>Image loading</strong>: Skeleton → blur placeholder (base64) → full image (next/image)</li>
+  <li><strong>State</strong>: <code>useInfiniteQuery</code> — manages pages, deduplication, background refresh</li>
+  <li><strong>Real-time new posts</strong>: SSE stream → prepend to list → "12 new posts" banner (don't auto-scroll)</li>
+</ol>
+
+<!-- ═══════════════════════════ FRONTEND LEADERSHIP ═══════════════════════════ -->
+<h2 id="leadership" class="section">32. Frontend Lead — Technical Leadership Topics</h2>
+
+<h3>Code Review — What a Lead Checks</h3>
+<ul>
+  <li><strong>Correctness</strong>: Does it handle edge cases? Race conditions? Error states?</li>
+  <li><strong>Performance</strong>: Unnecessary re-renders? Missing memoization? N+1 API calls?</li>
+  <li><strong>Security</strong>: <code>dangerouslySetInnerHTML</code>? User input in query strings?</li>
+  <li><strong>Type safety</strong>: Explicit <code>any</code>? Unchecked <code>as</code> casts?</li>
+  <li><strong>Consistency</strong>: Follows project conventions (hook patterns, error handling, naming)?</li>
+  <li><strong>Test coverage</strong>: Critical paths tested? E2E for new flows?</li>
+  <li><strong>Bundle impact</strong>: New large dependency added? Could it be tree-shaken?</li>
+</ul>
+
+<h3>Architecture Decision Records (ADRs)</h3>
+<pre><code><cm># docs/adr/001-state-management.md</cm>
+<cm># Context: need to manage auth state and server state</cm>
+<cm># Decision: Zustand for client state + TanStack Query for server state</cm>
+<cm># Rationale: Zustand is minimal; TanStack Query handles caching,</cm>
+<cm>#   background refresh, and error states out of the box</cm>
+<cm># Alternatives considered: Redux Toolkit (too much boilerplate),</cm>
+<cm>#   Context API (re-render performance)</cm>
+<cm># Status: Accepted</cm></code></pre>
+
+<h3>Technical Debt Framework</h3>
+<p>Not all tech debt is equal. Classify it:</p>
+<ul>
+  <li><strong>Reckless/intentional</strong>: "We know it's wrong, ship now" — pay down in next sprint</li>
+  <li><strong>Prudent/intentional</strong>: "We'll refactor once we learn more" — plan a cleanup milestone</li>
+  <li><strong>Inadvertent</strong>: "We didn't know better then" — discovered during code review, fix when touching that area</li>
+</ul>
+<p>Create tech debt tickets, attach to epics, include in sprint capacity planning (20% rule). Never let debt compound silently.</p>
+
+<h3>Performance Budget</h3>
+<pre><code><cm># Define budgets in CI to prevent performance regressions</cm>
+<cm># .lighthouserc.json or Next.js bundle size check</cm>
+
+<cm># next.config.js</cm>
+experimental: {
+  bundlePagesExternals: <kw>true</kw>,
+}
+
+<cm># GitHub Action — fail PR if main bundle grows by more than 10KB gzipped</cm>
+- <kw>uses</kw>: preactjs/compressed-size-action@v2
+  <kw>with</kw>:
+    repo-token: <str>"${{ secrets.GITHUB_TOKEN }}"</str>
+    build-script: <str>"build"</str>
+    pattern: <str>".next/static/chunks/*.js"</str></code></pre>
+
+<h3>Onboarding a New Engineer</h3>
+<p>As a Frontend Lead, your onboarding doc should cover:</p>
+<ol>
+  <li><strong>Architecture overview</strong> — folder structure, why each layer exists (ADRs)</li>
+  <li><strong>Local setup</strong> — step-by-step, <code>make dev</code> should work in one command</li>
+  <li><strong>First ticket</strong> — a small, well-scoped task that touches the main data flow end-to-end</li>
+  <li><strong>Code review norms</strong> — response time SLA, what's blocking vs non-blocking</li>
+  <li><strong>Testing contract</strong> — what must have tests (E2E for new user flows, unit for hooks/utils)</li>
+</ol>
+
+<!-- ═══════════════════════════ BEHAVIORAL ═══════════════════════════ -->
+<h2 id="behavioral" class="section">33. Behavioral Interview — STAR Answers from OpsOwl</h2>
+<p>Use OpsOwl as your project for every behavioral answer. Real product, real decisions, real tradeoffs.</p>
+
+<div class="qa">
+  <div class="qa-q">Tell me about a time you made a significant architectural decision.</div>
+  <div class="qa-a">
+    <strong>Situation:</strong> Building OpsOwl, a compliance investigation workspace. Needed to manage auth state (user, role) + server state (cases, tasks, documents) + real-time timeline events.<br><br>
+    <strong>Task:</strong> Choose a state management approach that scales to 12+ features without becoming a maintenance burden.<br><br>
+    <strong>Action:</strong> Introduced a two-layer model: Zustand for client/auth state (synchronous, persisted to sessionStorage), TanStack Query for all server state (async, cached, background-refreshed). Wrote an ADR documenting the tradeoffs. Defined a rule: if it comes from the API, it lives in TanStack Query. If it's UI state or auth, it lives in Zustand.<br><br>
+    <strong>Result:</strong> Zero prop-drilling, no redundant API calls across 12 features, optimistic updates in &lt;10 lines on any mutation. New engineers understand the model in under an hour.
+  </div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">Tell me about a time you improved performance significantly.</div>
+  <div class="qa-a">
+    <strong>Situation:</strong> Cases list was re-rendering on every keystroke in the search input, causing noticeable lag at 200+ rows.<br><br>
+    <strong>Task:</strong> Fix search performance without breaking existing filters.<br><br>
+    <strong>Action:</strong> Three changes: (1) Moved client-side filter logic into a <code>useMemo</code> with stable deps. (2) Added 300ms debounce on server-side search query. (3) Switched server-side search to use a dedicated search endpoint (<code>/api/v1/search?q=</code>) instead of the cases list endpoint — so partial matches across all cases are returned, not just loaded pages.<br><br>
+    <strong>Result:</strong> Search feels instant, no mid-type lag, and now searches across all cases (not just the loaded page). Verified in Playwright E2E tests.
+  </div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">Tell me about a complex real-time feature you built.</div>
+  <div class="qa-a">
+    <strong>Situation:</strong> Case timelines needed to update live as multiple investigators worked on the same case simultaneously.<br><br>
+    <strong>Task:</strong> Implement real-time updates without WebSockets (client requirement: must work behind corporate HTTP proxies).<br><br>
+    <strong>Action:</strong> Built <code>useTimelineSSE</code> — a custom hook using Server-Sent Events. Key decisions: (1) SSE ticket endpoint (90s-lived token) so the full access token never appears in URLs. (2) <code>?last_event_id=</code> on reconnect to replay missed events. (3) Manual reconnect with exponential backoff (1s→2s→4s→30s cap) instead of browser auto-reconnect which would use a stale token. (4) <code>onEvent</code> stored in a ref to avoid stale closure — handler always calls the latest callback without being in the dependency array.<br><br>
+    <strong>Result:</strong> Timeline updates appear in &lt;200ms. Reconnects invisibly in under 2 seconds. Tested with 318 Playwright E2E tests including reconnect scenarios.
+  </div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How do you handle disagreements with backend engineers on API design?</div>
+  <div class="qa-a">
+    <strong>Situation:</strong> Backend returned a flat list of case events; the frontend needed them grouped by date for the timeline view.<br><br>
+    <strong>Approach:</strong> I first evaluate: is this transformation trivial on the frontend, or does it require data the backend already has? Grouping by date is a 5-line JavaScript reduce — no reason to put it in the API contract. However, if the grouping requires joining two tables or computing aggregates, the backend is the right place. I document the API contract in OpenAPI spec, propose both approaches with complexity estimates, and defer to whichever is cheaper to maintain. I never fight over "ownership" — I fight for the one that makes the product faster to ship and easier to maintain.
+  </div>
+</div>
+
+<div class="qa">
+  <div class="qa-q">How do you manage technical debt in a fast-moving product?</div>
+  <div class="qa-a">
+    In OpsOwl, we shipped 12 features in under 3 months. To keep debt from compounding: (1) <strong>Boy Scout Rule</strong> — leave the code cleaner than you found it; if you touch a file, fix obvious issues. (2) <strong>Debt tickets</strong> — when we take a shortcut intentionally, we create a ticket immediately with the tradeoff explained. (3) <strong>20% capacity</strong> — every sprint allocates 20% to cleanup and refactor. (4) <strong>Automated guardrails</strong> — ESLint, TypeScript strict mode, and bundle size checks in CI catch a class of debt automatically. (5) <strong>Never refactor and add features in the same PR</strong> — makes review impossible and blame harder.
+  </div>
+</div>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<div style="margin-top:80px; padding-top:32px; border-top:1px solid var(--border); color:var(--faint); font-size:12px;">
+  <strong style="color:var(--muted);">OpsOwl AI — Frontend Lead Interview Guide</strong> — 34 sections<br>
+  React 18 · Next.js 14 App Router · TanStack Query v5 · Zustand · TypeScript · Tailwind CSS v4 · Zod · React Hook Form · Playwright · Vitest<br>
+  JS Internals · Browser Pipeline · Concurrent Features · Design Patterns · CSS Architecture · Build Tools · SSE · Webhooks · RBAC · Auth · System Design · Leadership · Behavioral
+</div>
+
+</main>
+</div>
+
+<script>
+  // Highlight active nav link on scroll
+  const links = document.querySelectorAll('.sidebar nav a');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const id = entry.target.id;
+        const link = document.querySelector(`.sidebar nav a[href="#${id}"]`);
+        if (link) link.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-40% 0px -50% 0px' });
+
+  document.querySelectorAll('h2[id]').forEach(h => observer.observe(h));
+</script>
+</body>
+</html>

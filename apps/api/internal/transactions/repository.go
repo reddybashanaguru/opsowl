@@ -374,15 +374,25 @@ type flowEdgeRaw struct {
 
 func (r *Repository) FlowEdgesForCase(ctx context.Context, caseID uuid.UUID) ([]flowEdgeRaw, error) {
 	rows, err := r.db.QueryContext(ctx, `
+		WITH case_subject_names AS (
+		  SELECT LOWER(s.canonical_name) AS name
+		  FROM case_subjects cs
+		  JOIN subjects s ON s.id = cs.subject_id
+		  WHERE cs.case_id = $1
+		)
 		SELECT
 		  COALESCE(t.from_account_id::TEXT, t.from_account_raw, 'unknown')          AS from_key,
 		  COALESCE(fa.holder_name, t.from_name_raw, t.from_account_raw, 'Unknown')  AS from_label,
 		  COALESCE(fa.account_type, 'unknown')                                        AS from_type,
-		  (fa.subject_id IS NOT NULL)                                                 AS from_is_subj,
+		  (fa.subject_id IS NOT NULL
+		    OR LOWER(COALESCE(t.from_name_raw, '')) IN (SELECT name FROM case_subject_names)
+		  )                                                                            AS from_is_subj,
 		  COALESCE(t.to_account_id::TEXT, t.to_account_raw, 'unknown')              AS to_key,
 		  COALESCE(ta.holder_name, t.to_name_raw, t.to_account_raw, 'Unknown')      AS to_label,
 		  COALESCE(ta.account_type, 'unknown')                                        AS to_type,
-		  (ta.subject_id IS NOT NULL)                                                 AS to_is_subj,
+		  (ta.subject_id IS NOT NULL
+		    OR LOWER(COALESCE(t.to_name_raw, '')) IN (SELECT name FROM case_subject_names)
+		  )                                                                            AS to_is_subj,
 		  SUM(t.amount)                                                               AS total_amt,
 		  COUNT(*)                                                                     AS txn_count,
 		  MODE() WITHIN GROUP (ORDER BY t.channel)                                   AS channel,
